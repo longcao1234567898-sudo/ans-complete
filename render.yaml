@@ -1,0 +1,25 @@
+# Cấu hình deploy backend lên Render (Blueprint)
+services:
+  - type: web
+    name: hop-thu-an-ninh-so-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: hop_thu_an_ninh_so
+      - key: DB_SSL
+        value: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false

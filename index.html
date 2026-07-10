@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1B5E20" />
+    <!-- SEO -->
+    <meta
+      name="description"
+      content="Hộp Thư An Ninh Số — Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của Công an xã/phường."
+    />
+    <meta name="keywords" content="hộp thư an ninh số, công an xã, phản ánh, tố giác, tra cứu, AI" />
+    <meta property="og:title" content="Hộp Thư An Ninh Số" />
+    <meta property="og:description" content="Tiếp nhận ý kiến công dân thông minh với AI" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="vi_VN" />
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    <!-- Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Áp dụng dark mode sớm để tránh nháy màn hình khi tải trang -->
+    <script>
+      try {
+        if (JSON.parse(localStorage.getItem('htans_theme')) === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
+    <!-- Structured data cho SEO -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "GovernmentOrganization",
+        "name": "Hộp Thư An Ninh Số",
+        "description": "Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI",
+        "areaServed": "VN"
+      }
+    </script>
+    <title>Hộp Thư An Ninh Số | Tiếp nhận ý kiến công dân thông minh với AI</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

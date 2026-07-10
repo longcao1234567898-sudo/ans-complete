@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Nền tảng ---------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply antialiased;
+  }
+  /* Tôn trọng người dùng tắt animation (accessibility) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ---------- Component dùng chung ---------- */
+@layer components {
+  /* Hiệu ứng glassmorphism nhẹ */
+  /* Glass: nền trắng đục 92% KHÔNG dùng backdrop-blur — backdrop-blur bắt GPU
+     làm mờ lại toàn bộ nền sau mỗi khung hình khi cuộn, là thủ phạm chính gây giật */
+  .glass {
+    @apply bg-white/[.92] border border-white/60 dark:bg-slate-900/[.92] dark:border-slate-700/50;
+  }
+  /* Khung nội dung trang */
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-slate-200 dark:bg-slate-700/60;
+  }
+  /* Pattern hình học subtle cho hero */
+  .hero-pattern {
+    background-image: radial-gradient(rgba(27, 94, 32, 0.1) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .dark .hero-pattern {
+    background-image: radial-gradient(rgba(52, 211, 153, 0.12) 1px, transparent 1px);
+  }
+}
+
+/* ---------- Thanh cuộn ---------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300 dark:bg-slate-600;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Nội dung markdown trong chat ---------- */
+.chat-markdown p {
+  @apply mb-2 last:mb-0;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  @apply mb-2 ml-4 list-disc space-y-1;
+}
+.chat-markdown ol {
+  @apply list-decimal;
+}
+.chat-markdown code {
+  @apply rounded bg-slate-200/80 px-1 py-0.5 text-[0.85em] dark:bg-slate-700;
+}
+.chat-markdown strong {
+  @apply font-semibold;
+}
+
+/* ---------- Hiệu ứng sống động ---------- */
+@layer components {
+  /* Chữ gradient chuyển động (dùng cho tiêu đề hero) */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent;
+    background-size: 200% auto;
+  }
+}
+
+/* ---------- Chuyển trang bằng CSS thuần ---------- */
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-page {
+  animation: page-fade-in 0.18s ease-out both;
+}
