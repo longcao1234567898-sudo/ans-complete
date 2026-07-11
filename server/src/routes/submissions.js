@@ -5,12 +5,24 @@ import { generateTrackingCode, sha256 } from '../lib/helpers.js';
 import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
+import { encrypt, hashPhone } from '../lib/crypto.js';
+import { verifyTurnstile } from '../lib/turnstile.js';
 
 const router = Router();
 
 const COOLDOWN_MS = 2 * 60_000;
 const MAX_PER_HOUR = 5;
 const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
+
+/** GET /api/submissions/wards — danh sách địa bàn cho ô chọn ở form */
+router.get('/wards', async (_req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, name FROM wards ORDER BY display_order, name');
+    res.json(rows);
+  } catch {
+    res.json([]); // chưa chạy nâng cấp v2 -> trả rỗng, form vẫn dùng được
+  }
+});
 
 router.post('/', async (req, res) => {
   try {
@@ -22,6 +34,13 @@ router.post('/', async (req, res) => {
     const category = body.category;
     const normalizedContent = sanitizeText(body.normalizedContent || content, 2500);
     const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
+    const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
+
+    const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
+
+    // 0) CAPTCHA chống bot (bỏ qua nếu chưa cấu hình khoá)
+    const captcha = await verifyTurnstile(body.captchaToken, ip);
+    if (!captcha.ok) return res.status(400).json({ error: captcha.error });
 
     // 1) Ràng buộc cơ bản
     if (!content) return res.status(400).json({ error: 'Nội dung ý kiến không được để trống.' });
@@ -39,15 +58,15 @@ router.post('/', async (req, res) => {
     const phoneErr = getPhoneError(phone);
     if (phoneErr) return res.status(400).json({ error: `Số điện thoại: ${phoneErr.toLowerCase()}.` });
 
-    // 4) Chống spam theo IP/SĐT (server-side)
-    const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
+    // 4) Chống spam — dò theo IP và BĂM SĐT (số thật đã mã hoá nên không so trực tiếp được)
     const contentHash = sha256(normalizedContent);
+    const phoneHash = hashPhone(phone);
     const [spam] = await pool.query(
       `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at,
               EXISTS(SELECT 1 FROM submissions WHERE content_hash=? AND created_at > NOW()-INTERVAL 1 HOUR) AS dup
        FROM submissions
-       WHERE (ip_address=? OR sender_phone=?) AND created_at > NOW()-INTERVAL 1 HOUR`,
-      [contentHash, ip, phone]
+       WHERE (ip_address=? OR sender_phone_hash=?) AND created_at > NOW()-INTERVAL 1 HOUR`,
+      [contentHash, ip, phoneHash]
     );
     const info = spam[0];
     if (info.dup) return res.status(429).json({ error: 'Nội dung này bà con vừa gửi rồi. Vui lòng dùng mã tra cứu đã cấp để theo dõi.' });
@@ -67,21 +86,31 @@ router.post('/', async (req, res) => {
       trackingCode = generateTrackingCode();
     }
 
-    // 6) Lưu ý kiến (trigger tự ghi lịch sử "Đã tiếp nhận")
+    // 6) Tính HẠN XỬ LÝ (SLA) theo quy định của từng nhóm
     const catId = CAT_CODE_TO_ID[category];
+    let slaDays = 15;
+    try {
+      const [[cat]] = await pool.query('SELECT sla_days FROM categories WHERE id=?', [catId]);
+      if (cat?.sla_days) slaDays = cat.sla_days;
+    } catch { /* chưa nâng cấp v2 -> dùng mặc định */ }
+    const deadlineAt = new Date(Date.now() + slaDays * 24 * 60 * 60 * 1000);
+
+    // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
-        content_hash, sender_name, sender_phone, sender_email, status, ip_address, user_agent)
-       VALUES (?,?,?,?,?,?,?,?,?, 'received', ?, ?)`,
+        content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
+        status, ip_address, user_agent, deadline_at, ward_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?, 'received', ?,?,?,?)`,
       [trackingCode, content, normalizedContent, catId, catId, contentHash,
-       fullName, phone, email || null, ip, (req.headers['user-agent'] || '').slice(0, 255)]
+       encrypt(fullName), encrypt(phone), phoneHash, email ? encrypt(email) : null,
+       ip, (req.headers['user-agent'] || '').slice(0, 255), deadlineAt, wardId]
     );
 
-    // 7) Lưu ảnh (đã tái mã hoá phía client) — bỏ qua nếu lỗi để không chặn ý kiến
+    // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
     if (images.length > 0) {
       try {
-        const values = images.map((url) => [result.insertId, String(url).slice(0, 500), 'image/jpeg', true, 'safe']);
+        const values = images.map((url) => [result.insertId, String(url), 'image/jpeg', true, 'safe']);
         await pool.query(
           'INSERT INTO submission_images (submission_id, image_url, mime_type, is_verified, moderation_status) VALUES ?',
           [values]

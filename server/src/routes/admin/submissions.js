@@ -3,13 +3,25 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
+import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
 
 const router = Router();
-router.use(requireAuth); // mọi route dưới đây đều cần đăng nhập
+router.use(requireAuth);
 
-/** GET /api/admin/submissions?status=&category=&page=&limit=&q= — danh sách + lọc + phân trang */
+/** Tính tình trạng hạn xử lý (SLA) */
+function slaOf(row) {
+  if (!row.deadline_at) return { sla: 'none', daysLeft: null };
+  if (row.status === 'resolved' || row.status === 'rejected') return { sla: 'done', daysLeft: null };
+  const ms = new Date(row.deadline_at).getTime() - Date.now();
+  const daysLeft = Math.ceil(ms / 86400000);
+  if (ms < 0) return { sla: 'overdue', daysLeft };      // QUÁ HẠN
+  if (daysLeft <= 3) return { sla: 'near', daysLeft };  // SẮP HẾT HẠN
+  return { sla: 'ok', daysLeft };
+}
+
+/** GET /api/admin/submissions — danh sách + lọc + phân trang */
 router.get('/', async (req, res) => {
-  const { status, category, q } = req.query;
+  const { status, category, q, sla, assigned } = req.query;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20));
   const offset = (page - 1) * limit;
@@ -19,6 +31,10 @@ router.get('/', async (req, res) => {
   if (status) { where.push('s.status = ?'); params.push(status); }
   if (category) { where.push('c.code = ?'); params.push(category); }
   if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
+  if (sla === 'overdue') where.push("s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW()");
+  if (sla === 'near') where.push("s.status IN ('received','processing') AND s.deadline_at >= NOW() AND s.deadline_at < NOW() + INTERVAL 3 DAY");
+  if (assigned === 'me') { where.push('s.assigned_to = ?'); params.push(req.staff.id); }
+  if (assigned === 'none') where.push('s.assigned_to IS NULL');
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   try {
@@ -26,12 +42,14 @@ router.get('/', async (req, res) => {
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at,
-              st.full_name AS assigned_name
+              s.deadline_at, s.assigned_to,
+              st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
        LEFT JOIN categories c ON s.category_id = c.id
        LEFT JOIN staff st ON s.assigned_to = st.id
+       LEFT JOIN wards w ON s.ward_id = w.id
        ${whereSql}
-       ORDER BY s.created_at DESC
+       ORDER BY (s.status IN ('received','processing') AND s.deadline_at < NOW()) DESC, s.created_at DESC
        LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -39,23 +57,31 @@ router.get('/', async (req, res) => {
       `SELECT COUNT(*) AS total FROM submissions s LEFT JOIN categories c ON s.category_id = c.id ${whereSql}`,
       params
     );
-    res.json({ data: rows, page, limit, total, totalPages: Math.ceil(total / limit) });
+    // Giải mã tên rồi CHE BỚT — danh sách không bao giờ hiện danh tính đầy đủ
+    const data = rows.map((r) => ({
+      ...r,
+      sender_name: maskName(decrypt(r.sender_name)),
+      ...slaOf(r),
+    }));
+    res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error('Lỗi danh sách ý kiến:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });
   }
 });
 
-/** GET /api/admin/submissions/:id — chi tiết đầy đủ (kèm SĐT, ảnh, timeline) */
+/** GET /api/admin/submissions/:id — chi tiết (danh tính CHE SẴN, muốn xem đủ phải bấm nút) */
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT s.*, c.code AS category_code, c.name AS category_name,
-              st.full_name AS assigned_name, rb.full_name AS resolved_by_name
+      `SELECT s.*, c.code AS category_code, c.name AS category_name, c.sla_days,
+              st.full_name AS assigned_name, rb.full_name AS resolved_by_name,
+              w.name AS ward_name
        FROM submissions s
        LEFT JOIN categories c ON s.category_id = c.id
        LEFT JOIN staff st ON s.assigned_to = st.id
        LEFT JOIN staff rb ON s.resolved_by = rb.id
+       LEFT JOIN wards w ON s.ward_id = w.id
        WHERE s.id = ?`,
       [req.params.id]
     );
@@ -71,14 +97,58 @@ router.get('/:id', async (req, res) => {
        WHERE h.submission_id = ? ORDER BY h.changed_at ASC`,
       [req.params.id]
     );
-    res.json({ ...rows[0], images, history });
+
+    const row = rows[0];
+    const out = {
+      ...row,
+      sender_name: maskName(decrypt(row.sender_name)),
+      sender_phone: maskPhone(decrypt(row.sender_phone)),
+      sender_email: row.sender_email ? decrypt(row.sender_email) : null,
+      is_masked: true,
+      ...slaOf(row),
+      images,
+      history,
+    };
+    res.json(out);
   } catch (err) {
     console.error('Lỗi chi tiết ý kiến:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });
   }
 });
 
-/** PATCH /api/admin/submissions/:id/status — cập nhật trạng thái (dùng procedure có sẵn) */
+/**
+ * POST /api/admin/submissions/:id/reveal — XEM DANH TÍNH ĐẦY ĐỦ
+ * Mọi lần xem đều bị GHI NHẬT KÝ (ai xem, lúc nào) — chống lạm dụng.
+ */
+router.post('/:id/reveal', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT sender_name, sender_phone, sender_email FROM submissions WHERE id = ?',
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+
+    // GHI NHẬT KÝ trước khi trả dữ liệu
+    await pool.query(
+      'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
+      [req.staff.id, 'reveal_identity', 'submission', req.params.id,
+       JSON.stringify({ at: new Date().toISOString() }),
+       (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
+    );
+
+    res.json({
+      sender_name: decrypt(rows[0].sender_name),
+      sender_phone: decrypt(rows[0].sender_phone),
+      sender_email: rows[0].sender_email ? decrypt(rows[0].sender_email) : null,
+      warning: 'Lượt xem danh tính này đã được ghi vào nhật ký hệ thống.',
+    });
+  } catch (err) {
+    console.error('Lỗi xem danh tính:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ.' });
+  }
+});
+
+/** PATCH /api/admin/submissions/:id/status — cập nhật trạng thái */
 router.patch('/:id/status', async (req, res) => {
   const { status, note, rejectionReason } = req.body || {};
   const valid = ['received', 'processing', 'resolved', 'rejected'];
@@ -97,7 +167,7 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-/** PATCH /api/admin/submissions/:id/assign — phân công cán bộ (manager/admin) */
+/** PATCH /api/admin/submissions/:id/assign — phân công cán bộ (admin/manager) */
 router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
   const { staffId } = req.body || {};
   try {
@@ -106,7 +176,7 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
       'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details) VALUES (?,?,?,?,?)',
       [req.staff.id, 'assign', 'submission', req.params.id, JSON.stringify({ assignedTo: staffId })]
     );
-    res.json({ ok: true });
+    res.json({ ok: true, message: staffId ? 'Đã phân công cán bộ.' : 'Đã bỏ phân công.' });
   } catch (err) {
     console.error('Lỗi phân công:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });

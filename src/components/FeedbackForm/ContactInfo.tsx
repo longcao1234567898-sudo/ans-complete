@@ -3,11 +3,14 @@
  * Lỗi chỉ hiển thị khi người dùng đã nhập sai hoặc bấm Tiếp tục mà còn thiếu.
  */
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck } from 'lucide-react';
 import type { ContactInfo as ContactInfoType } from '../../types/feedback';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import { getPhoneError, isValidEmail, isValidPhone } from '../../utils/helpers';
+import Turnstile, { captchaEnabled } from '../common/Turnstile';
+import { fetchWards } from '../../services/feedbackService';
 
 interface ContactInfoProps {
   value: ContactInfoType;
@@ -17,6 +20,9 @@ interface ContactInfoProps {
 }
 
 export default function ContactInfo({ value, onChange, onNext, onBack }: ContactInfoProps) {
+  // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
+  const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
+
   // Chỉ hiện lỗi "còn thiếu" sau khi người dùng đã bấm Tiếp tục
   const [attempted, setAttempted] = useState(false);
 
@@ -33,8 +39,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
         : '';
   const emailError = value.email.trim() && !emailValid ? 'Email không đúng định dạng' : '';
 
+  const captchaOk = !captchaEnabled || Boolean(value.captchaToken);
+
   const handleNext = () => {
-    if (nameValid && phoneValid && emailValid) {
+    if (nameValid && phoneValid && emailValid && captchaOk) {
       onNext();
     } else {
       setAttempted(true);
@@ -73,11 +81,42 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           error={emailError}
           onChange={(e) => onChange({ ...value, email: e.target.value })}
         />
+
+        {/* V2: Địa bàn xảy ra vụ việc */}
+        {wards && wards.length > 0 && (
+          <div className="w-full">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
+              Địa bàn xảy ra vụ việc <span className="font-normal text-slate-400">(không bắt buộc)</span>
+            </label>
+            <select
+              value={value.wardId ?? ''}
+              onChange={(e) => onChange({ ...value, wardId: e.target.value ? Number(e.target.value) : null })}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            >
+              <option value="">— Chọn phường/xã —</option>
+              {wards.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Giúp cán bộ nắm được vụ việc xảy ra ở đâu để xử lý nhanh hơn.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* V2: CAPTCHA chống bot (tự ẩn nếu chưa cấu hình) */}
+      <Turnstile onToken={(t) => onChange({ ...value, captchaToken: t })} />
+      {attempted && !captchaOk && (
+        <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+          Vui lòng hoàn tất bước xác minh "Tôi không phải người máy".
+        </p>
+      )}
 
       <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
-        Thông tin liên hệ được bảo mật tuyệt đối và chỉ dùng để phản hồi kết quả xử lý ý kiến.
+        Họ tên và số điện thoại của bà con được MÃ HOÁ trong hệ thống. Cán bộ chỉ thấy dạng che bớt;
+        mọi lượt xem danh tính đầy đủ đều bị ghi vào nhật ký.
       </div>
 
       <div className="mt-6 flex justify-between">

@@ -1,12 +1,14 @@
 /** Khung quản trị: chặn nếu chưa đăng nhập, có thanh trên cùng + nội dung */
 import { ReactNode } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 const NAV = [
   { to: '/quan-tri', label: 'Tổng quan', Icon: LayoutDashboard, exact: true },
   { to: '/quan-tri/y-kien', label: 'Danh sách ý kiến', Icon: Inbox, exact: false },
+  { to: '/quan-tri/bao-cao', label: 'Báo cáo', Icon: BarChart3, exact: false },
+  { to: '/quan-tri/ban-do', label: 'Bản đồ điểm nóng', Icon: Map, exact: false },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

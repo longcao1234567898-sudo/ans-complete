@@ -140,6 +140,13 @@ export interface SubmissionRow {
   is_flagged: number;
   created_at: string;
   assigned_name: string | null;
+  deadline_at?: string | null;
+  sla?: 'overdue' | 'near' | 'ok' | 'done' | 'none';
+  daysLeft?: number | null;
+  ward_name?: string | null;
+  assigned_to?: number | null;
+  is_masked?: boolean;
+  sla_days?: number;
 }
 
 export interface SubmissionListResult {
@@ -181,3 +188,61 @@ export const updateSubmissionStatus = (
   method: 'PATCH',
   body: JSON.stringify(body),
 });
+
+/* ============================================================
+   NÂNG CẤP V2 — Phân công · SLA · Báo cáo · Bản đồ · Danh tính
+   ============================================================ */
+
+export interface StaffOption {
+  id: number;
+  full_name: string;
+  role: string;
+  category_name: string | null;
+  open_count: number;
+}
+
+/** Danh sách cán bộ (để phân công) */
+export const fetchStaffList = (): Promise<StaffOption[]> => adminFetch<StaffOption[]>('/api/admin/staff');
+
+/** Phân công ý kiến cho cán bộ (staffId = null để bỏ phân công) */
+export const assignSubmission = (id: number, staffId: number | null) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/assign`, {
+    method: 'PATCH',
+    body: JSON.stringify({ staffId }),
+  });
+
+/** Xem danh tính đầy đủ — LƯU Ý: mỗi lần xem đều bị ghi nhật ký */
+export const revealIdentity = (
+  id: number
+): Promise<{ sender_name: string; sender_phone: string; sender_email: string | null; warning: string }> =>
+  adminFetch<{ sender_name: string; sender_phone: string; sender_email: string | null; warning: string }>(`/api/admin/submissions/${id}/reveal`, { method: 'POST' });
+
+export interface ReportSummary {
+  from: string;
+  to: string;
+  overview: {
+    total: number; received: number; processing: number;
+    resolved: number; rejected: number; overdue: number;
+  };
+  byCategory: { category: string; total: number; resolved: number; overdue: number; avg_hours: number | null }[];
+  byDay: { day: string; total: number }[];
+  byWard: { ward: string; total: number }[];
+  byStaff: { staff: string; assigned: number; resolved: number }[];
+}
+
+/** Số liệu báo cáo (để xem biểu đồ + xuất Excel) */
+export const fetchReport = (from?: string, to?: string): Promise<ReportSummary> => {
+  const p = new URLSearchParams();
+  if (from) p.set('from', from);
+  if (to) p.set('to', to);
+  const qs = p.toString();
+  return adminFetch<ReportSummary>(`/api/admin/reports/summary${qs ? '?' + qs : ''}`);
+};
+
+export interface WardPoint {
+  id: number; name: string; lat: number; lng: number;
+  total: number; pending: number; overdue: number; to_giac: number;
+}
+
+/** Dữ liệu bản đồ điểm nóng */
+export const fetchMapData = (): Promise<WardPoint[]> => adminFetch<WardPoint[]>('/api/admin/reports/map');

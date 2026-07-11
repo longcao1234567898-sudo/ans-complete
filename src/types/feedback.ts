@@ -31,6 +31,10 @@ export interface ContactInfo {
   fullName: string;
   phone: string;
   email: string;
+  /** V2: địa bàn xảy ra vụ việc (phục vụ bản đồ điểm nóng) */
+  wardId?: number | null;
+  /** V2: mã xác minh chống bot (Cloudflare Turnstile) */
+  captchaToken?: string;
 }
 
 /** Bản nháp ý kiến trong quá trình đi qua 5 bước của form */

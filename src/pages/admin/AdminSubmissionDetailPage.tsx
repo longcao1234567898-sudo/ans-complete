@@ -2,9 +2,11 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle } from 'lucide-react';
+import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { fetchSubmissionDetail, updateSubmissionStatus } from '../../services/adminService';
+import SlaBadge from '../../components/admin/SlaBadge';
+import { fetchSubmissionDetail, updateSubmissionStatus,
+  fetchStaffList, assignSubmission, revealIdentity } from '../../services/adminService';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
 export default function AdminSubmissionDetailPage() {
@@ -21,6 +23,36 @@ export default function AdminSubmissionDetailPage() {
   const [note, setNote] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [feedback, setFeedback] = useState('');
+
+  // --- V2: danh tính đầy đủ (chỉ hiện khi bấm nút, có ghi nhật ký) ---
+  const [revealed, setRevealed] = useState<{ sender_name: string; sender_phone: string; sender_email: string | null } | null>(null);
+  const [revealing, setRevealing] = useState(false);
+
+  async function handleReveal() {
+    setRevealing(true);
+    try {
+      const r = await revealIdentity(submissionId);
+      setRevealed(r);
+      setFeedback(r.warning);
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : 'Không xem được danh tính.');
+    } finally {
+      setRevealing(false);
+    }
+  }
+
+  // --- V2: phân công cán bộ ---
+  const { data: staffList } = useQuery({ queryKey: ['admin-staff'], queryFn: fetchStaffList });
+
+  const assignMutation = useMutation({
+    mutationFn: (staffId: number | null) => assignSubmission(submissionId, staffId),
+    onSuccess: (r) => {
+      setFeedback(r.message || 'Đã phân công.');
+      qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
+      qc.invalidateQueries({ queryKey: ['admin-submissions'] });
+    },
+    onError: (e: Error) => setFeedback(e.message),
+  });
 
   const mutation = useMutation({
     mutationFn: (payload: { status: string; note?: string; rejectionReason?: string }) =>
@@ -60,6 +92,7 @@ export default function AdminSubmissionDetailPage() {
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
               <div className="mb-3 flex items-center justify-between">
                 <span className="font-mono text-lg font-extrabold text-primary-600 dark:text-primary-300">{data.tracking_code}</span>
+                <SlaBadge sla={data.sla} daysLeft={data.daysLeft} />
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_META[data.status]?.badge}`}>{STATUS_META[data.status]?.label}</span>
               </div>
               <p className="text-xs font-semibold text-slate-400">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
@@ -119,11 +152,57 @@ export default function AdminSubmissionDetailPage() {
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
               <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Thông tin người gửi</h3>
               <div className="space-y-2 text-sm">
-                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-400" /> {data.sender_name}</p>
-                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-400" /> {data.sender_phone}</p>
-                {data.sender_email && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-400" /> {data.sender_email}</p>}
+                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-400" /> {revealed?.sender_name ?? data.sender_name}</p>
+                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-400" /> {revealed?.sender_phone ?? data.sender_phone}</p>
+                {(revealed?.sender_email ?? data.sender_email) && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-400" /> {revealed?.sender_email ?? data.sender_email}</p>}
                 <p className="flex items-center gap-2 text-slate-400"><Clock className="h-4 w-4" /> {formatDateTime(data.created_at)}</p>
+                {data.ward_name && <p className="text-xs text-slate-400">Địa bàn: <span className="font-semibold text-slate-600 dark:text-slate-300">{data.ward_name}</span></p>}
               </div>
+
+              {!revealed ? (
+                <button
+                  onClick={handleReveal}
+                  disabled={revealing}
+                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 py-2 text-xs font-bold text-slate-600 transition hover:border-primary-500 hover:text-primary-600 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300"
+                >
+                  {revealing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                  Xem danh tính đầy đủ
+                </button>
+              ) : (
+                <p className="mt-3 rounded-xl bg-amber-50 p-2.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                  Lượt xem danh tính này đã được ghi vào nhật ký hệ thống.
+                </p>
+              )}
+              {!revealed && (
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                  Danh tính người tố giác được mã hoá và che bớt để bảo vệ an toàn cho công dân.
+                </p>
+              )}
+            </div>
+
+            {/* V2: PHÂN CÔNG CÁN BỘ */}
+            <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
+              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
+                <UserPlus className="h-4 w-4 text-primary-600" /> Phân công xử lý
+              </h3>
+              <select
+                value={data.assigned_to ?? ''}
+                onChange={(e) => assignMutation.mutate(e.target.value ? Number(e.target.value) : null)}
+                disabled={assignMutation.isPending}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800"
+              >
+                <option value="">— Chưa phân công —</option>
+                {staffList?.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.full_name} ({st.open_count} việc đang mở)
+                  </option>
+                ))}
+              </select>
+              {data.assigned_name && (
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Phụ trách: <span className="font-semibold text-primary-600 dark:text-primary-300">{data.assigned_name}</span>
+                </p>
+              )}
             </div>
 
             {/* Bảng điều khiển xử lý */}

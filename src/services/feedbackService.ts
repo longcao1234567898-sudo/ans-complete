@@ -134,6 +134,8 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         phone: draft.contact.phone.trim(),
         email: draft.contact.email.trim() || undefined,
         images: draft.images,
+        wardId: draft.contact.wardId ?? null,
+        captchaToken: draft.contact.captchaToken ?? '',
       }),
     });
   }
@@ -162,4 +164,16 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
   recordSubmitTime();
 
   return submission;
+}
+
+
+/** V2: Danh sách địa bàn (phường/xã) để chọn ở form */
+export interface WardOption { id: number; name: string }
+export async function fetchWards(): Promise<WardOption[]> {
+  if (!hasBackend) return [];
+  try {
+    return await apiFetch<WardOption[]>('/api/submissions/wards');
+  } catch {
+    return [];
+  }
 }

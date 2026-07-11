@@ -4,6 +4,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissions } from '../../services/adminService';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
@@ -100,6 +101,7 @@ export default function AdminSubmissionsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-bold text-primary-600 dark:text-primary-300">{s.tracking_code}</span>
                       {s.is_flagged ? <Flag className="h-3.5 w-3.5 text-rose-500" /> : null}
+                  <SlaBadge sla={s.sla} daysLeft={s.daysLeft} compact />
                     </div>
                     <p className="mt-0.5 truncate text-sm text-slate-700 dark:text-slate-200">{s.ai_processed_content || s.original_content}</p>
                     <p className="mt-0.5 text-[11px] text-slate-400">

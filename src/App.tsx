@@ -19,6 +19,8 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/admin/AdminSubmissionsPage';
 import AdminSubmissionDetailPage from './pages/admin/AdminSubmissionDetailPage';
+import AdminReportsPage from './pages/admin/AdminReportsPage';
+import AdminMapPage from './pages/admin/AdminMapPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
 const queryClient = new QueryClient({
@@ -51,6 +53,8 @@ function AppShell() {
           <Route path="/quan-tri" element={<AdminDashboardPage />} />
           <Route path="/quan-tri/y-kien" element={<AdminSubmissionsPage />} />
           <Route path="/quan-tri/y-kien/:id" element={<AdminSubmissionDetailPage />} />
+          <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
+          <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
         </Routes>
         <AppToaster />
       </>
