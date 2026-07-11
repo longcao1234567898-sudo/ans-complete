@@ -21,6 +21,7 @@ import AdminSubmissionsPage from './pages/admin/AdminSubmissionsPage';
 import AdminSubmissionDetailPage from './pages/admin/AdminSubmissionDetailPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminMapPage from './pages/admin/AdminMapPage';
+import AdminLogsPage from './pages/admin/AdminLogsPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
 const queryClient = new QueryClient({
@@ -65,6 +66,7 @@ function AppShell() {
             <Route path="/quan-tri/y-kien/:id" element={<AdminSubmissionDetailPage />} />
             <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
             <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
+            <Route path="/quan-tri/nhat-ky" element={<AdminLogsPage />} />
           </Routes>
         </div>
       </main>

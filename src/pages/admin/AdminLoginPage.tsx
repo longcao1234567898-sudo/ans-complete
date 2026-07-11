@@ -1,11 +1,11 @@
 /** Trang đăng nhập khu vực cán bộ */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, User, Loader2 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 export default function AdminLoginPage() {
-  const { login } = useAdminAuth();
+  const { login, staff } = useAdminAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -29,8 +29,11 @@ export default function AdminLoginPage() {
     }
   }
 
+  // Đã đăng nhập -> vào thẳng khu quản trị
+  if (staff) return <Navigate to="/quan-tri" replace />;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-100 via-emerald-50 to-secondary-50 px-4 dark:from-slate-900 dark:via-slate-900 dark:to-secondary-500/20">
+    <div className="container-page flex items-center justify-center py-12 sm:py-20">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-soft dark:bg-slate-900">
         <div className="mb-6 text-center">
           <span className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-600 text-white">
