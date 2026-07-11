@@ -41,25 +41,8 @@ function ScrollToTop() {
 function AppShell() {
   const location = useLocation();
 
-  // Khu vực cán bộ (đăng nhập + quản trị) có layout riêng, không dùng Header/Footer/Chat công khai
+  // Ẩn chatbox AI ở khu vực cán bộ (chỉ dành cho công dân)
   const isAdminArea = location.pathname === '/dang-nhap' || location.pathname.startsWith('/quan-tri');
-
-  if (isAdminArea) {
-    return (
-      <>
-        <ScrollToTop />
-        <Routes location={location}>
-          <Route path="/dang-nhap" element={<AdminLoginPage />} />
-          <Route path="/quan-tri" element={<AdminDashboardPage />} />
-          <Route path="/quan-tri/y-kien" element={<AdminSubmissionsPage />} />
-          <Route path="/quan-tri/y-kien/:id" element={<AdminSubmissionDetailPage />} />
-          <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
-          <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
-        </Routes>
-        <AppToaster />
-      </>
-    );
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100">
@@ -74,11 +57,19 @@ function AppShell() {
             <Route path="/tra-cuu" element={<TrackingPage />} />
             <Route path="/tin-tuc" element={<NewsPage />} />
             <Route path="/gioi-thieu" element={<AboutPage />} />
+
+            {/* Khu vực cán bộ — nay nằm CHUNG một trang với khu công dân */}
+            <Route path="/dang-nhap" element={<AdminLoginPage />} />
+            <Route path="/quan-tri" element={<AdminDashboardPage />} />
+            <Route path="/quan-tri/y-kien" element={<AdminSubmissionsPage />} />
+            <Route path="/quan-tri/y-kien/:id" element={<AdminSubmissionDetailPage />} />
+            <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
+            <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
           </Routes>
         </div>
       </main>
       <Footer />
-      <ChatWidget />
+      {!isAdminArea && <ChatWidget />}
       <AppToaster />
     </div>
   );

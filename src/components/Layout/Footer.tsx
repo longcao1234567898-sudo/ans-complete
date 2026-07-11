@@ -2,10 +2,12 @@
  * Footer: thông tin đơn vị, liên kết nhanh, liên hệ, mạng xã hội.
  */
 import { Link } from 'react-router-dom';
-import { Facebook, Globe, Mail, MapPin, Phone, Shield } from 'lucide-react';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { Facebook, Globe, Mail, MapPin, Phone, Shield, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { NAV_LINKS, UNIT } from '../../utils/constants';
 
 export default function Footer() {
+  const { staff } = useAdminAuth();
   return (
     <>
       {/* Dải cảnh quan An Giang thu nhỏ nối liền nội dung với footer */}
@@ -112,12 +114,35 @@ export default function Footer() {
         </div>
       </div>
 
+      {/* KHU VỰC CÁN BỘ — nút bấm rõ ràng, nối thẳng vào hệ thống quản trị */}
+      <div className="border-t border-white/10 py-6">
+        <div className="container-page flex flex-col items-center gap-3 text-center">
+          <p className="text-xs text-slate-400">
+            Dành cho cán bộ Công an được cấp tài khoản
+          </p>
+
+          {staff ? (
+            <Link
+              to="/quan-tri"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-accent-600"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Vào trang quản trị ({staff.name})
+            </Link>
+          ) : (
+            <Link
+              to="/dang-nhap"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-500"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Đăng nhập cán bộ
+            </Link>
+          )}
+        </div>
+      </div>
+
       <div className="border-t border-white/10 py-4 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} {UNIT.name}. Dữ liệu công dân được bảo mật theo quy định pháp luật.
-        {' · '}
-        <Link to="/dang-nhap" className="text-slate-400 underline-offset-2 transition hover:text-accent-500 hover:underline">
-          Đăng nhập cán bộ
-        </Link>
       </div>
     </footer>
     </>

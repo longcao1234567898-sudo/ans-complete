@@ -3,13 +3,15 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Menu, Moon, Shield, Sun } from 'lucide-react';
+import { Menu, Moon, Shield, Sun, ShieldCheck } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { NAV_LINKS, STORAGE_KEYS, UNIT } from '../../utils/constants';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { cn } from '../../utils/helpers';
 
 export default function Header() {
+  const { staff } = useAdminAuth();
   const [theme, setTheme] = useLocalStorage<'light' | 'dark'>(STORAGE_KEYS.theme, 'light');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -53,6 +55,14 @@ export default function Header() {
                 {link.label}
               </NavLink>
             ))}
+            {staff && (
+              <Link
+                to="/quan-tri"
+                className="ml-1 flex items-center gap-1.5 rounded-xl bg-accent-500 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-accent-600"
+              >
+                <ShieldCheck className="h-4 w-4" /> Quản trị
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-1.5">
