@@ -75,6 +75,7 @@ async function start() {
     console.error('   → Kiểm tra MySQL đã chạy chưa và thông tin trong server/.env');
   }
   app.listen(PORT, () => {
+  console.log('🤖 Model AI: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-pro'));
   const mm = mailMode();
   console.log(
     mm === 'brevo'  ? '📧 Email OTP: Brevo (gửi được tới BẤT KỲ email)'
