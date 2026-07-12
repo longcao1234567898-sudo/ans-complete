@@ -7,6 +7,7 @@ import {
 } from '../lib/security.js';
 import { encrypt, hashPhone } from '../lib/crypto.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
+import { verifyOtpToken } from './otp.js';
 
 const router = Router();
 
@@ -46,6 +47,11 @@ router.post('/', async (req, res) => {
     if (!content) return res.status(400).json({ error: 'Nội dung ý kiến không được để trống.' });
     if (!CAT_CODE_TO_ID[category]) return res.status(400).json({ error: 'Nhóm xử lý không hợp lệ.' });
     if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
+    if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
+
+    // 1b) XÁC THỰC OTP — bắt buộc với MỌI ý kiến
+    const otpCheck = verifyOtpToken(body.otpToken, email);
+    if (!otpCheck.ok) return res.status(401).json({ error: otpCheck.error });
 
     // 2) Lá chắn văn bản
     const scan = scanTextForThreats(content);
@@ -100,8 +106,8 @@ router.post('/', async (req, res) => {
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?, 'received', ?,?,?,?)`,
+        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp)
+       VALUES (?,?,?,?,?,?,?,?,?,?, 'received', ?,?,?,?, TRUE)`,
       [trackingCode, content, normalizedContent, catId, catId, contentHash,
        encrypt(fullName), encrypt(phone), phoneHash, email ? encrypt(email) : null,
        ip, (req.headers['user-agent'] || '').slice(0, 255), deadlineAt, wardId]
@@ -110,9 +116,19 @@ router.post('/', async (req, res) => {
     // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
     if (images.length > 0) {
       try {
-        const values = images.map((url) => [result.insertId, String(url), 'image/jpeg', true, 'safe']);
+        // Ảnh có thể là:
+        //  - Link Cloudinary: { url, publicId }  -> lưu LINK (nhẹ, khuyên dùng)
+        //  - Chuỗi base64 (cách cũ)              -> vẫn lưu được, nhưng phình database
+        const values = images.map((img) => {
+          if (typeof img === 'object' && img?.url) {
+            return [result.insertId, String(img.url), img.publicId || null, 'cloudinary', 'image/jpeg', true, 'safe'];
+          }
+          return [result.insertId, String(img), null, 'base64', 'image/jpeg', true, 'safe'];
+        });
         await pool.query(
-          'INSERT INTO submission_images (submission_id, image_url, mime_type, is_verified, moderation_status) VALUES ?',
+          `INSERT INTO submission_images
+           (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status)
+           VALUES ?`,
           [values]
         );
       } catch (e) {

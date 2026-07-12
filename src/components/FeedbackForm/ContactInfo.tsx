@@ -2,15 +2,15 @@
  * Bước 4: Thông tin liên hệ — HỌ TÊN và SỐ ĐIỆN THOẠI bắt buộc, EMAIL tuỳ chọn.
  * Lỗi chỉ hiển thị khi người dùng đã nhập sai hoặc bấm Tiếp tục mà còn thiếu.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, MailCheck, Send, Loader2, CheckCircle2 } from 'lucide-react';
 import type { ContactInfo as ContactInfoType } from '../../types/feedback';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import { getPhoneError, isValidEmail, isValidPhone } from '../../utils/helpers';
 import Turnstile, { captchaEnabled } from '../common/Turnstile';
-import { fetchWards } from '../../services/feedbackService';
+import { fetchWards, sendOtp, verifyOtp } from '../../services/feedbackService';
 
 interface ContactInfoProps {
   value: ContactInfoType;
@@ -28,7 +28,62 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
 
   const nameValid = value.fullName.trim().length >= 2;
   const phoneValid = isValidPhone(value.phone);
-  const emailValid = !value.email.trim() || isValidEmail(value.email);
+  const emailValid = isValidEmail(value.email.trim());   // V3: email BẮT BUỘC (để nhận mã OTP)
+
+  // ===== V3: XÁC THỰC OTP QUA EMAIL =====
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpMsg, setOtpMsg] = useState('');
+  const [otpErr, setOtpErr] = useState('');
+  const [devCode, setDevCode] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  const otpVerified = Boolean(value.otpToken);
+
+  // Đếm ngược 60 giây để gửi lại mã
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  async function handleSendOtp() {
+    if (!emailValid) { setOtpErr('Vui lòng nhập email đúng định dạng trước.'); return; }
+    setOtpSending(true); setOtpErr(''); setOtpMsg(''); setDevCode('');
+    try {
+      const r = await sendOtp(value.email.trim());
+      setOtpSent(true);
+      setOtpMsg(r.message);
+      setCooldown(60);
+      if (r.devCode) setDevCode(r.devCode);
+    } catch (e) {
+      setOtpErr(e instanceof Error ? e.message : 'Không gửi được mã. Vui lòng thử lại.');
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!/^\d{6}$/.test(otpCode)) { setOtpErr('Mã xác thực gồm 6 chữ số.'); return; }
+    setOtpVerifying(true); setOtpErr(''); setOtpMsg('');
+    try {
+      const r = await verifyOtp(value.email.trim(), otpCode);
+      onChange({ ...value, otpToken: r.otpToken });
+      setOtpMsg(r.message);
+    } catch (e) {
+      setOtpErr(e instanceof Error ? e.message : 'Mã không đúng.');
+    } finally {
+      setOtpVerifying(false);
+    }
+  }
+
+  /** Đổi email -> huỷ xác thực cũ, phải xác thực lại */
+  function handleEmailChange(newEmail: string) {
+    onChange({ ...value, email: newEmail, otpToken: undefined });
+    setOtpSent(false); setOtpCode(''); setOtpMsg(''); setOtpErr(''); setDevCode('');
+  }
 
   const nameError = attempted && !nameValid ? 'Vui lòng nhập họ và tên' : '';
   const phoneError =
@@ -37,12 +92,16 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
       : value.phone.trim() && !phoneValid
         ? getPhoneError(value.phone)
         : '';
-  const emailError = value.email.trim() && !emailValid ? 'Email không đúng định dạng' : '';
+  const emailError = attempted && !value.email.trim()
+    ? 'Vui lòng nhập email để nhận mã xác thực'
+    : value.email.trim() && !emailValid
+      ? 'Email không đúng định dạng'
+      : '';
 
   const captchaOk = !captchaEnabled || Boolean(value.captchaToken);
 
   const handleNext = () => {
-    if (nameValid && phoneValid && emailValid && captchaOk) {
+    if (nameValid && phoneValid && emailValid && captchaOk && otpVerified) {
       onNext();
     } else {
       setAttempted(true);
@@ -74,12 +133,12 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           onChange={(e) => onChange({ ...value, phone: e.target.value })}
         />
         <Input
-          label="Email (không bắt buộc)"
+          label="Email (bắt buộc — để nhận mã xác thực)"
           type="email"
           placeholder="banconhandan@email.com"
           value={value.email}
           error={emailError}
-          onChange={(e) => onChange({ ...value, email: e.target.value })}
+          onChange={(e) => handleEmailChange(e.target.value)}
         />
 
         {/* V2: Địa bàn xảy ra vụ việc */}
@@ -104,6 +163,110 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           </div>
         )}
       </div>
+
+      {/* ===== V3: XÁC THỰC EMAIL BẰNG MÃ OTP ===== */}
+      <div className={`mt-5 rounded-2xl border-2 p-4 transition ${
+        otpVerified
+          ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/15'
+          : 'border-primary-200 bg-primary-50/50 dark:border-slate-700 dark:bg-slate-800/40'
+      }`}>
+        {otpVerified ? (
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                Đã xác thực email thành công
+              </p>
+              <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
+                Bà con có 15 phút để hoàn tất gửi ý kiến.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 flex items-start gap-2">
+              <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
+              <div>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                  Xác thực email
+                </p>
+                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  Bước này giúp Công an chắc chắn ý kiến là do người thật gửi,
+                  tránh tin giả và tin rác.
+                </p>
+              </div>
+            </div>
+
+            {!otpSent ? (
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={otpSending || !emailValid}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {otpSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {otpSending ? 'Đang gửi mã...' : 'Gửi mã xác thực đến email'}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                {/* Chế độ DEMO: hiện mã ngay trên màn hình */}
+                {devCode && (
+                  <div className="rounded-xl border border-dashed border-amber-400 bg-amber-50 p-3 text-center dark:bg-amber-900/20">
+                    <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                      CHẾ ĐỘ DEMO (chưa cấu hình email) — mã của bà con là:
+                    </p>
+                    <p className="mt-1 font-mono text-2xl font-extrabold tracking-[0.3em] text-amber-700 dark:text-amber-300">
+                      {devCode}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.4em] text-slate-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyOtp}
+                    disabled={otpVerifying || otpCode.length !== 6}
+                    className="shrink-0 rounded-xl bg-primary-600 px-5 text-sm font-bold text-white transition hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    {otpVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Xác nhận'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={cooldown > 0 || otpSending}
+                  className="w-full text-xs font-semibold text-primary-600 transition hover:underline disabled:text-slate-400 disabled:no-underline dark:text-primary-300"
+                >
+                  {cooldown > 0 ? `Gửi lại mã sau ${cooldown} giây` : 'Không nhận được mã? Gửi lại'}
+                </button>
+              </div>
+            )}
+
+            {otpMsg && !otpVerified && (
+              <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">{otpMsg}</p>
+            )}
+            {otpErr && (
+              <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">{otpErr}</p>
+            )}
+          </>
+        )}
+      </div>
+
+      {attempted && !otpVerified && (
+        <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+          Vui lòng xác thực email trước khi tiếp tục.
+        </p>
+      )}
 
       {/* V2: CAPTCHA chống bot (tự ẩn nếu chưa cấu hình) */}
       <Turnstile onToken={(t) => onChange({ ...value, captchaToken: t })} />

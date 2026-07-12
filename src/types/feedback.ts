@@ -35,6 +35,8 @@ export interface ContactInfo {
   wardId?: number | null;
   /** V2: mã xác minh chống bot (Cloudflare Turnstile) */
   captchaToken?: string;
+  /** V3: "vé" nhận được sau khi xác thực OTP email (hiệu lực 15 phút) */
+  otpToken?: string;
 }
 
 /** Bản nháp ý kiến trong quá trình đi qua 5 bước của form */

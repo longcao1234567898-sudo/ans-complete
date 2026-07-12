@@ -16,6 +16,7 @@ import authRouter from './routes/auth.js';
 import trackingRouter from './routes/tracking.js';
 import newsRouter from './routes/news.js';
 import submissionsRouter from './routes/submissions.js';
+import otpRouter from './routes/otp.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin/index.js';
 
@@ -53,6 +54,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, ai: aiAvailable() }))
 app.use('/api/auth', authRouter);
 app.use('/api/tracking', trackingRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/otp', otpRouter);
 app.use('/api/submissions', submissionsRouter);
 app.use('/api/ai', aiRouter);
 

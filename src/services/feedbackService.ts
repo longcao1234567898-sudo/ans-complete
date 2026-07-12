@@ -10,6 +10,7 @@ import { ANTI_SPAM, STORAGE_KEYS } from '../utils/constants';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
+import { prepareImages } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
 export function readSubmissions(): FeedbackSubmission[] {
@@ -133,9 +134,10 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         fullName,
         phone: draft.contact.phone.trim(),
         email: draft.contact.email.trim() || undefined,
-        images: draft.images,
+        images: await prepareImages(draft.images),
         wardId: draft.contact.wardId ?? null,
         captchaToken: draft.contact.captchaToken ?? '',
+        otpToken: draft.contact.otpToken ?? '',
       }),
     });
   }
@@ -176,4 +178,40 @@ export async function fetchWards(): Promise<WardOption[]> {
   } catch {
     return [];
   }
+}
+
+
+/* ============================================================
+   XÁC THỰC OTP QUA EMAIL — bắt buộc trước khi gửi ý kiến
+   ============================================================ */
+
+export interface OtpSendResult {
+  ok: boolean;
+  message: string;
+  expiresInMinutes: number;
+  /** Chỉ có khi hệ thống CHƯA cấu hình email (chế độ demo) */
+  devCode?: string;
+  demoMode?: boolean;
+}
+
+/** Gửi mã 6 số về email của bà con */
+export async function sendOtp(email: string): Promise<OtpSendResult> {
+  return apiFetch<OtpSendResult>('/api/otp/send', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export interface OtpVerifyResult {
+  ok: boolean;
+  otpToken: string;
+  message: string;
+}
+
+/** Kiểm tra mã — đúng thì nhận "vé" để gửi ý kiến (hiệu lực 15 phút) */
+export async function verifyOtp(email: string, code: string): Promise<OtpVerifyResult> {
+  return apiFetch<OtpVerifyResult>('/api/otp/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
 }

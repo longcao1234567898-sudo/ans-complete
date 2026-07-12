@@ -1,0 +1,176 @@
+/**
+ * XÁC THỰC OTP QUA EMAIL — công dân phải xác thực trước khi gửi ý kiến.
+ *
+ * Luồng:
+ *   1. POST /api/otp/send   {email}        -> gửi mã 6 số về email
+ *   2. POST /api/otp/verify {email, code}  -> đúng thì cấp "vé" (otpToken)
+ *   3. POST /api/submissions kèm otpToken  -> mới nhận ý kiến
+ *
+ * BẢO MẬT:
+ *   - KHÔNG lưu email thật (chỉ băm SHA-256)
+ *   - KHÔNG lưu mã OTP thật (chỉ băm bcrypt) -> lộ database cũng không biết mã
+ *   - Sai quá 5 lần -> huỷ mã
+ *   - Giới hạn gửi lại: 60 giây/lần, tối đa 5 mã/giờ/email
+ */
+import { Router } from 'express';
+import crypto from 'node:crypto';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { pool } from '../db.js';
+import { sendOtpEmail, mailConfigured } from '../lib/mailer.js';
+
+const router = Router();
+
+const OTP_TTL_MIN = 10;        // mã sống 10 phút
+const RESEND_COOLDOWN_SEC = 60; // chờ 60s mới gửi lại
+const MAX_PER_HOUR = 5;         // tối đa 5 mã/giờ
+const MAX_ATTEMPTS = 5;         // sai quá 5 lần thì huỷ
+
+const hashEmail = (e) => crypto.createHash('sha256').update(String(e).toLowerCase().trim()).digest('hex');
+const genCode = () => String(crypto.randomInt(100000, 1000000)); // 6 số
+
+function validEmail(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
+}
+
+/** POST /api/otp/send — gửi mã về email */
+router.post('/send', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45);
+
+  if (!validEmail(email)) {
+    return res.status(400).json({ error: 'Email không đúng định dạng.' });
+  }
+
+  try {
+    const eHash = hashEmail(email);
+
+    // Chống spam gửi mã
+    const [[stat]] = await pool.query(
+      `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at
+       FROM otp_codes
+       WHERE email_hash = ? AND created_at > NOW() - INTERVAL 1 HOUR`,
+      [eHash]
+    );
+
+    if (stat.last_at) {
+      const waited = (Date.now() - new Date(stat.last_at).getTime()) / 1000;
+      if (waited < RESEND_COOLDOWN_SEC) {
+        return res.status(429).json({
+          error: `Vui lòng chờ ${Math.ceil(RESEND_COOLDOWN_SEC - waited)} giây trước khi gửi lại mã.`,
+        });
+      }
+    }
+    if (stat.cnt >= MAX_PER_HOUR) {
+      return res.status(429).json({ error: 'Bà con đã yêu cầu quá nhiều mã. Vui lòng thử lại sau 1 giờ.' });
+    }
+
+    // Huỷ các mã cũ chưa dùng của email này
+    await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE email_hash = ? AND is_used = FALSE', [eHash]);
+
+    // Sinh mã mới
+    const code = genCode();
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60_000);
+
+    await pool.query(
+      'INSERT INTO otp_codes (email_hash, code_hash, expires_at, ip_address) VALUES (?,?,?,?)',
+      [eHash, codeHash, expiresAt, ip]
+    );
+
+    const result = await sendOtpEmail(email, code);
+
+    res.json({
+      ok: true,
+      message: result.sent
+        ? `Đã gửi mã xác thực đến ${email}. Vui lòng kiểm tra hộp thư (kể cả mục Spam).`
+        : 'Hệ thống đang ở CHẾ ĐỘ DEMO (chưa cấu hình email).',
+      expiresInMinutes: OTP_TTL_MIN,
+      // Chỉ có khi CHƯA cấu hình email -> để demo/bảo vệ đồ án vẫn chạy được
+      ...(result.devCode ? { devCode: result.devCode, demoMode: true } : {}),
+    });
+  } catch (err) {
+    console.error('Lỗi gửi OTP:', err.message);
+    res.status(500).json({ error: 'Không gửi được mã xác thực. Vui lòng thử lại.' });
+  }
+});
+
+/** POST /api/otp/verify — kiểm tra mã, đúng thì cấp "vé" gửi ý kiến */
+router.post('/verify', async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const code = String(req.body?.code || '').trim();
+
+  if (!validEmail(email) || !/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: 'Mã xác thực phải gồm 6 chữ số.' });
+  }
+
+  try {
+    const eHash = hashEmail(email);
+
+    const [rows] = await pool.query(
+      `SELECT id, code_hash, attempts FROM otp_codes
+       WHERE email_hash = ? AND is_used = FALSE AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [eHash]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Mã đã hết hạn hoặc chưa được gửi. Vui lòng bấm "Gửi mã" lại.' });
+    }
+
+    const otp = rows[0];
+
+    if (otp.attempts >= MAX_ATTEMPTS) {
+      await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = ?', [otp.id]);
+      return res.status(429).json({ error: 'Bà con đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.' });
+    }
+
+    const ok = await bcrypt.compare(code, otp.code_hash);
+
+    if (!ok) {
+      await pool.query('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?', [otp.id]);
+      const left = MAX_ATTEMPTS - (otp.attempts + 1);
+      return res.status(400).json({
+        error: left > 0
+          ? `Mã xác thực không đúng. Bà con còn ${left} lần thử.`
+          : 'Mã xác thực không đúng. Vui lòng yêu cầu mã mới.',
+      });
+    }
+
+    // Đúng mã -> đánh dấu đã dùng, cấp "vé" 15 phút
+    await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = ?', [otp.id]);
+
+    const otpToken = jwt.sign(
+      { emailHash: eHash, purpose: 'submit' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.json({
+      ok: true,
+      otpToken,
+      message: 'Xác thực thành công! Bà con có 15 phút để hoàn tất gửi ý kiến.',
+    });
+  } catch (err) {
+    console.error('Lỗi xác thực OTP:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ khi xác thực.' });
+  }
+});
+
+/** Hàm dùng chung: kiểm tra "vé" OTP có hợp lệ với email này không */
+export function verifyOtpToken(otpToken, email) {
+  if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực email. Vui lòng bấm "Gửi mã xác thực".' };
+  try {
+    const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
+    if (payload.purpose !== 'submit') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
+    if (payload.emailHash !== hashEmail(email)) {
+      return { ok: false, error: 'Email không khớp với email đã xác thực.' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Xác thực đã hết hạn (15 phút). Vui lòng xác thực lại email.' };
+  }
+}
+
+export { mailConfigured };
+export default router;
