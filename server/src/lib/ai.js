@@ -8,8 +8,15 @@ const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || '').trim();
 // Đổi model bằng biến môi trường GEMINI_MODEL trên Render (không cần sửa code):
 //   gemini-2.5-pro    — thông minh nhất (MẶC ĐỊNH)
 //   gemini-2.5-flash  — nhanh hơn, hạn mức free cao hơn
-// PHÂN TÍCH ý kiến -> Pro (ít lượt gọi, cần CHÍNH XÁC để phân loại tố giác đúng)
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.5-pro').trim();
+/**
+ * ⚠️ QUAN TRỌNG: Từ 01/4/2026, Google ĐÃ GỠ dòng PRO khỏi gói MIỄN PHÍ.
+ *    Dùng gemini-2.5-pro với API key free -> LUÔN LỖI 429 (hết quota).
+ *    Chỉ dòng FLASH còn miễn phí. Vì vậy mặc định là Flash.
+ *
+ *    Muốn dùng Pro -> phải bật thanh toán (billing) ở Google Cloud,
+ *    rồi đặt biến GEMINI_MODEL=gemini-2.5-pro trên Render.
+ */
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
 
 // CHATBOX -> Flash (nhiều lượt gọi, cần NHANH, hạn mức free cao hơn nhiều)
 const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash').trim();

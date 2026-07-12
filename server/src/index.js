@@ -75,7 +75,7 @@ async function start() {
     console.error('   → Kiểm tra MySQL đã chạy chưa và thông tin trong server/.env');
   }
   app.listen(PORT, () => {
-  console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-pro'));
+  console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash'));
   console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
   const mm = mailMode();
   console.log(
