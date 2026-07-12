@@ -76,9 +76,11 @@ async function start() {
   }
   app.listen(PORT, () => {
   const mm = mailMode();
-  console.log(mm === 'resend' ? '📧 Email OTP: Resend (HTTPS — ổn định)'
-    : mm === 'gmail' ? '📧 Email OTP: Gmail SMTP (⚠️ Render hay chặn cổng SMTP)'
-    : '📧 Email OTP: CHẾ ĐỘ DEMO (hiện mã trên màn hình)');
+  console.log(
+    mm === 'brevo'  ? '📧 Email OTP: Brevo (gửi được tới BẤT KỲ email)'
+  : mm === 'resend' ? '📧 Email OTP: Resend (⚠️ chưa có tên miền -> chỉ gửi tới email của chính bạn)'
+  : mm === 'gmail'  ? '📧 Email OTP: Gmail SMTP (⚠️ Render hay chặn cổng SMTP)'
+  :                   '📧 Email OTP: CHẾ ĐỘ DEMO (hiện mã trên màn hình)');
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
   });

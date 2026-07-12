@@ -23,12 +23,13 @@ import nodemailer from 'nodemailer';
 const env = (k) => (process.env[k] || '').trim();
 
 export function mailConfigured() {
-  return Boolean(env('RESEND_API_KEY') || (env('MAIL_USER') && env('MAIL_PASS')));
+  return Boolean(env('BREVO_API_KEY') || env('RESEND_API_KEY') || (env('MAIL_USER') && env('MAIL_PASS')));
 }
 
 /** Cách nào đang được dùng — hiện ở log lúc khởi động */
 export function mailMode() {
-  if (env('RESEND_API_KEY')) return 'resend';
+  if (env('BREVO_API_KEY')) return 'brevo';   // gửi tới BẤT KỲ AI, không cần tên miền
+  if (env('RESEND_API_KEY')) return 'resend'; // chỉ gửi tới email của chính bạn (nếu chưa có tên miền)
   if (env('MAIL_USER') && env('MAIL_PASS')) return 'gmail';
   return 'demo';
 }
@@ -87,6 +88,40 @@ async function sendViaResend(email, code) {
   return { sent: true };
 }
 
+/* ---------- Cách 1b: BREVO (HTTPS — gửi tới BẤT KỲ AI) ----------
+ * 300 email/ngày miễn phí. CHỈ cần xác minh 1 địa chỉ Gmail của bạn,
+ * KHÔNG cần mua tên miền. Đăng ký: brevo.com
+ *   BREVO_API_KEY=xkeysib-xxxxxxxx
+ *   MAIL_USER=longcao1234567898@gmail.com   (email đã xác minh trên Brevo)
+ */
+async function sendViaBrevo(email, code) {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': env('BREVO_API_KEY'),
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: {
+        name: 'Hộp Thư An Ninh Số',
+        email: env('MAIL_USER') || 'noreply@example.com',
+      },
+      to: [{ email }],
+      subject: SUBJECT(code),
+      htmlContent: emailHtml(code),
+      textContent: TEXT(code),
+    }),
+    signal: AbortSignal.timeout(12000),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.message || `Brevo lỗi ${res.status}`);
+  }
+  return { sent: true };
+}
+
 /* ---------- Cách 2: GMAIL SMTP ---------- */
 let transporter = null;
 function getTransporter() {
@@ -128,6 +163,7 @@ export async function sendOtpEmail(email, code) {
   }
 
   try {
+    if (mode === 'brevo') return await sendViaBrevo(email, code);
     if (mode === 'resend') return await sendViaResend(email, code);
     return await sendViaGmail(email, code);
   } catch (err) {
