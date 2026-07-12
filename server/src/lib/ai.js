@@ -31,10 +31,25 @@ async function callGemini(body) {
     throw new Error(`Gemini lỗi HTTP ${res.status}: ${text.slice(0, 200)}`);
   }
   const data = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts;
+  const cand = data?.candidates?.[0];
+  const parts = cand?.content?.parts;
   const text = parts?.map((p) => p.text ?? '').join('').trim();
+
+  // Gemini bị cắt giữa chừng vì hết token -> báo rõ, đừng để JSON.parse chết
+  if (cand?.finishReason === 'MAX_TOKENS') {
+    throw new Error('Gemini bị cắt giữa chừng (hết token). Cần tăng maxOutputTokens.');
+  }
   if (!text) throw new Error('Gemini trả về nội dung rỗng');
   return text;
+}
+
+/** Rút JSON ra khỏi văn bản, kể cả khi Gemini bọc trong ```json ... ``` */
+function extractJson(raw) {
+  let t = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start !== -1 && end > start) t = t.slice(start, end + 1);
+  return JSON.parse(t);
 }
 
 /** Trợ lý chat — kèm ngữ cảnh 8 tin nhắn gần nhất */
@@ -49,7 +64,11 @@ export async function geminiChat(message, history = []) {
   return callGemini({
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents,
-    generationConfig: { maxOutputTokens: 800, temperature: 0.4 },
+    generationConfig: {
+      maxOutputTokens: 2048,
+      temperature: 0.4,
+      thinkingConfig: { thinkingBudget: 0 },  // trả lời nhanh hơn
+    },
   });
 }
 
@@ -71,11 +90,36 @@ CHỈ trả về JSON thuần, không markdown, không giải thích, đúng c�
 
   const raw = await callGemini({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 500, temperature: 0.2 },
+    generationConfig: {
+      // 500 token là QUÁ ÍT: gemini-2.5-flash mặc định bật "thinking",
+      // phần suy nghĩ nội bộ ăn hết token -> JSON bị cắt giữa chừng
+      // -> lỗi "Unterminated string in JSON".
+      maxOutputTokens: 2048,
+      temperature: 0.2,
+      // Ép Gemini trả JSON hợp lệ, không kèm markdown hay lời dẫn
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          normalizedContent: { type: 'STRING' },
+          suggestedCategory: { type: 'STRING', enum: ['to_giac', 'khieu_nai', 'phan_anh', 'de_xuat'] },
+          confidence: { type: 'NUMBER' },
+          keywords: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
+        required: ['normalizedContent', 'suggestedCategory', 'confidence', 'keywords'],
+      },
+      // TẮT chế độ "thinking" -> dành toàn bộ token cho câu trả lời, lại nhanh hơn
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   });
 
-  const cleaned = raw.replace(/```json|```/g, '').trim();
-  const parsed = JSON.parse(cleaned);
+  let parsed;
+  try {
+    parsed = extractJson(raw);
+  } catch (e) {
+    console.warn('Gemini trả JSON hỏng:', String(raw).slice(0, 120));
+    throw new Error('AI trả về dữ liệu không hợp lệ');
+  }
 
   if (!VALID_CATEGORIES.has(parsed.suggestedCategory)) parsed.suggestedCategory = 'phan_anh';
   parsed.confidence = Math.min(0.97, Math.max(0.5, Number(parsed.confidence) || 0.7));
@@ -103,7 +147,11 @@ export async function geminiModerateImage(dataUrl) {
         ],
       },
     ],
-    generationConfig: { maxOutputTokens: 10, temperature: 0 },
+    generationConfig: {
+      maxOutputTokens: 20,
+      temperature: 0,
+      thinkingConfig: { thinkingBudget: 0 },  // không cần suy nghĩ, chỉ trả 1 từ
+    },
   });
   return /SENSITIVE/i.test(text);
 }

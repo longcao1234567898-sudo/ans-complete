@@ -80,13 +80,21 @@ router.post('/send', async (req, res) => {
 
     const result = await sendOtpEmail(email, code);
 
+    let message;
+    if (result.sent) {
+      message = `Đã gửi mã xác thực đến ${email}. Vui lòng kiểm tra hộp thư (kể cả mục Spam).`;
+    } else if (result.failed) {
+      // Gửi mail hỏng -> KHÔNG chặn bà con, hiện mã ra màn hình để vẫn gửi được ý kiến
+      message = 'Hệ thống email đang gặp sự cố. Mã xác thực của bà con hiển thị bên dưới.';
+    } else {
+      message = 'Hệ thống đang ở CHẾ ĐỘ DEMO (chưa cấu hình email).';
+    }
+
     res.json({
       ok: true,
-      message: result.sent
-        ? `Đã gửi mã xác thực đến ${email}. Vui lòng kiểm tra hộp thư (kể cả mục Spam).`
-        : 'Hệ thống đang ở CHẾ ĐỘ DEMO (chưa cấu hình email).',
+      message,
       expiresInMinutes: OTP_TTL_MIN,
-      // Chỉ có khi CHƯA cấu hình email -> để demo/bảo vệ đồ án vẫn chạy được
+      // Có khi: chưa cấu hình email, HOẶC gửi mail thất bại
       ...(result.devCode ? { devCode: result.devCode, demoMode: true } : {}),
     });
   } catch (err) {

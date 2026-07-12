@@ -17,6 +17,7 @@ import trackingRouter from './routes/tracking.js';
 import newsRouter from './routes/news.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
+import { mailMode } from './lib/mailer.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin/index.js';
 
@@ -74,6 +75,10 @@ async function start() {
     console.error('   → Kiểm tra MySQL đã chạy chưa và thông tin trong server/.env');
   }
   app.listen(PORT, () => {
+  const mm = mailMode();
+  console.log(mm === 'resend' ? '📧 Email OTP: Resend (HTTPS — ổn định)'
+    : mm === 'gmail' ? '📧 Email OTP: Gmail SMTP (⚠️ Render hay chặn cổng SMTP)'
+    : '📧 Email OTP: CHẾ ĐỘ DEMO (hiện mã trên màn hình)');
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
   });
