@@ -9,6 +9,8 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import AppToaster from './components/common/Toast';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
+import ScrollProgress from './components/common/ScrollProgress';
+import { AnimatePresence, motion } from 'framer-motion';
 import ChatWidget from './components/AIChat/ChatWidget';
 import HomePage from './pages/HomePage';
 import SendFeedbackPage from './pages/SendFeedbackPage';
@@ -22,6 +24,7 @@ import AdminSubmissionDetailPage from './pages/admin/AdminSubmissionDetailPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminMapPage from './pages/admin/AdminMapPage';
 import AdminLogsPage from './pages/admin/AdminLogsPage';
+import AdminReviewPage from './pages/admin/AdminReviewPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
 const queryClient = new QueryClient({
@@ -47,11 +50,19 @@ function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100">
+      <ScrollProgress />
       <ScrollToTop />
       <Header />
       <main className="flex-1">
-        {/* Chuyển trang bằng CSS thuần: fade-in 0.18s chỉ dùng opacity — không tốn JS */}
-        <div key={location.pathname} className="animate-page">
+        {/* Chuyển trang: mờ dần + trượt nhẹ lên. Mượt hơn hẳn fade CSS thô. */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28, ease: [0.21, 0.65, 0.36, 1] }}
+          >
           <Routes location={location}>
             <Route path="/" element={<HomePage />} />
             <Route path="/gui-y-kien" element={<SendFeedbackPage />} />
@@ -67,8 +78,10 @@ function AppShell() {
             <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
             <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
             <Route path="/quan-tri/nhat-ky" element={<AdminLogsPage />} />
+            <Route path="/quan-tri/kiem-duyet" element={<AdminReviewPage />} />
           </Routes>
-        </div>
+          </motion.div>
+        </AnimatePresence>
       </main>
       <Footer />
       {!isAdminArea && <ChatWidget />}

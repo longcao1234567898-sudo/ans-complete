@@ -4,6 +4,7 @@
  * dải cam kết). Đã bỏ toàn bộ nhân vật SVG và cảnh sông nước.
  */
 import { motion } from 'framer-motion';
+import Magnetic from '../common/Magnetic';
 import { Link } from 'react-router-dom';
 import { Bot, Clock3, Mail, QrCode, Search, ShieldCheck, Zap } from 'lucide-react';
 
@@ -94,20 +95,36 @@ export default function HeroSection() {
 
           {/* 2 nút CTA 2 dòng */}
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link to="/gui-y-kien" className="group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-500 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15"><Mail className="h-5 w-5" aria-hidden /></span>
-              <span>
-                <span className="block text-base font-bold leading-tight">Gửi ý kiến ngay</span>
-                <span className="block text-[11px] text-white/85">Gửi phản ánh, kiến nghị</span>
-              </span>
-            </Link>
-            <Link to="/tra-cuu" className="btn-shine group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-secondary-500 to-secondary-600 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15"><Search className="h-5 w-5" aria-hidden /></span>
-              <span>
-                <span className="block text-base font-bold leading-tight">Tra cứu kết quả</span>
-                <span className="block text-[11px] text-white/85">Theo dõi tiến độ xử lý</span>
-              </span>
-            </Link>
+            {/* Nút chính: hút theo con trỏ + vệt sáng lướt + vầng sáng thở */}
+            <Magnetic className="w-full sm:w-auto">
+              <Link
+                to="/gui-y-kien"
+                className="btn-shine animate-glow group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-500 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                  <Mail className="icon-pop h-5 w-5" aria-hidden />
+                </span>
+                <span>
+                  <span className="block text-base font-bold leading-tight">Gửi ý kiến ngay</span>
+                  <span className="block text-[11px] text-white/85">Gửi phản ánh, kiến nghị</span>
+                </span>
+              </Link>
+            </Magnetic>
+
+            <Magnetic className="w-full sm:w-auto">
+              <Link
+                to="/tra-cuu"
+                className="btn-shine group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-secondary-500 to-secondary-600 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                  <Search className="icon-pop h-5 w-5" aria-hidden />
+                </span>
+                <span>
+                  <span className="block text-base font-bold leading-tight">Tra cứu kết quả</span>
+                  <span className="block text-[11px] text-white/85">Theo dõi tiến độ xử lý</span>
+                </span>
+              </Link>
+            </Magnetic>
           </div>
 
           {/* Dải 4 thẻ tính năng */}

@@ -11,6 +11,16 @@ import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { cn } from '../../utils/helpers';
 
 export default function Header() {
+  // Header CO LẠI + đổ bóng sâu khi người dùng cuộn xuống
+  // -> tiết kiệm chỗ trên màn hình, tạo cảm giác "phản hồi" với thao tác
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const { staff } = useAdminAuth();
   const [theme, setTheme] = useLocalStorage<'light' | 'dark'>(STORAGE_KEYS.theme, 'light');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -22,8 +32,16 @@ export default function Header() {
 
   return (
     <>
-      <header className="glass sticky top-0 z-40 shadow-sm">
-        <div className="container-page flex h-16 items-center justify-between gap-3">
+      <header
+        className={`glass sticky top-0 z-40 transition-all duration-300 ${
+          scrolled ? 'shadow-lg shadow-primary-900/5 backdrop-blur-xl' : 'shadow-sm'
+        }`}
+      >
+        <div
+          className={`container-page flex items-center justify-between gap-3 transition-all duration-300 ${
+            scrolled ? 'h-14' : 'h-16'
+          }`}
+        >
           {/* Logo + tên hệ thống */}
           <Link to="/" className="flex items-center gap-2.5" aria-label="Về trang chủ">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-secondary-500 text-white shadow-soft">
