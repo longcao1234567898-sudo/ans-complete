@@ -47,8 +47,11 @@ export default function Header() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-secondary-500 text-white shadow-soft">
               <Shield className="h-5 w-5" aria-hidden />
             </span>
-            <span className="leading-tight">
-              <span className="block text-sm font-extrabold tracking-wide text-primary-700 dark:text-primary-300">
+            <span>
+              {/* leading-[1.45]: chữ HOA tiếng Việt (Ố, Ộ, Ư...) có dấu chồng CAO
+                  hơn dấu mũ. leading-tight (1.25) sẽ CẮT MẤT dấu sắc trên chữ Ố
+                  -> nhìn thành "SÔ". Phải nới chiều cao dòng ra. */}
+              <span className="block text-sm font-extrabold leading-[1.45] tracking-wide text-primary-700 dark:text-primary-300">
                 HỘP THƯ AN NINH SỐ
               </span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">{UNIT.name}</span>

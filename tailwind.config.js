@@ -33,7 +33,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Roboto', 'system-ui', '-apple-system', 'sans-serif'],
+        // Be Vietnam Pro: font Việt, dấu 2 tầng (Ố, Ộ, Ế, Ữ) hiển thị đầy đủ
+        sans: ['"Be Vietnam Pro"', 'Inter', 'Roboto', 'system-ui', '-apple-system', 'sans-serif'],
       },
       boxShadow: {
         soft: '0 4px 24px -6px rgb(6 78 59 / 0.12)',

@@ -31,7 +31,7 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
               <Shield className="h-4 w-4 text-accent-500" aria-hidden />
             </span>
-            <span className="text-sm font-extrabold tracking-wide text-white">HỘP THƯ AN NINH SỐ</span>
+            <span className="text-sm font-extrabold leading-[1.45] tracking-wide text-white">HỘP THƯ AN NINH SỐ</span>
           </div>
           <p className="text-sm leading-relaxed text-slate-300">
             Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của {UNIT.name}.
@@ -40,7 +40,7 @@ export default function Footer() {
 
         {/* Liên kết nhanh */}
         <div>
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-white">Liên kết nhanh</h3>
+          <h3 className="mb-3 text-sm font-bold uppercase leading-[1.5] tracking-wider text-white">Liên kết nhanh</h3>
           <ul className="space-y-2 text-sm">
             {NAV_LINKS.map((link) => (
               <li key={link.to}>
@@ -54,7 +54,7 @@ export default function Footer() {
 
         {/* Chính sách */}
         <div>
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-white">Thông tin</h3>
+          <h3 className="mb-3 text-sm font-bold uppercase leading-[1.5] tracking-wider text-white">Thông tin</h3>
           <ul className="space-y-2 text-sm">
             <li>
               <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">
@@ -76,7 +76,7 @@ export default function Footer() {
 
         {/* Liên hệ */}
         <div>
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-white">Liên hệ</h3>
+          <h3 className="mb-3 text-sm font-bold uppercase leading-[1.5] tracking-wider text-white">Liên hệ</h3>
           <ul className="space-y-2.5 text-sm text-slate-300">
             <li className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-500" aria-hidden />

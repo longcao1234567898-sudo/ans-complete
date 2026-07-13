@@ -18,11 +18,20 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon.svg" />
-    <!-- Font Inter -->
+    <!--
+      Font BE VIETNAM PRO — do người Việt thiết kế riêng cho tiếng Việt.
+
+      VÌ SAO ĐỔI TỪ INTER SANG:
+      Inter là font phương Tây, dấu tiếng Việt 2 tầng (Ố = Ô + sắc, Ộ, Ế, Ữ...)
+      bị vẽ đè hoặc cắt cụt -> "HỘP THƯ AN NINH SỐ" hiện thành "...SÔ".
+      Be Vietnam Pro dựng riêng từng glyph cho dấu 2 tầng nên luôn hiển thị đủ.
+
+      &subset=vietnamese: ép Google gửi kèm bộ ký tự tiếng Việt.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&subset=vietnamese,latin&display=swap"
       rel="stylesheet"
     />
     <!-- Áp dụng dark mode sớm để tránh nháy màn hình khi tải trang -->

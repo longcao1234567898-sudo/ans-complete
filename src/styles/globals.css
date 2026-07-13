@@ -313,3 +313,35 @@
     transform: none !important;
   }
 }
+
+/* =====================================================================
+   SỬA LỖI CẮT DẤU CHỮ HOA TIẾNG VIỆT
+   =====================================================================
+   Chữ HOA tiếng Việt có dấu CHỒNG 2 TẦNG: Ố = Ô + dấu sắc, Ộ = Ô + dấu nặng,
+   Ế = Ê + dấu sắc... Dấu tầng trên vượt CAO hơn chiều cao chữ hoa thông thường.
+
+   Nếu line-height quá chặt (leading-none = 1, leading-tight = 1.25),
+   trình duyệt CẮT MẤT dấu tầng trên:
+       "HỘP THƯ AN NINH SỐ"  ->  hiện thành  "HỘP THƯ AN NINH SÔ"   ❌
+
+   Cách sửa: mọi khối chữ HOA phải có chiều cao dòng tối thiểu 1.4,
+   và không được overflow:hidden cắt phần trên.
+   ===================================================================== */
+
+.uppercase,
+[class*='uppercase'] {
+  line-height: 1.5;
+}
+
+/* Khối chữ hoa dùng leading chặt -> ép nới ra */
+.uppercase.leading-none,
+.uppercase.leading-tight,
+.uppercase.leading-snug {
+  line-height: 1.5 !important;
+}
+
+/* Tiện ích: dùng cho bất kỳ chữ HOA tiếng Việt nào để chắc chắn không cắt dấu */
+.vn-caps {
+  line-height: 1.5;
+  padding-top: 0.08em;   /* chừa chỗ cho dấu tầng trên */
+}
