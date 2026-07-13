@@ -31,7 +31,7 @@ export default function FeatureCard({
       transition={{ duration: 0.4, ease: 'easeOut', delay }}
       className="h-full"
     >
-      <Card hover className="group relative flex h-full flex-col overflow-hidden">
+      <Card hover className="group tilt-3d border-glow group relative flex h-full flex-col overflow-hidden">
         {/* Vầng sáng trang trí, lan rộng khi hover */}
         <span
           className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 transition-transform duration-500 will-change-transform group-hover:scale-150"

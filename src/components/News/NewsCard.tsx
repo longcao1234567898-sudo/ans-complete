@@ -26,7 +26,7 @@ export default function NewsCard({ article }: { article: NewsArticle }) {
       aria-label={`Đọc bài: ${article.title}`}
       className="group block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
     >
-      <Card hover className="flex h-full flex-col overflow-hidden !p-0 transition group-hover:shadow-lg">
+      <Card className="tilt-3d flex h-full flex-col overflow-hidden !p-0">
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
           {!loaded && <Skeleton className="absolute inset-0 rounded-none" />}
           <img

@@ -16,6 +16,7 @@ import CategorySelect from '../components/FeedbackForm/CategorySelect';
 import ContactInfo from '../components/FeedbackForm/ContactInfo';
 import Confirmation from '../components/FeedbackForm/Confirmation';
 import Card from '../components/common/Card';
+import { AnimatePresence, motion } from 'framer-motion';
 import PageBackground from '../components/common/PageBackground';
 
 const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
@@ -101,7 +102,17 @@ export default function SendFeedbackPage() {
 
       {!submission && <StepIndicator current={step} />}
 
-      <Card className="p-5 sm:p-7">
+      <Card className="overflow-hidden p-5 sm:p-7">
+        {/* Chuyển bước TRƯỢT NGANG như ứng dụng điện thoại:
+            đi tới -> trượt từ phải sang; quay lại -> trượt từ trái sang */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.32, ease: [0.21, 0.65, 0.36, 1] }}
+          >
         {step === 1 && (
           <ContentInput
             value={draft.content}
@@ -152,6 +163,8 @@ export default function SendFeedbackPage() {
             onReset={handleReset}
           />
         )}
+          </motion.div>
+        </AnimatePresence>
       </Card>
     </div>
     </>

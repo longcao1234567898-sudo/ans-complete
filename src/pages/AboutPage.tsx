@@ -6,6 +6,7 @@ import { Clock, Mail, MapPin, Phone, ShieldCheck, Siren, Sparkles, Workflow } fr
 import Card from '../components/common/Card';
 import { UNIT } from '../utils/constants';
 import PageBackground from '../components/common/PageBackground';
+import Reveal from '../components/common/Reveal';
 
 const PROCESS_STEPS = [
   {
@@ -29,7 +30,7 @@ const PROCESS_STEPS = [
 export default function AboutPage() {
   return (
     <>
-      <PageBackground video="bg-nui-sam.mp4" />
+      <PageBackground image="bg-nui-sam.webp" />
       <div className="container-page max-w-3xl py-10 sm:py-14">
       <div className="mb-10 text-center">
         <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-4 py-1.5 text-xs font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
@@ -43,6 +44,7 @@ export default function AboutPage() {
       </div>
 
       {/* Quy trình xử lý */}
+      <Reveal>
       <section className="mb-10">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
           <Workflow className="h-5 w-5 text-primary-600" /> Quy trình xử lý
@@ -69,8 +71,10 @@ export default function AboutPage() {
           ))}
         </div>
       </section>
+      </Reveal>
 
       {/* Cam kết bảo mật */}
+      <Reveal delay={0.06}>
       <section className="mb-10">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
           <ShieldCheck className="h-5 w-5 text-primary-600" /> Cam kết bảo mật
@@ -82,6 +86,7 @@ export default function AboutPage() {
           <p>• Dữ liệu chỉ phục vụ công tác tiếp nhận, xử lý — không sử dụng cho mục đích khác.</p>
         </Card>
       </section>
+      </Reveal>
 
       {/* Liên hệ */}
       <section>
