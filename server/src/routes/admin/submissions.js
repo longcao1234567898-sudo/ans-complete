@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
               c.code AS category_code, c.name AS category_name,
-              s.status, s.sender_name, s.is_flagged, s.created_at,
+              s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous,
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
     // Giải mã tên rồi CHE BỚT — danh sách không bao giờ hiện danh tính đầy đủ
     const data = rows.map((r) => ({
       ...r,
-      sender_name: maskName(decrypt(r.sender_name)),
+      sender_name: r.is_anonymous ? '🕶️ Người gửi ẩn danh' : maskName(decrypt(r.sender_name)),
       ...slaOf(r),
     }));
     res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
@@ -101,8 +101,8 @@ router.get('/:id', async (req, res) => {
     const row = rows[0];
     const out = {
       ...row,
-      sender_name: maskName(decrypt(row.sender_name)),
-      sender_phone: maskPhone(decrypt(row.sender_phone)),
+      sender_name: row.is_anonymous ? '🕶️ Người gửi ẩn danh' : maskName(decrypt(row.sender_name)),
+      sender_phone: row.is_anonymous ? '(không cung cấp)' : maskPhone(decrypt(row.sender_phone)),
       sender_email: row.sender_email ? decrypt(row.sender_email) : null,
       is_masked: true,
       ...slaOf(row),
@@ -123,10 +123,13 @@ router.get('/:id', async (req, res) => {
 router.post('/:id/reveal', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT sender_name, sender_phone, sender_email FROM submissions WHERE id = ?',
+      'SELECT sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ?',
       [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (rows[0].is_anonymous) {
+      return res.status(400).json({ error: 'Ý kiến này được gửi ẨN DANH — không có danh tính để xem.' });
+    }
 
     // GHI NHẬT KÝ trước khi trả dữ liệu
     await pool.query(

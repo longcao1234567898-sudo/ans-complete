@@ -100,8 +100,20 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
 
   const captchaOk = !captchaEnabled || Boolean(value.captchaToken);
 
+  const anon = value.isAnonymous === true;
+
+  function toggleAnonymous(on: boolean) {
+    if (on) {
+      // Bật ẩn danh: xoá sạch danh tính đã nhập + huỷ OTP
+      onChange({ fullName: '', phone: '', email: '', wardId: value.wardId, captchaToken: value.captchaToken, isAnonymous: true, otpToken: undefined });
+      setOtpSent(false); setOtpCode(''); setOtpMsg(''); setOtpErr(''); setDevCode('');
+    } else {
+      onChange({ ...value, isAnonymous: false });
+    }
+  }
+
   const handleNext = () => {
-    if (nameValid && phoneValid && emailValid && captchaOk && otpVerified) {
+    if (anon ? captchaOk : (nameValid && phoneValid && emailValid && captchaOk && otpVerified)) {
       onNext();
     } else {
       setAttempted(true);
@@ -116,6 +128,38 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
         cán bộ xác minh và phản hồi kết quả; email là tuỳ chọn.
       </p>
 
+      {/* V4: CÔNG TẮC GỬI ẨN DANH — bảo vệ người tố giác */}
+      <button
+        type="button"
+        onClick={() => toggleAnonymous(!anon)}
+        className={`mb-4 flex w-full items-start gap-3 rounded-2xl border-2 p-4 text-left transition ${
+          anon
+            ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20'
+            : 'border-slate-200 bg-white hover:border-primary-300 dark:border-slate-700 dark:bg-slate-800/50'
+        }`}
+      >
+        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+          anon ? 'border-primary-600 bg-primary-600' : 'border-slate-300 dark:border-slate-600'
+        }`}>
+          {anon && (
+            <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </span>
+        <span>
+          <span className="block text-sm font-bold text-slate-700 dark:text-slate-200">
+            🕶️ Gửi ẩn danh — không cung cấp danh tính
+          </span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            Dành cho bà con lo ngại bị trả thù khi tố giác. Không cần họ tên, số điện thoại hay email.
+            Bà con vẫn được cấp <b>mã tra cứu</b> để theo dõi kết quả. Cán bộ sẽ không thể liên hệ lại,
+            nên bà con hãy mô tả vụ việc thật chi tiết (thời gian, địa điểm, đối tượng).
+          </span>
+        </span>
+      </button>
+
+      {!anon && (
       <div className="space-y-4">
         <Input
           label="Họ và tên *"
@@ -163,8 +207,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           </div>
         )}
       </div>
+      )}
 
-      {/* ===== V3: XÁC THỰC EMAIL BẰNG MÃ OTP ===== */}
+      {/* ===== V3: XÁC THỰC EMAIL BẰNG MÃ OTP (bỏ qua khi ẩn danh) ===== */}
+      {!anon && (
       <div className={`mt-5 rounded-2xl border-2 p-4 transition ${
         otpVerified
           ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/15'
@@ -261,8 +307,9 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           </>
         )}
       </div>
+      )}
 
-      {attempted && !otpVerified && (
+      {attempted && !anon && !otpVerified && (
         <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
           Vui lòng xác thực email trước khi tiếp tục.
         </p>

@@ -138,6 +138,7 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         wardId: draft.contact.wardId ?? null,
         captchaToken: draft.contact.captchaToken ?? '',
         otpToken: draft.contact.otpToken ?? '',
+        isAnonymous: draft.contact.isAnonymous === true,
       }),
     });
   }

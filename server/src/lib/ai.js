@@ -169,7 +169,64 @@ export async function geminiChat(message, history = []) {
 const VALID_CATEGORIES = new Set(['to_giac', 'khieu_nai', 'phan_anh', 'de_xuat']);
 
 /** AI phân tích + phân loại ý kiến — yêu cầu Gemini trả JSON thuần */
+/* =====================================================================
+   BẢO VỆ DỮ LIỆU TỐ GIÁC — KHÔNG GỬI SANG BÊN THỨ BA
+   =====================================================================
+   Gói Gemini miễn phí: Google có quyền dùng dữ liệu để cải thiện mô hình.
+   Nội dung TỐ GIÁC TỘI PHẠM là thông tin nhạy cảm nhất của hệ thống
+   (liên quan an toàn tính mạng người tố giác) -> TUYỆT ĐỐI không gửi ra ngoài.
+
+   Cơ chế: quét từ khoá tội phạm (đã bỏ dấu) TRƯỚC khi gọi Gemini.
+   Có dấu hiệu tố giác -> phân tích HOÀN TOÀN NỘI BỘ, không gọi API.
+   ===================================================================== */
+
+const bo_dau = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+
+/** Từ khoá dấu hiệu tội phạm (so khớp KHÔNG DẤU để bắt cả văn bản thiếu dấu) */
+const TO_GIAC_KEYWORDS = [
+  'trom cap', 'trom xe', 'an trom', 'an cap', 'cuop', 'cuop giat',
+  'ma tuy', 'nghien', 'chich hut', 'hut chich', 'choi da', 'bay lac', 'tang tru',
+  'danh bac', 'da ga', 'so de', 'ghi de', 'ca do', 'xoc dia',
+  'cho vay nang lai', 'tin dung den', 'doi no thue', 'xiet no',
+  'lua dao', 'chiem doat', 'da cap',
+  'danh nhau', 'chem', 'dam chem', 'hanh hung', 'gay thuong tich', 'con do',
+  'mai dam', 'gai goi', 'chua chap',
+  'buon lau', 'hang cam', 'hang gia', 'thuoc la lau',
+  'sung', 'vu khi', 'hung khi', 'dao kiem', 'vat lieu no', 'phao no',
+  'vuot bien', 'dua nguoi trai phep', 'buon nguoi', 'bat coc',
+  'giet', 'hiep dam', 'xam hai', 'dam o',
+  'to giac', 'to cao toi pham', 'trinh bao', 'bao an',
+];
+
+/** Có dấu hiệu tố giác tội phạm? */
+function isToGiacContent(content) {
+  const t = ' ' + bo_dau(content) + ' ';
+  return TO_GIAC_KEYWORDS.some((kw) => t.includes(kw));
+}
+
+/** Phân tích NỘI BỘ cho tố giác — không gửi gì ra ngoài hệ thống */
+function analyzeToGiacLocally(content) {
+  const t = bo_dau(content);
+  const matched = TO_GIAC_KEYWORDS.filter((kw) => t.includes(kw)).slice(0, 5);
+  const clean = String(content).trim().replace(/\s+/g, ' ');
+  return {
+    normalizedContent: 'Tố giác/tin báo về vụ việc: "' + clean + '"',
+    suggestedCategory: 'to_giac',
+    confidence: Math.min(0.95, 0.7 + matched.length * 0.08),
+    keywords: matched,
+    // Cờ minh bạch: nội dung này KHÔNG được gửi sang AI bên ngoài
+    aiSkipped: true,
+    privacyNote: 'Nội dung có dấu hiệu tố giác tội phạm — được phân tích nội bộ, KHÔNG gửi sang dịch vụ AI bên ngoài để bảo vệ người tố giác.',
+  };
+}
+
 export async function geminiAnalyze(content) {
+  // 🛡️ TỐ GIÁC -> phân tích nội bộ, KHÔNG gọi Gemini (bảo vệ người tố giác)
+  if (isToGiacContent(content)) {
+    console.log('🛡️  Phát hiện dấu hiệu tố giác — phân tích NỘI BỘ, không gửi sang Google.');
+    return analyzeToGiacLocally(content);
+  }
+
   const prompt = `Bạn là cán bộ tiếp dân của ${UNIT.name}, chuyên phân loại ý kiến công dân.
 
 === ĐỊNH NGHĨA 4 NHÓM (đọc kỹ, đây là căn cứ pháp lý) ===

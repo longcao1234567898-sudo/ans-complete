@@ -36,6 +36,7 @@ router.post('/', async (req, res) => {
     const normalizedContent = sanitizeText(body.normalizedContent || content, 2500);
     const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
     const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
+    const isAnonymous = body.isAnonymous === true;
 
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
 
@@ -46,12 +47,15 @@ router.post('/', async (req, res) => {
     // 1) Ràng buộc cơ bản
     if (!content) return res.status(400).json({ error: 'Nội dung ý kiến không được để trống.' });
     if (!CAT_CODE_TO_ID[category]) return res.status(400).json({ error: 'Nhóm xử lý không hợp lệ.' });
-    if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
-    if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
+    // ẨN DANH: bỏ yêu cầu danh tính + OTP (bảo vệ người tố giác).
+    // Chống spam vẫn hoạt động qua IP + băm nội dung.
+    if (!isAnonymous) {
+      if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
+      if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
 
-    // 1b) XÁC THỰC OTP — bắt buộc với MỌI ý kiến
-    const otpCheck = verifyOtpToken(body.otpToken, email);
-    if (!otpCheck.ok) return res.status(401).json({ error: otpCheck.error });
+      const otpCheck = verifyOtpToken(body.otpToken, email);
+      if (!otpCheck.ok) return res.status(401).json({ error: otpCheck.error });
+    }
 
     // 2) Lá chắn văn bản
     const scan = scanTextForThreats(content);
@@ -61,18 +65,18 @@ router.post('/', async (req, res) => {
     }
 
     // 3) Số điện thoại nghiêm ngặt
-    const phoneErr = getPhoneError(phone);
+    const phoneErr = isAnonymous ? null : getPhoneError(phone);
     if (phoneErr) return res.status(400).json({ error: `Số điện thoại: ${phoneErr.toLowerCase()}.` });
 
     // 4) Chống spam — dò theo IP và BĂM SĐT (số thật đã mã hoá nên không so trực tiếp được)
     const contentHash = sha256(normalizedContent);
-    const phoneHash = hashPhone(phone);
+    const phoneHash = isAnonymous ? null : hashPhone(phone);
     const [spam] = await pool.query(
       `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at,
               EXISTS(SELECT 1 FROM submissions WHERE content_hash=? AND created_at > NOW()-INTERVAL 1 HOUR) AS dup
        FROM submissions
-       WHERE (ip_address=? OR sender_phone_hash=?) AND created_at > NOW()-INTERVAL 1 HOUR`,
-      [contentHash, ip, phoneHash]
+       WHERE (ip_address=? OR (sender_phone_hash IS NOT NULL AND sender_phone_hash=?)) AND created_at > NOW()-INTERVAL 1 HOUR`,
+      [contentHash, ip, phoneHash || '__none__']
     );
     const info = spam[0];
     if (info.dup) return res.status(429).json({ error: 'Nội dung này bà con vừa gửi rồi. Vui lòng dùng mã tra cứu đã cấp để theo dõi.' });
@@ -106,11 +110,15 @@ router.post('/', async (req, res) => {
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp)
-       VALUES (?,?,?,?,?,?,?,?,?,?, 'received', ?,?,?,?, TRUE)`,
+        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous)
+       VALUES (?,?,?,?,?,?,?,?,?,?, 'received', ?,?,?,?, ?, ?)`,
       [trackingCode, content, normalizedContent, catId, catId, contentHash,
-       encrypt(fullName), encrypt(phone), phoneHash, email ? encrypt(email) : null,
-       ip, (req.headers['user-agent'] || '').slice(0, 255), deadlineAt, wardId]
+       isAnonymous ? null : encrypt(fullName),
+       isAnonymous ? null : encrypt(phone),
+       phoneHash,
+       isAnonymous || !email ? null : encrypt(email),
+       ip, (req.headers['user-agent'] || '').slice(0, 255), deadlineAt, wardId,
+       !isAnonymous, isAnonymous]
     );
 
     // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
@@ -141,7 +149,7 @@ router.post('/', async (req, res) => {
       content,
       normalizedContent,
       category,
-      contact: { fullName, phone, ...(email ? { email } : {}) },
+      contact: isAnonymous ? { fullName: 'Ẩn danh', phone: '' } : { fullName, phone, ...(email ? { email } : {}) },
       createdAt: new Date().toISOString(),
     });
   } catch (err) {
