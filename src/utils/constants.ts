@@ -63,6 +63,18 @@ export const CATEGORY_MAP = Object.fromEntries(
 
 /** Thông tin hiển thị các trạng thái xử lý */
 export const STATUS_MAP: Record<TrackingStatus, StatusInfo> = {
+  pending_review: {
+    id: 'pending_review',
+    label: 'Chờ kiểm duyệt',
+    description: 'Tin báo ẩn danh đang được cán bộ sàng lọc trước khi đưa vào xử lý',
+    colorClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  },
+  spam: {
+    id: 'spam',
+    label: 'Không tiếp nhận',
+    description: 'Nội dung không đủ căn cứ để thụ lý',
+    colorClass: 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  },
   received: {
     id: 'received',
     label: 'Đã tiếp nhận',

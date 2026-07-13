@@ -16,6 +16,8 @@ export function sha256(text) {
 
 /** Nhãn trạng thái tiếng Việt (khớp frontend) */
 export const STATUS_LABEL = {
+  pending_review: 'Chờ kiểm duyệt',
+  spam: 'Không tiếp nhận (tin rác)',
   received: 'Đã tiếp nhận',
   processing: 'Đang xử lý',
   resolved: 'Đã giải quyết',

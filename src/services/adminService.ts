@@ -135,8 +135,7 @@ export interface SubmissionRow {
   ai_processed_content: string | null;
   category_code: string | null;
   category_name: string | null;
-  status: 'pending_review' | 'received' | 'processing' | 'resolved' | 'rejected' | 'spam';
-  is_anonymous?: boolean;
+  status: 'received' | 'processing' | 'resolved' | 'rejected';
   sender_name: string;
   is_flagged: number;
   created_at: string;
@@ -279,15 +278,3 @@ export const fetchLogs = (params: { action?: string; page?: number; limit?: numb
   const qs = p.toString();
   return adminFetch<LogsResult>(`/api/admin/logs${qs ? '?' + qs : ''}`);
 };
-
-
-/* ============================================================
-   V5 — HÀNG CHỜ KIỂM DUYỆT (ý kiến ẩn danh)
-   ============================================================ */
-
-/** Duyệt tin báo ẩn danh, hoặc đánh dấu là tin rác */
-export const reviewSubmission = (id: number, action: 'approve' | 'spam') =>
-  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/review`, {
-    method: 'POST',
-    body: JSON.stringify({ action }),
-  });

@@ -99,10 +99,18 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
   const content = sanitizeText(draft.content);
   const fullName = sanitizeText(draft.contact.fullName, 100);
 
+  const isAnon = draft.contact.isAnonymous === true;
+
   if (!content.trim()) throw new Error('Nội dung ý kiến không được để trống.');
   if (!draft.category) throw new Error('Vui lòng chọn nhóm xử lý.');
-  if (!fullName.trim()) throw new Error('Vui lòng nhập họ và tên.');
-  if (!draft.contact.phone.trim()) throw new Error('Vui lòng nhập số điện thoại.');
+
+  // ẨN DANH: KHÔNG yêu cầu họ tên / số điện thoại (bảo vệ người tố giác)
+  if (!isAnon) {
+    if (!fullName.trim()) throw new Error('Vui lòng nhập họ và tên.');
+    if (!draft.contact.phone.trim()) throw new Error('Vui lòng nhập số điện thoại.');
+  } else if (content.trim().length < 50) {
+    throw new Error('Gửi ẩn danh cần mô tả chi tiết ít nhất 50 ký tự (thời gian, địa điểm, đối tượng) vì cán bộ không thể liên hệ lại để hỏi thêm.');
+  }
 
   const contentScan = scanTextForThreats(content);
   if (!contentScan.safe) {
@@ -110,17 +118,21 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
       `Nội dung chứa yếu tố không an toàn (${contentScan.reasons.join(', ')}). Vui lòng mô tả bằng lời văn thông thường.`
     );
   }
-  const nameScan = scanTextForThreats(fullName);
-  if (!nameScan.safe) throw new Error('Họ tên chứa ký tự không hợp lệ.');
+  if (!isAnon) {
+    const nameScan = scanTextForThreats(fullName);
+    if (!nameScan.safe) throw new Error('Họ tên chứa ký tự không hợp lệ.');
+  }
 
   // Chặn ngôn từ thô tục/xúc phạm
-  if (containsProfanity(content) || containsProfanity(fullName)) {
+  if (containsProfanity(content) || (!isAnon && containsProfanity(fullName))) {
     throw new Error('Nội dung chứa ngôn từ không phù hợp. Vui lòng diễn đạt lịch sự để ý kiến được tiếp nhận.');
   }
 
-  // Kiểm tra số điện thoại nghiêm ngặt (đầu số thật, chặn số rác)
-  const phoneError = getPhoneError(draft.contact.phone);
-  if (phoneError) throw new Error(`Số điện thoại: ${phoneError.toLowerCase()}.`);
+  // Kiểm tra số điện thoại nghiêm ngặt (bỏ qua khi ẩn danh — không có SĐT)
+  if (!isAnon) {
+    const phoneError = getPhoneError(draft.contact.phone);
+    if (phoneError) throw new Error(`Số điện thoại: ${phoneError.toLowerCase()}.`);
+  }
 
   // ============ CHẾ ĐỘ DATABASE: gửi lên backend, backend lưu vào MySQL ============
   // Backend kiểm tra CHỐNG SPAM + TỪ CẤM + SĐT lần nữa phía máy chủ (không tin trình duyệt)
@@ -214,5 +226,30 @@ export async function verifyOtp(email: string, code: string): Promise<OtpVerifyR
   return apiFetch<OtpVerifyResult>('/api/otp/verify', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
+  });
+}
+
+
+/* ============================================================
+   MÃ XÁC THỰC ẨN DANH — không có email nên mã hiện trên màn hình
+   ============================================================ */
+
+export interface AnonCodeResult {
+  ok: boolean;
+  code: string;            // mã 6 số hiện trong ô vàng
+  expiresInMinutes: number;
+  message: string;
+}
+
+/** Xin mã xác thực cho người gửi ẩn danh */
+export async function requestAnonCode(): Promise<AnonCodeResult> {
+  return apiFetch<AnonCodeResult>('/api/otp/anon-code', { method: 'POST', body: JSON.stringify({}) });
+}
+
+/** Xác nhận mã ẩn danh — đúng thì nhận "vé" gửi tin báo (15 phút) */
+export async function verifyAnonCode(code: string): Promise<OtpVerifyResult> {
+  return apiFetch<OtpVerifyResult>('/api/otp/anon-verify', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
   });
 }

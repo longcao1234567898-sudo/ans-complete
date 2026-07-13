@@ -39,9 +39,26 @@ router.get('/:code', async (req, res) => {
       note: h.note || undefined,
       done: true,
     }));
-    const flow = ['received', 'processing', 'resolved'];
+    // Ý kiến ẨN DANH có thêm bước "Chờ kiểm duyệt" ở đầu luồng
+    const isPending = s.status === 'pending_review';
+    const flow = isPending
+      ? ['pending_review', 'received', 'processing', 'resolved']
+      : ['received', 'processing', 'resolved'];
+
     const steps = [...doneSteps];
-    if (s.status !== 'rejected') {
+
+    // Tin ẩn danh chưa duyệt: trigger chưa ghi lịch sử -> tự dựng bước đầu
+    if (isPending && steps.length === 0) {
+      steps.push({
+        status: 'pending_review',
+        label: STATUS_LABEL.pending_review,
+        timestamp: s.created_at,
+        note: 'Tin báo ẩn danh đang được cán bộ kiểm duyệt trước khi đưa vào xử lý.',
+        done: true,
+      });
+    }
+
+    if (s.status !== 'rejected' && s.status !== 'spam') {
       const reachedIdx = flow.indexOf(s.status);
       for (let i = reachedIdx + 1; i < flow.length; i++) {
         steps.push({ status: flow[i], label: STATUS_LABEL[flow[i]], timestamp: '', done: false });

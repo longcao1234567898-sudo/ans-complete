@@ -180,5 +180,145 @@ export function verifyOtpToken(otpToken, email) {
   }
 }
 
+/* =====================================================================
+   MÃ XÁC THỰC CHO Ý KIẾN ẨN DANH
+   =====================================================================
+   Ẩn danh không có email -> không gửi OTP được.
+   Thay vào đó: máy chủ sinh mã 6 số, HIỂN THỊ ngay trên màn hình,
+   bà con gõ lại để xác nhận.
+
+   ⚠️ NÓI THẲNG VỀ MỨC BẢO MẬT: mã hiện trên màn hình nên bot đọc được.
+   Đây KHÔNG phải lớp chống bot chính (đó là việc của CAPTCHA Turnstile).
+   Giá trị thật của nó:
+     - Buộc kẻ spam phải đi thêm 1 vòng gọi máy chủ (không thể gửi hàng loạt
+       chỉ bằng 1 request)
+     - Máy chủ đếm và CHẶN theo IP ngay từ bước xin mã
+     - Cấp "vé" có hạn 15 phút -> không thể dùng lại mãi
+     - Tạo ma sát, buộc người gửi đọc kỹ quy định trước khi gửi
+   ===================================================================== */
+
+const ANON_MAX_CODES_PER_DAY = 5; // xin mã tối đa 5 lần/ngày/IP
+
+/** POST /api/otp/anon-code — sinh mã xác thực cho người gửi ẩn danh */
+router.post('/anon-code', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45);
+
+  try {
+    // Băm IP làm "danh tính" tạm (không lưu IP thô trong bảng OTP)
+    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
+
+    const [[stat]] = await pool.query(
+      `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at
+       FROM otp_codes
+       WHERE email_hash = ? AND created_at > NOW() - INTERVAL 1 DAY`,
+      [ipHash]
+    );
+
+    if (stat.cnt >= ANON_MAX_CODES_PER_DAY) {
+      return res.status(429).json({
+        error: `Mỗi thiết bị chỉ được xin tối đa ${ANON_MAX_CODES_PER_DAY} mã xác thực ẩn danh trong 24 giờ.`,
+      });
+    }
+    if (stat.last_at) {
+      const waited = (Date.now() - new Date(stat.last_at).getTime()) / 1000;
+      if (waited < RESEND_COOLDOWN_SEC) {
+        return res.status(429).json({
+          error: `Vui lòng chờ ${Math.ceil(RESEND_COOLDOWN_SEC - waited)} giây trước khi xin mã mới.`,
+        });
+      }
+    }
+
+    // Huỷ mã cũ chưa dùng
+    await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE email_hash = ? AND is_used = FALSE', [ipHash]);
+
+    const code = genCode();
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60_000);
+
+    await pool.query(
+      'INSERT INTO otp_codes (email_hash, code_hash, expires_at, ip_address) VALUES (?,?,?,?)',
+      [ipHash, codeHash, expiresAt, ip]
+    );
+
+    res.json({
+      ok: true,
+      code,                       // hiện thẳng lên màn hình (ô vàng)
+      expiresInMinutes: OTP_TTL_MIN,
+      message: 'Bà con hãy nhập lại mã bên dưới để xác nhận gửi tin báo ẩn danh.',
+    });
+  } catch (err) {
+    console.error('Lỗi sinh mã ẩn danh:', err.message);
+    res.status(500).json({ error: 'Không tạo được mã xác thực. Vui lòng thử lại.' });
+  }
+});
+
+/** POST /api/otp/anon-verify — kiểm tra mã ẩn danh, cấp "vé" gửi ý kiến */
+router.post('/anon-verify', async (req, res) => {
+  const code = String(req.body?.code || '').trim();
+  const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45);
+
+  if (!/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: 'Mã xác thực phải gồm 6 chữ số.' });
+  }
+
+  try {
+    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
+
+    const [rows] = await pool.query(
+      `SELECT id, code_hash, attempts FROM otp_codes
+       WHERE email_hash = ? AND is_used = FALSE AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [ipHash]
+    );
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Mã đã hết hạn. Vui lòng bấm "Lấy mã xác thực" lại.' });
+    }
+
+    const otp = rows[0];
+    if (otp.attempts >= MAX_ATTEMPTS) {
+      await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = ?', [otp.id]);
+      return res.status(429).json({ error: 'Nhập sai quá nhiều lần. Vui lòng lấy mã mới.' });
+    }
+
+    const ok = await bcrypt.compare(code, otp.code_hash);
+    if (!ok) {
+      await pool.query('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?', [otp.id]);
+      const left = MAX_ATTEMPTS - (otp.attempts + 1);
+      return res.status(400).json({
+        error: left > 0 ? `Mã không đúng. Bà con còn ${left} lần thử.` : 'Mã không đúng. Vui lòng lấy mã mới.',
+      });
+    }
+
+    await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = ?', [otp.id]);
+
+    const otpToken = jwt.sign(
+      { emailHash: ipHash, purpose: 'submit_anon' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.json({ ok: true, otpToken, message: 'Xác thực thành công! Bà con có 15 phút để hoàn tất gửi tin báo.' });
+  } catch (err) {
+    console.error('Lỗi xác thực mã ẩn danh:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ khi xác thực.' });
+  }
+});
+
+/** Kiểm tra "vé" của người gửi ẩn danh (khớp theo IP) */
+export function verifyAnonToken(otpToken, ip) {
+  if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực. Vui lòng bấm "Lấy mã xác thực".' };
+  try {
+    const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
+    if (payload.purpose !== 'submit_anon') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
+    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
+    if (payload.emailHash !== ipHash) {
+      return { ok: false, error: 'Thiết bị không khớp với lượt xác thực. Vui lòng lấy mã mới.' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Xác thực đã hết hạn (15 phút). Vui lòng lấy mã mới.' };
+  }
+}
+
 export { mailConfigured };
 export default router;

@@ -10,7 +10,7 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import { getPhoneError, isValidEmail, isValidPhone } from '../../utils/helpers';
 import Turnstile, { captchaEnabled } from '../common/Turnstile';
-import { fetchWards, sendOtp, verifyOtp } from '../../services/feedbackService';
+import { fetchWards, sendOtp, verifyOtp, requestAnonCode, verifyAnonCode } from '../../services/feedbackService';
 
 interface ContactInfoProps {
   value: ContactInfoType;
@@ -102,18 +102,53 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
 
   const anon = value.isAnonymous === true;
 
+  // ===== MÃ XÁC THỰC ẨN DANH (hiện trên màn hình, không qua email) =====
+  const [anonCode, setAnonCode] = useState('');       // mã máy chủ cấp
+  const [anonInput, setAnonInput] = useState('');     // bà con gõ lại
+  const [anonBusy, setAnonBusy] = useState(false);
+  const [anonErr, setAnonErr] = useState('');
+  const anonVerified = anon && Boolean(value.otpToken);
+
+  async function handleGetAnonCode() {
+    setAnonBusy(true); setAnonErr('');
+    try {
+      const r = await requestAnonCode();
+      setAnonCode(r.code);
+      setAnonInput('');
+    } catch (e) {
+      setAnonErr(e instanceof Error ? e.message : 'Không lấy được mã.');
+    } finally {
+      setAnonBusy(false);
+    }
+  }
+
+  async function handleVerifyAnonCode() {
+    if (!/^\d{6}$/.test(anonInput)) { setAnonErr('Mã gồm 6 chữ số.'); return; }
+    setAnonBusy(true); setAnonErr('');
+    try {
+      const r = await verifyAnonCode(anonInput);
+      onChange({ ...value, otpToken: r.otpToken });
+    } catch (e) {
+      setAnonErr(e instanceof Error ? e.message : 'Mã không đúng.');
+    } finally {
+      setAnonBusy(false);
+    }
+  }
+
   function toggleAnonymous(on: boolean) {
     if (on) {
       // Bật ẩn danh: xoá sạch danh tính đã nhập + huỷ OTP
       onChange({ fullName: '', phone: '', email: '', wardId: value.wardId, captchaToken: value.captchaToken, isAnonymous: true, otpToken: undefined });
       setOtpSent(false); setOtpCode(''); setOtpMsg(''); setOtpErr(''); setDevCode('');
+      setAnonCode(''); setAnonInput(''); setAnonErr('');
     } else {
-      onChange({ ...value, isAnonymous: false });
+      onChange({ ...value, isAnonymous: false, otpToken: undefined });
+      setAnonCode(''); setAnonInput(''); setAnonErr('');
     }
   }
 
   const handleNext = () => {
-    if (anon ? captchaOk : (nameValid && phoneValid && emailValid && captchaOk && otpVerified)) {
+    if (anon ? (captchaOk && anonVerified) : (nameValid && phoneValid && emailValid && captchaOk && otpVerified)) {
       onNext();
     } else {
       setAttempted(true);
@@ -171,6 +206,102 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
             <li>• Nếu vụ việc <b>khẩn cấp</b>, bà con hãy gọi ngay <b>113</b>.</li>
           </ul>
         </div>
+      )}
+
+      {/* ===== MÃ XÁC THỰC ẨN DANH (ô vàng — không cần email) ===== */}
+      {anon && (
+        <div className={`mb-4 rounded-2xl border-2 p-4 transition ${
+          anonVerified
+            ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/15'
+            : 'border-primary-200 bg-primary-50/50 dark:border-slate-700 dark:bg-slate-800/40'
+        }`}>
+          {anonVerified ? (
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Đã xác thực</p>
+                <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
+                  Bà con có 15 phút để hoàn tất gửi tin báo.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="mb-3 flex items-start gap-2">
+                <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
+                <div>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Xác thực gửi ẩn danh</p>
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                    Vì gửi ẩn danh không cần email, hệ thống sẽ hiện mã ngay trên màn hình.
+                    Bà con nhập lại mã để xác nhận.
+                  </p>
+                </div>
+              </div>
+
+              {!anonCode ? (
+                <button
+                  type="button"
+                  onClick={handleGetAnonCode}
+                  disabled={anonBusy}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {anonBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {anonBusy ? 'Đang lấy mã...' : 'Lấy mã xác thực'}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-dashed border-amber-400 bg-amber-50 p-3 text-center dark:bg-amber-900/20">
+                    <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                      MÃ XÁC THỰC CỦA BÀ CON (có hiệu lực 10 phút):
+                    </p>
+                    <p className="mt-1 select-all font-mono text-2xl font-extrabold tracking-[0.3em] text-amber-700 dark:text-amber-300">
+                      {anonCode}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={anonInput}
+                      onChange={(e) => setAnonInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.4em] text-slate-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyAnonCode}
+                      disabled={anonBusy || anonInput.length !== 6}
+                      className="shrink-0 rounded-xl bg-primary-600 px-5 text-sm font-bold text-white transition hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      {anonBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Xác nhận'}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGetAnonCode}
+                    disabled={anonBusy}
+                    className="w-full text-xs font-semibold text-primary-600 transition hover:underline disabled:text-slate-400 dark:text-primary-300"
+                  >
+                    Lấy mã khác
+                  </button>
+                </div>
+              )}
+
+              {anonErr && (
+                <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">{anonErr}</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {attempted && anon && !anonVerified && (
+        <p className="mb-3 text-xs font-medium text-red-600 dark:text-red-400">
+          Vui lòng lấy mã và xác thực trước khi tiếp tục.
+        </p>
       )}
 
       {!anon && (

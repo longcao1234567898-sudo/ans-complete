@@ -4,7 +4,7 @@
 import type { FeedbackCategory } from './feedback';
 
 /** Trạng thái xử lý ý kiến */
-export type TrackingStatus = 'received' | 'processing' | 'resolved' | 'rejected';
+export type TrackingStatus = 'pending_review' | 'received' | 'processing' | 'resolved' | 'rejected' | 'spam';
 
 /** Thông tin hiển thị của một trạng thái */
 export interface StatusInfo {

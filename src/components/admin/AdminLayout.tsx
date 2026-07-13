@@ -5,13 +5,12 @@
  */
 import { ReactNode } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText, ShieldQuestion } from 'lucide-react';
+import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 const NAV = [
   { to: '/quan-tri', label: 'Tổng quan', Icon: LayoutDashboard, exact: true },
   { to: '/quan-tri/y-kien', label: 'Danh sách ý kiến', Icon: Inbox, exact: false },
-  { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt', Icon: ShieldQuestion, exact: false },
   { to: '/quan-tri/bao-cao', label: 'Báo cáo', Icon: BarChart3, exact: false },
   { to: '/quan-tri/ban-do', label: 'Bản đồ điểm nóng', Icon: Map, exact: false },
   { to: '/quan-tri/nhat-ky', label: 'Nhật ký', Icon: ScrollText, exact: false },

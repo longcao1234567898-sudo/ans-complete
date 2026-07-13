@@ -7,7 +7,7 @@ import {
 } from '../lib/security.js';
 import { encrypt, hashPhone } from '../lib/crypto.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
-import { verifyOtpToken } from './otp.js';
+import { verifyOtpToken, verifyAnonToken } from './otp.js';
 
 const router = Router();
 
@@ -69,8 +69,12 @@ router.post('/', async (req, res) => {
       });
     }
     if (!CAT_CODE_TO_ID[category]) return res.status(400).json({ error: 'Nhóm xử lý không hợp lệ.' });
-    // ẨN DANH: bỏ yêu cầu danh tính + OTP (bảo vệ người tố giác).
-    // Chống spam vẫn hoạt động qua IP + băm nội dung.
+    // ẨN DANH: không cần danh tính, nhưng PHẢI có "vé" xác thực (mã 6 số hiện trên màn hình)
+    if (isAnonymous) {
+      const anonCheck = verifyAnonToken(body.otpToken, ip);
+      if (!anonCheck.ok) return res.status(401).json({ error: anonCheck.error });
+    }
+
     if (!isAnonymous) {
       if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
       if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
