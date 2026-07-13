@@ -415,11 +415,13 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
               </button>
             ) : (
               <div className="space-y-3">
-                {/* Chế độ DEMO: hiện mã ngay trên màn hình */}
+                {/* Ô vàng chỉ xuất hiện khi MÁY CHỦ chưa cấu hình email (chạy thử ở máy cá nhân).
+                    Trên bản chạy thật đã có Brevo -> mã LUÔN gửi vào hộp thư, không bao giờ
+                    hiện ra màn hình. Nếu hiện, ai cũng xác thực được email của người khác. */}
                 {devCode && (
                   <div className="rounded-xl border border-dashed border-amber-400 bg-amber-50 p-3 text-center dark:bg-amber-900/20">
                     <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
-                      CHẾ ĐỘ DEMO (chưa cấu hình email) — mã của bà con là:
+                      MÁY CHỦ CHƯA CẤU HÌNH EMAIL (chế độ chạy thử) — mã của bà con là:
                     </p>
                     <p className="mt-1 font-mono text-2xl font-extrabold tracking-[0.3em] text-amber-700 dark:text-amber-300">
                       {devCode}

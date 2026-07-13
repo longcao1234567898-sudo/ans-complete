@@ -80,21 +80,23 @@ router.post('/send', async (req, res) => {
 
     const result = await sendOtpEmail(email, code);
 
-    let message;
-    if (result.sent) {
-      message = `Đã gửi mã xác thực đến ${email}. Vui lòng kiểm tra hộp thư (kể cả mục Spam).`;
-    } else if (result.failed) {
-      // Gửi mail hỏng -> KHÔNG chặn bà con, hiện mã ra màn hình để vẫn gửi được ý kiến
-      message = 'Hệ thống email đang gặp sự cố. Mã xác thực của bà con hiển thị bên dưới.';
-    } else {
-      message = 'Hệ thống đang ở CHẾ ĐỘ DEMO (chưa cấu hình email).';
+    // Gửi mail HỎNG (hệ thống đã cấu hình email) -> BÁO LỖI, tuyệt đối không hiện mã.
+    // Hiện mã ra màn hình = ai cũng xác thực được email người khác.
+    if (result.failed) {
+      await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE email_hash = ? AND is_used = FALSE', [eHash]);
+      return res.status(502).json({
+        error: 'Hệ thống chưa gửi được mã xác thực đến email này. Bà con vui lòng kiểm tra lại địa chỉ email hoặc thử lại sau ít phút.',
+      });
     }
 
     res.json({
       ok: true,
-      message,
+      message: result.sent
+        ? `Đã gửi mã xác thực đến ${email}. Vui lòng kiểm tra hộp thư (kể cả mục Spam).`
+        : 'Hệ thống đang ở CHẾ ĐỘ DEMO (máy chủ chưa cấu hình email).',
       expiresInMinutes: OTP_TTL_MIN,
-      // Có khi: chưa cấu hình email, HOẶC gửi mail thất bại
+      // devCode CHỈ tồn tại khi máy chủ HOÀN TOÀN chưa cấu hình email (chạy thử ở máy cá nhân).
+      // Trên bản chạy thật đã có Brevo -> không bao giờ có trường này.
       ...(result.devCode ? { devCode: result.devCode, demoMode: true } : {}),
     });
   } catch (err) {
