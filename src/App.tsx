@@ -10,7 +10,6 @@ import AppToaster from './components/common/Toast';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import ScrollProgress from './components/common/ScrollProgress';
-import { AnimatePresence, motion } from 'framer-motion';
 import ChatWidget from './components/AIChat/ChatWidget';
 import HomePage from './pages/HomePage';
 import SendFeedbackPage from './pages/SendFeedbackPage';
@@ -54,15 +53,11 @@ function AppShell() {
       <ScrollToTop />
       <Header />
       <main className="flex-1">
-        {/* Chuyển trang: mờ dần + trượt nhẹ lên. Mượt hơn hẳn fade CSS thô. */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28, ease: [0.21, 0.65, 0.36, 1] }}
-          >
+        {/* ⚠️ KHÔNG dùng transform (translateY/scale) để chuyển trang!
+            Phần tử có transform trở thành KHUNG THAM CHIẾU MỚI cho position:fixed
+            -> PageBackground (nền ảnh An Giang, dùng fixed inset-0) sẽ MẤT HẾT.
+            Chỉ dùng opacity: vẫn mượt, mà nền ảnh giữ nguyên. */}
+        <div key={location.pathname} className="animate-page">
           <Routes location={location}>
             <Route path="/" element={<HomePage />} />
             <Route path="/gui-y-kien" element={<SendFeedbackPage />} />
@@ -80,8 +75,7 @@ function AppShell() {
             <Route path="/quan-tri/nhat-ky" element={<AdminLogsPage />} />
             <Route path="/quan-tri/kiem-duyet" element={<AdminReviewPage />} />
           </Routes>
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </main>
       <Footer />
       {!isAdminArea && <ChatWidget />}
