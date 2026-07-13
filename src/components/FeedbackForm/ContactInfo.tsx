@@ -153,11 +153,25 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           </span>
           <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">
             Dành cho bà con lo ngại bị trả thù khi tố giác. Không cần họ tên, số điện thoại hay email.
-            Bà con vẫn được cấp <b>mã tra cứu</b> để theo dõi kết quả. Cán bộ sẽ không thể liên hệ lại,
-            nên bà con hãy mô tả vụ việc thật chi tiết (thời gian, địa điểm, đối tượng).
+            Bà con vẫn được cấp <b>mã tra cứu</b> để theo dõi kết quả.
           </span>
         </span>
       </button>
+
+      {anon && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+          <p className="mb-2 text-xs font-bold text-amber-800 dark:text-amber-300">
+            Quy định khi gửi ẩn danh
+          </p>
+          <ul className="space-y-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+            <li>• Nội dung phải chi tiết, <b>ít nhất 50 ký tự</b> — nêu rõ thời gian, địa điểm, đối tượng.
+              Cán bộ không thể gọi lại hỏi thêm.</li>
+            <li>• Tin báo sẽ được <b>cán bộ kiểm duyệt</b> trước khi đưa vào xử lý.</li>
+            <li>• Mỗi thiết bị chỉ gửi được <b>2 tin ẩn danh trong 24 giờ</b> (để chống tin rác).</li>
+            <li>• Nếu vụ việc <b>khẩn cấp</b>, bà con hãy gọi ngay <b>113</b>.</li>
+          </ul>
+        </div>
+      )}
 
       {!anon && (
       <div className="space-y-4">

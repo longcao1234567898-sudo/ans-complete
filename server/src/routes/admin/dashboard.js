@@ -18,7 +18,7 @@ router.get('/stats', async (_req, res) => {
        ORDER BY s.created_at DESC LIMIT 8`
     );
     // SLA — cảnh báo quá hạn / sắp hết hạn / chưa phân công
-    let sla = { overdue_count: 0, near_due_count: 0, unassigned_count: 0 };
+    let sla = { overdue_count: 0, near_due_count: 0, unassigned_count: 0, pending_review_count: 0 };
     try {
       const [[row]] = await pool.query('SELECT * FROM vw_sla_stats');
       if (row) sla = row;

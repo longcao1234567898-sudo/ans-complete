@@ -172,7 +172,12 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
         <div className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/60">
           <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">Thông tin liên hệ</p>
           <ul className="space-y-0.5 text-slate-700 dark:text-slate-200">
-            {draft.contact.isAnonymous && <li className="font-semibold">🕶️ Gửi ẩn danh — không cung cấp danh tính</li>}
+            {draft.contact.isAnonymous && (
+              <>
+                <li className="font-semibold">🕶️ Gửi ẩn danh — không cung cấp danh tính</li>
+                <li className="text-amber-700 dark:text-amber-400">Tin báo ẩn danh sẽ được cán bộ kiểm duyệt trước khi đưa vào xử lý</li>
+              </>
+            )}
             {draft.contact.fullName && <li>{draft.contact.fullName}</li>}
             {draft.contact.phone && <li>{draft.contact.phone}</li>}
             {draft.contact.email && <li>{draft.contact.email}</li>}

@@ -135,7 +135,8 @@ export interface SubmissionRow {
   ai_processed_content: string | null;
   category_code: string | null;
   category_name: string | null;
-  status: 'received' | 'processing' | 'resolved' | 'rejected';
+  status: 'pending_review' | 'received' | 'processing' | 'resolved' | 'rejected' | 'spam';
+  is_anonymous?: boolean;
   sender_name: string;
   is_flagged: number;
   created_at: string;
@@ -246,3 +247,47 @@ export interface WardPoint {
 
 /** Dữ liệu bản đồ điểm nóng */
 export const fetchMapData = (): Promise<WardPoint[]> => adminFetch<WardPoint[]>('/api/admin/reports/map');
+
+export interface ActivityLog {
+  id: number;
+  action: string;
+  target_type: string | null;
+  target_id: number | null;
+  details: any;
+  ip_address: string | null;
+  created_at: string;
+  staff_name: string | null;
+  staff_role: string | null;
+  tracking_code: string | null;
+}
+
+export interface LogsResult {
+  data: ActivityLog[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  revealCount30d: number;
+}
+
+/** Nhật ký hệ thống (chỉ admin/manager) */
+export const fetchLogs = (params: { action?: string; page?: number; limit?: number }): Promise<LogsResult> => {
+  const p = new URLSearchParams();
+  if (params.action) p.set('action', params.action);
+  if (params.page) p.set('page', String(params.page));
+  if (params.limit) p.set('limit', String(params.limit));
+  const qs = p.toString();
+  return adminFetch<LogsResult>(`/api/admin/logs${qs ? '?' + qs : ''}`);
+};
+
+
+/* ============================================================
+   V5 — HÀNG CHỜ KIỂM DUYỆT (ý kiến ẩn danh)
+   ============================================================ */
+
+/** Duyệt tin báo ẩn danh, hoặc đánh dấu là tin rác */
+export const reviewSubmission = (id: number, action: 'approve' | 'spam') =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/review`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  });

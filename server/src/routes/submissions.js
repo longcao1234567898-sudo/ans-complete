@@ -6,13 +6,21 @@ import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
 import { encrypt, hashPhone } from '../lib/crypto.js';
-import { verifyTurnstile } from '../lib/turnstile.js';
+import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken } from './otp.js';
 
 const router = Router();
 
 const COOLDOWN_MS = 2 * 60_000;
 const MAX_PER_HOUR = 5;
+
+/* ===== HẠN MỨC NGẶT HƠN CHO Ý KIẾN ẨN DANH =====
+ * Ẩn danh không có SĐT/email để chặn -> kẻ xấu đổi IP là spam được.
+ * Nên siết chặt hơn hẳn, và bắt buộc CAPTCHA (không cho tắt).
+ */
+const ANON_COOLDOWN_MS = 10 * 60_000;  // chờ 10 phút giữa 2 lần gửi (thường: 2 phút)
+const ANON_MAX_PER_DAY = 2;            // tối đa 2 ý kiến/ngày   (thường: 5/giờ)
+const ANON_MIN_LENGTH = 50;            // nội dung tối thiểu 50 ký tự (chống gửi "aaaa")
 const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
 
 /** GET /api/submissions/wards — danh sách địa bàn cho ô chọn ở form */
@@ -40,12 +48,26 @@ router.post('/', async (req, res) => {
 
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
 
-    // 0) CAPTCHA chống bot (bỏ qua nếu chưa cấu hình khoá)
+    // 0) CAPTCHA chống bot
     const captcha = await verifyTurnstile(body.captchaToken, ip);
     if (!captcha.ok) return res.status(400).json({ error: captcha.error });
 
+    // ẨN DANH: CAPTCHA là BẮT BUỘC (không cho bỏ qua như ý kiến có danh tính)
+    if (isAnonymous && turnstileEnabled() && !body.captchaToken) {
+      return res.status(400).json({
+        error: 'Gửi ẩn danh bắt buộc phải hoàn tất bước xác minh "Tôi không phải người máy".',
+      });
+    }
+
     // 1) Ràng buộc cơ bản
     if (!content) return res.status(400).json({ error: 'Nội dung ý kiến không được để trống.' });
+
+    // ẨN DANH: bắt mô tả chi tiết (cán bộ không thể gọi lại hỏi thêm)
+    if (isAnonymous && content.trim().length < ANON_MIN_LENGTH) {
+      return res.status(400).json({
+        error: `Gửi ẩn danh cần mô tả chi tiết ít nhất ${ANON_MIN_LENGTH} ký tự (thời gian, địa điểm, đối tượng) vì cán bộ không thể liên hệ lại để hỏi thêm.`,
+      });
+    }
     if (!CAT_CODE_TO_ID[category]) return res.status(400).json({ error: 'Nhóm xử lý không hợp lệ.' });
     // ẨN DANH: bỏ yêu cầu danh tính + OTP (bảo vệ người tố giác).
     // Chống spam vẫn hoạt động qua IP + băm nội dung.
@@ -80,9 +102,31 @@ router.post('/', async (req, res) => {
     );
     const info = spam[0];
     if (info.dup) return res.status(429).json({ error: 'Nội dung này bà con vừa gửi rồi. Vui lòng dùng mã tra cứu đã cấp để theo dõi.' });
-    if (info.last_at && Date.now() - new Date(info.last_at).getTime() < COOLDOWN_MS) {
-      const waitSec = Math.ceil((COOLDOWN_MS - (Date.now() - new Date(info.last_at).getTime())) / 1000);
-      return res.status(429).json({ error: `Bà con vừa gửi một ý kiến. Vui lòng chờ thêm ${waitSec} giây.` });
+
+    // Chờ giữa 2 lần gửi — ẩn danh phải chờ LÂU HƠN (10 phút thay vì 2 phút)
+    const cooldown = isAnonymous ? ANON_COOLDOWN_MS : COOLDOWN_MS;
+    if (info.last_at && Date.now() - new Date(info.last_at).getTime() < cooldown) {
+      const waitSec = Math.ceil((cooldown - (Date.now() - new Date(info.last_at).getTime())) / 1000);
+      const waitMin = Math.ceil(waitSec / 60);
+      return res.status(429).json({
+        error: isAnonymous
+          ? `Gửi ẩn danh được giới hạn chặt để chống tin rác. Vui lòng chờ thêm ${waitMin} phút.`
+          : `Bà con vừa gửi một ý kiến. Vui lòng chờ thêm ${waitSec} giây.`,
+      });
+    }
+
+    // ẨN DANH: tối đa 2 ý kiến / NGÀY / IP (ý kiến thường: 5 / giờ)
+    if (isAnonymous) {
+      const [[anonStat]] = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM submissions
+         WHERE is_anonymous = TRUE AND ip_address = ? AND created_at > NOW() - INTERVAL 1 DAY`,
+        [ip]
+      );
+      if (anonStat.cnt >= ANON_MAX_PER_DAY) {
+        return res.status(429).json({
+          error: `Mỗi thiết bị chỉ được gửi tối đa ${ANON_MAX_PER_DAY} ý kiến ẩn danh trong 24 giờ. Nếu vụ việc gấp, bà con vui lòng gửi có danh tính hoặc gọi 113.`,
+        });
+      }
     }
     if (info.cnt >= MAX_PER_HOUR) {
       return res.status(429).json({ error: `Mỗi thiết bị chỉ được gửi tối đa ${MAX_PER_HOUR} ý kiến trong 1 giờ.` });
@@ -111,14 +155,28 @@ router.post('/', async (req, res) => {
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous)
-       VALUES (?,?,?,?,?,?,?,?,?,?, 'received', ?,?,?,?, ?, ?)`,
-      [trackingCode, content, normalizedContent, catId, catId, contentHash,
-       isAnonymous ? null : encrypt(fullName),
-       isAnonymous ? null : encrypt(phone),
-       phoneHash,
-       isAnonymous || !email ? null : encrypt(email),
-       ip, (req.headers['user-agent'] || '').slice(0, 255), deadlineAt, wardId,
-       !isAnonymous, isAnonymous]
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?)`,
+      [
+        // 1-5
+        trackingCode, content, normalizedContent, catId, catId,
+        // 6-10  (danh tính: ẩn danh -> NULL)
+        contentHash,
+        isAnonymous ? null : encrypt(fullName),
+        isAnonymous ? null : encrypt(phone),
+        phoneHash,
+        isAnonymous || !email ? null : encrypt(email),
+        // 11-15
+        // ẨN DANH -> vào HÀNG CHỜ KIỂM DUYỆT (cán bộ duyệt mới vào quy trình chính,
+        // giống cách cơ quan thật sàng lọc tin báo nặc danh)
+        isAnonymous ? 'pending_review' : 'received',
+        ip,
+        (req.headers['user-agent'] || '').slice(0, 255),
+        deadlineAt,
+        wardId,
+        // 16-17
+        !isAnonymous,
+        isAnonymous,
+      ]
     );
 
     // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
@@ -146,6 +204,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       trackingCode,
+      pendingReview: isAnonymous,   // ẩn danh -> đang chờ cán bộ duyệt
       content,
       normalizedContent,
       category,

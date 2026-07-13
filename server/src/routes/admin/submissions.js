@@ -28,7 +28,14 @@ router.get('/', async (req, res) => {
 
   const where = [];
   const params = [];
-  if (status) { where.push('s.status = ?'); params.push(status); }
+  if (status) {
+    where.push('s.status = ?');
+    params.push(status);
+  } else {
+    // Mặc định: ẩn tin CHỜ DUYỆT và tin RÁC khỏi danh sách xử lý chính
+    // -> tin rác không bao giờ làm phiền quy trình nghiệp vụ
+    where.push("s.status NOT IN ('pending_review','spam')");
+  }
   if (category) { where.push('c.code = ?'); params.push(category); }
   if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
   if (sla === 'overdue') where.push("s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW()");
@@ -182,6 +189,61 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
     res.json({ ok: true, message: staffId ? 'Đã phân công cán bộ.' : 'Đã bỏ phân công.' });
   } catch (err) {
     console.error('Lỗi phân công:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ.' });
+  }
+});
+
+/**
+ * POST /api/admin/submissions/:id/review — DUYỆT hoặc ĐÁNH DẤU RÁC
+ * Chỉ áp dụng cho ý kiến ẩn danh đang ở hàng chờ (pending_review).
+ * body: { action: 'approve' | 'spam' }
+ */
+router.post('/:id/review', async (req, res) => {
+  const { action } = req.body || {};
+  if (!['approve', 'spam'].includes(action)) {
+    return res.status(400).json({ error: 'Hành động không hợp lệ.' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT status, is_anonymous FROM submissions WHERE id = ?', [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (rows[0].status !== 'pending_review') {
+      return res.status(400).json({ error: 'Ý kiến này không nằm trong hàng chờ kiểm duyệt.' });
+    }
+
+    const newStatus = action === 'approve' ? 'received' : 'spam';
+
+    await pool.query(
+      `UPDATE submissions
+       SET status = ?, reviewed_by = ?, reviewed_at = NOW()
+       WHERE id = ?`,
+      [newStatus, req.staff.id, req.params.id]
+    );
+
+    // Ghi lịch sử + nhật ký
+    await pool.query(
+      'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
+      [req.params.id, 'pending_review', newStatus,
+       action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
+       req.staff.id]
+    );
+    await pool.query(
+      'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
+      [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
+       'submission', req.params.id,
+       (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
+    );
+
+    res.json({
+      ok: true,
+      message: action === 'approve'
+        ? 'Đã duyệt — ý kiến được đưa vào quy trình xử lý.'
+        : 'Đã đánh dấu là tin rác.',
+    });
+  } catch (err) {
+    console.error('Lỗi kiểm duyệt:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });
   }
 });
