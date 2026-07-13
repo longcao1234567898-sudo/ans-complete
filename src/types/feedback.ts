@@ -16,10 +16,6 @@ export interface CategoryInfo {
 
 /** Kết quả AI phân tích nội dung (mock) */
 export interface AIAnalysisResult {
-  /** V4: true = nội dung tố giác, được phân tích NỘI BỘ (không gửi sang AI ngoài) */
-  aiSkipped?: boolean;
-  /** V4: dòng giải thích bảo vệ dữ liệu hiển thị cho người dân */
-  privacyNote?: string;
   /** Nội dung đã được AI chuẩn hoá, diễn đạt lại rõ ràng */
   normalizedContent: string;
   /** Nhóm xử lý AI gợi ý */
@@ -41,8 +37,6 @@ export interface ContactInfo {
   captchaToken?: string;
   /** V3: "vé" nhận được sau khi xác thực OTP email (hiệu lực 15 phút) */
   otpToken?: string;
-  /** V4: gửi ẩn danh — không cung cấp danh tính, bảo vệ người tố giác */
-  isAnonymous?: boolean;
 }
 
 /** Bản nháp ý kiến trong quá trình đi qua 5 bước của form */

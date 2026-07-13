@@ -17,7 +17,6 @@ import trackingRouter from './routes/tracking.js';
 import newsRouter from './routes/news.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
-import { mailMode } from './lib/mailer.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin/index.js';
 
@@ -75,14 +74,6 @@ async function start() {
     console.error('   → Kiểm tra MySQL đã chạy chưa và thông tin trong server/.env');
   }
   app.listen(PORT, () => {
-  console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash'));
-  console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
-  const mm = mailMode();
-  console.log(
-    mm === 'brevo'  ? '📧 Email OTP: Brevo (gửi được tới BẤT KỲ email)'
-  : mm === 'resend' ? '📧 Email OTP: Resend (⚠️ chưa có tên miền -> chỉ gửi tới email của chính bạn)'
-  : mm === 'gmail'  ? '📧 Email OTP: Gmail SMTP (⚠️ Render hay chặn cổng SMTP)'
-  :                   '📧 Email OTP: CHẾ ĐỘ DEMO (hiện mã trên màn hình)');
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
   });

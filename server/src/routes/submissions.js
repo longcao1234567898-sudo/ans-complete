@@ -69,6 +69,17 @@ router.post('/', async (req, res) => {
       });
     }
     if (!CAT_CODE_TO_ID[category]) return res.status(400).json({ error: 'Nhóm xử lý không hợp lệ.' });
+    // ẨN DANH: CHỈ áp dụng cho TỐ GIÁC TỘI PHẠM.
+    // Các nhóm khác (khiếu nại, phản ánh, đề xuất) BẮT BUỘC có danh tính:
+    //  - Khiếu nại/tố cáo: Luật Khiếu nại yêu cầu người khiếu nại có danh tính
+    //  - Phản ánh/đề xuất: cán bộ cần liên hệ lại để phản hồi kết quả
+    // Thu hẹp cửa ẩn danh cũng làm giảm mạnh nguy cơ bị lợi dụng gửi tin rác.
+    if (isAnonymous && category !== 'to_giac') {
+      return res.status(400).json({
+        error: 'Gửi ẩn danh chỉ áp dụng cho nhóm "Tố giác tin báo tội phạm". Các nhóm khác cần có danh tính để cán bộ phản hồi kết quả.',
+      });
+    }
+
     // ẨN DANH: không cần danh tính, nhưng PHẢI có "vé" xác thực (mã 6 số hiện trên màn hình)
     if (isAnonymous) {
       const anonCheck = verifyAnonToken(body.otpToken, ip);

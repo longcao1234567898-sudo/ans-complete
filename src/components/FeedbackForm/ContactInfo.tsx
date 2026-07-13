@@ -17,9 +17,11 @@ interface ContactInfoProps {
   onChange: (v: ContactInfoType) => void;
   onNext: () => void;
   onBack: () => void;
+  /** Nhóm xử lý đã chọn — ẩn danh CHỈ áp dụng cho Tố giác tội phạm */
+  category?: string | null;
 }
 
-export default function ContactInfo({ value, onChange, onNext, onBack }: ContactInfoProps) {
+export default function ContactInfo({ value, onChange, onNext, onBack, category }: ContactInfoProps) {
   // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
   const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
 
@@ -100,7 +102,18 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
 
   const captchaOk = !captchaEnabled || Boolean(value.captchaToken);
 
-  const anon = value.isAnonymous === true;
+  // ẨN DANH chỉ dành cho TỐ GIÁC TỘI PHẠM — nơi nỗi sợ bị trả thù là có thật.
+  // Các nhóm khác (khiếu nại, phản ánh, đề xuất) cần danh tính để cán bộ phản hồi.
+  const canBeAnonymous = category === 'to_giac';
+  const anon = canBeAnonymous && value.isAnonymous === true;
+
+  // Người dùng quay lại đổi sang nhóm khác -> tự TẮT ẩn danh (chỉ tố giác mới được ẩn danh)
+  useEffect(() => {
+    if (!canBeAnonymous && value.isAnonymous) {
+      onChange({ ...value, isAnonymous: false, otpToken: undefined });
+    }
+  }, [canBeAnonymous]);   // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // ===== MÃ XÁC THỰC ẨN DANH (hiện trên màn hình, không qua email) =====
   const [anonCode, setAnonCode] = useState('');       // mã máy chủ cấp
@@ -163,7 +176,8 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
         cán bộ xác minh và phản hồi kết quả; email là tuỳ chọn.
       </p>
 
-      {/* V4: CÔNG TẮC GỬI ẨN DANH — bảo vệ người tố giác */}
+      {/* V4: CÔNG TẮC GỬI ẨN DANH — CHỈ hiện với nhóm Tố giác tội phạm */}
+      {canBeAnonymous && (
       <button
         type="button"
         onClick={() => toggleAnonymous(!anon)}
@@ -192,6 +206,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack }: Contact
           </span>
         </span>
       </button>
+      )}
 
       {anon && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">

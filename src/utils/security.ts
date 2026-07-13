@@ -165,3 +165,35 @@ export function containsProfanity(text: string): boolean {
   const tokens = leet.split(/[^a-z]+/);
   return tokens.some((t) => BAD_TOKENS.has(t));
 }
+
+
+/* ============================================================
+   NHẬN DIỆN NỘI DUNG TỐ GIÁC (bản frontend — khớp với backend)
+   ============================================================
+   Dùng để quyết định KHÔNG gửi ảnh bằng chứng sang AI bên ngoài.
+   Ảnh tố giác có thể chứa mặt người, biển số, hiện trường —
+   là dữ liệu nhạy cảm nhất, không được để lọt ra bên thứ ba.
+*/
+const boDau = (t: string) =>
+  t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+
+const TO_GIAC_KEYWORDS = [
+  'trom cap', 'trom xe', 'an trom', 'an cap', 'cuop', 'cuop giat',
+  'ma tuy', 'nghien', 'chich hut', 'hut chich', 'choi da', 'bay lac', 'tang tru',
+  'danh bac', 'da ga', 'so de', 'ghi de', 'ca do', 'xoc dia',
+  'cho vay nang lai', 'tin dung den', 'doi no thue', 'xiet no',
+  'lua dao', 'chiem doat', 'da cap',
+  'danh nhau', 'chem', 'dam chem', 'hanh hung', 'gay thuong tich', 'con do',
+  'mai dam', 'gai goi', 'chua chap',
+  'buon lau', 'hang cam', 'hang gia', 'thuoc la lau',
+  'sung', 'vu khi', 'hung khi', 'dao kiem', 'vat lieu no', 'phao no',
+  'vuot bien', 'dua nguoi trai phep', 'buon nguoi', 'bat coc',
+  'giet', 'hiep dam', 'xam hai', 'dam o',
+  'to giac', 'to cao toi pham', 'trinh bao', 'bao an',
+];
+
+/** Nội dung có dấu hiệu tố giác tội phạm? */
+export function isToGiacText(content: string): boolean {
+  const t = ' ' + boDau(String(content || '')) + ' ';
+  return TO_GIAC_KEYWORDS.some((kw) => t.includes(kw));
+}

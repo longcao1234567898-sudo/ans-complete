@@ -1,3 +1,4 @@
+import { isToGiacText } from '../utils/security';
 /**
  * KIỂM DUYỆT HÌNH ẢNH NHẠY CẢM — 2 tầng:
  *
@@ -99,7 +100,14 @@ async function askGeminiAboutImage(dataUrl: string): Promise<'sensitive' | 'safe
 }
 
 /** Hàm chính: kiểm tra một ảnh (data URL) có nhạy cảm không */
-export async function checkImageSensitive(dataUrl: string): Promise<ImageModerationResult> {
+export async function checkImageSensitive(
+  dataUrl: string,
+  /** Nội dung ý kiến — nếu là TỐ GIÁC thì KHÔNG gửi ảnh sang AI bên ngoài */
+  content = ''
+): Promise<ImageModerationResult> {
+  // 🛡️ ẢNH BẰNG CHỨNG TỐ GIÁC: chỉ kiểm duyệt CỤC BỘ, tuyệt đối không gửi sang Google.
+  // Ảnh tố giác có thể chứa mặt người, biển số xe, hiện trường — dữ liệu nhạy cảm nhất.
+  const isToGiac = isToGiacText(content);
   // Tầng 1: heuristic màu da
   let heuristicSuspicious = false;
   try {
@@ -109,8 +117,8 @@ export async function checkImageSensitive(dataUrl: string): Promise<ImageModerat
     /* không đọc được thì bỏ qua heuristic */
   }
 
-  // Tầng 2a: nếu có backend AI, nhờ backend thẩm định (giấu key)
-  if (hasBackend && (await backendHasAI())) {
+  // Tầng 2a: nhờ backend AI thẩm định — BỎ QUA nếu là ảnh tố giác
+  if (!isToGiac && hasBackend && (await backendHasAI())) {
     try {
       const r = await apiFetch<ImageModerationResult>('/api/ai/moderate-image', {
         method: 'POST',

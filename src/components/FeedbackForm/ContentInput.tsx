@@ -59,7 +59,8 @@ export default function ContentInput({ value, onChange, images, onImagesChange, 
       try {
         const dataUrl = await compressImageFile(file);
         // Lá chắn 3: kiểm duyệt nội dung nhạy cảm (heuristic + AI Gemini)
-        const moderation = await checkImageSensitive(dataUrl);
+        // truyền nội dung -> ảnh tố giác sẽ KHÔNG bị gửi sang AI bên ngoài
+        const moderation = await checkImageSensitive(dataUrl, value);
         if (moderation.blocked) {
           toast.error(`"${file.name}": ${moderation.reason}. Ảnh không được tiếp nhận.`, { duration: 6000 });
           continue;
