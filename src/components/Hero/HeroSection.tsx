@@ -101,7 +101,7 @@ export default function HeroSection() {
                 <span className="block text-[11px] text-white/85">Gửi phản ánh, kiến nghị</span>
               </span>
             </Link>
-            <Link to="/tra-cuu" className="group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-secondary-500 to-secondary-600 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto">
+            <Link to="/tra-cuu" className="btn-shine group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-secondary-500 to-secondary-600 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15"><Search className="h-5 w-5" aria-hidden /></span>
               <span>
                 <span className="block text-base font-bold leading-tight">Tra cứu kết quả</span>

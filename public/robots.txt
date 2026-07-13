@@ -1,0 +1,14 @@
+# robots.txt — Hộp Thư An Ninh Số
+# Cho phép lập chỉ mục trang công khai, CHẶN khu vực nhạy cảm.
+
+User-agent: *
+
+# Chặn robot dò vào khu quản trị của cán bộ
+Disallow: /quan-tri
+Disallow: /dang-nhap
+
+# Chặn dò các trang cá nhân của người gửi
+Disallow: /tra-cuu
+
+# Cho phép phần còn lại (trang chủ, tin tức, hướng dẫn gửi ý kiến)
+Allow: /

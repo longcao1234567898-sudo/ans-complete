@@ -15,7 +15,7 @@ export default function Card({ glass = false, hover = false, className, children
       className={cn(
         'rounded-2xl p-5 shadow-soft',
         glass ? 'glass' : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800',
-        hover && 'transition-transform duration-300 will-change-transform hover:-translate-y-1 hover:shadow-lg',
+        hover && 'card-lift will-change-transform',
         className
       )}
       {...rest}

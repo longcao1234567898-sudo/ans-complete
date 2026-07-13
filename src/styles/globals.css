@@ -94,3 +94,87 @@
 .animate-page {
   animation: page-fade-in 0.18s ease-out both;
 }
+
+/* =====================================================================
+   HIỆU ỨNG LÀM ĐẸP GIAO DIỆN (V6)
+   ===================================================================== */
+
+/* ---------- Thẻ nổi lên khi rê chuột (mượt hơn bản cũ) ---------- */
+.card-lift {
+  transition: transform 0.35s cubic-bezier(0.21, 0.65, 0.36, 1),
+              box-shadow 0.35s cubic-bezier(0.21, 0.65, 0.36, 1);
+}
+.card-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px -14px rgba(27, 94, 32, 0.28);
+}
+
+/* ---------- Vệt sáng lướt qua nút khi rê chuột ---------- */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.55s ease;
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  left: 130%;
+}
+
+/* ---------- Icon lơ lửng nhẹ nhàng (dùng cho hero, khối nổi bật) ---------- */
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.animate-float {
+  animation: float-soft 3.6s ease-in-out infinite;
+}
+
+/* ---------- Vầng sáng thở quanh phần tử nhấn mạnh ---------- */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(27, 94, 32, 0.35); }
+  50%      { box-shadow: 0 0 0 12px rgba(27, 94, 32, 0); }
+}
+.animate-glow {
+  animation: glow-pulse 2.6s ease-in-out infinite;
+}
+
+/* ---------- Gạch chân lan ra khi rê chuột (link đẹp) ---------- */
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* ---------- Tôn trọng người dùng bật "giảm chuyển động" ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .card-lift,
+  .btn-shine::after,
+  .animate-float,
+  .animate-glow {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react';
 import { MascotWave } from '../components/common/PoliceMascot';
 import HeroSection from '../components/Hero/HeroSection';
 import FeaturesSection from '../components/Features/FeaturesSection';
+import Reveal from '../components/common/Reveal';
 import NewsGrid from '../components/News/NewsGrid';
 import { fetchNews } from '../services/newsService';
 
@@ -19,9 +20,10 @@ export default function HomePage() {
   return (
     <div>
       <HeroSection />
-      <FeaturesSection />
+      <Reveal><FeaturesSection /></Reveal>
 
       {/* Xem trước tin tức */}
+      <Reveal delay={0.05}>
       <section className="container-page py-12" aria-labelledby="news-preview-title">
         <div className="mb-6 flex items-end justify-between">
           <div>
@@ -44,8 +46,10 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+      </Reveal>
 
       {/* Dải CTA */}
+      <Reveal delay={0.05}>
       <section className="container-page pb-16">
         <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 px-6 py-8 text-center text-white sm:flex-row sm:text-left">
           <div className="flex items-center gap-3">
@@ -63,6 +67,7 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+      </Reveal>
     </div>
   );
 }

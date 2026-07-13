@@ -44,7 +44,7 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             {NAV_LINKS.map((link) => (
               <li key={link.to}>
-                <Link to={link.to} className="text-slate-300 transition hover:text-accent-500">
+                <Link to={link.to} className="link-underline text-slate-300 transition hover:text-accent-500">
                   {link.label}
                 </Link>
               </li>
@@ -91,24 +91,44 @@ export default function Footer() {
               {UNIT.email}
             </li>
           </ul>
-          <div className="mt-4 flex gap-2">
+          {/* Kênh chính thức — thẻ lớn, có chữ, dễ bấm trên điện thoại */}
+          <div className="mt-5 space-y-2.5">
             <a
               href={UNIT.facebookUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Fanpage Facebook Công an thị xã Tân Châu"
-              className="rounded-lg bg-white/10 p-2 transition hover:bg-accent-500 hover:text-secondary-500"
+              className="group flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] p-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1877F2]/60 hover:bg-[#1877F2]/20 hover:shadow-lg hover:shadow-[#1877F2]/20"
             >
-              <Facebook className="h-4 w-4" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1877F2] shadow-md transition-transform duration-300 group-hover:scale-110">
+                <Facebook className="h-5 w-5 text-white" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold leading-tight text-white">
+                  Fanpage Công an thị xã Tân Châu
+                </span>
+                <span className="block truncate text-xs text-slate-400 transition group-hover:text-slate-200">
+                  Theo dõi thông báo, cảnh báo mới nhất
+                </span>
+              </span>
             </a>
+
             <a
               href={UNIT.websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Website Công an tỉnh An Giang"
-              className="rounded-lg bg-white/10 p-2 transition hover:bg-accent-500 hover:text-secondary-500"
+              className="group flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] p-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent-500/70 hover:bg-accent-500/15 hover:shadow-lg hover:shadow-accent-500/20"
             >
-              <Globe className="h-4 w-4" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-500 to-amber-600 shadow-md transition-transform duration-300 group-hover:scale-110">
+                <Globe className="h-5 w-5 text-white" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold leading-tight text-white">
+                  Cổng TTĐT Công an tỉnh An Giang
+                </span>
+                <span className="block truncate text-xs text-slate-400 transition group-hover:text-slate-200">
+                  congan.angiang.gov.vn — kênh chính thức
+                </span>
+              </span>
             </a>
           </div>
         </div>
