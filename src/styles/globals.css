@@ -328,20 +328,33 @@
    và không được overflow:hidden cắt phần trên.
    ===================================================================== */
 
-.uppercase,
-[class*='uppercase'] {
+.uppercase {
   line-height: 1.5;
-}
-
-/* Khối chữ hoa dùng leading chặt -> ép nới ra */
-.uppercase.leading-none,
-.uppercase.leading-tight,
-.uppercase.leading-snug {
-  line-height: 1.5 !important;
 }
 
 /* Tiện ích: dùng cho bất kỳ chữ HOA tiếng Việt nào để chắc chắn không cắt dấu */
 .vn-caps {
   line-height: 1.5;
   padding-top: 0.08em;   /* chừa chỗ cho dấu tầng trên */
+}
+
+/* =====================================================================
+   CHỐNG CẮT DẤU TIẾNG VIỆT — bản triệt để
+   =====================================================================
+   Chữ HOA có dấu 2 tầng: Ố = Ô + dấu sắc · Ộ = Ô + nặng · Ế, Ữ, Ằ...
+   Dấu tầng 2 vươn CAO hơn đỉnh chữ hoa thường -> dễ bị:
+     1. line-height chặt cắt cụt
+     2. container overflow:hidden cắt mất
+   ===================================================================== */
+
+/* Tiêu đề: chiều cao dòng đủ rộng cho dấu tiếng Việt */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.45;
+}
+
+/* Chữ HOA cỡ nhỏ (logo, nhãn) — dấu càng dễ bị cắt, nới rộng nhất */
+.vn-caps {
+  line-height: 1.6;
+  padding-top: 0.15em;
+  overflow: visible;
 }

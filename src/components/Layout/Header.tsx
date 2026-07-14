@@ -48,11 +48,12 @@ export default function Header() {
               <Shield className="h-5 w-5" aria-hidden />
             </span>
             <span>
-              {/* leading-[1.45]: chữ HOA tiếng Việt (Ố, Ộ, Ư...) có dấu chồng CAO
-                  hơn dấu mũ. leading-tight (1.25) sẽ CẮT MẤT dấu sắc trên chữ Ố
-                  -> nhìn thành "SÔ". Phải nới chiều cao dòng ra. */}
-              <span className="block text-sm font-extrabold leading-[1.45] tracking-wide text-primary-700 dark:text-primary-300">
-                HỘP THƯ AN NINH SỐ
+              {/* Dùng chữ viết hoa ĐẦU TỪ thay vì IN HOA TOÀN BỘ:
+                  chữ in hoa có dấu 2 tầng (Ố = Ô + sắc) rất dễ bị cắt/vẽ xấu
+                  tuỳ font. Chữ thường "ố" thấp hơn nhiều -> dấu luôn nằm gọn
+                  trong dòng, hiển thị đúng trên MỌI font, mọi thiết bị. */}
+              <span className="block text-[15px] font-extrabold leading-normal tracking-wide text-primary-700 dark:text-primary-300">
+                Hộp Thư An Ninh Số
               </span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">{UNIT.name}</span>
             </span>

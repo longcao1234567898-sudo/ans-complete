@@ -31,7 +31,7 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
               <Shield className="h-4 w-4 text-accent-500" aria-hidden />
             </span>
-            <span className="text-sm font-extrabold leading-[1.45] tracking-wide text-white">HỘP THƯ AN NINH SỐ</span>
+            <span className="text-[15px] font-extrabold leading-normal tracking-wide text-white">Hộp Thư An Ninh Số</span>
           </div>
           <p className="text-sm leading-relaxed text-slate-300">
             Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của {UNIT.name}.
