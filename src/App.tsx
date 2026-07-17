@@ -11,6 +11,7 @@ import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import ScrollProgress from './components/common/ScrollProgress';
 import ChatWidget from './components/AIChat/ChatWidget';
+import EmergencyButton from './components/common/EmergencyButton';
 import HomePage from './pages/HomePage';
 import SendFeedbackPage from './pages/SendFeedbackPage';
 import TrackingPage from './pages/TrackingPage';
@@ -24,6 +25,8 @@ import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminMapPage from './pages/admin/AdminMapPage';
 import AdminLogsPage from './pages/admin/AdminLogsPage';
 import AdminReviewPage from './pages/admin/AdminReviewPage';
+import AdminQRPage from './pages/admin/AdminQRPage';
+import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
 const queryClient = new QueryClient({
@@ -52,7 +55,9 @@ function AppShell() {
       <ScrollProgress />
       <ScrollToTop />
       <Header />
-      <main className="flex-1">
+      {/* relative z-10: nội dung + footer phải nổi TRÊN lớp nền ảnh
+          (PageBackground dùng fixed inset-0 -z-10 phủ toàn màn hình) */}
+      <main className="relative z-10 flex-1">
         {/* ⚠️ KHÔNG dùng transform (translateY/scale) để chuyển trang!
             Phần tử có transform trở thành KHUNG THAM CHIẾU MỚI cho position:fixed
             -> PageBackground (nền ảnh An Giang, dùng fixed inset-0) sẽ MẤT HẾT.
@@ -64,6 +69,7 @@ function AppShell() {
             <Route path="/tra-cuu" element={<TrackingPage />} />
             <Route path="/tin-tuc" element={<NewsPage />} />
             <Route path="/gioi-thieu" element={<AboutPage />} />
+            <Route path="/chinh-sach-bao-mat" element={<PrivacyPage />} />
 
             {/* Khu vực cán bộ — nay nằm CHUNG một trang với khu công dân */}
             <Route path="/dang-nhap" element={<AdminLoginPage />} />
@@ -74,11 +80,13 @@ function AppShell() {
             <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
             <Route path="/quan-tri/nhat-ky" element={<AdminLogsPage />} />
             <Route path="/quan-tri/kiem-duyet" element={<AdminReviewPage />} />
+            <Route path="/quan-tri/ma-qr" element={<AdminQRPage />} />
           </Routes>
         </div>
       </main>
       <Footer />
       {!isAdminArea && <ChatWidget />}
+      {!isAdminArea && <EmergencyButton />}
       <AppToaster />
     </div>
   );

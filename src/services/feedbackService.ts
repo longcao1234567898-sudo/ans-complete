@@ -151,6 +151,7 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         captchaToken: draft.contact.captchaToken ?? '',
         otpToken: draft.contact.otpToken ?? '',
         isAnonymous: draft.contact.isAnonymous === true,
+        urgency: draft.urgency || 'normal',
       }),
     });
   }

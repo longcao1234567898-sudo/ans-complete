@@ -3,17 +3,22 @@
  * Ảnh được nén ngay trên trình duyệt trước khi lưu.
  */
 import { ChangeEvent, useRef, useState } from 'react';
-import { AlertCircle, ImagePlus, Loader2, X } from 'lucide-react';
+import { AlertCircle, ImagePlus, Loader2, X, RotateCcw} from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
 import { MAX_FEEDBACK_IMAGES } from '../../utils/constants';
 import { compressImageFile } from '../../utils/helpers';
 import { CONTENT_MAX_LENGTH, validateImageFile } from '../../utils/security';
 import { checkImageSensitive } from '../../services/moderationService';
+import VoiceInput from '../common/VoiceInput';
 
 interface ContentInputProps {
   value: string;
   onChange: (v: string) => void;
+  urgency?: 'normal' | 'important' | 'urgent';
+  onUrgencyChange?: (u: 'normal' | 'important' | 'urgent') => void;
+  draftRestored?: boolean;
+  onDismissDraft?: () => void;
   images: string[];
   onImagesChange: (imgs: string[]) => void;
   onNext: () => void;
@@ -22,7 +27,7 @@ interface ContentInputProps {
 const MIN_LENGTH = 10;
 const MAX_FILE_MB = 8;
 
-export default function ContentInput({ value, onChange, images, onImagesChange, onNext }: ContentInputProps) {
+export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, onNext }: ContentInputProps) {
   const tooShort = value.trim().length > 0 && value.trim().length < MIN_LENGTH;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
@@ -82,6 +87,25 @@ export default function ContentInput({ value, onChange, images, onImagesChange, 
 
   return (
     <div>
+      {/* Banner: đã khôi phục nội dung gõ dở lần trước */}
+      {draftRestored && (
+        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/15">
+          <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-primary-700 dark:text-primary-300">
+              Đã khôi phục nội dung bà con gõ dở lần trước
+            </p>
+            <button
+              type="button"
+              onClick={onDismissDraft}
+              className="mt-0.5 text-xs text-primary-600 underline hover:text-primary-800 dark:text-primary-400"
+            >
+              Xoá và bắt đầu lại
+            </button>
+          </div>
+        </div>
+      )}
+
       <label htmlFor="content" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
         Nội dung ý kiến của bà con
       </label>
@@ -104,6 +128,10 @@ export default function ContentInput({ value, onChange, images, onImagesChange, 
         )}
         <span className="text-slate-400">{value.length}/{CONTENT_MAX_LENGTH} ký tự</span>
       </div>
+
+      {/* 🎤 Nhập bằng GIỌNG NÓI — cho bà con lớn tuổi, ngại gõ phím.
+          Nói xong, chữ tự nối vào cuối nội dung đang có. */}
+      <VoiceInput className="mt-3" onText={(t) => onChange((value ? value.trimEnd() + ' ' : '') + t)} />
 
       {/* Đính kèm ảnh minh chứng */}
       <div className="mt-5">
@@ -152,6 +180,45 @@ export default function ContentInput({ value, onChange, images, onImagesChange, 
         </div>
         <p className="mt-1.5 text-xs text-slate-400">Hỗ trợ JPG, PNG, WebP... tối đa {MAX_FILE_MB}MB/ảnh. Mỗi ảnh được kiểm tra định dạng thật, tái mã hoá loại bỏ mã độc ẩn và kiểm duyệt nội dung nhạy cảm.</p>
       </div>
+
+      {/* Mức độ khẩn cấp — người dân tự đánh dấu, cán bộ ưu tiên việc gấp */}
+      {onUrgencyChange && (
+        <div className="mt-6">
+          <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Mức độ khẩn cấp
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Mức độ khẩn cấp">
+            {[
+              { id: 'normal', label: 'Bình thường', desc: 'Việc không gấp', ring: 'has-[:checked]:border-slate-400 has-[:checked]:bg-slate-50 dark:has-[:checked]:bg-slate-800' },
+              { id: 'important', label: 'Quan trọng', desc: 'Cần sớm quan tâm', ring: 'has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-900/20' },
+              { id: 'urgent', label: 'Khẩn cấp', desc: 'Cần xử lý ngay', ring: 'has-[:checked]:border-red-400 has-[:checked]:bg-red-50 dark:has-[:checked]:bg-red-900/20' },
+            ].map((o) => (
+              <label
+                key={o.id}
+                className={`flex min-h-[56px] cursor-pointer items-center gap-2.5 rounded-xl border-2 border-slate-200 bg-white p-3 transition dark:border-slate-700 dark:bg-slate-800/60 ${o.ring}`}
+              >
+                <input
+                  type="radio"
+                  name="urgency"
+                  checked={urgency === o.id}
+                  onChange={() => onUrgencyChange(o.id as 'normal' | 'important' | 'urgent')}
+                  className="h-4 w-4 shrink-0 accent-primary-600"
+                />
+                <span>
+                  <span className="block text-sm font-bold leading-tight text-slate-700 dark:text-slate-200">{o.label}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">{o.desc}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {urgency === 'urgent' && (
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi <b>113</b> (nút SOS đỏ góc dưới màn hình).
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 flex justify-end">
         <Button onClick={onNext} disabled={value.trim().length < MIN_LENGTH || processing}>

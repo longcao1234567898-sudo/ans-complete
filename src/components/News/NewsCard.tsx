@@ -14,6 +14,7 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import { Skeleton } from '../common/Loading';
 import SpotlightCard from '../common/SpotlightCard';
+import SpeakButton from '../common/SpeakButton';
 
 export default function NewsCard({ article }: { article: NewsArticle }) {
   const [loaded, setLoaded] = useState(false);
@@ -57,9 +58,12 @@ export default function NewsCard({ article }: { article: NewsArticle }) {
             {article.summary}
           </p>
 
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 transition group-hover:gap-2.5 dark:text-primary-400">
-            Đọc tại {article.source} <ExternalLink className="h-3 w-3" />
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 transition group-hover:gap-2.5 dark:text-primary-400">
+              Đọc tại {article.source} <ExternalLink className="h-3 w-3" />
+            </span>
+            <SpeakButton text={`${article.title}. ${article.summary}`} label="Nghe" />
+          </div>
         </div>
       </Card>
       </SpotlightCard>

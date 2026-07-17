@@ -23,6 +23,7 @@ interface ConfirmationProps {
 }
 
 export default function Confirmation({ draft, submission, isSubmitting, onSubmit, onBack, onReset }: ConfirmationProps) {
+  const [agreed, setAgreed] = useState(false);
   const [copied, setCopied] = useState(false);
   const qrWrapRef = useRef<HTMLDivElement>(null);
 
@@ -185,11 +186,29 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
         </div>
       </div>
 
-      <div className="mt-6 flex justify-between">
+      {/* Đồng ý điều khoản — bắt buộc tick trước khi gửi */}
+      <label className="mt-6 flex cursor-pointer items-start gap-2.5 rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/60">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
+        />
+        <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+          Tôi xác nhận thông tin cung cấp là đúng sự thật và đồng ý để Công an tiếp nhận, xử lý ý kiến này
+          theo{' '}
+          <a href="/chinh-sach-bao-mat" target="_blank" className="font-semibold text-primary-600 underline dark:text-primary-400">
+            Chính sách bảo mật
+          </a>
+          . Tôi hiểu rằng việc cố ý tố giác sai sự thật có thể bị xử lý theo quy định pháp luật.
+        </span>
+      </label>
+
+      <div className="mt-4 flex justify-between">
         <Button variant="ghost" onClick={onBack} disabled={isSubmitting}>
           Quay lại
         </Button>
-        <Button onClick={onSubmit} loading={isSubmitting}>
+        <Button onClick={onSubmit} loading={isSubmitting} disabled={!agreed}>
           Gửi ý kiến
         </Button>
       </div>

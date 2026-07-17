@@ -45,6 +45,7 @@ router.post('/', async (req, res) => {
     const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
     const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
     const isAnonymous = body.isAnonymous === true;
+    const urgency = ['normal','important','urgent'].includes(body.urgency) ? body.urgency : 'normal';
 
     const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
 
@@ -169,8 +170,8 @@ router.post('/', async (req, res) => {
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous)
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?)`,
+        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency)
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?)`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -191,6 +192,7 @@ router.post('/', async (req, res) => {
         // 16-17
         !isAnonymous,
         isAnonymous,
+        urgency,
       ]
     );
 

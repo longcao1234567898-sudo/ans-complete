@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
               c.code AS category_code, c.name AS category_name,
-              s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous,
+              s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s

@@ -9,9 +9,9 @@ import { NAV_LINKS, UNIT } from '../../utils/constants';
 export default function Footer() {
   const { staff } = useAdminAuth();
   return (
-    <>
+    <div className="relative z-10">
       {/* Dải cảnh quan An Giang thu nhỏ nối liền nội dung với footer */}
-      <div className="mt-16" aria-hidden>
+      <div className="relative z-10 mt-16" aria-hidden>
         <svg viewBox="0 0 1440 70" preserveAspectRatio="none" className="block h-14 w-full">
           <path
             d="M0 70 L0 46 Q140 18 300 42 Q420 22 560 44 Q700 16 860 42 Q1000 22 1140 44 Q1280 24 1440 46 L1440 70 Z"
@@ -23,7 +23,7 @@ export default function Footer() {
           />
         </svg>
       </div>
-      <footer className="border-t border-slate-200 bg-secondary-500 text-slate-200 dark:border-slate-800">
+      <footer className="relative z-10 border-t border-slate-200 bg-secondary-500 text-slate-200 dark:border-slate-800">
       <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
         {/* Đơn vị */}
         <div>
@@ -31,7 +31,7 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
               <Shield className="h-4 w-4 text-accent-500" aria-hidden />
             </span>
-            <span className="text-[15px] font-extrabold leading-normal tracking-wide text-white">Hộp Thư An Ninh Số</span>
+            <span className="block py-0.5 text-[17px] font-bold leading-[1.5] text-white">Hộp Thư An Ninh Số</span>
           </div>
           <p className="text-sm leading-relaxed text-slate-300">
             Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của {UNIT.name}.
@@ -60,6 +60,7 @@ export default function Footer() {
               <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">
                 Chính sách bảo mật
               </Link>
+            <Link to="/chinh-sach-bao-mat" className="link-underline block py-1 text-slate-300 transition hover:text-accent-500">Chính sách bảo mật</Link>
             </li>
             <li>
               <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">
@@ -165,6 +166,6 @@ export default function Footer() {
         © {new Date().getFullYear()} {UNIT.name}. Dữ liệu công dân được bảo mật theo quy định pháp luật.
       </div>
     </footer>
-    </>
+    </div>
   );
 }

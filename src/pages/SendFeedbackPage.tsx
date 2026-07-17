@@ -7,6 +7,7 @@ import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type { ContactInfo as ContactInfoType, FeedbackCategory, FeedbackDraft, FeedbackSubmission } from '../types/feedback';
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
+import { readDraft, clearDraft, useDraftAutosave } from '../hooks/useDraftAutosave';
 import { submitFeedback } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
@@ -23,14 +24,21 @@ const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
 export default function SendFeedbackPage() {
   const [step, setStep] = useState(1);
-  const [draft, setDraft] = useState<FeedbackDraft>({
-    content: '',
-    analysis: null,
-    category: null,
-    contact: EMPTY_CONTACT,
-    images: [],
+  const [draft, setDraft] = useState<FeedbackDraft>(() => {
+    const saved = readDraft();
+    return {
+      content: saved?.content ?? '',
+      urgency: (saved?.urgency as FeedbackDraft['urgency']) ?? 'normal',
+      analysis: null,
+      category: (saved?.category as FeedbackDraft['category']) ?? null,
+      contact: EMPTY_CONTACT,
+      images: [],
+    };
   });
+  const [draftRestored, setDraftRestored] = useState(() => Boolean(readDraft()?.content));
   const [submission, setSubmission] = useState<FeedbackSubmission | null>(null);
+
+  useDraftAutosave({ content: draft.content, category: draft.category, urgency: draft.urgency });
 
   const aiAnalysis = useAIAnalysis();
   const submitMutation = useMutation({ mutationFn: submitFeedback });
@@ -84,7 +92,8 @@ export default function SendFeedbackPage() {
   };
 
   const handleReset = () => {
-    setDraft({ content: '', analysis: null, category: null, contact: EMPTY_CONTACT, images: [] });
+    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [] });
+    clearDraft();
     setSubmission(null);
     setStep(1);
   };
@@ -117,6 +126,14 @@ export default function SendFeedbackPage() {
           <ContentInput
             value={draft.content}
             onChange={(content) => setDraft((d) => ({ ...d, content }))}
+            urgency={draft.urgency}
+            onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
+            draftRestored={draftRestored}
+            onDismissDraft={() => {
+              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [] });
+              clearDraft();
+              setDraftRestored(false);
+            }}
             images={draft.images}
             onImagesChange={(images) => setDraft((d) => ({ ...d, images }))}
             onNext={handleContentNext}
