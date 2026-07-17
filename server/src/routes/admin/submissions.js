@@ -56,7 +56,9 @@ router.get('/', async (req, res) => {
        LEFT JOIN staff st ON s.assigned_to = st.id
        LEFT JOIN wards w ON s.ward_id = w.id
        ${whereSql}
-       ORDER BY (s.status IN ('received','processing') AND s.deadline_at < NOW()) DESC, s.created_at DESC
+       ORDER BY FIELD(s.urgency,'urgent','important','normal'),
+                (s.status IN ('received','processing') AND s.deadline_at < NOW()) DESC,
+                s.created_at DESC
        LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );

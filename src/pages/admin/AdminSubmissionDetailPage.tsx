@@ -94,6 +94,12 @@ export default function AdminSubmissionDetailPage() {
                 <span className="font-mono text-lg font-extrabold text-primary-600 dark:text-primary-300">{data.tracking_code}</span>
                 <SlaBadge sla={data.sla} daysLeft={data.daysLeft} />
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_META[data.status]?.badge}`}>{STATUS_META[data.status]?.label}</span>
+                {data.urgency === 'urgent' && (
+                  <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">🔴 KHẨN CẤP</span>
+                )}
+                {data.urgency === 'important' && (
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">🟡 Quan trọng</span>
+                )}
               </div>
               <p className="text-xs font-semibold text-slate-400">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
 

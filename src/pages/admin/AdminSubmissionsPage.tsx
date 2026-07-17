@@ -100,6 +100,16 @@ export default function AdminSubmissionsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-bold text-primary-600 dark:text-primary-300">{s.tracking_code}</span>
+                      {s.urgency === 'urgent' && (
+                        <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                          🔴 KHẨN CẤP
+                        </span>
+                      )}
+                      {s.urgency === 'important' && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          🟡 Quan trọng
+                        </span>
+                      )}
                       {s.is_flagged ? <Flag className="h-3.5 w-3.5 text-rose-500" /> : null}
                   <SlaBadge sla={s.sla} daysLeft={s.daysLeft} compact />
                     </div>
