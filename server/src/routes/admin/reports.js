@@ -1,6 +1,7 @@
 /** API báo cáo thống kê + dữ liệu bản đồ điểm nóng */
 import { Router } from 'express';
 import { pool } from '../../db.js';
+import { decrypt, maskName } from '../../lib/crypto.js';
 import { requireAuth } from '../../middleware/auth.js';
 
 const router = Router();
@@ -95,6 +96,60 @@ router.get('/map', async (_req, res) => {
   } catch (err) {
     console.error('Lỗi bản đồ:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v2.sql chưa?' });
+  }
+});
+
+/**
+ * GET /api/admin/reports/details?from=&to=
+ * DANH SÁCH Ý KIẾN CHI TIẾT trong khoảng thời gian — cho sheet Excel nộp lãnh đạo.
+ * Danh tính CHE SẴN (không xuất tên/SĐT đầy đủ ra file).
+ */
+router.get('/details', async (req, res) => {
+  try {
+    const from = req.query.from || '2000-01-01';
+    const to = req.query.to || '2100-01-01';
+
+    const [rows] = await pool.query(
+      `SELECT s.tracking_code, s.status, s.is_anonymous, s.created_at, s.deadline_at,
+              s.ai_processed_content, s.original_content, s.sender_name,
+              c.name AS category_name, w.name AS ward_name, st.full_name AS staff_name
+       FROM submissions s
+       LEFT JOIN categories c ON c.id = s.category_id
+       LEFT JOIN wards w      ON w.id = s.ward_id
+       LEFT JOIN staff st     ON st.id = s.assigned_to
+       WHERE s.created_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)
+         AND s.status NOT IN ('spam')
+       ORDER BY s.created_at DESC
+       LIMIT 2000`,
+      [from, to]
+    );
+
+    const STATUS_VN = {
+      pending_review: 'Chờ kiểm duyệt',
+      received: 'Đã tiếp nhận',
+      processing: 'Đang xử lý',
+      resolved: 'Đã giải quyết',
+      rejected: 'Từ chối',
+    };
+
+    res.json(
+      rows.map((r) => ({
+        trackingCode: r.tracking_code,
+        content: String(r.ai_processed_content || r.original_content || '').slice(0, 300),
+        category: r.category_name || '',
+        ward: r.ward_name || '',
+        status: STATUS_VN[r.status] || r.status,
+        sender: r.is_anonymous ? 'Ẩn danh' : maskName(decrypt(r.sender_name)),
+        staff: r.staff_name || '(chưa phân công)',
+        createdAt: r.created_at,
+        deadlineAt: r.deadline_at,
+        overdue: r.deadline_at && ['received', 'processing'].includes(r.status)
+          ? new Date(r.deadline_at) < new Date() : false,
+      }))
+    );
+  } catch (err) {
+    console.error('Lỗi báo cáo chi tiết:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ khi tải danh sách chi tiết.' });
   }
 });
 

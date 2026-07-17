@@ -29,9 +29,11 @@ export default function AdminReportsPage() {
   const [to, setTo] = useState(todayStr());
   const [range, setRange] = useState({ from: monthAgoStr(), to: todayStr() });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['admin-report', range.from, range.to],
     queryFn: () => fetchReport(range.from, range.to),
+    staleTime: 0,              // luôn coi dữ liệu là cũ -> gọi lại mỗi lần đổi ngày
+    refetchOnMount: 'always',
   });
 
   function exportExcel() {
@@ -129,12 +131,23 @@ export default function AdminReportsPage() {
           />
         </div>
         <button
-          onClick={() => setRange({ from, to })}
-          className="flex items-center gap-1.5 rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white hover:bg-primary-700"
+          onClick={() => {
+            if (from > to) { alert('“Từ ngày” phải trước hoặc bằng “Đến ngày”.'); return; }
+            // Nếu khoảng ngày không đổi -> setRange không tạo query mới -> gọi refetch tay
+            if (range.from === from && range.to === to) refetch();
+            else setRange({ from, to });
+          }}
+          className="btn-shine flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-primary-700"
         >
           <CalendarDays className="h-4 w-4" /> Xem báo cáo
         </button>
       </div>
+
+      {/* Nhãn cho biết đang xem số liệu khoảng ngày nào */}
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Đang xem số liệu từ <b>{range.from}</b> đến <b>{range.to}</b>
+        {isFetching && <span className="ml-2 text-primary-600">· đang cập nhật...</span>}
+      </p>
 
       {isLoading && (
         <div className="flex items-center gap-2 py-10 text-slate-500">
