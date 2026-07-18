@@ -12,7 +12,15 @@ import { useChat } from '../../hooks/useChat';
 import { AI_ENGINE_LABEL } from '../../services/aiService';
 import { UNIT } from '../../utils/constants';
 
-const SUGGESTIONS = ['Thủ tục làm CCCD?', 'Cách gửi tố giác tội phạm', 'Tra cứu tiến độ ra sao?', 'Cảnh giác lừa đảo'];
+// Câu hỏi gợi ý — ưu tiên câu về CÁCH DÙNG WEB (bot đã được nạp kiến thức hệ thống)
+const SUGGESTIONS = [
+  'Cách gửi ý kiến?',
+  'Gửi ẩn danh thế nào?',
+  'Quên mã tra cứu phải làm sao?',
+  'Bao lâu thì được giải quyết?',
+  'Thông tin của tôi có bị lộ không?',
+  'Thủ tục làm căn cước?',
+];
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
