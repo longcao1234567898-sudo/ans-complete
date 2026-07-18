@@ -57,10 +57,9 @@ export default function Footer() {
           <h3 className="mb-3 text-sm font-bold uppercase leading-[1.5] tracking-wider text-white">Thông tin</h3>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">
+              <Link to="/chinh-sach-bao-mat" className="text-slate-300 transition hover:text-accent-500">
                 Chính sách bảo mật
               </Link>
-            <Link to="/chinh-sach-bao-mat" className="link-underline block py-1 text-slate-300 transition hover:text-accent-500">Chính sách bảo mật</Link>
             </li>
             <li>
               <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">

@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import type { ContactInfo as ContactInfoType, FeedbackCategory, FeedbackDraft, FeedbackSubmission } from '../types/feedback';
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { readDraft, clearDraft, useDraftAutosave } from '../hooks/useDraftAutosave';
+import { saveTrackingCode } from '../hooks/useTrackingHistory';
 import { submitFeedback } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
@@ -85,6 +86,8 @@ export default function SendFeedbackPage() {
     submitMutation.mutate(draft, {
       onSuccess: (result) => {
         setSubmission(result);
+        // Lưu mã tra cứu vào chính thiết bị -> lần sau tra lại không cần nhớ mã
+        saveTrackingCode(result.trackingCode, result.category);
         toast.success('Gửi ý kiến thành công!');
       },
       onError: (err) => toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.'),
