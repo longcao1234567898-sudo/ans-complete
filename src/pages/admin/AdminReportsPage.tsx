@@ -5,13 +5,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
+import { UNIT } from '../../utils/constants';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { Download, Loader2, CalendarDays, AlertTriangle } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { fetchReport } from '../../services/adminService';
+import { fetchReport, fetchReportDetails} from '../../services/adminService';
 
 const COLORS = ['#1B5E20', '#F9A825', '#1976D2', '#C62828'];
 
@@ -36,55 +37,128 @@ export default function AdminReportsPage() {
     refetchOnMount: 'always',
   });
 
-  function exportExcel() {
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * XUẤT EXCEL TỔNG HỢP — 7 sheet, định dạng sẵn để nộp lãnh đạo.
+   * Sheet 7 (danh sách chi tiết) lấy thêm dữ liệu từ máy chủ, danh tính CHE SẴN.
+   */
+  async function exportExcel() {
     if (!data) return;
-    const wb = XLSX.utils.book_new();
+    setExporting(true);
+    try {
+      const wb = XLSX.utils.book_new();
+      const o = data.overview;
+      const pct = (n: number) => (o.total > 0 ? `${((n / o.total) * 100).toFixed(1)}%` : '0%');
 
-    // Sheet 1 — Tổng quan
-    const o = data.overview;
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
-      { 'Chỉ tiêu': 'Tổng số ý kiến', 'Số lượng': o.total },
-      { 'Chỉ tiêu': 'Chờ tiếp nhận', 'Số lượng': o.received },
-      { 'Chỉ tiêu': 'Đang xử lý', 'Số lượng': o.processing },
-      { 'Chỉ tiêu': 'Đã giải quyết', 'Số lượng': o.resolved },
-      { 'Chỉ tiêu': 'Từ chối', 'Số lượng': o.rejected },
-      { 'Chỉ tiêu': 'QUÁ HẠN', 'Số lượng': o.overdue },
-    ]), 'Tổng quan');
+      /** Đặt độ rộng cột cho dễ đọc, khỏi phải kéo tay */
+      const withWidth = (ws: XLSX.WorkSheet, widths: number[]) => {
+        ws['!cols'] = widths.map((w) => ({ wch: w }));
+        return ws;
+      };
 
-    // Sheet 2 — Theo nhóm
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      data.byCategory.map((c) => ({
-        'Nhóm xử lý': c.category,
-        'Tổng': c.total,
-        'Đã giải quyết': c.resolved,
-        'Quá hạn': c.overdue,
-        'TB giờ xử lý': c.avg_hours ?? '',
-      }))
-    ), 'Theo nhóm');
+      // ───── Sheet 1: BÌA BÁO CÁO ─────
+      const cover = XLSX.utils.aoa_to_sheet([
+        ['BÁO CÁO TỔNG HỢP Ý KIẾN CÔNG DÂN'],
+        ['Hệ thống Hộp Thư An Ninh Số'],
+        [UNIT.name],
+        [],
+        ['Kỳ báo cáo:', `Từ ${new Date(range.from).toLocaleDateString('vi-VN')} đến ${new Date(range.to).toLocaleDateString('vi-VN')}`],
+        ['Ngày xuất:', new Date().toLocaleString('vi-VN')],
+        ['Người xuất:', 'Cán bộ quản trị hệ thống'],
+        [],
+        ['LƯU Ý BẢO MẬT'],
+        ['- Danh tính công dân trong báo cáo này đã được che một phần theo quy định.'],
+        ['- Báo cáo phục vụ công tác quản lý nội bộ, không phổ biến ra ngoài.'],
+        ['- Ý kiến tố giác ẩn danh không hiển thị thông tin người gửi.'],
+      ]);
+      XLSX.utils.book_append_sheet(wb, withWidth(cover, [22, 60]), 'Bìa báo cáo');
 
-    // Sheet 3 — Theo địa bàn
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      data.byWard.map((w) => ({ 'Địa bàn': w.ward, 'Số ý kiến': w.total }))
-    ), 'Theo địa bàn');
+      // ───── Sheet 2: TỔNG QUAN (kèm tỷ lệ %) ─────
+      const resolveRate = o.total > 0 ? ((o.resolved / o.total) * 100).toFixed(1) + '%' : '0%';
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet([
+        { 'Chỉ tiêu': 'Tổng số ý kiến tiếp nhận', 'Số lượng': o.total, 'Tỷ lệ': '100%' },
+        { 'Chỉ tiêu': 'Chờ tiếp nhận', 'Số lượng': o.received, 'Tỷ lệ': pct(o.received) },
+        { 'Chỉ tiêu': 'Đang xử lý', 'Số lượng': o.processing, 'Tỷ lệ': pct(o.processing) },
+        { 'Chỉ tiêu': 'Đã giải quyết', 'Số lượng': o.resolved, 'Tỷ lệ': pct(o.resolved) },
+        { 'Chỉ tiêu': 'Từ chối / chuyển đơn vị', 'Số lượng': o.rejected, 'Tỷ lệ': pct(o.rejected) },
+        { 'Chỉ tiêu': 'QUÁ HẠN (cần đôn đốc)', 'Số lượng': o.overdue, 'Tỷ lệ': pct(o.overdue) },
+        {},
+        { 'Chỉ tiêu': 'TỶ LỆ GIẢI QUYẾT', 'Số lượng': '', 'Tỷ lệ': resolveRate },
+      ]), [32, 12, 10]), 'Tổng quan');
 
-    // Sheet 4 — Theo cán bộ
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      data.byStaff.map((s) => ({
-        'Cán bộ': s.staff,
-        'Được phân công': s.assigned,
-        'Đã giải quyết': s.resolved,
-      }))
-    ), 'Theo cán bộ');
+      // ───── Sheet 3: THEO NHÓM XỬ LÝ ─────
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+        data.byCategory.map((c) => ({
+          'Nhóm xử lý': c.category,
+          'Tổng': c.total,
+          'Đã giải quyết': c.resolved,
+          'Tỷ lệ giải quyết': c.total > 0 ? `${((c.resolved / c.total) * 100).toFixed(1)}%` : '0%',
+          'Quá hạn': c.overdue,
+          'TB giờ xử lý': c.avg_hours ?? '',
+          'TB ngày xử lý': c.avg_hours ? (c.avg_hours / 24).toFixed(1) : '',
+        }))
+      ), [26, 8, 14, 16, 10, 14, 14]), 'Theo nhóm');
 
-    // Sheet 5 — Theo ngày
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      data.byDay.map((d) => ({
-        'Ngày': new Date(d.day).toLocaleDateString('vi-VN'),
-        'Số ý kiến': d.total,
-      }))
-    ), 'Theo ngày');
+      // ───── Sheet 4: THEO ĐỊA BÀN ─────
+      const totalWard = data.byWard.reduce((a, w) => a + w.total, 0);
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+        data.byWard.map((w) => ({
+          'Địa bàn (phường/xã)': w.ward,
+          'Số ý kiến': w.total,
+          'Tỷ lệ': totalWard > 0 ? `${((w.total / totalWard) * 100).toFixed(1)}%` : '0%',
+        }))
+      ), [28, 12, 10]), 'Theo địa bàn');
 
-    XLSX.writeFile(wb, `Bao-cao-Hop-Thu-An-Ninh-So_${range.from}_${range.to}.xlsx`);
+      // ───── Sheet 5: THEO CÁN BỘ ─────
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+        data.byStaff.map((st) => ({
+          'Cán bộ phụ trách': st.staff,
+          'Được phân công': st.assigned,
+          'Đã giải quyết': st.resolved,
+          'Còn tồn': st.assigned - st.resolved,
+          'Tỷ lệ hoàn thành': st.assigned > 0 ? `${((st.resolved / st.assigned) * 100).toFixed(1)}%` : '0%',
+        }))
+      ), [26, 16, 14, 10, 16]), 'Theo cán bộ');
+
+      // ───── Sheet 6: THEO NGÀY ─────
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+        data.byDay.map((d) => ({
+          'Ngày': new Date(d.day).toLocaleDateString('vi-VN'),
+          'Số ý kiến': d.total,
+        }))
+      ), [14, 12]), 'Theo ngày');
+
+      // ───── Sheet 7: DANH SÁCH CHI TIẾT (lấy thêm từ máy chủ) ─────
+      try {
+        const rows = await fetchReportDetails(range.from, range.to);
+        XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+          rows.map((r, i) => ({
+            'STT': i + 1,
+            'Mã tra cứu': r.trackingCode,
+            'Ngày gửi': new Date(r.createdAt).toLocaleString('vi-VN'),
+            'Nhóm': r.category,
+            'Địa bàn': r.ward,
+            'Người gửi': r.sender,
+            'Nội dung (rút gọn)': r.content,
+            'Trạng thái': r.status,
+            'Cán bộ xử lý': r.staff,
+            'Hạn xử lý': r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('vi-VN') : '',
+            'Quá hạn': r.overdue ? 'CÓ' : '',
+          }))
+        ), [5, 13, 18, 18, 18, 18, 60, 16, 20, 13, 9]), 'Danh sách chi tiết');
+      } catch {
+        // Máy chủ chưa có endpoint chi tiết -> vẫn xuất 6 sheet kia
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+          ['Không tải được danh sách chi tiết.'],
+          ['Máy chủ có thể chưa cập nhật. Các sheet thống kê khác vẫn đầy đủ.'],
+        ]), 'Danh sách chi tiết');
+      }
+
+      XLSX.writeFile(wb, `Bao-cao-Hop-Thu-An-Ninh-So_${range.from}_den_${range.to}.xlsx`);
+    } finally {
+      setExporting(false);
+    }
   }
 
   const pieData = data
@@ -107,10 +181,11 @@ export default function AdminReportsPage() {
         </div>
         <button
           onClick={exportExcel}
-          disabled={!data}
-          className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-emerald-700 disabled:opacity-50"
+          disabled={!data || exporting}
+          className="btn-shine flex min-h-[44px] items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Download className="h-4 w-4" /> Xuất Excel
+          <Download className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
+          {exporting ? 'Đang tạo file...' : 'Xuất Excel (7 sheet)'}
         </button>
       </div>
 

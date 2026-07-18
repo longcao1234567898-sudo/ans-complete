@@ -214,7 +214,8 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
           {urgency === 'urgent' && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số <b>113</b>, hoặc bấm nút SOS đỏ ở góc dưới màn hình.
+              Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số{' '}
+              <b>113</b>, hoặc bấm nút SOS đỏ ở góc dưới màn hình.
             </p>
           )}
         </div>

@@ -218,7 +218,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
               Cán bộ không thể gọi lại hỏi thêm.</li>
             <li>• Tin báo sẽ được <b>cán bộ kiểm duyệt</b> trước khi đưa vào xử lý.</li>
             <li>• Mỗi thiết bị chỉ gửi được <b>2 tin ẩn danh trong 24 giờ</b> (để chống tin rác).</li>
-            <li>• Nếu vụ việc <b>khẩn cấp</b>, bà con hãy gọi ngay <b>113</b>.</li>
+            <li>
+              • Nếu vụ việc <b>khẩn cấp</b>, bà con hãy gọi ngay{' '}
+              <b>113</b>.
+            </li>
           </ul>
         </div>
       )}
