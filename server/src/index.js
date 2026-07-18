@@ -17,6 +17,7 @@ import trackingRouter from './routes/tracking.js';
 import newsRouter from './routes/news.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
+import { mailMode } from './lib/mailer.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin/index.js';
 
@@ -25,8 +26,35 @@ const PORT = process.env.PORT || 4000;
 
 app.set('trust proxy', 1); // tin proxy (Render/Nginx) để lấy đúng IP thật
 
-// Helmet: tự thêm các HTTP security header
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// Helmet: tự thêm các HTTP security header cho API
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    // API trả JSON, không phục vụ HTML -> CSP tối giản, chặn mọi thứ
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'none'"],
+      },
+    },
+    // Ép HTTPS 2 năm (chống hạ cấp, nghe lén)
+    hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+    // Không rò rỉ referrer
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    // Chống nhúng iframe
+    frameguard: { action: 'deny' },
+  })
+);
+
+// Permissions-Policy (helmet không đặt sẵn) — khoá quyền nhạy cảm
+app.use((_req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+  );
+  next();
+});
 
 // CORS: cho phép origin dev + origin production, kèm credentials cho cookie refresh token
 const devOrigins = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
@@ -74,6 +102,14 @@ async function start() {
     console.error('   → Kiểm tra MySQL đã chạy chưa và thông tin trong server/.env');
   }
   app.listen(PORT, () => {
+  console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash'));
+  console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
+  const mm = mailMode();
+  console.log(
+    mm === 'brevo'  ? '📧 Email OTP: Brevo (gửi được tới BẤT KỲ email)'
+  : mm === 'resend' ? '📧 Email OTP: Resend (⚠️ chưa có tên miền -> chỉ gửi tới email của chính bạn)'
+  : mm === 'gmail'  ? '📧 Email OTP: Gmail SMTP (⚠️ Render hay chặn cổng SMTP)'
+  :                   '📧 Email OTP: CHẾ ĐỘ DEMO (hiện mã trên màn hình)');
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
   });

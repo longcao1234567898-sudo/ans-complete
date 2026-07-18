@@ -1,0 +1,25 @@
+## =====================================================================
+## HTTP SECURITY HEADERS — Hộp Thư An Ninh Số
+## Netlify tự đọc file này và gắn header vào MỌI phản hồi.
+## Vá 6 lỗ hổng: HSTS, CSP, X-Frame-Options, X-Content-Type-Options,
+##               Referrer-Policy, Permissions-Policy.
+## =====================================================================
+
+/*
+  ## Ép trình duyệt LUÔN dùng HTTPS trong 2 năm (chống nghe lén, hạ cấp HTTP)
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  ## Chống nhúng trang vào iframe web khác (chống clickjacking)
+  X-Frame-Options: DENY
+
+  ## Chống trình duyệt "đoán" sai kiểu file (chống tấn công MIME sniffing)
+  X-Content-Type-Options: nosniff
+
+  ## Không rò rỉ địa chỉ trang khi bà con bấm sang web khác
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  ## Khoá các quyền nhạy cảm — chỉ mở micro (nhập giọng nói) cho chính trang này
+  Permissions-Policy: camera=(), microphone=(self), geolocation=(self), payment=(), usb=(), interest-cohort=()
+
+  ## Chống XSS: chỉ cho tải tài nguyên từ nguồn tin cậy đã liệt kê
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://hop-thu-so.onrender.com https://api.cloudinary.com https://generativelanguage.googleapis.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
