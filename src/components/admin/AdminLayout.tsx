@@ -5,7 +5,7 @@
  */
 import { ReactNode } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText, ShieldQuestion, QrCode, MonitorSmartphone } from 'lucide-react';
+import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText, ShieldQuestion, QrCode, MonitorSmartphone, Trash2 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt', Icon: ShieldQuestion, exact: false },
   { to: '/quan-tri/ki-ot', label: 'Ki-ốt tiếp dân', Icon: MonitorSmartphone, exact: false },
   { to: '/quan-tri/ma-qr', label: 'Mã QR', Icon: QrCode, exact: false },
+  { to: '/quan-tri/thung-rac', label: 'Thùng rác', Icon: Trash2, exact: false },
   { to: '/quan-tri/bao-cao', label: 'Báo cáo', Icon: BarChart3, exact: false },
   { to: '/quan-tri/ban-do', label: 'Bản đồ điểm nóng', Icon: Map, exact: false },
   { to: '/quan-tri/nhat-ky', label: 'Nhật ký', Icon: ScrollText, exact: false },

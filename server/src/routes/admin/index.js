@@ -7,6 +7,7 @@ import staffRouter from './staff.js';
 import reportsRouter from './reports.js';
 import logsRouter from './logs.js';
 import kioskRouter from './kiosk.js';
+import trashRouter from './trash.js';
 
 const router = Router();
 router.use('/submissions', submissionsRouter);
@@ -16,5 +17,6 @@ router.use('/staff', staffRouter);
 router.use('/reports', reportsRouter);
 router.use('/logs', logsRouter);
 router.use('/kiosk', kioskRouter);
+router.use('/trash', trashRouter);
 
 export default router;

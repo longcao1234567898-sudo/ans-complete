@@ -35,6 +35,7 @@ router.get('/', async (req, res) => {
     // Mặc định: ẩn tin CHỜ DUYỆT và tin RÁC khỏi danh sách xử lý chính
     // -> tin rác không bao giờ làm phiền quy trình nghiệp vụ
     where.push("s.status NOT IN ('pending_review','spam')");
+  where.push('s.deleted_at IS NULL'); // ẩn tin đang nằm trong thùng rác
   }
   if (category) { where.push('c.code = ?'); params.push(category); }
   if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
@@ -217,11 +218,17 @@ router.post('/:id/review', async (req, res) => {
 
     const newStatus = action === 'approve' ? 'received' : 'spam';
 
+    // "Tin rác" -> đưa vào THÙNG RÁC (xoá mềm), giữ 7 ngày để còn khôi phục được.
+    // "Duyệt"    -> chuyển sang danh sách xử lý bình thường.
     await pool.query(
       `UPDATE submissions
-       SET status = ?, reviewed_by = ?, reviewed_at = NOW()
+       SET status = ?, reviewed_by = ?, reviewed_at = NOW(),
+           deleted_at = ${action === 'spam' ? 'NOW()' : 'NULL'},
+           deleted_by = ${action === 'spam' ? '?' : 'NULL'}
        WHERE id = ?`,
-      [newStatus, req.staff.id, req.params.id]
+      action === 'spam'
+        ? [newStatus, req.staff.id, req.staff.id, req.params.id]
+        : [newStatus, req.staff.id, req.params.id]
     );
 
     // Ghi lịch sử + nhật ký

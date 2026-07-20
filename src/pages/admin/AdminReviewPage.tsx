@@ -62,7 +62,7 @@ export default function AdminReviewPage() {
       </h1>
       <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
         Tin báo <b>ẩn danh</b> được đưa vào đây để sàng lọc trước. Cán bộ đọc qua rồi
-        <b> Duyệt</b> (đưa vào xử lý) hoặc <b>Đánh dấu tin rác</b>. Tin rác không lọt vào danh sách chính.
+        <b> Duyệt</b> (chuyển sang danh sách xử lý) hoặc <b>Tin rác</b> (đưa vào thùng rác). Tin trong thùng rác được giữ <b>7 ngày</b>, lỡ bấm nhầm vẫn khôi phục được.
       </p>
 
       {msg && (

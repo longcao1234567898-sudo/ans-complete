@@ -27,6 +27,7 @@ import AdminLogsPage from './pages/admin/AdminLogsPage';
 import AdminReviewPage from './pages/admin/AdminReviewPage';
 import AdminQRPage from './pages/admin/AdminQRPage';
 import AdminKioskPage from './pages/admin/AdminKioskPage';
+import AdminTrashPage from './pages/admin/AdminTrashPage';
 import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
@@ -83,6 +84,7 @@ function AppShell() {
             <Route path="/quan-tri/kiem-duyet" element={<AdminReviewPage />} />
             <Route path="/quan-tri/ma-qr" element={<AdminQRPage />} />
             <Route path="/quan-tri/ki-ot" element={<AdminKioskPage />} />
+            <Route path="/quan-tri/thung-rac" element={<AdminTrashPage />} />
           </Routes>
         </div>
       </main>
