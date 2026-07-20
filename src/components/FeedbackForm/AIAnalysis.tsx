@@ -72,6 +72,44 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
             )}
             <TypedText text={result.normalizedContent} />
 
+            {/* Mức khẩn cấp AI đề xuất — hiện rõ để bà con biết và đổi lại nếu cần */}
+            {result.suggestedUrgency && result.suggestedUrgency !== 'normal' && (
+              <div
+                className={cn(
+                  'mt-4 flex items-start gap-2.5 rounded-xl border-2 p-3',
+                  result.suggestedUrgency === 'urgent'
+                    ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/15'
+                    : 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/15'
+                )}
+              >
+                <span className="text-lg leading-none">
+                  {result.suggestedUrgency === 'urgent' ? '🔴' : '🟡'}
+                </span>
+                <span>
+                  <span
+                    className={cn(
+                      'block text-sm font-bold',
+                      result.suggestedUrgency === 'urgent'
+                        ? 'text-red-700 dark:text-red-300'
+                        : 'text-amber-700 dark:text-amber-300'
+                    )}
+                  >
+                    AI đánh giá: {result.suggestedUrgency === 'urgent' ? 'KHẨN CẤP' : 'Quan trọng'}
+                  </span>
+                  {result.urgencyReason && (
+                    <span className="block text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      {result.urgencyReason}
+                    </span>
+                  )}
+                  {result.suggestedUrgency === 'urgent' && (
+                    <span className="mt-1 block text-xs font-semibold text-red-600 dark:text-red-400">
+                      Nếu đang có nguy hiểm, bà con gọi ngay 113 thay vì chờ xử lý qua hệ thống.
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+
             {/* Thanh độ tin cậy */}
             <div className="mt-4">
               <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">

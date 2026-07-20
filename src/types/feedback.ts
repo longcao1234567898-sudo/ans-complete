@@ -28,6 +28,10 @@ export interface AIAnalysisResult {
   confidence: number;
   /** Từ khoá AI nhận diện được */
   keywords: string[];
+  /** V6: mức khẩn cấp AI đề xuất — người dân vẫn được chọn lại */
+  suggestedUrgency?: UrgencyLevel;
+  /** V6: lý do AI chọn mức đó (một câu ngắn) */
+  urgencyReason?: string;
 }
 
 /** Thông tin liên hệ (tất cả đều không bắt buộc) */

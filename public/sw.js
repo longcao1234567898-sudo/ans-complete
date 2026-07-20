@@ -7,7 +7,7 @@
  *
  * Chỉ ảnh/font mới cache-first (chúng không đổi nội dung, lại nặng).
  */
-const CACHE = 'htans-v27'; // đổi tên -> xoá sạch cache cũ
+const CACHE = 'htans-v29'; // đổi tên -> xoá sạch cache cũ
 
 self.addEventListener('install', () => self.skipWaiting());
 

@@ -2,7 +2,7 @@
  * Bước 5: Xác nhận thông tin trước khi gửi; sau khi gửi thành công hiển thị
  * mã tra cứu 6 ký tự kèm mã QR, nút sao chép mã và nút TẢI QR VỀ MÁY (PNG).
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Check, Copy, Download, Search } from 'lucide-react';
@@ -10,6 +10,7 @@ import { MascotCheer } from '../common/PoliceMascot';
 import toast from 'react-hot-toast';
 import type { FeedbackDraft, FeedbackSubmission } from '../../types/feedback';
 import { CATEGORY_MAP } from '../../utils/constants';
+import { downloadReceipt } from '../../utils/receipt';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 
@@ -24,6 +25,23 @@ interface ConfirmationProps {
 
 export default function Confirmation({ draft, submission, isSubmitting, onSubmit, onBack, onReset }: ConfirmationProps) {
   const [agreed, setAgreed] = useState(false);
+  const [savedReceipt, setSavedReceipt] = useState(false);
+  const autoSaved = useRef(false);
+
+  /* TỰ ĐỘNG TẢI PHIẾU MÃ TRA CỨU ngay khi gửi thành công.
+     Bà con hay quên bấm nút lưu rồi tắt trình duyệt là mất mã.
+     Tải sẵn về máy -> ảnh nằm trong thư viện, mở lại lúc nào cũng được. */
+  useEffect(() => {
+    if (!submission || autoSaved.current) return;
+    autoSaved.current = true;
+    const t = setTimeout(() => {
+      try {
+        downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category });
+        setSavedReceipt(true);
+      } catch { /* trình duyệt chặn tải tự động -> bà con bấm nút thủ công */ }
+    }, 900); // chờ chút cho màn hình hiện xong rồi mới tải
+    return () => clearTimeout(t);
+  }, [submission]);
   const [copied, setCopied] = useState(false);
   const qrWrapRef = useRef<HTMLDivElement>(null);
 
@@ -93,7 +111,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             {submission.trackingCode}
           </p>
 
-          <div className="mb-4 flex items-center justify-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
             <button
               onClick={handleCopy}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 dark:bg-slate-800 dark:text-primary-300"
@@ -102,13 +120,30 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
               {copied ? 'Đã sao chép' : 'Sao chép mã'}
             </button>
             <button
+              onClick={() => {
+                downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category });
+                setSavedReceipt(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Tải phiếu về máy
+            </button>
+            <button
               onClick={handleDownloadQR}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 dark:bg-slate-800 dark:text-primary-300"
             >
               <Download className="h-3.5 w-3.5" />
-              Tải QR về máy
+              Tải QR
             </button>
           </div>
+
+          {savedReceipt && (
+            <p className="mb-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <Check className="h-3.5 w-3.5" />
+              Đã lưu phiếu mã tra cứu vào máy của bà con
+            </p>
+          )}
 
           <div ref={qrWrapRef} className="flex justify-center rounded-xl bg-white p-3 dark:bg-slate-100">
             <QRCodeSVG value={qrValue} size={140} fgColor="#1B5E20" />

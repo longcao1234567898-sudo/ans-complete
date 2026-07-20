@@ -3,10 +3,12 @@
  * Vòng tròn càng TO và càng ĐỎ = địa bàn càng nhiều vụ việc / nhiều tố giác.
  * Giúp lãnh đạo nhìn ra ngay khu vực cần tăng cường tuần tra.
  */
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from 'react-leaflet';
 import { Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+import { UNIT } from '../../utils/constants';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { fetchMapData, type WardPoint } from '../../services/adminService';
 
@@ -29,23 +31,83 @@ function radiusOf(total: number, max: number) {
   return 8 + ratio * 22; // 8 -> 30 px
 }
 
+/** Các chế độ xem bản đồ — đổi tiêu chí tô màu và kích thước vòng tròn */
+const METRICS = [
+  { id: 'total', label: 'Tổng ý kiến', desc: 'Toàn bộ ý kiến đã nhận' },
+  { id: 'pending', label: 'Đang tồn đọng', desc: 'Chưa xử lý xong' },
+  { id: 'overdue', label: 'Quá hạn', desc: 'Đã quá hạn xử lý' },
+  { id: 'to_giac', label: 'Tố giác', desc: 'Riêng nhóm tố giác tin báo' },
+] as const;
+
+type MetricId = (typeof METRICS)[number]['id'];
+
 export default function AdminMapPage() {
+  const [metric, setMetric] = useState<MetricId>('total');
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-map'],
     queryFn: fetchMapData,
     refetchInterval: 60_000,
   });
 
-  const max = data ? Math.max(...data.map((w) => w.total), 1) : 1;
-  const hot = data ? [...data].filter((w) => w.total > 0).slice(0, 5) : [];
+  /** Lấy số liệu theo chế độ xem đang chọn */
+  const valueOf = (w: { total: number; pending: number; overdue: number; to_giac: number }) =>
+    metric === 'total' ? w.total
+    : metric === 'pending' ? w.pending
+    : metric === 'overdue' ? w.overdue
+    : w.to_giac;
+
+  const max = data ? Math.max(...data.map(valueOf), 1) : 1;
+  const hot = data
+    ? [...data].filter((w) => valueOf(w) > 0).sort((a, b) => valueOf(b) - valueOf(a)).slice(0, 5)
+    : [];
   const totalOverdue = data ? data.reduce((s, w) => s + w.overdue, 0) : 0;
+  const totalShown = data ? data.reduce((s, w) => s + valueOf(w), 0) : 0;
 
   return (
     <AdminLayout>
       <h1 className="mb-1 text-xl font-extrabold text-slate-800 dark:text-slate-100">Bản đồ điểm nóng</h1>
-      <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
-        Phân bố ý kiến, phản ánh, tố giác theo địa bàn thị xã Tân Châu.
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Phân bố ý kiến, phản ánh, tố giác theo địa bàn {UNIT.communeName}.
       </p>
+
+      {/* CHỌN CHẾ ĐỘ XEM — đổi tiêu chí hiển thị trên bản đồ */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {METRICS.map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setMetric(m.id)}
+            title={m.desc}
+            className={`min-h-[40px] rounded-xl px-4 py-2 text-sm font-bold transition ${
+              metric === m.id
+                ? 'bg-primary-600 text-white shadow-soft'
+                : 'bg-white text-slate-600 hover:bg-primary-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* CHÚ GIẢI MÀU + số liệu đang xem */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl bg-white/80 px-4 py-2.5 text-xs backdrop-blur-sm dark:bg-slate-800/80">
+        <span className="font-bold text-slate-600 dark:text-slate-300">
+          Đang xem: {METRICS.find((m) => m.id === metric)?.label} — tổng {totalShown}
+        </span>
+        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+          <span className="h-3 w-3 rounded-full" style={{ background: '#C62828' }} /> Có quá hạn
+        </span>
+        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+          <span className="h-3 w-3 rounded-full" style={{ background: '#F9A825' }} /> Còn tồn đọng
+        </span>
+        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+          <span className="h-3 w-3 rounded-full" style={{ background: '#1B5E20' }} /> Đã xử lý xong
+        </span>
+        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+          <span className="h-3 w-3 rounded-full" style={{ background: '#94A3B8' }} /> Chưa có vụ việc
+        </span>
+        <span className="text-slate-400">Vòng tròn càng lớn = số vụ càng nhiều</span>
+      </div>
 
       {isLoading && (
         <div className="flex items-center gap-2 py-10 text-slate-500">
@@ -84,7 +146,7 @@ export default function AdminMapPage() {
                   <CircleMarker
                     key={w.id}
                     center={[w.lat, w.lng]}
-                    radius={radiusOf(w.total, max)}
+                    radius={radiusOf(valueOf(w), max)}
                     pathOptions={{
                       color: colorOf(w),
                       fillColor: colorOf(w),

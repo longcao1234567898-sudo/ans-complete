@@ -47,6 +47,10 @@ export default function SendFeedbackPage() {
   const runAnalysis = (content: string) => {
     aiAnalysis.mutate(content, {
       onSuccess: (result) => {
+        // AI đề xuất mức khẩn cấp -> tự áp vào form (bà con vẫn đổi lại được)
+        if (result?.suggestedUrgency) {
+          setDraft((d) => ({ ...d, urgency: result.suggestedUrgency! }));
+        }
         setDraft((d) => ({ ...d, analysis: result, category: result.suggestedCategory }));
       },
       onError: () => toast.error('AI phân tích thất bại, vui lòng thử lại.'),
