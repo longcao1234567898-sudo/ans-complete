@@ -231,19 +231,33 @@ router.post('/:id/review', async (req, res) => {
         : [newStatus, req.staff.id, req.params.id]
     );
 
-    // Ghi lịch sử + nhật ký
-    await pool.query(
-      'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
-      [req.params.id, 'pending_review', newStatus,
-       action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
-       req.staff.id]
-    );
-    await pool.query(
-      'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
-      [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
-       'submission', req.params.id,
-       (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
-    );
+    // Ghi lịch sử + nhật ký.
+    // ⚠️ BỌC try/catch RIÊNG: trạng thái ĐÃ cập nhật xong ở trên rồi.
+    // Nếu ghi nhật ký lỗi (ví dụ ENUM status_history thiếu giá trị mới) mà để
+    // văng ra ngoài thì giao diện báo "Lỗi máy chủ" trong khi việc đã chạy —
+    // cán bộ tưởng hỏng, bấm lại nhiều lần. Nhật ký hỏng KHÔNG được làm hỏng thao tác.
+    try {
+      await pool.query(
+        'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
+        [req.params.id, 'pending_review', newStatus,
+         action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Chuyển vào thùng rác',
+         req.staff.id]
+      );
+    } catch (e) {
+      console.warn('Ghi status_history lỗi (đã bỏ qua):', e.message,
+                   '-> bạn đã chạy nang_cap_v7.sql chưa?');
+    }
+
+    try {
+      await pool.query(
+        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
+        [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
+         'submission', req.params.id,
+         (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
+      );
+    } catch (e) {
+      console.warn('Ghi nhật ký lỗi (đã bỏ qua):', e.message);
+    }
 
     res.json({
       ok: true,

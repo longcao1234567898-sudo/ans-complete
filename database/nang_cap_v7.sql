@@ -35,7 +35,24 @@ LEFT JOIN categories c ON c.id = s.category_id
 WHERE s.deleted_at IS NOT NULL
 ORDER BY s.deleted_at DESC;
 
+-- =====================================================================
+-- SỬA LỖI: bảng status_history chưa nhận trạng thái mới
+-- Triệu chứng: bấm Duyệt / Tin rác báo "Lỗi máy chủ", refresh mới thấy đã chạy.
+-- Nguyên nhân: ENUM của status_history còn thiếu 'pending_review' và 'spam'
+--              -> lệnh ghi lịch sử bị lỗi SAU KHI đã cập nhật trạng thái.
+-- =====================================================================
+ALTER TABLE status_history
+    MODIFY COLUMN old_status ENUM('pending_review','received','processing','resolved','rejected','spam') NULL;
+
+ALTER TABLE status_history
+    MODIFY COLUMN new_status ENUM('pending_review','received','processing','resolved','rejected','spam') NOT NULL;
+
+
 -- Kiểm tra
+SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='status_history'
+  AND COLUMN_NAME IN ('old_status','new_status');
+
 SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='submissions'
   AND COLUMN_NAME IN ('deleted_at','deleted_by');
