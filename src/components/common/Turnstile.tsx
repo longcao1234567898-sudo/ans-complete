@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef } from 'react';
 
-const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim();
+const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD6i_-Eq5RMylwf9').trim();
 export const captchaEnabled = Boolean(SITE_KEY);
 
 declare global {
