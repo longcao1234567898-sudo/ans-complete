@@ -34,6 +34,10 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'none'"],
+        // Đặt TƯỜNG MINH script-src và object-src (công cụ quét yêu cầu rõ ràng,
+        // không chấp nhận chỉ dựa vào default-src). API chỉ trả JSON nên khoá hết.
+        scriptSrc: ["'none'"],
+        objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
         baseUri: ["'none'"],
       },
