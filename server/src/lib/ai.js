@@ -231,11 +231,33 @@ async function callOnce(model, body, opts = {}) {
  * Hàm này bắt lỗi 429 và tự chuyển sang Flash (hạn mức cao hơn nhiều),
  * chỉnh lại thinkingBudget cho hợp lệ. Người dùng KHÔNG bị gián đoạn.
  */
+const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function callGemini(model, body, opts = {}) {
   try {
     return await callOnce(model, body, opts);
   } catch (err) {
     const outOfQuota = err.status === 429;
+
+    /* ĐANG Ở MODEL DỰ PHÒNG MÀ VẪN 429 -> trước đây chết hẳn.
+       Hạn mức miễn phí tính THEO PHÚT, nên chờ vài giây rồi thử lại
+       thường là qua. Thử 2 lần: chờ 2 giây, rồi 5 giây.
+       Đây chính là lỗi "hỏi liên tục thì chatbot đứt". */
+    if (outOfQuota && model === FALLBACK_MODEL) {
+      for (const doi of [2000, 5000]) {
+        console.warn(`⚠️  ${model} chạm hạn mức — chờ ${doi / 1000}s rồi thử lại...`);
+        await nghi(doi);
+        try {
+          return await callOnce(model, body, opts);
+        } catch (e2) {
+          if (e2.status !== 429) throw e2;
+        }
+      }
+      const e = new Error('Trợ lý đang bận do có nhiều người hỏi cùng lúc. Bà con chờ khoảng 1 phút rồi hỏi lại giúp tôi nhé.');
+      e.status = 429;
+      throw e;
+    }
+
     if (!outOfQuota || model === FALLBACK_MODEL) throw err;
 
     console.warn(`⚠️  ${model} hết hạn mức (429) — tự chuyển sang ${FALLBACK_MODEL}`);
@@ -274,10 +296,13 @@ function cleanChatReply(text) {
 }
 
 export async function geminiChat(message, history = []) {
+  // Chỉ gửi 6 lượt gần nhất, mỗi lượt tối đa 800 ký tự.
+  // VÌ SAO: hội thoại dài -> token đầu vào phình -> dễ chạm hạn mức và chậm.
+  // 6 lượt đủ để bot nhớ mạch chuyện mà không tốn kém.
   const contents = [
-    ...history.slice(-8).map((m) => ({
+    ...history.slice(-6).map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content ?? '').slice(0, 2000) }],
+      parts: [{ text: String(m.content ?? '').slice(0, 800) }],
     })),
     { role: 'user', parts: [{ text: message }] },
   ];
@@ -285,9 +310,9 @@ export async function geminiChat(message, history = []) {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents,
     generationConfig: {
-      // 800 token là QUÁ ÍT -> câu trả lời bị CẮT NGANG giữa chừng.
-      // Flash mặc định bật "thinking", phần suy nghĩ ăn hết token.
-      maxOutputTokens: 4096,
+      // Nâng lên 8192: câu trả lời dài (hướng dẫn nhiều bước) không bị cắt ngang.
+      // Flash mặc định bật "thinking", phần suy nghĩ cũng ăn vào hạn mức này.
+      maxOutputTokens: 8192,
       // ⚠️ KHÔNG tắt hẳn thinking cho CHAT.
       // Tắt (thinkingBudget: 0) -> model mất chỗ suy nghĩ nội bộ nên VIẾT RA MÀN HÌNH
       // cả phần nháp và cấu trúc prompt (VD: "**(Vietnamese, Markdown, Persona):**").
