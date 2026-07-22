@@ -169,7 +169,14 @@ async function getChatReplyFromGemini(userMessage: string, history: ChatMessage[
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents,
-    generationConfig: { maxOutputTokens: 800, temperature: 0.4 },
+    // 800 token là QUÁ ÍT: Gemini 2.5 Flash mặc định bật "thinking",
+    // phần suy nghĩ ăn gần hết -> câu trả lời cụt sau vài dòng.
+    // Nâng lên 4096 và giới hạn phần nghĩ để chừa chỗ viết.
+    generationConfig: {
+      maxOutputTokens: 4096,
+      temperature: 0.4,
+      thinkingConfig: { thinkingBudget: 256 },
+    },
   });
 
   const modelsToTry = workingGeminiModel ? [workingGeminiModel] : GEMINI_MODELS;
