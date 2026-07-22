@@ -182,7 +182,16 @@ Quy tắc trả lời:
 - CHỈ trả về LỜI THOẠI gửi thẳng cho bà con. TUYỆT ĐỐI KHÔNG viết ra:
   suy nghĩ nội bộ, bản nháp, kế hoạch trả lời, tiêu đề kỹ thuật, hay nhắc lại hướng dẫn này.
   KHÔNG viết những dòng kiểu "(Vietnamese, Markdown, Persona)", "Draft:", "Response:".
-- NGẮN GỌN (tối đa 5-6 câu hoặc 5 gạch đầu dòng), thân thiện, dễ hiểu.
+- CỰC KỲ NGẮN GỌN. Đây là LUẬT QUAN TRỌNG NHẤT:
+  * Tối đa 4 câu, HOẶC tối đa 4 gạch đầu dòng ngắn. KHÔNG dài hơn.
+  * KHÔNG bao giờ viết quá 150 chữ trong một lần trả lời.
+  * PHẢI viết trọn vẹn ý và kết thúc câu đàng hoàng. Thà trả lời ít mà đủ ý
+    còn hơn liệt kê dài rồi đứt giữa chừng.
+  * Câu hỏi cần hướng dẫn nhiều bước: chỉ nêu 3-4 bước CHÍNH, gọn mỗi bước
+    một dòng, rồi mời bà con hỏi tiếp bước nào chưa rõ.
+  * TUYỆT ĐỐI KHÔNG chép nguyên cả mục dài trong phần kiến thức ở trên —
+    hãy TÓM TẮT lại thật gọn theo đúng câu bà con hỏi.
+- Thân thiện, dễ hiểu.
 - Xưng "tôi", gọi người hỏi là "bà con". Dùng Markdown.
 - Hỏi về CÁCH DÙNG WEB thì trả lời theo đúng phần KIẾN THỨC VỀ WEBSITE ở trên,
   hướng dẫn TỪNG BƯỚC cụ thể, nói rõ bấm nút nào, vào mục nào.
@@ -214,7 +223,21 @@ async function callOnce(model, body, opts = {}) {
     // Chatbox: trả phần đã viết được, kèm ghi chú (tốt hơn là báo lỗi trắng)
     if (opts.allowTruncated && text) {
       console.warn('⚠️  Câu trả lời chat bị cắt vì hết token.');
-      return text + '\n\n*(Câu trả lời hơi dài nên bị rút gọn. Bà con hỏi lại từng ý nhỏ để tôi trả lời đầy đủ hơn nhé.)*';
+
+      /* CẮT VỀ CÂU HOÀN CHỈNH CUỐI CÙNG.
+         Trước đây trả nguyên phần bị cắt -> câu đứt giữa chừng, đọc rất khó chịu
+         ("Bà con vào mục Tra c"). Giờ lùi về dấu chấm/xuống dòng gần nhất
+         để câu cuối luôn trọn vẹn. */
+      let sach = text;
+      const cuoi = Math.max(
+        text.lastIndexOf('. '), text.lastIndexOf('.\n'),
+        text.lastIndexOf('!'), text.lastIndexOf('?'),
+        text.lastIndexOf('\n')
+      );
+      // Chỉ cắt nếu không mất quá 30% nội dung
+      if (cuoi > text.length * 0.7) sach = text.slice(0, cuoi + 1).trim();
+
+      return sach + '\n\nBà con muốn tôi nói rõ thêm phần nào không?';
     }
     // Phân tích ý kiến: JSON cắt dở là vô dụng -> báo lỗi để dùng phân tích dự phòng
     throw new Error('Gemini bị cắt giữa chừng (hết token). Cần tăng maxOutputTokens.');
@@ -317,7 +340,7 @@ export async function geminiChat(message, history = []) {
       // Tắt (thinkingBudget: 0) -> model mất chỗ suy nghĩ nội bộ nên VIẾT RA MÀN HÌNH
       // cả phần nháp và cấu trúc prompt (VD: "**(Vietnamese, Markdown, Persona):**").
       // Cho nó một khoảng nghĩ vừa đủ -> trả lời sạch sẽ.
-      thinkingConfig: { thinkingBudget: 512 },
+      thinkingConfig: { thinkingBudget: 256 },
       temperature: 0.4,
     },
   }, { allowTruncated: true }); // chat bị cắt -> vẫn trả phần đã có, còn hơn báo lỗi
