@@ -52,28 +52,58 @@ const HE_THONG_KNOWLEDGE = `
 (Dùng để trả lời khi bà con hỏi về cách dùng trang web này)
 
 ## CÁCH GỬI Ý KIẾN (5 bước)
-Bấm nút "Gửi ý kiến ngay" ở trang chủ, hoặc vào mục "Gửi ý kiến":
-1. Nhập nội dung sự việc (tối thiểu 20 ký tự). Có thể đính kèm tối đa 5 ảnh.
-   Có nút "Nói thay vì gõ" — bấm rồi nói, chữ tự hiện ra (cho bà con ngại gõ phím).
-   Chọn mức độ: Bình thường / Quan trọng / Khẩn cấp.
-2. AI đọc và gợi ý nhóm xử lý phù hợp.
-3. Chọn 1 trong 4 nhóm: Tố giác tin báo / Khiếu nại / Phản ánh / Đề xuất.
-4. Điền họ tên, số điện thoại, email → hệ thống gửi mã 6 số về email để xác thực.
-5. Tick đồng ý điều khoản → bấm Gửi → nhận MÃ TRA CỨU 6 ký tự.
-Nội dung đang gõ dở được TỰ ĐỘNG LƯU, lỡ tắt máy vào lại vẫn còn.
+Bấm "Gửi ý kiến ngay" ở trang chủ, hoặc vào mục "Gửi ý kiến":
+
+BƯỚC 1 — Nhập nội dung sự việc (tối thiểu 20 ký tự).
+  - Nên nêu rõ 4 điều: THỜI GIAN, ĐỊA ĐIỂM, SỰ VIỆC, NGƯỜI LIÊN QUAN.
+  - Không cần gõ đúng chính tả hay có dấu — AI tự hiểu và chỉnh lại.
+  - Có nút MICRO "Nói thay vì gõ": bấm rồi nói tiếng Việt, chữ tự hiện ra.
+    (Dành cho bà con ngại gõ phím hoặc mắt kém. Cần có mạng.)
+  - Đính kèm tối đa 5 ẢNH. Hệ thống tự xoá thông tin vị trí GPS trong ảnh.
+  - Chọn MỨC ĐỘ: Bình thường / Quan trọng / Khẩn cấp.
+
+BƯỚC 2 — AI đọc và gợi ý nhóm xử lý, đồng thời tự đánh giá mức khẩn cấp.
+  Nếu AI thấy khẩn cấp sẽ hiện băng đỏ kèm lý do. Bà con vẫn được chọn lại.
+
+BƯỚC 3 — Chọn 1 trong 4 nhóm:
+  Tố giác tin báo / Khiếu nại / Phản ánh / Đề xuất.
+
+BƯỚC 4 — Điền họ tên, số điện thoại, email.
+  - Hệ thống gửi mã 6 số về email để xác thực (mã sống 10 phút).
+  - Có ô XÁC MINH "Tôi không phải người máy" (Cloudflare) — thường tự tích xanh,
+    không phải chọn ảnh gì cả. Nếu chưa tích thì chờ vài giây.
+  - Hoặc bật "Gửi ẩn danh" (xem mục dưới).
+
+BƯỚC 5 — Tick đồng ý điều khoản, bấm Gửi.
+  Nhận MÃ TRA CỨU 6 ký tự. Hệ thống TỰ TẢI VỀ MÁY một tấm PHIẾU (ảnh PNG) có:
+  mã tra cứu cỡ lớn, nhóm xử lý, ngày gửi, HẠN XỬ LÝ, và MÃ QR để quét xem
+  kết quả. Phiếu nằm trong thư viện ảnh điện thoại, mở lại lúc nào cũng được.
+  Nếu máy không tự tải, bấm nút "Tải phiếu về máy".
+
+Nội dung đang gõ dở được TỰ ĐỘNG LƯU. Lỡ tắt trình duyệt, vào lại vẫn còn
+(giữ trong 24 giờ), có nút khôi phục.
 
 ## GỬI ẨN DANH (chỉ nhóm Tố giác tin báo)
 Ở bước 4, bật công tắc "Gửi ẩn danh". Khi đó KHÔNG cần họ tên, SĐT, email.
 Thay vào đó hệ thống hiện mã 6 số ngay trên màn hình (ô vàng) để xác thực.
+Vẫn phải qua ô xác minh "Tôi không phải người máy".
+
 Điều kiện chặt hơn: nội dung tối thiểu 50 ký tự, mỗi ngày tối đa 2 tin,
-mỗi lần cách nhau 10 phút. Tin ẩn danh qua bước kiểm duyệt của cán bộ trước.
+mỗi lần cách nhau 10 phút.
+
+QUAN TRỌNG: gửi ẩn danh thì cán bộ KHÔNG LIÊN HỆ LẠI ĐƯỢC để hỏi thêm,
+nên bà con phải viết thật đầy đủ ngay từ đầu, kèm ảnh nếu có.
+
+Tin ẩn danh qua bước KIỂM DUYỆT của cán bộ trước khi vào quy trình xử lý,
+nên trạng thái ban đầu là "Chờ kiểm duyệt".
 Cán bộ KHÔNG THỂ xem danh tính người gửi ẩn danh — hệ thống chặn hoàn toàn.
 
-## TRA CỨU KẾT QUẢ
-Vào mục "Tra cứu kết quả", nhập mã tra cứu 6 ký tự. KHÔNG cần đăng nhập tài khoản.
-Máy tự nhớ các mã bà con đã gửi — vào trang tra cứu là thấy danh sách, bấm vào xem ngay,
-không cần nhớ mã. Muốn xoá thì bấm nút X, hoặc "Xoá hết" nếu dùng máy chung.
-Cũng có thể quét mã QR để tra cứu.
+## TRA CỨU KẾT QUẢ — 3 CÁCH
+1. QUÉT MÃ QR trên phiếu đã tải về (nhanh nhất, không cần gõ).
+2. Vào mục "Tra cứu kết quả", nhập mã 6 ký tự. KHÔNG cần đăng nhập tài khoản.
+3. Máy TỰ NHỚ các mã bà con đã gửi — vào trang tra cứu là thấy sẵn danh sách,
+   bấm vào xem ngay, không cần nhớ mã.
+   Muốn xoá thì bấm nút X từng mã, hoặc "Xoá hết" nếu dùng máy chung.
 
 ## CÁC TRẠNG THÁI XỬ LÝ
 - Chờ kiểm duyệt: tin ẩn danh đang được cán bộ sàng lọc
@@ -85,9 +115,17 @@ Cũng có thể quét mã QR để tra cứu.
 ## THỜI HẠN XỬ LÝ (theo quy định pháp luật)
 - Tố giác tin báo tội phạm: 20 ngày
 - Khiếu nại: 30 ngày
-- Phản ánh: 15 ngày
-- Đề xuất, kiến nghị: 10 ngày
-Hệ thống tự tính hạn và cảnh báo cán bộ khi sắp/đã quá hạn.
+- Phản ánh, kiến nghị: 15 ngày
+- Đề xuất, thắc mắc: 10 ngày
+Hệ thống tự tính hạn và cảnh báo cán bộ khi sắp hoặc đã quá hạn.
+Hạn cụ thể có ghi trên phiếu tải về và ở trang tra cứu.
+
+## MỨC ĐỘ KHẨN CẤP
+- Khẩn cấp (đỏ): đang có người nguy hiểm, sự việc đang diễn ra
+- Quan trọng (vàng): việc nghiêm trọng nhưng không đang diễn ra
+- Bình thường: phản ánh hạ tầng, môi trường, góp ý
+Ý kiến khẩn cấp được tự động đưa lên đầu danh sách của cán bộ.
+LƯU Ý: nếu đang có nguy hiểm thật, phải GỌI NGAY 113 thay vì chờ xử lý qua web.
 
 ## THÔNG TIN CỦA BÀ CON ĐƯỢC BẢO VỆ THẾ NÀO
 - Họ tên, số điện thoại được MÃ HOÁ chuẩn AES-256 trước khi lưu
@@ -97,19 +135,38 @@ Hệ thống tự tính hạn và cảnh báo cán bộ khi sắp/đã quá hạ
 - Nội dung TỐ GIÁC được phân tích nội bộ, KHÔNG gửi sang dịch vụ AI bên ngoài
 - Chi tiết xem trang "Chính sách bảo mật"
 
+## VÌ SAO CÓ Ô "TÔI KHÔNG PHẢI NGƯỜI MÁY"
+Để chặn máy tính tự động gửi hàng nghìn tin rác làm nghẽn hệ thống.
+Ô này thường TỰ TÍCH XANH sau vài giây, bà con không phải làm gì.
+Nếu mãi không tích: thử tải lại trang, hoặc đổi sang mạng khác (4G),
+hoặc tắt phần mềm chặn quảng cáo.
+
 ## NÚT SOS KHẨN CẤP
 Nút tròn màu đỏ góc dưới bên trái màn hình. Bấm vào để gọi ngay 113
 hoặc gọi trực ban đơn vị. Dùng khi có nguy hiểm cần lực lượng đến ngay.
 
 ## KHÔNG CÓ ĐIỆN THOẠI / KHÔNG BIẾT DÙNG MÁY
 Bà con đến thẳng trụ sở, cán bộ tiếp dân sẽ nhập hộ trên máy tại quầy
-và in phiếu có mã tra cứu đưa bà con cầm về.
+và in phiếu có mã tra cứu đưa bà con cầm về. Không cần email, không cần điện thoại.
 
 ## CÁC MỤC KHÁC TRÊN WEB
 - Trang chủ: tin tức an ninh, cảnh báo lừa đảo, hướng dẫn thủ tục
 - Giới thiệu: quy trình xử lý, cam kết bảo mật
 - Chính sách bảo mật: cách thu thập và bảo vệ dữ liệu
-- Bản đồ 14 phường/xã trên địa bàn
+- Bản đồ các phường/xã trên địa bàn
+- Chế độ tối (dark mode): bấm biểu tượng mặt trăng ở đầu trang
+- Cài vào màn hình chính: trình duyệt sẽ hỏi "Thêm vào màn hình chính",
+  dùng như một ứng dụng
+
+## MỘT SỐ TÌNH HUỐNG HAY GẶP
+- Không nhận được email chứa mã: kiểm tra hộp thư Spam/Quảng cáo; chờ 60 giây
+  rồi bấm gửi lại; mỗi giờ chỉ xin được tối đa 5 mã.
+- Nhập mã sai nhiều lần: sai quá 5 lần thì mã bị huỷ, phải xin mã mới.
+- Mất mã tra cứu: vào trang Tra cứu xem danh sách máy đã tự nhớ; hoặc mở lại
+  phiếu PNG đã tải trong thư viện ảnh; hoặc gọi trực ban nhờ tra giúp.
+- Gửi nhầm nội dung: liên hệ trực ban đơn vị, không tự xoá được trên web.
+- Nội dung bị báo "chưa hợp lệ": do quá ngắn hoặc gõ ký tự lặp lại vô nghĩa;
+  hãy mô tả rõ thời gian, địa điểm, sự việc.
 === HẾT PHẦN KIẾN THỨC VỀ WEBSITE ===
 `;
 

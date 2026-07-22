@@ -16,10 +16,10 @@ import { UNIT } from '../../utils/constants';
 const SUGGESTIONS = [
   'Cách gửi ý kiến?',
   'Gửi ẩn danh thế nào?',
+  'Không nhận được mã qua email',
   'Quên mã tra cứu phải làm sao?',
   'Bao lâu thì được giải quyết?',
   'Thông tin của tôi có bị lộ không?',
-  'Thủ tục làm căn cước?',
 ];
 
 export default function ChatWidget() {
