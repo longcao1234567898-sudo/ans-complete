@@ -8,6 +8,7 @@ import {
 import { encrypt, hashPhone } from '../lib/crypto.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
+import { kiemTraTrungLapGanDung } from '../lib/duplicate.js';
 
 const router = Router();
 
@@ -119,6 +120,16 @@ router.post('/', async (req, res) => {
     const info = spam[0];
     if (info.dup) return res.status(429).json({ error: 'Nội dung này bà con vừa gửi rồi. Vui lòng dùng mã tra cứu đã cấp để theo dõi.' });
 
+    /* CHỐNG TRÙNG GẦN ĐÚNG — bắt cả khi nội dung bị sửa nhẹ để né.
+       Băm chính xác ở trên chỉ bắt bản giống hệt; đổi dấu câu hay chèn
+       vài chữ là qua. Lớp này so độ tương đồng nên bắt được.
+       Cùng IP + giống >=75% -> chặn. Khác IP -> không chặn (có thể là
+       nhiều người dân cùng phản ánh một vụ thật) mà ĐÁNH DẤU cho cán bộ xem. */
+    const trungLap = await kiemTraTrungLapGanDung(pool, content, ip);
+    if (trungLap.chan) {
+      return res.status(429).json({ error: trungLap.lyDo });
+    }
+
     // Chờ giữa 2 lần gửi — ẩn danh phải chờ LÂU HƠN (10 phút thay vì 2 phút)
     const cooldown = isAnonymous ? ANON_COOLDOWN_MS : COOLDOWN_MS;
     if (info.last_at && Date.now() - new Date(info.last_at).getTime() < cooldown) {
@@ -170,8 +181,9 @@ router.post('/', async (req, res) => {
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency)
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?)`,
+        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
+        is_flagged, flag_reason)
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?)`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -193,6 +205,9 @@ router.post('/', async (req, res) => {
         !isAnonymous,
         isAnonymous,
         urgency,
+        // Cờ nghi gửi hàng loạt (lớp chống trùng gần đúng phát hiện)
+        trungLap.danhDau ? 1 : 0,
+        trungLap.ghiChu || null,
       ]
     );
 
