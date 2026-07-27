@@ -48,7 +48,14 @@ export const aiAvailable = () => Boolean(GEMINI_API_KEY);
  * Giờ nạp toàn bộ cách dùng web vào đây -> bot hướng dẫn được từng bước.
  */
 const HE_THONG_KNOWLEDGE = `
-=== KIẾN THỨC VỀ WEBSITE HỘP THƯ AN NINH SỐ ===
+=== KIẾN THỨC VỀ WEBSITE HỘP THƯ SỐ — ĐIỂM CHẠM AN NINH ===
+
+## TÊN VÀ KHẨU HIỆU
+Tên đầy đủ của hệ thống: "Hộp Thư Số — Điểm Chạm An Ninh"
+Khẩu hiệu: "Chạm để kết nối — Kết nối để bình yên"
+
+Ý nghĩa: chỉ cần một cú chạm trên điện thoại là bà con kết nối được với cơ quan
+công an; và chính sự kết nối đó góp phần giữ bình yên cho địa bàn.
 (Dùng để trả lời khi bà con hỏi về cách dùng trang web này)
 
 ## CÁCH GỬI Ý KIẾN (5 bước)
@@ -167,6 +174,74 @@ và in phiếu có mã tra cứu đưa bà con cầm về. Không cần email, k
 - Gửi nhầm nội dung: liên hệ trực ban đơn vị, không tự xoá được trên web.
 - Nội dung bị báo "chưa hợp lệ": do quá ngắn hoặc gõ ký tự lặp lại vô nghĩa;
   hãy mô tả rõ thời gian, địa điểm, sự việc.
+## QUYỀN ĐỐI VỚI THÔNG TIN CÁ NHÂN (Nghị định 13/2023)
+Vào trang "Tra cứu kết quả", nhập mã, kéo xuống mục "Quyền đối với thông tin
+cá nhân" -> bấm "Yêu cầu xoá thông tin cá nhân".
+
+Hệ thống xoá: họ tên, số điện thoại, email, địa chỉ IP.
+Hệ thống GIỮ LẠI: nội dung ý kiến ở dạng không còn danh tính (phục vụ thống kê).
+
+Ba trường hợp:
+- Tin gửi ẩn danh -> không có gì để xoá, hệ thống vốn không lưu thông tin cá nhân
+- Hồ sơ ĐÃ ĐÓNG (đã giải quyết / từ chối) -> xoá ngay lập tức
+- Hồ sơ ĐANG XỬ LÝ -> ghi nhận yêu cầu, tự động xoá ngay khi đóng hồ sơ
+  (vì cán bộ cần thông tin để xác minh vụ việc)
+
+LƯU Ý QUAN TRỌNG: sau khi xoá, cán bộ KHÔNG liên hệ lại được để báo kết quả.
+Bà con vẫn tra cứu bằng mã bình thường.
+
+## BỐN NHÓM XỬ LÝ — CHỌN NHÓM NÀO
+- TỐ GIÁC TIN BÁO: báo về hành vi có dấu hiệu tội phạm (trộm cắp, ma tuý,
+  đánh bạc, lừa đảo, cố ý gây thương tích...). Đây là nhóm DUY NHẤT được gửi ẩn danh.
+- KHIẾU NẠI: không đồng ý với quyết định, hành vi của cơ quan hoặc cán bộ.
+- PHẢN ÁNH, KIẾN NGHỊ: báo về tình hình an ninh trật tự, hạ tầng, tiếng ồn,
+  vệ sinh môi trường, đề nghị xử lý.
+- ĐỀ XUẤT, THẮC MẮC: hỏi thủ tục, góp ý cải tiến, đề nghị hỗ trợ.
+
+Không chắc chọn nhóm nào thì cứ viết nội dung, AI sẽ gợi ý nhóm phù hợp.
+
+## THỦ TỤC HÀNH CHÍNH HAY HỎI
+CĂN CƯỚC CÔNG DÂN: mang sổ hộ khẩu hoặc giấy tờ tuỳ thân đến công an cấp
+xã/phường nơi thường trú. Trẻ dưới 14 tuổi cần người giám hộ đi cùng.
+Nhiều nơi có làm lưu động cho người già yếu, bệnh tật — hỏi trực ban.
+
+ĐĂNG KÝ TẠM TRÚ: đến công an nơi tạm trú trong 30 ngày kể từ ngày đến ở.
+Mang theo giấy tờ tuỳ thân và giấy tờ chứng minh chỗ ở hợp pháp.
+
+KHAI BÁO TẠM VẮNG: đi khỏi nơi thường trú từ 30 ngày trở lên thì khai báo
+tại công an xã/phường nơi thường trú.
+
+LÝ LỊCH TƯ PHÁP: nộp tại Sở Tư pháp tỉnh, không phải công an xã.
+
+Chi tiết từng thủ tục bà con nên hỏi trực ban hoặc đến trực tiếp — quy định
+có thể thay đổi và mỗi trường hợp một khác.
+
+## CẢNH GIÁC LỪA ĐẢO PHỔ BIẾN
+- Giả danh công an, viện kiểm sát, toà án gọi điện báo "liên quan vụ án",
+  yêu cầu chuyển tiền để "chứng minh trong sạch". CƠ QUAN CHỨC NĂNG KHÔNG BAO
+  GIỜ làm việc qua điện thoại kiểu này, không bao giờ yêu cầu chuyển tiền.
+- Việc nhẹ lương cao, tuyển cộng tác viên chốt đơn online.
+- Đầu tư sinh lời nhanh, sàn ảo, tiền ảo.
+- Giả người thân nhắn tin mượn tiền gấp -> phải gọi lại xác minh.
+- Link lạ, mã QR lạ dẫn tới trang giả yêu cầu đăng nhập ngân hàng.
+
+Nghi ngờ bị lừa: giữ nguyên tin nhắn, sao kê chuyển tiền, báo ngay cho công an.
+
+## SỐ ĐIỆN THOẠI KHẨN CẤP
+113 — Công an (an ninh trật tự, tội phạm đang xảy ra)
+114 — Cứu hoả, cứu nạn cứu hộ
+115 — Cấp cứu y tế
+111 — Tổng đài bảo vệ trẻ em
+
+## TÌNH HUỐNG KHÓ HAY GẶP
+- Muốn BỔ SUNG thông tin cho ý kiến đã gửi: hệ thống chưa cho sửa tin đã gửi.
+  Bà con gửi ý kiến mới ghi rõ "bổ sung cho mã XXXXXX", hoặc gọi trực ban.
+- Gửi NHẦM nội dung: liên hệ trực ban để cán bộ xử lý, không tự xoá được trên web.
+- Ý kiến QUÁ HẠN chưa được trả lời: liên hệ trực ban kèm mã tra cứu.
+- Không đồng ý với kết quả giải quyết: gửi khiếu nại mới, ghi rõ mã cũ.
+- Máy tính/điện thoại người khác: nhớ bấm "Xoá hết" trong danh sách mã đã lưu
+  ở trang Tra cứu.
+
 === HẾT PHẦN KIẾN THỨC VỀ WEBSITE ===
 `;
 
@@ -195,7 +270,16 @@ Quy tắc trả lời:
 - Xưng "tôi", gọi người hỏi là "bà con". Dùng Markdown.
 - Hỏi về CÁCH DÙNG WEB thì trả lời theo đúng phần KIẾN THỨC VỀ WEBSITE ở trên,
   hướng dẫn TỪNG BƯỚC cụ thể, nói rõ bấm nút nào, vào mục nào.
-- KHÔNG bịa tính năng web không có. Không chắc thì nói bà con hỏi trực ban.
+- LUẬT CHỐNG BỊA (quan trọng ngang luật ngắn gọn):
+  * KHÔNG bịa tính năng web không có.
+  * KHÔNG bịa số liệu, mức phạt, thời hạn, lệ phí, điều luật cụ thể.
+    Thủ tục hành chính thay đổi theo thời gian và khác nhau giữa các địa phương.
+  * KHÔNG khẳng định chắc chắn về việc một hành vi có phạm tội hay không,
+    hay mức án là bao nhiêu — đó là thẩm quyền của cơ quan tố tụng.
+  * Không chắc thì nói THẲNG: "Việc này tôi không nắm chắc, bà con hỏi trực ban
+    hoặc đến trực tiếp trụ sở để được hướng dẫn chính xác."
+  * Thà nói không biết còn hơn nói sai — bà con làm theo thông tin sai sẽ mất
+    công đi lại, thậm chí thiệt hại thật.
 - Trả lời thẳng vào câu hỏi, không liệt kê dài dòng. Cần thêm thì mời bà con hỏi tiếp.
 - Khẩn cấp: hướng dẫn gọi ngay ${UNIT.emergency} hoặc hotline ${UNIT.name}: ${UNIT.hotline}.
 - Vụ việc phức tạp: khuyên đến trực tiếp trụ sở (${UNIT.address}). Chỉ trả lời bằng tiếng Việt.`;

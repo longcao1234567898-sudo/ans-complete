@@ -1,5 +1,5 @@
 /**
- * Backend Hộp Thư An Ninh Số (bản nâng cấp bảo mật cao).
+ * Backend Hộp Thư Số — Điểm Chạm An Ninh (bản nâng cấp bảo mật cao).
  * Chạy: npm install && npm run dev  (cần MySQL đã import database)
  */
 import 'dotenv/config';
@@ -34,8 +34,9 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'none'"],
-        // Đặt TƯỜNG MINH script-src và object-src (công cụ quét yêu cầu rõ ràng,
-        // không chấp nhận chỉ dựa vào default-src). API chỉ trả JSON nên khoá hết.
+        // Đặt TƯỜNG MINH scriptSrc và objectSrc — công cụ quét bảo mật yêu cầu
+        // khai báo rõ ràng, không chấp nhận suy ra từ default-src.
+        // API chỉ trả JSON nên khoá hết là đúng.
         scriptSrc: ["'none'"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
@@ -80,7 +81,22 @@ app.use(cookieParser());
 // Rate limit chung
 app.use(rateLimit({ windowMs: 15 * 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, ai: aiAvailable() }));
+/* PHIÊN BẢN BACKEND — tăng số này mỗi lần có thay đổi quan trọng.
+   Dùng để KIỂM TRA NHANH backend đã deploy bản mới chưa:
+   mở https://<địa-chỉ-backend>/api/health trên trình duyệt.
+   Thấy đúng số phiên bản mong đợi nghĩa là đã deploy. */
+const BACKEND_VERSION = 'v8-2026-07';
+
+app.get('/api/health', (_req, res) =>
+  res.json({
+    ok: true,
+    version: BACKEND_VERSION,
+    ai: aiAvailable(),
+    // Liệt kê các chức năng mới — nhìn là biết bản này có gì
+    features: ['quyen-xoa-du-lieu', 'loc-muc-khan-cap', 'viec-can-gap'],
+    time: new Date().toISOString(),
+  })
+);
 
 // Public API
 app.use('/api/auth', authRouter);

@@ -1,3 +1,4 @@
+import { UNIT } from './unit.js';
 /**
  * Gửi email OTP — hỗ trợ 3 cách, tự chọn cách nào đã cấu hình.
  *
@@ -38,8 +39,8 @@ function emailHtml(code) {
   return `
   <div style="font-family:system-ui,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px">
     <div style="background:#1B5E20;color:#fff;padding:20px;border-radius:12px 12px 0 0;text-align:center">
-      <h2 style="margin:0;font-size:18px">HỘP THƯ AN NINH SỐ</h2>
-      <p style="margin:4px 0 0;font-size:13px;opacity:.85">Công an thị xã Tân Châu, tỉnh An Giang</p>
+      <h2 style="margin:0;font-size:18px">HỘP THƯ SỐ — ĐIỂM CHẠM AN NINH</h2>
+      <p style="margin:4px 0 0;font-size:13px;opacity:.85">${UNIT.name}</p>
     </div>
     <div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;padding:24px">
       <p style="color:#334155;font-size:15px">Kính gửi bà con,</p>
@@ -60,7 +61,7 @@ function emailHtml(code) {
   </div>`;
 }
 
-const SUBJECT = (code) => `${code} là mã xác thực gửi ý kiến — Hộp Thư An Ninh Số`;
+const SUBJECT = (code) => `${code} là mã xác thực gửi ý kiến — Hộp Thư Số — Điểm Chạm An Ninh`;
 const TEXT = (code) => `Ma xac thuc cua ba con la: ${code}. Ma co hieu luc trong 10 phut. Khong chia se ma nay cho bat ky ai.`;
 
 /* ---------- Cách 1: RESEND (HTTPS — không bị chặn) ---------- */
@@ -104,7 +105,7 @@ async function sendViaBrevo(email, code) {
     },
     body: JSON.stringify({
       sender: {
-        name: 'Hộp Thư An Ninh Số',
+        name: 'Hộp Thư Số — Điểm Chạm An Ninh',
         email: env('MAIL_USER') || 'noreply@example.com',
       },
       to: [{ email }],
@@ -143,7 +144,7 @@ function getTransporter() {
 
 async function sendViaGmail(email, code) {
   await getTransporter().sendMail({
-    from: env('MAIL_FROM') || `"Hộp Thư An Ninh Số" <${env('MAIL_USER')}>`,
+    from: env('MAIL_FROM') || `"Hộp Thư Số — Điểm Chạm An Ninh" <${env('MAIL_USER')}>`,
     to: email,
     subject: SUBJECT(code),
     html: emailHtml(code),

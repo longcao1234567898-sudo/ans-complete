@@ -21,26 +21,34 @@ function slaOf(row) {
 
 /** GET /api/admin/submissions — danh sách + lọc + phân trang */
 router.get('/', async (req, res) => {
-  const { status, category, q, sla, assigned } = req.query;
+  const { status, category, q, sla, assigned, urgency } = req.query;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20));
   const offset = (page - 1) * limit;
 
   const where = [];
   const params = [];
+  /* LUÔN ẩn tin trong thùng rác, dù lọc theo trạng thái nào.
+     (Trước đây dòng này nằm nhầm trong khối else -> lọc theo trạng thái
+      thì tin đã bỏ thùng rác vẫn hiện ra.) */
+  where.push('s.deleted_at IS NULL');
+
   if (status) {
     where.push('s.status = ?');
     params.push(status);
   } else {
     // Mặc định: ẩn tin CHỜ DUYỆT và tin RÁC khỏi danh sách xử lý chính
-    // -> tin rác không bao giờ làm phiền quy trình nghiệp vụ
     where.push("s.status NOT IN ('pending_review','spam')");
-  where.push('s.deleted_at IS NULL'); // ẩn tin đang nằm trong thùng rác
   }
   if (category) { where.push('c.code = ?'); params.push(category); }
   if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
   if (sla === 'overdue') where.push("s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW()");
   if (sla === 'near') where.push("s.status IN ('received','processing') AND s.deadline_at >= NOW() AND s.deadline_at < NOW() + INTERVAL 3 DAY");
+  // Lọc theo MỨC KHẨN CẤP: urgent | important | normal
+  if (urgency && ['urgent', 'important', 'normal'].includes(urgency)) {
+    where.push('s.urgency = ?');
+    params.push(urgency);
+  }
   if (assigned === 'me') { where.push('s.assigned_to = ?'); params.push(req.staff.id); }
   if (assigned === 'none') where.push('s.assigned_to IS NULL');
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
@@ -173,6 +181,42 @@ router.patch('/:id/status', async (req, res) => {
     await pool.query('CALL update_submission_status(?,?,?,?,?)', [
       req.params.id, status, note || null, rejectionReason || null, req.staff.id,
     ]);
+
+    /* TỰ ĐỘNG XOÁ DANH TÍNH khi hồ sơ ĐÓNG, nếu người dân đã yêu cầu trước đó.
+       Theo Nghị định 13/2023: quyền xoá bị hoãn khi dữ liệu còn cần cho việc
+       xử lý, nhưng phải thực hiện NGAY khi lý do hoãn không còn.
+       Bọc try/catch riêng — lỗi ở đây không được làm hỏng việc cập nhật trạng thái. */
+    if (status === 'resolved' || status === 'rejected') {
+      try {
+        const [cho] = await pool.query(
+          `SELECT id FROM data_deletion_requests
+           WHERE submission_id = ? AND status = 'pending'`,
+          [req.params.id]
+        );
+
+        if (cho.length > 0) {
+          await pool.query(
+            `UPDATE submissions
+             SET sender_name = NULL, sender_phone = NULL, sender_phone_hash = NULL,
+                 sender_email = NULL, ip_address = NULL, user_agent = NULL,
+                 identity_erased = TRUE, identity_erased_at = NOW()
+             WHERE id = ?`,
+            [req.params.id]
+          );
+          await pool.query(
+            `UPDATE data_deletion_requests
+             SET status = 'done', handled_at = NOW(), handled_by = ?
+             WHERE submission_id = ? AND status = 'pending'`,
+            [req.staff.id, req.params.id]
+          );
+          console.log(`🔒 Đã tự xoá danh tính ý kiến #${req.params.id} theo yêu cầu đã ghi nhận`);
+        }
+      } catch (e) {
+        console.warn('Bỏ qua xoá danh tính tự động:', e.message,
+                     '-> đã chạy nang_cap_v8.sql chưa?');
+      }
+    }
+
     res.json({ ok: true, message: 'Đã cập nhật trạng thái.' });
   } catch (err) {
     console.error('Lỗi cập nhật trạng thái:', err.message);
@@ -231,33 +275,19 @@ router.post('/:id/review', async (req, res) => {
         : [newStatus, req.staff.id, req.params.id]
     );
 
-    // Ghi lịch sử + nhật ký.
-    // ⚠️ BỌC try/catch RIÊNG: trạng thái ĐÃ cập nhật xong ở trên rồi.
-    // Nếu ghi nhật ký lỗi (ví dụ ENUM status_history thiếu giá trị mới) mà để
-    // văng ra ngoài thì giao diện báo "Lỗi máy chủ" trong khi việc đã chạy —
-    // cán bộ tưởng hỏng, bấm lại nhiều lần. Nhật ký hỏng KHÔNG được làm hỏng thao tác.
-    try {
-      await pool.query(
-        'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
-        [req.params.id, 'pending_review', newStatus,
-         action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Chuyển vào thùng rác',
-         req.staff.id]
-      );
-    } catch (e) {
-      console.warn('Ghi status_history lỗi (đã bỏ qua):', e.message,
-                   '-> bạn đã chạy nang_cap_v7.sql chưa?');
-    }
-
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
-        [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
-         'submission', req.params.id,
-         (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
-      );
-    } catch (e) {
-      console.warn('Ghi nhật ký lỗi (đã bỏ qua):', e.message);
-    }
+    // Ghi lịch sử + nhật ký
+    await pool.query(
+      'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
+      [req.params.id, 'pending_review', newStatus,
+       action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
+       req.staff.id]
+    );
+    await pool.query(
+      'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
+      [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
+       'submission', req.params.id,
+       (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
+    );
 
     res.json({
       ok: true,
