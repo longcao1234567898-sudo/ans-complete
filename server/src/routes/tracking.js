@@ -207,8 +207,25 @@ router.post('/:code/request-deletion', async (req, res) => {
     });
   } catch (err) {
     console.error('Lỗi yêu cầu xoá dữ liệu:', err.message);
+
+    /* CHẨN ĐOÁN CỤ THỂ thay vì báo chung chung.
+       Lỗi hay gặp nhất: file nâng cấp SQL dừng giữa chừng vì cột đã tồn tại,
+       khiến BẢNG data_deletion_requests chưa được tạo. Nói rõ ra để người
+       quản trị biết chính xác phải làm gì. */
+    let goiY = 'Vui lòng liên hệ trực ban đơn vị để được hỗ trợ.';
+
+    if (err.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(err.message)) {
+      goiY = 'Hệ thống chưa tạo bảng data_deletion_requests. '
+           + 'Quản trị viên cần chạy lại file nang_cap_v8.sql (bản mới).';
+    } else if (err.code === 'ER_BAD_FIELD_ERROR' || /unknown column/i.test(err.message)) {
+      goiY = 'Hệ thống thiếu cột identity_erased trong bảng submissions. '
+           + 'Quản trị viên cần chạy lại file nang_cap_v8.sql (bản mới).';
+    }
+
     res.status(500).json({
-      error: 'Lỗi máy chủ. Bạn đã chạy nang_cap_v8.sql chưa?',
+      error: 'Chưa xử lý được yêu cầu. ' + goiY,
+      // Chi tiết kỹ thuật để quản trị viên xem trong Console, không hiện cho dân
+      detail: process.env.NODE_ENV === 'production' ? undefined : err.message,
     });
   }
 });
