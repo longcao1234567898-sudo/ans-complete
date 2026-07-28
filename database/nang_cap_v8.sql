@@ -63,11 +63,33 @@ PREPARE st FROM @lenh; EXECUTE st; DEALLOCATE PREPARE st;
 --
 --    Bảng này là BẰNG CHỨNG TUÂN THỦ: chứng minh đơn vị có tiếp nhận và
 --    xử lý yêu cầu của công dân theo đúng Nghị định 13.
---    Khi cần, đơn vị xuất được danh sách: nhận bao nhiêu yêu cầu, xử lý
---    thế nào, trong bao lâu.
 --
---    CREATE TABLE IF NOT EXISTS -> chạy lại không báo lỗi.
+--    ⚠️ TÊN CỘT PHẢI KHỚP CHÍNH XÁC VỚI MÃ NGUỒN:
+--       requester_ip, handled_at, handled_by, reason
+--    Đặt sai tên là backend báo lỗi 500 khi người dân bấm nút.
 -- ---------------------------------------------------------------------
+
+-- 2.1. Nếu bảng đã tồn tại nhưng THIẾU cột requester_ip nghĩa là nó được tạo
+--      bằng bản SQL cũ có tên cột sai. Bảng đó chắc chắn RỖNG (vì mọi lệnh
+--      ghi đều thất bại), nên xoá đi tạo lại là an toàn.
+SET @bang_sai := (
+  SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA='hop_thu_an_ninh_so'
+                   AND TABLE_NAME='data_deletion_requests')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
+                     WHERE TABLE_SCHEMA='hop_thu_an_ninh_so'
+                       AND TABLE_NAME='data_deletion_requests'
+                       AND COLUMN_NAME='requester_ip')
+    THEN 1 ELSE 0 END
+);
+SET @lenh := IF(@bang_sai = 1,
+  'DROP TABLE data_deletion_requests',
+  'SELECT ''Bang chua ton tai hoac da dung - bo qua'' AS ghi_chu'
+);
+PREPARE st FROM @lenh; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- 2.2. Tạo bảng với ĐÚNG tên cột mà mã nguồn sử dụng
 CREATE TABLE IF NOT EXISTS data_deletion_requests (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     submission_id   BIGINT UNSIGNED NOT NULL,
@@ -79,10 +101,12 @@ CREATE TABLE IF NOT EXISTS data_deletion_requests (
     status          ENUM('pending','done','rejected') NOT NULL DEFAULT 'pending',
 
     requested_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    processed_at    DATETIME NULL DEFAULT NULL,
-    processed_by    INT NULL DEFAULT NULL,
-    note            VARCHAR(255) NULL DEFAULT NULL,
-    request_ip      VARCHAR(45) NULL DEFAULT NULL,
+    handled_at      DATETIME NULL DEFAULT NULL,
+    handled_by      INT NULL DEFAULT NULL,
+    reason          VARCHAR(255) NULL DEFAULT NULL,
+
+    -- Dia chi IP nguoi gui yeu cau - chong lam dung gui hang loat
+    requester_ip    VARCHAR(45) NULL DEFAULT NULL,
 
     INDEX idx_submission (submission_id),
     INDEX idx_status (status, requested_at),
