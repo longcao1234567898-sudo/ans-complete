@@ -218,8 +218,13 @@ router.post('/:code/request-deletion', async (req, res) => {
       goiY = 'Hệ thống chưa tạo bảng data_deletion_requests. '
            + 'Quản trị viên cần chạy lại file nang_cap_v8.sql (bản mới).';
     } else if (err.code === 'ER_BAD_FIELD_ERROR' || /unknown column/i.test(err.message)) {
-      goiY = 'Hệ thống thiếu cột identity_erased trong bảng submissions. '
-           + 'Quản trị viên cần chạy lại file nang_cap_v8.sql (bản mới).';
+      /* Lấy ĐÚNG tên cột bị thiếu từ thông báo của MySQL.
+         Trước đây ghi cứng 'identity_erased' -> báo sai chỗ, gây mất thời gian
+         tìm nhầm hướng. Giờ nói đúng cột nào đang thiếu. */
+      const m = /unknown column '([^']+)'/i.exec(err.message);
+      const tenCot = m ? m[1] : 'không rõ';
+      goiY = `Hệ thống thiếu cột ${tenCot} trong cơ sở dữ liệu. `
+           + 'Quản trị viên xem /api/health/schema để biết chính xác thiếu gì.';
     }
 
     res.status(500).json({

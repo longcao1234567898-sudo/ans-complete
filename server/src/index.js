@@ -98,6 +98,65 @@ app.get('/api/health', (_req, res) =>
   })
 );
 
+/* ===== CHẨN ĐOÁN CƠ SỞ DỮ LIỆU =====
+   Mở https://<backend>/api/health/schema trên trình duyệt để biết CHÍNH XÁC
+   backend đang kết nối database nào và thiếu bảng/cột gì.
+   Sinh ra vì đã mất nhiều lượt đoán mò: SQL chạy một database, backend đọc
+   database khác — nhìn từ ngoài không thể biết. */
+app.get('/api/health/schema', async (_req, res) => {
+  const { pool } = await import('./db.js');
+  try {
+    const [[db]] = await pool.query('SELECT DATABASE() AS ten');
+
+    // Những thứ hệ thống BẮT BUỘC phải có
+    const canCo = [
+      ['submissions', 'identity_erased'],
+      ['submissions', 'identity_erased_at'],
+      ['submissions', 'deleted_at'],
+      ['submissions', 'urgency'],
+      ['data_deletion_requests', 'requester_ip'],
+      ['data_deletion_requests', 'handled_at'],
+      ['data_deletion_requests', 'handled_by'],
+      ['data_deletion_requests', 'reason'],
+    ];
+
+    const ketQua = [];
+    for (const [bang, cot] of canCo) {
+      const [[r]] = await pool.query(
+        `SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+        [bang, cot]
+      );
+      ketQua.push({ bang, cot, co: r.n > 0 });
+    }
+
+    const thieu = ketQua.filter((x) => !x.co);
+
+    // Liệt kê các database khác trên cùng máy chủ, giúp phát hiện chạy nhầm chỗ
+    let cacDatabase = [];
+    try {
+      const [rows] = await pool.query(
+        `SELECT SCHEMA_NAME AS ten FROM information_schema.SCHEMATA
+         WHERE SCHEMA_NAME NOT IN ('mysql','information_schema','performance_schema','sys')`
+      );
+      cacDatabase = rows.map((r) => r.ten);
+    } catch { /* không đủ quyền -> bỏ qua */ }
+
+    res.json({
+      backend_dang_ket_noi_database: db.ten,
+      cac_database_tren_may_chu: cacDatabase,
+      day_du: thieu.length === 0,
+      thieu: thieu.map((x) => `${x.bang}.${x.cot}`),
+      chi_tiet: ketQua,
+      huong_dan: thieu.length === 0
+        ? 'Cơ sở dữ liệu đầy đủ. Nếu vẫn lỗi thì nguyên nhân khác.'
+        : `Hãy mở HeidiSQL, CHỌN database "${db.ten}" rồi chạy nang_cap_v8.sql`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Không kiểm tra được', chi_tiet: err.message });
+  }
+});
+
 // Public API
 app.use('/api/auth', authRouter);
 app.use('/api/tracking', trackingRouter);
