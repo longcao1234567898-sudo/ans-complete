@@ -139,7 +139,9 @@ router.post('/:code/request-deletion', async (req, res) => {
 
     // Đã có yêu cầu đang chờ -> không tạo thêm
     const [cho] = await pool.query(
-      `SELECT id, created_at FROM data_deletion_requests
+      /* Cột tên là requested_at (không phải created_at) — khớp với
+         cấu trúc bảng trong nang_cap_v8.sql */
+      `SELECT id, requested_at FROM data_deletion_requests
        WHERE submission_id = ? AND status = 'pending'`,
       [sub.id]
     );
@@ -148,7 +150,7 @@ router.post('/:code/request-deletion', async (req, res) => {
         ok: true,
         status: 'pending',
         message: 'Yêu cầu của bà con đã được ghi nhận trước đó và đang chờ xử lý.',
-        requestedAt: cho[0].created_at,
+        requestedAt: cho[0].requested_at,
       });
     }
 
