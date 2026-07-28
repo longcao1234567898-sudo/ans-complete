@@ -19,13 +19,45 @@ const loginLimiter = rateLimit({
   message: { error: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ 15 phút.' },
 });
 
+/* LỖI ĐÃ SỬA: trước đây dùng `secure: process.env.NODE_ENV === 'production'`.
+   Nhưng Render KHÔNG tự đặt biến NODE_ENV, nên nó luôn undefined -> cờ secure
+   luôn FALSE ngay cả khi chạy thật. Hậu quả: vé đăng nhập của cán bộ có thể
+   bị gửi qua kết nối HTTP không mã hoá.
+
+   Cách sửa: mặc định BẬT secure, chỉ tắt khi chạy ở máy cá nhân (localhost).
+   Nguyên tắc: an toàn là mặc định, nới lỏng phải khai báo tường minh. */
+const CHAY_O_MAY_CA_NHAN =
+  (process.env.CLIENT_URL || '').includes('localhost') ||
+  (process.env.CLIENT_URL || '').includes('127.0.0.1');
+
 const COOKIE_OPTS = {
-  httpOnly: true,           // JavaScript không đọc được -> chống XSS đánh cắp token
-  secure: process.env.NODE_ENV === 'production', // chỉ gửi qua HTTPS khi production
+  httpOnly: true,                    // JavaScript không đọc được -> chống XSS đánh cắp vé
+  secure: !CHAY_O_MAY_CA_NHAN,       // BẬT mặc định, chỉ tắt khi chạy localhost
   sameSite: 'lax',
-  maxAge: 30 * 86400_000,   // 30 ngày
+  maxAge: 30 * 86400_000,            // 30 ngày
   path: '/api/auth',
 };
+
+/* NGƯỠNG CHỐNG DÒ MẬT KHẨU
+   Đặt 10 (cao hơn giới hạn 5 lần/IP) là có chủ đích: nếu đặt bằng nhau thì
+   kẻ xấu chỉ cần cố ý gõ sai 5 lần là KHOÁ ĐƯỢC tài khoản của cán bộ thật —
+   biến biện pháp bảo vệ thành công cụ phá hoại. */
+const SO_LAN_SAI_TOI_DA = 10;
+const PHUT_KHOA = 15;
+
+/** Ghi vết mọi lần đăng nhập thất bại — để phát hiện tấn công đang diễn ra */
+async function ghiThatBai(staffId, username, ip) {
+  try {
+    await pool.query(
+      `INSERT INTO staff_activity_logs (staff_id, action, ip_address, attempted_username)
+       VALUES (?, 'login_failed', ?, ?)`,
+      [staffId, ip, String(username || '').slice(0, 50)]
+    );
+  } catch {
+    /* Bảng chưa nâng cấp v9 -> bỏ qua, KHÔNG làm hỏng luồng đăng nhập.
+       Ghi nhật ký hỏng không được cản người dùng hợp lệ vào hệ thống. */
+  }
+}
 
 /** POST /api/auth/login */
 router.post('/login', loginLimiter, async (req, res) => {
@@ -33,17 +65,82 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu.' });
 
   try {
-    const [rows] = await pool.query(
-      'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE username = ?',
-      [String(username).trim()]
-    );
-    const staff = rows[0];
+    const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
+
+    /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
+       được khi database chưa nâng cấp v9 — không làm sập đăng nhập. */
+    let staff;
+    try {
+      const [rows] = await pool.query(
+        `SELECT id, full_name, username, password_hash, role, is_active,
+                COALESCE(failed_attempts, 0) AS failed_attempts, locked_until
+         FROM staff WHERE username = ?`,
+        [String(username).trim()]
+      );
+      staff = rows[0];
+    } catch {
+      // Chưa chạy v9 -> dùng truy vấn cũ
+      const [rows] = await pool.query(
+        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE username = ?',
+        [String(username).trim()]
+      );
+      staff = rows[0];
+    }
+
+    /* TÀI KHOẢN ĐANG BỊ KHOÁ TẠM THỜI
+       Kiểm TRƯỚC khi so mật khẩu — không cho kẻ tấn công tiếp tục thử. */
+    if (staff?.locked_until && new Date(staff.locked_until) > new Date()) {
+      const conLai = Math.ceil((new Date(staff.locked_until) - Date.now()) / 60000);
+      await ghiThatBai(staff.id, username, ip);
+      return res.status(429).json({
+        error: `Tài khoản tạm khoá do nhập sai nhiều lần. Vui lòng thử lại sau ${conLai} phút.`,
+      });
+    }
+
     // Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản qua thời gian phản hồi
     const dummyHash = '$2a$12$0000000000000000000000000000000000000000000000000000';
     const ok = await bcrypt.compare(password, staff?.password_hash || dummyHash);
 
-    if (!staff || !ok) return res.status(401).json({ error: 'Tên đăng nhập hoặc mật khẩu không đúng.' });
-    if (!staff.is_active) return res.status(403).json({ error: 'Tài khoản đã bị khoá.' });
+    if (!staff || !ok) {
+      // GHI VẾT — trước đây chỉ ghi lần đăng nhập THÀNH CÔNG, nên không
+      // phát hiện được khi hệ thống đang bị dò mật khẩu.
+      await ghiThatBai(staff?.id ?? null, username, ip);
+
+      /* Tăng bộ đếm và khoá tạm nếu vượt ngưỡng.
+         Đây là lớp chặn theo TÀI KHOẢN — bổ sung cho lớp chặn theo IP.
+         Kẻ tấn công đổi IP vẫn không vượt được lớp này. */
+      if (staff) {
+        try {
+          const soLanSai = Number(staff.failed_attempts || 0) + 1;
+          if (soLanSai >= SO_LAN_SAI_TOI_DA) {
+            await pool.query(
+              `UPDATE staff SET failed_attempts = 0,
+                      locked_until = NOW() + INTERVAL ? MINUTE WHERE id = ?`,
+              [PHUT_KHOA, staff.id]
+            );
+          } else {
+            await pool.query('UPDATE staff SET failed_attempts = ? WHERE id = ?',
+              [soLanSai, staff.id]);
+          }
+        } catch { /* chưa nâng cấp v9 -> bỏ qua */ }
+      }
+
+      // Thông báo GIỐNG NHAU cho sai tên và sai mật khẩu -> không lộ tài khoản nào có thật
+      return res.status(401).json({ error: 'Tên đăng nhập hoặc mật khẩu không đúng.' });
+    }
+
+    if (!staff.is_active) {
+      await ghiThatBai(staff.id, username, ip);
+      return res.status(403).json({ error: 'Tài khoản đã bị khoá.' });
+    }
+
+    // Đăng nhập đúng -> xoá bộ đếm sai
+    try {
+      await pool.query(
+        'UPDATE staff SET failed_attempts = 0, locked_until = NULL WHERE id = ?',
+        [staff.id]
+      );
+    } catch { /* chưa nâng cấp v9 -> bỏ qua */ }
 
     // Cấp access token + refresh token
     const accessToken = signAccessToken(staff);
@@ -55,7 +152,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     await pool.query('UPDATE staff SET last_login = NOW() WHERE id = ?', [staff.id]);
     await pool.query(
       'INSERT INTO staff_activity_logs (staff_id, action, ip_address) VALUES (?,?,?)',
-      [staff.id, 'login', (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim()]
+      [staff.id, 'login', ip]
     );
 
     res.cookie('refreshToken', raw, COOKIE_OPTS);

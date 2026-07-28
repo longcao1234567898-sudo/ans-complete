@@ -60,4 +60,46 @@ router.get('/', async (req, res) => {
   }
 });
 
+/* GET /api/admin/logs/canh-bao — CẢNH BÁO TẤN CÔNG ĐĂNG NHẬP
+   Liệt kê các địa chỉ IP có từ 5 lần đăng nhập thất bại trở lên trong 24 giờ.
+   Ghi nhật ký mà không ai xem thì vô nghĩa — endpoint này để quản trị viên
+   phát hiện sớm khi hệ thống đang bị dò mật khẩu. */
+router.get('/canh-bao', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ip_address AS dia_chi_ip,
+              COUNT(*) AS so_lan_that_bai,
+              COUNT(DISTINCT attempted_username) AS so_tai_khoan_bi_thu,
+              MIN(created_at) AS lan_dau,
+              MAX(created_at) AS lan_cuoi
+       FROM staff_activity_logs
+       WHERE action = 'login_failed'
+         AND created_at > NOW() - INTERVAL 24 HOUR
+       GROUP BY ip_address
+       HAVING COUNT(*) >= 5
+       ORDER BY so_lan_that_bai DESC
+       LIMIT 20`
+    );
+
+    /* Tài khoản đang bị khoá tạm — dấu hiệu tấn công đã chạm ngưỡng */
+    let dangKhoa = [];
+    try {
+      const [r2] = await pool.query(
+        `SELECT username, full_name, locked_until
+         FROM staff WHERE locked_until IS NOT NULL AND locked_until > NOW()`
+      );
+      dangKhoa = r2;
+    } catch { /* chưa nâng cấp v9 */ }
+
+    res.json({
+      ip_dang_ngo: rows,
+      tai_khoan_dang_khoa: dangKhoa,
+      co_canh_bao: rows.length > 0 || dangKhoa.length > 0,
+    });
+  } catch (err) {
+    console.error('Lỗi lấy cảnh báo đăng nhập:', err.message);
+    res.json({ ip_dang_ngo: [], tai_khoan_dang_khoa: [], co_canh_bao: false });
+  }
+});
+
 export default router;
