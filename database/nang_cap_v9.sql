@@ -5,9 +5,14 @@
 --   1. Không ghi nhật ký lần đăng nhập THẤT BẠI
 --      -> không phát hiện được khi đang bị tấn công dò mật khẩu
 --
---   2. Không khoá tài khoản sau nhiều lần sai
+--   2. Không có lớp chặn theo TÀI KHOẢN
 --      -> giới hạn 5 lần/15 phút chỉ tính theo IP. Kẻ tấn công có
 --         100 địa chỉ IP là thử được 500 mật khẩu mà không bị chặn.
+--
+--      CÁCH XỬ LÝ: sai từ 3 lần trở lên thì BẮT XÁC MINH CAPTCHA.
+--      KHÔNG khoá tài khoản — vì khoá sẽ tạo lỗ hổng khác nguy hiểm hơn:
+--      kẻ xấu cố ý gõ sai liên tục là khoá được cán bộ thật ra khỏi hệ thống.
+--      Captcha chặn được máy dò tự động mà cán bộ thật vẫn vào được ngay.
 --
 --   3. Không có mốc thời gian thu hồi phiên hàng loạt
 --      -> khi nghi lộ mật khẩu, không có cách buộc đăng nhập lại
@@ -45,6 +50,8 @@ SET @sql := IF(@co=0,
 PREPARE st FROM @sql; EXECUTE st; DEALLOCATE PREPARE st;
 
 -- 1.2. Khoá tới thời điểm nào (NULL = không khoá)
+--      Hệ thống KHÔNG tự khoá. Cột này dành cho quản trị viên khoá THỦ CÔNG
+--      khi cần (cán bộ chuyển công tác, nghi lộ tài khoản).
 SET @co := (SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='staff'
               AND COLUMN_NAME='locked_until');

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
+import { verifyTurnstile } from '../lib/turnstile.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
   signAccessToken, generateRefreshToken, hashRefreshToken,
@@ -38,12 +39,21 @@ const COOKIE_OPTS = {
   path: '/api/auth',
 };
 
-/* NGƯỠNG CHỐNG DÒ MẬT KHẨU
-   Đặt 10 (cao hơn giới hạn 5 lần/IP) là có chủ đích: nếu đặt bằng nhau thì
-   kẻ xấu chỉ cần cố ý gõ sai 5 lần là KHOÁ ĐƯỢC tài khoản của cán bộ thật —
-   biến biện pháp bảo vệ thành công cụ phá hoại. */
-const SO_LAN_SAI_TOI_DA = 10;
-const PHUT_KHOA = 15;
+/* CHỐNG DÒ MẬT KHẨU — KHÔNG KHOÁ TÀI KHOẢN
+
+   VÌ SAO KHÔNG KHOÁ:
+   Khoá tài khoản nghe có vẻ an toàn nhưng lại tạo ra lỗ hổng khác nguy hiểm
+   hơn: kẻ xấu chỉ cần cố ý gõ sai liên tục là KHOÁ ĐƯỢC cán bộ thật ra khỏi
+   hệ thống. Cứ hết hạn khoá lại gõ sai tiếp — cán bộ vĩnh viễn không vào được.
+   Với hệ thống tiếp nhận tin báo khẩn cấp, hậu quả đó nặng hơn cả việc bị dò
+   mật khẩu.
+
+   CÁCH LÀM THAY THẾ — BẮT XÁC MINH CAPTCHA:
+   Sai từ 3 lần trở lên thì yêu cầu qua ô "Tôi không phải người máy".
+     - Máy tự động dò mật khẩu -> KHÔNG vượt được captcha -> bị chặn
+     - Cán bộ thật -> tích một cái là vào được ngay, KHÔNG bị khoá
+   Bảo vệ đúng thứ cần bảo vệ mà không tạo cửa phá hoại mới. */
+const SO_LAN_SAI_BAT_CAPTCHA = 3;
 
 /** Ghi vết mọi lần đăng nhập thất bại — để phát hiện tấn công đang diễn ra */
 async function ghiThatBai(staffId, username, ip) {
@@ -87,14 +97,17 @@ router.post('/login', loginLimiter, async (req, res) => {
       staff = rows[0];
     }
 
-    /* TÀI KHOẢN ĐANG BỊ KHOÁ TẠM THỜI
-       Kiểm TRƯỚC khi so mật khẩu — không cho kẻ tấn công tiếp tục thử. */
-    if (staff?.locked_until && new Date(staff.locked_until) > new Date()) {
-      const conLai = Math.ceil((new Date(staff.locked_until) - Date.now()) / 60000);
-      await ghiThatBai(staff.id, username, ip);
-      return res.status(429).json({
-        error: `Tài khoản tạm khoá do nhập sai nhiều lần. Vui lòng thử lại sau ${conLai} phút.`,
-      });
+    /* ĐÃ SAI NHIỀU LẦN -> BẮT QUA CAPTCHA (không khoá tài khoản) */
+    const soLanSaiHienTai = Number(staff?.failed_attempts || 0);
+    if (soLanSaiHienTai >= SO_LAN_SAI_BAT_CAPTCHA) {
+      const kq = await verifyTurnstile(req.body?.captchaToken, ip);
+      if (!kq.ok) {
+        await ghiThatBai(staff?.id ?? null, username, ip);
+        return res.status(401).json({
+          error: 'Vui lòng tích vào ô xác minh "Tôi không phải là người máy" rồi đăng nhập lại.',
+          canCaptcha: true,   // báo giao diện hiện ô captcha
+        });
+      }
     }
 
     // Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản qua thời gian phản hồi
@@ -109,24 +122,20 @@ router.post('/login', loginLimiter, async (req, res) => {
       /* Tăng bộ đếm và khoá tạm nếu vượt ngưỡng.
          Đây là lớp chặn theo TÀI KHOẢN — bổ sung cho lớp chặn theo IP.
          Kẻ tấn công đổi IP vẫn không vượt được lớp này. */
+      let soLanSai = soLanSaiHienTai + 1;
       if (staff) {
         try {
-          const soLanSai = Number(staff.failed_attempts || 0) + 1;
-          if (soLanSai >= SO_LAN_SAI_TOI_DA) {
-            await pool.query(
-              `UPDATE staff SET failed_attempts = 0,
-                      locked_until = NOW() + INTERVAL ? MINUTE WHERE id = ?`,
-              [PHUT_KHOA, staff.id]
-            );
-          } else {
-            await pool.query('UPDATE staff SET failed_attempts = ? WHERE id = ?',
-              [soLanSai, staff.id]);
-          }
+          await pool.query('UPDATE staff SET failed_attempts = ? WHERE id = ?',
+            [soLanSai, staff.id]);
         } catch { /* chưa nâng cấp v9 -> bỏ qua */ }
       }
 
-      // Thông báo GIỐNG NHAU cho sai tên và sai mật khẩu -> không lộ tài khoản nào có thật
-      return res.status(401).json({ error: 'Tên đăng nhập hoặc mật khẩu không đúng.' });
+      // Thông báo GIỐNG NHAU cho sai tên và sai mật khẩu -> không lộ tài khoản nào có thật.
+      // Kèm cờ báo giao diện hiện ô captcha cho lần thử sau.
+      return res.status(401).json({
+        error: 'Tên đăng nhập hoặc mật khẩu không đúng.',
+        canCaptcha: soLanSai >= SO_LAN_SAI_BAT_CAPTCHA,
+      });
     }
 
     if (!staff.is_active) {
@@ -137,7 +146,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Đăng nhập đúng -> xoá bộ đếm sai
     try {
       await pool.query(
-        'UPDATE staff SET failed_attempts = 0, locked_until = NULL WHERE id = ?',
+        'UPDATE staff SET failed_attempts = 0 WHERE id = ?',
         [staff.id]
       );
     } catch { /* chưa nâng cấp v9 -> bỏ qua */ }
