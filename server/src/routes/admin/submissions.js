@@ -33,12 +33,22 @@ router.get('/', async (req, res) => {
       thì tin đã bỏ thùng rác vẫn hiện ra.) */
   where.push('s.deleted_at IS NULL');
 
-  if (status) {
+  /* LỌC THEO TRẠNG THÁI — ba chế độ
+     - 'all'          : xem toàn bộ (trừ tin rác) — phải chọn tường minh
+     - một trạng thái : chỉ đúng trạng thái đó
+     - MẶC ĐỊNH       : chỉ VIỆC CHƯA XONG
+
+     Vì sao mặc định ẩn hồ sơ đã đóng?
+     Cán bộ mở danh sách là để LÀM VIỆC. Hồ sơ đã giải quyết hoặc từ chối
+     trộn lẫn vào chỉ làm loãng, càng dùng lâu càng nhiều, việc cần làm
+     càng bị đẩy xuống dưới. Muốn xem lại thì bấm đúng thẻ đó. */
+  if (status === 'all') {
+    where.push("s.status <> 'spam'");
+  } else if (status) {
     where.push('s.status = ?');
     params.push(status);
   } else {
-    // Mặc định: ẩn tin CHỜ DUYỆT và tin RÁC khỏi danh sách xử lý chính
-    where.push("s.status NOT IN ('pending_review','spam')");
+    where.push("s.status IN ('received','processing')");
   }
   if (category) { where.push('c.code = ?'); params.push(category); }
   if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
