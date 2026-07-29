@@ -18,6 +18,7 @@ import newsRouter from './routes/news.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
 import { mailMode } from './lib/mailer.js';
+import { encryptionEnabled, encryptionProblem } from './lib/crypto.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin/index.js';
 
@@ -92,6 +93,8 @@ app.get('/api/health', (_req, res) =>
     ok: true,
     version: BACKEND_VERSION,
     ai: aiAvailable(),
+    // false = ĐANG CÓ SỰ CỐ: hệ thống từ chối nhận ý kiến có danh tính
+    encryption: encryptionEnabled(),
     // Liệt kê các chức năng mới — nhìn là biết bản này có gì
     features: ['quyen-xoa-du-lieu', 'loc-muc-khan-cap', 'viec-can-gap'],
     time: new Date().toISOString(),
@@ -191,6 +194,16 @@ async function start() {
   :                   '📧 Email OTP: CHẾ ĐỘ DEMO (hiện mã trên màn hình)');
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
+    if (encryptionEnabled()) {
+      console.log('🔒 Mã hoá danh tính: ĐÃ BẬT (AES-256-GCM)');
+    } else {
+      console.error('');
+      console.error('🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴');
+      console.error('   Lý do: ' + encryptionProblem());
+      console.error('   Hệ thống VẪN CHẠY nhưng TỪ CHỐI mọi ý kiến có danh tính.');
+      console.error('   Tố giác ẩn danh không bị ảnh hưởng.');
+      console.error('');
+    }
   });
 }
 

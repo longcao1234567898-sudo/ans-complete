@@ -16,7 +16,7 @@
 import { Router } from 'express';
 import { pool } from '../../db.js';
 import { generateTrackingCode, sha256 } from '../../lib/helpers.js';
-import { encrypt, hashPhone } from '../../lib/crypto.js';
+import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
 
 const router = Router();
 
@@ -34,6 +34,17 @@ router.post('/submit', async (req, res) => {
   const phone = String(b.phone || '').trim();
   const wardId = b.wardId ? Number(b.wardId) : null;
   const urgency = ['normal', 'important', 'urgent'].includes(b.urgency) ? b.urgency : 'normal';
+
+  // 🔒 Ki-ốt LUÔN có danh tính (cán bộ nhập hộ tại trụ sở) -> khoá hỏng là chặn ngay.
+  if (!encryptionEnabled()) {
+    console.error('🔴 TỪ CHỐI nhận ý kiến ki-ốt —', encryptionProblem());
+    return res.status(503).json({
+      error:
+        'Không lưu được ý kiến: chức năng mã hoá danh tính đang gặp sự cố. '
+        + 'Đề nghị đồng chí báo quản trị viên kiểm tra ENCRYPTION_KEY trước khi tiếp tục nhập.',
+      code: 'ENCRYPTION_UNAVAILABLE',
+    });
+  }
 
   // Kiểm tra tối thiểu
   if (content.length < 20) {

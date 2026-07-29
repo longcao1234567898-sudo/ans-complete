@@ -6,30 +6,96 @@
  * Mã hoá xong, dù lấy được database cũng chỉ thấy chuỗi vô nghĩa.
  *
  * Khoá nằm ở biến môi trường ENCRYPTION_KEY (64 ký tự hex).
- * Tạo khoá: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ * Tạo khoá: node scripts-tao-khoa-ma-hoa.js
  *
  * TƯƠNG THÍCH NGƯỢC: dữ liệu cũ chưa mã hoá vẫn đọc được bình thường.
+ *
+ * NGUYÊN TẮC AN TOÀN KHI HỎNG (fail-safe):
+ *   Thiếu khoá -> encrypt() NÉM LỖI, route trả 503, KHÔNG lưu gì.
+ *   Tuyệt đối không lưu danh tính dạng chữ trần như một "phương án dự phòng".
+ *   Ý kiến ẩn danh vẫn gửi được vì không có danh tính để mã hoá.
  */
 import crypto from 'node:crypto';
 
 const PREFIX = 'enc:v1:';
 const ALGO = 'aes-256-gcm';
 
-function getKey() {
-  const hex = (process.env.ENCRYPTION_KEY || '').trim();
-  if (!hex) return null;
-  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
-    console.warn('⚠️  ENCRYPTION_KEY không đúng định dạng (cần 64 ký tự hex) — TẠM THỜI KHÔNG MÃ HOÁ');
-    return null;
+/**
+ * Lỗi ném ra khi được yêu cầu mã hoá nhưng khoá không dùng được.
+ * Có mã riêng để tầng route bắt đúng loại lỗi này và trả 503 thay vì 500.
+ */
+export class EncryptionUnavailableError extends Error {
+  constructor(reason) {
+    super('Chức năng mã hoá danh tính chưa sẵn sàng: ' + reason);
+    this.name = 'EncryptionUnavailableError';
+    this.code = 'ENCRYPTION_UNAVAILABLE';
+    this.reason = reason;
   }
-  return Buffer.from(hex, 'hex');
 }
 
-/** Mã hoá 1 chuỗi. Không có khoá -> trả nguyên văn (để hệ thống không chết). */
+/* Đọc khoá 1 lần rồi nhớ luôn: trước đây getKey() chạy lại ở MỖI lần mã hoá,
+   nên khoá sai là log bị spam hàng nghìn dòng cảnh báo giống nhau. */
+let cachedKey;           // undefined = chưa đọc lần nào
+let keyProblem = null;   // null = không có vấn đề gì
+
+function getKey() {
+  if (cachedKey !== undefined) return cachedKey;
+
+  const hex = (process.env.ENCRYPTION_KEY || '').trim();
+
+  if (!hex) {
+    keyProblem = 'chưa đặt biến môi trường ENCRYPTION_KEY';
+  } else if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    keyProblem = `ENCRYPTION_KEY sai định dạng (cần đúng 64 ký tự hex 0-9a-f, đang có ${hex.length} ký tự)`;
+  } else if (/^0+$/.test(hex)) {
+    // Khoá toàn số 0 thường là do copy thiếu hoặc điền tạm — coi như không có khoá
+    keyProblem = 'ENCRYPTION_KEY toàn số 0, không phải khoá thật';
+  }
+
+  if (keyProblem) {
+    console.error('🔴 ' + keyProblem);
+    console.error('   → Hệ thống sẽ TỪ CHỐI nhận ý kiến có danh tính cho tới khi khắc phục.');
+    console.error('   → Tạo khoá mới: node scripts-tao-khoa-ma-hoa.js');
+    cachedKey = null;
+    return null;
+  }
+
+  cachedKey = Buffer.from(hex, 'hex');
+  return cachedKey;
+}
+
+/** Lý do khoá không dùng được (để hiện ở /api/health) — null nghĩa là bình thường. */
+export function encryptionProblem() {
+  getKey();
+  return keyProblem;
+}
+
+/**
+ * Chặn sớm: gọi ở đầu route TRƯỚC khi làm gì khác.
+ * Ném lỗi nếu chưa mã hoá được, để route trả 503 và KHÔNG lưu gì vào database.
+ */
+export function assertEncryptionReady() {
+  if (!getKey()) throw new EncryptionUnavailableError(keyProblem);
+}
+
+/**
+ * Mã hoá 1 chuỗi.
+ *
+ * ⚠️ KHÔNG CÓ KHOÁ THÌ NÉM LỖI, KHÔNG trả nguyên văn.
+ *
+ * Bản cũ trả về nguyên văn "để hệ thống không chết". Nghe thì hợp lý nhưng
+ * hậu quả tệ hơn nhiều: web vẫn chạy, không báo lỗi gì, mà tên và số điện
+ * thoại người TỐ GIÁC bị ghi thẳng dạng chữ vào database — không ai biết
+ * cho tới khi mở bảng ra xem. Hỏng âm thầm nguy hiểm hơn hỏng ồn ào.
+ *
+ * Nguyên tắc mới: thà TỪ CHỐI NHẬN còn hơn nhận rồi để lộ danh tính.
+ * Ý kiến ẩn danh không có gì để mã hoá nên vẫn gửi được bình thường —
+ * kênh tố giác quan trọng nhất không bị gián đoạn.
+ */
 export function encrypt(plain) {
   if (plain === null || plain === undefined || plain === '') return plain;
   const key = getKey();
-  if (!key) return String(plain);
+  if (!key) throw new EncryptionUnavailableError(keyProblem);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGO, key, iv);
   const enc = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);

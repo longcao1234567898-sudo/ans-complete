@@ -5,7 +5,7 @@ import { generateTrackingCode, sha256 } from '../lib/helpers.js';
 import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
-import { encrypt, hashPhone } from '../lib/crypto.js';
+import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung } from '../lib/duplicate.js';
@@ -89,6 +89,21 @@ router.post('/', async (req, res) => {
     }
 
     if (!isAnonymous) {
+      // 🔒 CHẶN SỚM: ý kiến này có danh tính, mà danh tính thì BẮT BUỘC phải mã hoá.
+      // Khoá hỏng -> từ chối nhận luôn, KHÔNG lưu gì vào database.
+      // Thà bà con phải gửi lại sau, còn hơn tên và số điện thoại người tố giác
+      // nằm dạng chữ trần trong database mà không ai hay biết.
+      if (!encryptionEnabled()) {
+        console.error('🔴 TỪ CHỐI nhận ý kiến có danh tính —', encryptionProblem());
+        return res.status(503).json({
+          error:
+            'Hệ thống tạm thời không tiếp nhận ý kiến có thông tin liên hệ do sự cố kỹ thuật về bảo mật. '
+            + 'Nếu việc gấp, bà con có thể gửi TỐ GIÁC ẨN DANH (vẫn hoạt động bình thường) '
+            + 'hoặc gọi trực tiếp số trực ban. Mong bà con thông cảm.',
+          code: 'ENCRYPTION_UNAVAILABLE',
+        });
+      }
+
       if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
       if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
 
