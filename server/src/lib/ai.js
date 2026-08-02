@@ -16,13 +16,23 @@ const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || '').trim();
  *    Muốn dùng Pro -> phải bật thanh toán (billing) ở Google Cloud,
  *    rồi đặt biến GEMINI_MODEL=gemini-2.5-pro trên Render.
  */
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
 
 // CHATBOX -> Flash (nhiều lượt gọi, cần NHANH, hạn mức free cao hơn nhiều)
-const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash').trim();
+const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash').trim();
 
-// Khi Pro hết quota (lỗi 429) -> tự động dùng model này thay thế
-const FALLBACK_MODEL = 'gemini-2.5-flash';
+/* Khi model chính hết hạn mức (lỗi 429) -> tự động dùng model này thay thế.
+ *
+ * ⚠️ PHẢI ĐỌC ĐƯỢC TỪ BIẾN MÔI TRƯỜNG. Trước đây dòng này viết cứng
+ * 'gemini-2.5-flash'. Hậu quả: Google đã NGỪNG CẤP model đó cho tài khoản
+ * đăng ký mới ("no longer available to new users"), nên khi chuyển dự án sang
+ * tài khoản Google khác thì model chính đổi được bằng biến môi trường, còn
+ * model dự phòng vẫn trỏ vào model đã chết. Bình thường chạy tốt, nhưng đúng
+ * lúc đông người hỏi (429) mới hỏng — kiểu lỗi rất khó lần ra.
+ *
+ * Đặt GEMINI_FALLBACK_MODEL trên Render nếu muốn dùng model khác.
+ */
+const FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite').trim();
 
 const isPro = (m) => String(m).includes('pro');
 
