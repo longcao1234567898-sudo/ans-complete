@@ -7,20 +7,18 @@
  *   3. POST /api/submissions kèm otpToken  -> mới nhận ý kiến
  *
  * BẢO MẬT:
- *   - KHÔNG lưu email thật (chỉ băm HMAC-SHA256 có pepper — xem lib/crypto.js)
+ *   - KHÔNG lưu email thật (chỉ băm SHA-256)
  *   - KHÔNG lưu mã OTP thật (chỉ băm bcrypt) -> lộ database cũng không biết mã
  *   - Sai quá 5 lần -> huỷ mã
  *   - Giới hạn gửi lại: 60 giây/lần, tối đa 5 mã/giờ/email
  */
 import { Router } from 'express';
+import { layIpThat } from '../lib/helpers.js';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { sendOtpEmail, mailConfigured } from '../lib/mailer.js';
-import { hashIdentifier } from '../lib/crypto.js';
-import { clientIp } from '../lib/helpers.js';
-import { JWT_SECRET } from '../lib/token.js';
 
 const router = Router();
 
@@ -29,7 +27,7 @@ const RESEND_COOLDOWN_SEC = 60; // chờ 60s mới gửi lại
 const MAX_PER_HOUR = 5;         // tối đa 5 mã/giờ
 const MAX_ATTEMPTS = 5;         // sai quá 5 lần thì huỷ
 
-const hashEmail = (e) => hashIdentifier(String(e).toLowerCase().trim());
+const hashEmail = (e) => crypto.createHash('sha256').update(String(e).toLowerCase().trim()).digest('hex');
 const genCode = () => String(crypto.randomInt(100000, 1000000)); // 6 số
 
 function validEmail(e) {
@@ -39,7 +37,7 @@ function validEmail(e) {
 /** POST /api/otp/send — gửi mã về email */
 router.post('/send', async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
-  const ip = clientIp(req);
+  const ip = layIpThat(req);
 
   if (!validEmail(email)) {
     return res.status(400).json({ error: 'Email không đúng định dạng.' });
@@ -155,7 +153,7 @@ router.post('/verify', async (req, res) => {
 
     const otpToken = jwt.sign(
       { emailHash: eHash, purpose: 'submit' },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -174,7 +172,7 @@ router.post('/verify', async (req, res) => {
 export function verifyOtpToken(otpToken, email) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực email. Vui lòng bấm "Gửi mã xác thực".' };
   try {
-    const payload = jwt.verify(otpToken, JWT_SECRET);
+    const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
     if (payload.purpose !== 'submit') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
     if (payload.emailHash !== hashEmail(email)) {
       return { ok: false, error: 'Email không khớp với email đã xác thực.' };
@@ -206,11 +204,11 @@ const ANON_MAX_CODES_PER_DAY = 5; // xin mã tối đa 5 lần/ngày/IP
 
 /** POST /api/otp/anon-code — sinh mã xác thực cho người gửi ẩn danh */
 router.post('/anon-code', async (req, res) => {
-  const ip = clientIp(req);
+  const ip = layIpThat(req);
 
   try {
     // Băm IP làm "danh tính" tạm (không lưu IP thô trong bảng OTP)
-    const ipHash = hashIdentifier('anon:' + ip);
+    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
 
     const [[stat]] = await pool.query(
       `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at
@@ -260,14 +258,14 @@ router.post('/anon-code', async (req, res) => {
 /** POST /api/otp/anon-verify — kiểm tra mã ẩn danh, cấp "vé" gửi ý kiến */
 router.post('/anon-verify', async (req, res) => {
   const code = String(req.body?.code || '').trim();
-  const ip = clientIp(req);
+  const ip = layIpThat(req);
 
   if (!/^\d{6}$/.test(code)) {
     return res.status(400).json({ error: 'Mã xác thực phải gồm 6 chữ số.' });
   }
 
   try {
-    const ipHash = hashIdentifier('anon:' + ip);
+    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
 
     const [rows] = await pool.query(
       `SELECT id, code_hash, attempts FROM otp_codes
@@ -298,7 +296,7 @@ router.post('/anon-verify', async (req, res) => {
 
     const otpToken = jwt.sign(
       { emailHash: ipHash, purpose: 'submit_anon' },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -313,9 +311,9 @@ router.post('/anon-verify', async (req, res) => {
 export function verifyAnonToken(otpToken, ip) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực. Vui lòng bấm "Lấy mã xác thực".' };
   try {
-    const payload = jwt.verify(otpToken, JWT_SECRET);
+    const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
     if (payload.purpose !== 'submit_anon') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
-    const ipHash = hashIdentifier('anon:' + ip);
+    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
     if (payload.emailHash !== ipHash) {
       return { ok: false, error: 'Thiết bị không khớp với lượt xác thực. Vui lòng lấy mã mới.' };
     }

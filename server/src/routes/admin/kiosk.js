@@ -11,17 +11,23 @@
  *   • GHI NHẬT KÝ ai là người nhập hộ (truy trách nhiệm)
  *   • Ý kiến vào thẳng quy trình 'received', không qua kiểm duyệt
  *
- * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
- * (Comment cũ ghi đúng điều này nhưng file lại QUÊN gắn requireAuth, nên endpoint
- *  chèn tin báo "đã xác minh tại trụ sở" mở toang ra Internet. Giờ bảo vệ nằm ở
- *  router cha nên không thể quên nữa.)
+ * Route này nằm sau requireAuth -> chỉ cán bộ đăng nhập mới gọi được.
  */
 import { Router } from 'express';
+import { requireAuth } from '../../middleware/auth.js';
 import { pool } from '../../db.js';
-import { generateTrackingCode, sha256 } from '../../lib/helpers.js';
+import { generateTrackingCode, sha256, layIpThat } from '../../lib/helpers.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
+import { kiemTraNoiDungNham } from '../../lib/noi-dung-nham.js';
 
 const router = Router();
+
+/* 🔒 Bắt buộc đăng nhập.
+   Trước đây file này import requireAuth nhưng KHÔNG BAO GIỜ GỌI, khiến toàn bộ
+   đường dẫn ở đây mở cho bất kỳ ai trên Internet. /api/admin đã chặn chung ở
+   routes/admin/index.js, dòng này là lớp thứ hai — phòng khi router được gắn
+   ở chỗ khác. */
+router.use(requireAuth);
 
 const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
 
@@ -52,6 +58,12 @@ router.post('/submit', async (req, res) => {
   // Kiểm tra tối thiểu
   if (content.length < 20) {
     return res.status(400).json({ error: 'Nội dung ý kiến phải từ 20 ký tự trở lên.' });
+  }
+  const nham = kiemTraNoiDungNham(content);
+  if (nham.nham) {
+    return res.status(400).json({
+      error: 'Nội dung chưa rõ ràng. Đề nghị đồng chí ghi cụ thể sự việc: xảy ra ở đâu, khi nào, ai liên quan.',
+    });
   }
   if (!CAT_CODE_TO_ID[category]) {
     return res.status(400).json({ error: 'Chưa chọn nhóm xử lý.' });
@@ -111,14 +123,12 @@ router.post('/submit', async (req, res) => {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
         [
-          // req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
-          // như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ.
-          req.staff.id,
+          req.staff?.id ?? null,
           'kiosk_submit',
           'submission',
           result.insertId,
           `Nhập hộ tại trụ sở, mã ${trackingCode}`,
-          req.ip || null,
+          layIpThat(req) || null,
         ]
       );
     } catch { /* chưa có bảng nhật ký -> bỏ qua */ }

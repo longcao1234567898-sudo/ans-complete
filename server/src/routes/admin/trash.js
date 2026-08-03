@@ -5,15 +5,21 @@
  * Tin vào thùng rác được GIỮ 7 NGÀY, trong thời gian đó khôi phục lại được.
  * Quá 7 ngày hệ thống tự xoá vĩnh viễn (đỡ phình database).
  *
- * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
- * (Comment cũ ghi đúng điều này nhưng file lại QUÊN gắn requireAuth, nên toàn bộ
- *  thùng rác — gồm cả tin tố giác — đọc được từ Internet không cần đăng nhập.
- *  Giờ bảo vệ nằm ở router cha nên không thể quên nữa.)
+ * Route nằm sau requireAuth -> chỉ cán bộ đăng nhập mới gọi được.
  */
 import { Router } from 'express';
+import { requireAuth } from '../../middleware/auth.js';
+import { layIpThat } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
 
 const router = Router();
+
+/* 🔒 Bắt buộc đăng nhập.
+   Trước đây file này import requireAuth nhưng KHÔNG BAO GIỜ GỌI, khiến toàn bộ
+   đường dẫn ở đây mở cho bất kỳ ai trên Internet. /api/admin đã chặn chung ở
+   routes/admin/index.js, dòng này là lớp thứ hai — phòng khi router được gắn
+   ở chỗ khác. */
+router.use(requireAuth);
 
 const GIU_NGAY = 7; // số ngày giữ trong thùng rác trước khi xoá hẳn
 
@@ -101,9 +107,8 @@ router.post('/:id/restore', async (req, res) => {
     try {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        // req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh
-        [req.staff.id, 'trash_restore', 'submission', req.params.id,
-         'Khôi phục tin từ thùng rác', (req.ip || '').slice(0, 45)]
+        [req.staff?.id ?? null, 'trash_restore', 'submission', req.params.id,
+         'Khôi phục tin từ thùng rác', layIpThat(req)]
       );
     } catch { /* bỏ qua nếu chưa có bảng nhật ký */ }
 
@@ -117,7 +122,7 @@ router.post('/:id/restore', async (req, res) => {
 /** DELETE /api/admin/trash/:id — xoá vĩnh viễn NGAY (không chờ hết 7 ngày) */
 router.delete('/:id', async (req, res) => {
   // Chỉ admin mới được xoá vĩnh viễn — tránh cán bộ thường xoá mất chứng cứ
-  if (req.staff.role !== 'admin') {
+  if (req.staff?.role !== 'admin') {
     return res.status(403).json({ error: 'Chỉ quản trị viên mới được xoá vĩnh viễn.' });
   }
 
@@ -134,7 +139,7 @@ router.delete('/:id', async (req, res) => {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
         [req.staff.id, 'trash_purge', 'submission', req.params.id,
-         'Xoá vĩnh viễn tin trong thùng rác', (req.ip || '').slice(0, 45)]
+         'Xoá vĩnh viễn tin trong thùng rác', layIpThat(req)]
       );
     } catch { /* bỏ qua */ }
 
@@ -147,7 +152,7 @@ router.delete('/:id', async (req, res) => {
 
 /** DELETE /api/admin/trash — dọn sạch toàn bộ thùng rác (chỉ admin) */
 router.delete('/', async (req, res) => {
-  if (req.staff.role !== 'admin') {
+  if (req.staff?.role !== 'admin') {
     return res.status(403).json({ error: 'Chỉ quản trị viên mới được dọn sạch thùng rác.' });
   }
   try {
@@ -156,7 +161,7 @@ router.delete('/', async (req, res) => {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, details, ip_address) VALUES (?,?,?,?,?)',
         [req.staff.id, 'trash_empty', 'submission',
-         `Dọn sạch thùng rác (${r.affectedRows} tin)`, (req.ip || '').slice(0, 45)]
+         `Dọn sạch thùng rác (${r.affectedRows} tin)`, layIpThat(req)]
       );
     } catch { /* bỏ qua */ }
     res.json({ ok: true, deleted: r.affectedRows });

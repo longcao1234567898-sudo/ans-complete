@@ -1,11 +1,11 @@
 /** POST /api/submissions — nhận ý kiến mới, kiểm tra toàn bộ phía máy chủ */
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { generateTrackingCode, sha256, clientIp } from '../lib/helpers.js';
+import { generateTrackingCode, sha256, layIpThat } from '../lib/helpers.js';
 import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
-import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
+import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -25,35 +25,6 @@ const ANON_COOLDOWN_MS = 10 * 60_000;  // chờ 10 phút giữa 2 lần gửi (t
 const ANON_MAX_PER_DAY = 2;            // tối đa 2 ý kiến/ngày   (thường: 5/giờ)
 const ANON_MIN_LENGTH = 50;            // nội dung tối thiểu 50 ký tự (chống gửi "aaaa")
 const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
-
-/* ===== KIỂM TRA LINK ẢNH TRƯỚC KHI LƯU =====
- * Trước đây bất kỳ chuỗi nào cũng được lưu thẳng vào submission_images.image_url,
- * rồi trang chi tiết quản trị render <img src={...}>. Kẻ tấn công gửi một tin báo
- * kèm "ảnh" trỏ về máy chủ của mình -> mỗi lần một cán bộ mở tin đó, trình duyệt
- * cán bộ tự gọi sang đấy, để lộ ĐỊA CHỈ IP, User-Agent và ĐÚNG THỜI ĐIỂM hồ sơ
- * được xem. Đó là kênh do thám hoạt động điều tra, và là cách xác nhận tin báo
- * đã tới tay ai.
- *
- * Chỉ chấp nhận: HTTPS trỏ đúng miền lưu ảnh đã cấu hình, hoặc data URL ảnh.
- */
-const MIEN_ANH_CHO_PHEP = (process.env.IMAGE_HOST_ALLOWLIST || 'res.cloudinary.com')
-  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-
-function laLinkAnhAnToan(url) {
-  try {
-    const u = new URL(String(url));
-    if (u.protocol !== 'https:') return false;
-    const host = u.hostname.toLowerCase();
-    return MIEN_ANH_CHO_PHEP.some((m) => host === m || host.endsWith('.' + m));
-  } catch {
-    return false;   // không phải URL hợp lệ
-  }
-}
-
-/** data URL ảnh (cách cũ, vẫn hỗ trợ). Chặn data:text/html và svg+xml (chứa script được). */
-function laDataUrlAnh(s) {
-  return /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i.test(String(s));
-}
 
 /** GET /api/submissions/wards — danh sách địa bàn cho ô chọn ở form */
 router.get('/wards', async (_req, res) => {
@@ -79,19 +50,7 @@ router.post('/', async (req, res) => {
     const isAnonymous = body.isAnonymous === true;
     const urgency = ['normal','important','urgent'].includes(body.urgency) ? body.urgency : 'normal';
 
-    const ip = clientIp(req);
-
-    /* ===== KHÔNG LƯU IP THÔ CỦA NGƯỜI GỬI =====
-       Với một tin ẩn danh, bộ ba ip_address + user_agent + created_at là đủ để
-       định danh người tố giác: ở địa bàn xã, một dải IP cộng một chuỗi
-       user-agent hiếm gần như trỏ đích danh một hộ dân. Lưu chữ trần thì toàn
-       bộ công sức mã hoá AES-256-GCM cho tên/SĐT thành vô nghĩa.
-
-       Băm cho MỌI tin, không riêng tin ẩn danh -> mọi phép so sánh hạn mức đều
-       là hash-với-hash, nhất quán, không phải nhớ chỗ nào băm chỗ nào không.
-       Cắt 32 ký tự (vẫn 128 bit, xác suất trùng không đáng kể) để vừa cột
-       VARCHAR(45) sẵn có -> KHÔNG cần ALTER TABLE. */
-    const ipHash = hashIdentifier(ip).slice(0, 32);
+    const ip = layIpThat(req);
 
     // 0) CAPTCHA chống bot
     const captcha = await verifyTurnstile(body.captchaToken, ip);
@@ -190,7 +149,7 @@ router.post('/', async (req, res) => {
               EXISTS(SELECT 1 FROM submissions WHERE content_hash=? AND created_at > NOW()-INTERVAL 1 HOUR) AS dup
        FROM submissions
        WHERE (ip_address=? OR (sender_phone_hash IS NOT NULL AND sender_phone_hash=?)) AND created_at > NOW()-INTERVAL 1 HOUR`,
-      [contentHash, ipHash, phoneHash || '__none__']
+      [contentHash, ip, phoneHash || '__none__']
     );
     const info = spam[0];
     if (info.dup) return res.status(429).json({ error: 'Nội dung này bà con vừa gửi rồi. Vui lòng dùng mã tra cứu đã cấp để theo dõi.' });
@@ -200,7 +159,7 @@ router.post('/', async (req, res) => {
        vài chữ là qua. Lớp này so độ tương đồng nên bắt được.
        Cùng IP + giống >=75% -> chặn. Khác IP -> không chặn (có thể là
        nhiều người dân cùng phản ánh một vụ thật) mà ĐÁNH DẤU cho cán bộ xem. */
-    const trungLap = await kiemTraTrungLapGanDung(pool, content, ipHash);
+    const trungLap = await kiemTraTrungLapGanDung(pool, content, ip);
     if (trungLap.chan) {
       return res.status(429).json({ error: trungLap.lyDo });
     }
@@ -222,7 +181,7 @@ router.post('/', async (req, res) => {
       const [[anonStat]] = await pool.query(
         `SELECT COUNT(*) AS cnt FROM submissions
          WHERE is_anonymous = TRUE AND ip_address = ? AND created_at > NOW() - INTERVAL 1 DAY`,
-        [ipHash]
+        [ip]
       );
       if (anonStat.cnt >= ANON_MAX_PER_DAY) {
         return res.status(429).json({
@@ -272,10 +231,8 @@ router.post('/', async (req, res) => {
         // ẨN DANH -> vào HÀNG CHỜ KIỂM DUYỆT (cán bộ duyệt mới vào quy trình chính,
         // giống cách cơ quan thật sàng lọc tin báo nặc danh)
         isAnonymous ? 'pending_review' : 'received',
-        ipHash,
-        // User-Agent của người gửi ẨN DANH: KHÔNG lưu. Chuỗi UA hiếm cộng với
-        // thời điểm gửi là một dấu vân tay đủ hẹp để lần ra người tố giác.
-        isAnonymous ? null : (req.headers['user-agent'] || '').slice(0, 255),
+        ip,
+        (req.headers['user-agent'] || '').slice(0, 255),
         deadlineAt,
         wardId,
         // 16-17

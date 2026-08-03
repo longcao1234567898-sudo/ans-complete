@@ -1,7 +1,7 @@
 /** GET /api/tracking/:code — tra cứu tiến độ theo mã, trả về đúng cấu trúc frontend cần */
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { STATUS_LABEL, clientIp } from '../lib/helpers.js';
+import { STATUS_LABEL, layIpThat } from '../lib/helpers.js';
 
 const router = Router();
 
@@ -104,9 +104,7 @@ router.post('/:code/request-deletion', async (req, res) => {
     return res.status(400).json({ error: 'Mã tra cứu phải gồm 6 ký tự.' });
   }
 
-  // IP THÔ ở đây là CỐ Ý: data_deletion_requests.requester_ip là bằng chứng
-  // đối chiếu ai đã yêu cầu xoá dữ liệu. Không băm.
-  const ip = clientIp(req);
+  const ip = layIpThat(req);
 
   try {
     const [rows] = await pool.query(

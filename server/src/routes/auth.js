@@ -1,9 +1,9 @@
 /** Xác thực cán bộ: đăng nhập, làm mới token, đăng xuất, xem thông tin bản thân */
 import { Router } from 'express';
+import { layIpThat } from '../lib/helpers.js';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { clientIp } from '../lib/helpers.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
@@ -76,9 +76,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu.' });
 
   try {
-    /* IP THẬT, không đọc header client tự đặt: cảnh báo dò mật khẩu ở
-       routes/admin/logs.js gom nhóm theo đúng cột ip_address ghi từ đây. */
-    const ip = clientIp(req);
+    const ip = (layIpThat(req) || '').trim();
 
     /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
        được khi database chưa nâng cấp v9 — không làm sập đăng nhập. */
@@ -113,18 +111,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    /* Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản
-       qua thời gian phản hồi.
-
-       ⚠️ HASH NÀY PHẢI LÀ BCRYPT HỢP LỆ, ĐÚNG 60 KÝ TỰ, CÙNG COST VỚI HASH THẬT.
-       Bản trước dùng '$2a$12$' + 52 số 0 = 59 ký tự -> bcrypt coi là hash hỏng và
-       trả false NGAY LẬP TỨC (0ms), trong khi hash thật mất ~290ms. Chênh lệch đó
-       đủ để kẻ tấn công đo thời gian phản hồi và biết tài khoản nào CÓ THẬT —
-       đúng thứ mà đoạn mã này tưởng mình đang chống. Trông thì có phòng thủ,
-       thực tế không có. Xem test 'thời gian phản hồi' trong khong-duoc-pha.test.js.
-
-       Cost 12 phải khớp với cost dùng ở scripts-create-admin.js. */
-    const dummyHash = '$2b$12$a5cRreb79CS3PEr9Qb6lo.Gf0l3LyNwnL0mOAsFQQPuGXyfkW.Mv.';
+    // Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản qua thời gian phản hồi
+    const dummyHash = '$2a$12$0000000000000000000000000000000000000000000000000000';
     const ok = await bcrypt.compare(password, staff?.password_hash || dummyHash);
 
     if (!staff || !ok) {

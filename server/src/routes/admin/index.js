@@ -1,4 +1,22 @@
-/** Gom toàn bộ route quản trị dưới /api/admin */
+/**
+ * Gom toàn bộ route quản trị dưới /api/admin
+ *
+ * 🔒 CHẶN XÁC THỰC TẠI ĐÂY — TUYẾN PHÒNG THỦ CHÍNH
+ *
+ * Trước đây mỗi router con tự gọi requireAuth. Cách đó phụ thuộc vào việc
+ * người viết KHÔNG QUÊN. Và đã quên thật: trash.js và kiosk.js import
+ * requireAuth nhưng không bao giờ gọi, trong khi chú thích đầu file vẫn ghi
+ * "Route nằm sau requireAuth". Hậu quả:
+ *
+ *   GET    /api/admin/trash          bất kỳ ai đọc được toàn bộ tin báo đã xoá,
+ *                                    kèm danh tính người tố giác
+ *   DELETE /api/admin/trash          bất kỳ ai xoá sạch vĩnh viễn thùng rác
+ *   POST   /api/admin/kiosk/submit   bất kỳ ai chèn tin báo giả vào hệ thống
+ *
+ * Nay chặn ngay tại chỗ gắn router: MỌI đường dẫn dưới /api/admin đều phải
+ * qua requireAuth, kể cả router thêm mới sau này. Quên gắn ở file con cũng
+ * không còn hở.
+ */
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import submissionsRouter from './submissions.js';
@@ -12,11 +30,8 @@ import trashRouter from './trash.js';
 
 const router = Router();
 
-/* MỌI route dưới /api/admin đều yêu cầu đăng nhập — chốt ở ĐÂY, không giao cho
-   từng router con tự nhớ. Trước đây kiosk.js và trash.js quên gắn requireAuth,
-   khiến toàn bộ thùng rác (gồm tin tố giác) đọc được từ Internet mà không cần
-   đăng nhập. Bảo vệ phải nằm ở nơi không thể quên: router thêm mới sau này
-   tự động được bảo vệ, kể cả khi người viết không biết đến quy tắc này. */
+/* ĐẶT TRƯỚC MỌI router con — thứ tự này quan trọng.
+   Express chạy middleware theo đúng thứ tự khai báo. */
 router.use(requireAuth);
 
 router.use('/submissions', submissionsRouter);
