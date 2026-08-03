@@ -1,11 +1,12 @@
-/** Thống kê tổng quan cho dashboard cán bộ */
+/**
+ * Thống kê tổng quan cho dashboard cán bộ.
+ * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
+ */
 import { Router } from 'express';
 import { pool } from '../../db.js';
-import { requireAuth } from '../../middleware/auth.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
 
 const router = Router();
-router.use(requireAuth);
 
 /** GET /api/admin/dashboard/stats */
 router.get('/stats', async (_req, res) => {

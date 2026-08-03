@@ -5,7 +5,7 @@ import { ShieldCheck, Lock, User, Loader2 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 export default function AdminLoginPage() {
-  const { login, staff } = useAdminAuth();
+  const { login, staff, loading: dangKhoiPhucPhien } = useAdminAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +27,16 @@ export default function AdminLoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  /* Chờ khôi phục phiên xong rồi mới quyết định — nếu không, cán bộ đang có
+     phiên hợp lệ sẽ thấy form đăng nhập loé lên một nhịp trước khi bị chuyển đi. */
+  if (dangKhoiPhucPhien) {
+    return (
+      <div className="container-page flex items-center justify-center gap-2 py-20 text-sm text-slate-500">
+        <Loader2 className="h-5 w-5 animate-spin" /> Đang kiểm tra phiên đăng nhập...
+      </div>
+    );
   }
 
   // Đã đăng nhập -> vào thẳng khu quản trị

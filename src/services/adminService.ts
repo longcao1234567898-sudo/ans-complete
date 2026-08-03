@@ -1,13 +1,10 @@
 /**
- * Dịch vụ cho khu vực cán bộ: đăng nhập, lưu access token, gọi API admin.
- * Access token lưu trong memory (biến module) + sessionStorage để giữ khi F5.
+ * Dịch vụ cho khu vực cán bộ: đăng nhập, giữ access token, gọi API admin.
  * Refresh token do backend quản lý qua httpOnly cookie.
  */
 import { hasBackend } from './api';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '');
-const TOKEN_KEY = 'htans_admin_token';
-const STAFF_KEY = 'htans_admin_staff';
 
 export interface StaffInfo {
   id: number;
@@ -16,29 +13,35 @@ export interface StaffInfo {
   role: 'admin' | 'manager' | 'handler';
 }
 
-/** Lấy token đang lưu */
+/* Access token và thông tin cán bộ giữ trong RAM, KHÔNG lưu sessionStorage.
+   VÌ SAO: sessionStorage đọc/ghi được bằng JavaScript, nên
+     - một lỗ XSS là mất trắng vé đăng nhập của cán bộ;
+     - và chỉ cần một dòng trong Console
+         sessionStorage.setItem('htans_admin_staff', '{"role":"admin",...}')
+       là vào được toàn bộ giao diện quản trị (AdminLayout chỉ chặn bằng `if (!staff)`).
+   Mất token khi F5 không sao: restoreSession() lấy lại được từ cookie refresh
+   httpOnly, cán bộ không thấy khác biệt. */
+let accessToken: string | null = null;
+let currentStaff: StaffInfo | null = null;
+
+/** Lấy token đang giữ */
 export function getToken(): string | null {
-  return sessionStorage.getItem(TOKEN_KEY);
+  return accessToken;
 }
 
 /** Lấy thông tin cán bộ đang đăng nhập */
 export function getStoredStaff(): StaffInfo | null {
-  try {
-    const raw = sessionStorage.getItem(STAFF_KEY);
-    return raw ? (JSON.parse(raw) as StaffInfo) : null;
-  } catch {
-    return null;
-  }
+  return currentStaff;
 }
 
 function saveSession(token: string, staff: StaffInfo) {
-  sessionStorage.setItem(TOKEN_KEY, token);
-  sessionStorage.setItem(STAFF_KEY, JSON.stringify(staff));
+  accessToken = token;
+  currentStaff = staff;
 }
 
 function clearSession() {
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(STAFF_KEY);
+  accessToken = null;
+  currentStaff = null;
 }
 
 /** Gọi API có kèm token; tự thử refresh 1 lần nếu token hết hạn */
@@ -88,12 +91,21 @@ async function tryRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
     if (!res.ok) return false;
-    const { accessToken, staff } = (await res.json()) as { accessToken: string; staff: StaffInfo };
-    saveSession(accessToken, staff);
+    const data = (await res.json()) as { accessToken: string; staff: StaffInfo };
+    saveSession(data.accessToken, data.staff);
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Khôi phục phiên sau khi tải lại trang (token nằm trong RAM nên F5 là mất).
+ * Trả về thông tin cán bộ nếu cookie refresh còn hiệu lực, ngược lại null.
+ */
+export async function restoreSession(): Promise<StaffInfo | null> {
+  if (!hasBackend) return null;
+  return (await tryRefresh()) ? currentStaff : null;
 }
 
 /** Đăng xuất */

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
+import { clientIp } from '../lib/helpers.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
@@ -75,7 +76,9 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu.' });
 
   try {
-    const ip = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').trim();
+    /* IP THẬT, không đọc header client tự đặt: cảnh báo dò mật khẩu ở
+       routes/admin/logs.js gom nhóm theo đúng cột ip_address ghi từ đây. */
+    const ip = clientIp(req);
 
     /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
        được khi database chưa nâng cấp v9 — không làm sập đăng nhập. */

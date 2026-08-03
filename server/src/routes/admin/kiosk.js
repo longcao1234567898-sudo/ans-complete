@@ -11,7 +11,10 @@
  *   • GHI NHẬT KÝ ai là người nhập hộ (truy trách nhiệm)
  *   • Ý kiến vào thẳng quy trình 'received', không qua kiểm duyệt
  *
- * Route này nằm sau requireAuth -> chỉ cán bộ đăng nhập mới gọi được.
+ * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
+ * (Comment cũ ghi đúng điều này nhưng file lại QUÊN gắn requireAuth, nên endpoint
+ *  chèn tin báo "đã xác minh tại trụ sở" mở toang ra Internet. Giờ bảo vệ nằm ở
+ *  router cha nên không thể quên nữa.)
  */
 import { Router } from 'express';
 import { pool } from '../../db.js';
@@ -108,7 +111,9 @@ router.post('/submit', async (req, res) => {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
         [
-          req.staff?.id ?? null,
+          // req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
+          // như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ.
+          req.staff.id,
           'kiosk_submit',
           'submission',
           result.insertId,

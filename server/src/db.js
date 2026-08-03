@@ -8,7 +8,15 @@ import 'dotenv/config';
 
 function buildSsl() {
   if (process.env.DB_SSL_CA) return { ca: fs.readFileSync(process.env.DB_SSL_CA) };
-  if (process.env.DB_SSL === 'true') return { rejectUnauthorized: false };
+  // Nhà cung cấp cho tải ca.pem nhưng Render không có filesystem cố định
+  // -> cho phép dán thẳng nội dung PEM vào biến môi trường.
+  if (process.env.DB_SSL_CA_PEM) return { ca: process.env.DB_SSL_CA_PEM };
+  /* DB_SSL=true: BẬT TLS và VẪN xác thực CA của hệ thống.
+     Trước đây nhánh này trả rejectUnauthorized:false -> mã hoá mà KHÔNG xác
+     thực, tức chỉ chống nghe lén thụ động, không chống được man-in-the-middle.
+     Kẻ đứng giữa Render và MySQL cloud đọc được đúng thứ mà lớp AES-256-GCM
+     đang cố bảo vệ: bản ghi danh tính ĐÃ GIẢI MÃ trong kết quả truy vấn. */
+  if (process.env.DB_SSL === 'true') return { minVersion: 'TLSv1.2' };
   return undefined;
 }
 

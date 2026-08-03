@@ -1,5 +1,6 @@
 /** Gom toàn bộ route quản trị dưới /api/admin */
 import { Router } from 'express';
+import { requireAuth } from '../../middleware/auth.js';
 import submissionsRouter from './submissions.js';
 import dashboardRouter from './dashboard.js';
 import bannedWordsRouter from './banned-words.js';
@@ -10,6 +11,14 @@ import kioskRouter from './kiosk.js';
 import trashRouter from './trash.js';
 
 const router = Router();
+
+/* MỌI route dưới /api/admin đều yêu cầu đăng nhập — chốt ở ĐÂY, không giao cho
+   từng router con tự nhớ. Trước đây kiosk.js và trash.js quên gắn requireAuth,
+   khiến toàn bộ thùng rác (gồm tin tố giác) đọc được từ Internet mà không cần
+   đăng nhập. Bảo vệ phải nằm ở nơi không thể quên: router thêm mới sau này
+   tự động được bảo vệ, kể cả khi người viết không biết đến quy tắc này. */
+router.use(requireAuth);
+
 router.use('/submissions', submissionsRouter);
 router.use('/dashboard', dashboardRouter);
 router.use('/banned-words', bannedWordsRouter);

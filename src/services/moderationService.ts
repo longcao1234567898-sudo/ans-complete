@@ -6,15 +6,17 @@ import { isToGiacText } from '../utils/security';
  *   màu da người trên ảnh thu nhỏ 64x64. Ảnh khoả thân/khiêu dâm thường có
  *   tỷ lệ da rất cao. Đây là lưới lọc thô, có thể nhầm với ảnh chân dung cận.
  *
- * Tầng 2 (khi có key Gemini trong .env): gửi ảnh cho AI thẩm định — chính xác
- *   hơn nhiều và là phán quyết cuối cùng (ghi đè heuristic). Nếu AI lỗi thì
- *   quay về kết quả heuristic.
+ * Tầng 2 (khi backend có bật AI): gửi ảnh cho BACKEND thẩm định — chính xác hơn
+ *   nhiều và là phán quyết cuối cùng (ghi đè heuristic). Backend lỗi hoặc không
+ *   có backend thì quay về kết quả heuristic.
+ *
+ * ⚠️ KHÔNG CÒN nhánh gửi ảnh THẲNG từ trình duyệt sang Google: nhánh đó vừa làm
+ * lộ API key trong bundle JavaScript, vừa đẩy ẢNH BẰNG CHỨNG của người dân ra
+ * dịch vụ bên thứ ba ngay từ máy của họ. Không có backend thì thà chỉ dùng
+ * heuristic cục bộ, tuyệt đối KHÔNG chặn người dân gửi ý kiến vì thiếu AI.
  */
 
 import { apiFetch, hasBackend, backendHasAI } from './api';
-
-const GEMINI_API_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
-const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export interface ImageModerationResult {
   blocked: boolean;
@@ -57,48 +59,6 @@ function computeSkinRatio(img: HTMLImageElement): number {
   return skin / total;
 }
 
-/** Tầng 2: nhờ Gemini thẩm định — trả 'sensitive' | 'safe' | 'unknown' */
-async function askGeminiAboutImage(dataUrl: string): Promise<'sensitive' | 'safe' | 'unknown'> {
-  if (!GEMINI_API_KEY) return 'unknown';
-
-  const [header, base64] = dataUrl.split(',');
-  const mimeMatch = header.match(/data:(.*?);/);
-  const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { inline_data: { mime_type: mimeType, data: base64 } },
-              {
-                text:
-                  'Bạn là bộ lọc kiểm duyệt của cổng tiếp nhận ý kiến công dân. ' +
-                  'Ảnh trên có chứa nội dung khiêu dâm, khoả thân hoặc nhạy cảm tình dục không? ' +
-                  'Chỉ trả lời đúng MỘT từ: SENSITIVE hoặc SAFE.',
-              },
-            ],
-          },
-        ],
-        generationConfig: { maxOutputTokens: 10, temperature: 0 },
-      }),
-    }
-  );
-
-  if (!res.ok) throw new Error(`Gemini moderation lỗi ${res.status}`);
-  const data = await res.json();
-  const text: string =
-    data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
-  if (/SENSITIVE/i.test(text)) return 'sensitive';
-  if (/SAFE/i.test(text)) return 'safe';
-  return 'unknown';
-}
-
 /** Hàm chính: kiểm tra một ảnh (data URL) có nhạy cảm không */
 export async function checkImageSensitive(
   dataUrl: string,
@@ -117,7 +77,8 @@ export async function checkImageSensitive(
     /* không đọc được thì bỏ qua heuristic */
   }
 
-  // Tầng 2a: nhờ backend AI thẩm định — BỎ QUA nếu là ảnh tố giác
+  // Tầng 2: nhờ backend AI thẩm định — BỎ QUA nếu là ảnh tố giác.
+  // Backend lỗi -> rơi xuống heuristic bên dưới, KHÔNG chặn người dân.
   if (!isToGiac && hasBackend && (await backendHasAI())) {
     try {
       const r = await apiFetch<ImageModerationResult>('/api/ai/moderate-image', {
@@ -127,19 +88,8 @@ export async function checkImageSensitive(
       if (r.blocked) return r;
       return { blocked: false };
     } catch (e) {
-      console.warn('Backend moderate lỗi, thử tiếp:', e);
+      console.warn('Backend moderate lỗi, dùng heuristic cục bộ:', e);
     }
-  }
-
-  // Tầng 2b: AI thẩm định trực tiếp (khi không có backend nhưng có key ở client)
-  try {
-    const verdict = await askGeminiAboutImage(dataUrl);
-    if (verdict === 'sensitive') {
-      return { blocked: true, reason: 'AI phát hiện hình ảnh nhạy cảm/khiêu dâm' };
-    }
-    if (verdict === 'safe') return { blocked: false };
-  } catch (error) {
-    console.warn('Kiểm duyệt ảnh bằng AI thất bại, dùng heuristic:', error);
   }
 
   if (heuristicSuspicious) {

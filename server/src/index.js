@@ -207,4 +207,10 @@ async function start() {
   });
 }
 
-start();
+/* Không tự chạy khi đang chạy test: nạp module này sẽ MỞ CỔNG và KẾT NỐI MySQL,
+   trong khi bộ test phải chạy được trên máy không có MySQL. Test nạp file để
+   kiểm tra toàn bộ router liên kết được (đúng loại lỗi đã làm chết backend:
+   routes/ai.js import một export không tồn tại -> SyntaxError lúc khởi động). */
+if (process.env.NODE_ENV !== 'test') start();
+
+export default app;

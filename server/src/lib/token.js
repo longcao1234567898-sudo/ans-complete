@@ -4,7 +4,24 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'doi-secret-nay-trong-file-env';
+/* KHÔNG có giá trị mặc định cho JWT_SECRET.
+   Trước đây fallback về một chuỗi nằm sẵn trong repo GitHub -> ai đọc mã nguồn
+   cũng tự ký được token admin, rồi gọi /api/admin/submissions/:id/reveal để lấy
+   tên + SĐT người tố giác ĐÃ GIẢI MÃ. Thà server không khởi động còn hơn khởi
+   động với khoá mà cả thế giới biết. */
+const JWT_SECRET = (process.env.JWT_SECRET || '').trim();
+if (JWT_SECRET.length < 32) {
+  throw new Error(
+    'JWT_SECRET chưa đặt hoặc quá ngắn (cần tối thiểu 32 ký tự). ' +
+    'Tạo khoá: openssl rand -hex 32'
+  );
+}
+
+/* Export để routes/otp.js dùng CHUNG một secret, thay vì tự đọc
+   process.env.JWT_SECRET ở 4 chỗ khác. Chỉ MỘT nơi đọc biến môi trường thì
+   quy tắc kiểm tra độ dài ở trên mới thực sự áp dụng cho toàn hệ thống. */
+export { JWT_SECRET };
+
 const ACCESS_TTL = '8h';        // access token sống 8 giờ
 const REFRESH_TTL_DAYS = 30;    // refresh token sống 30 ngày
 

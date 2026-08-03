@@ -1,12 +1,14 @@
-/** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
+/**
+ * API quản lý ý kiến cho cán bộ.
+ * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
+ */
 import { Router } from 'express';
 import { pool } from '../../db.js';
-import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
+import { clientIp } from '../../lib/helpers.js';
 
 const router = Router();
-router.use(requireAuth);
 
 /** Tính tình trạng hạn xử lý (SLA) */
 function slaOf(row) {
@@ -102,7 +104,21 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT s.*, c.code AS category_code, c.name AS category_name, c.sla_days,
+      /* Liệt kê cột TƯỜNG MINH, KHÔNG dùng SELECT s.* — trước đây s.* kéo theo cả
+         ip_address, user_agent, content_hash, sender_phone_hash rồi spread thẳng
+         vào response (dòng ...row bên dưới). Nghĩa là bất kỳ cán bộ handler nào
+         mở chi tiết một tin ẨN DANH cũng thấy luôn IP và User-Agent của người tố
+         giác — đường lộ danh tính thật, không cần chờ lộ database.
+         Thêm cột mới vào bảng thì phải cân nhắc rồi mới thêm vào đây. */
+      `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
+              s.category_id, s.status, s.urgency, s.is_anonymous,
+              s.is_flagged, s.flag_reason,
+              s.sender_name, s.sender_phone, s.sender_email,
+              s.created_at, s.updated_at, s.deadline_at, s.resolved_at,
+              s.assigned_to, s.resolved_by, s.reviewed_by, s.reviewed_at,
+              s.rejection_reason, s.resolution_note, s.ward_id,
+              s.identity_erased, s.identity_erased_at, s.deleted_at,
+              c.code AS category_code, c.name AS category_name, c.sla_days,
               st.full_name AS assigned_name, rb.full_name AS resolved_by_name,
               w.name AS ward_name
        FROM submissions s
@@ -146,12 +162,21 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/admin/submissions/:id/reveal — XEM DANH TÍNH ĐẦY ĐỦ
- * Mọi lần xem đều bị GHI NHẬT KÝ (ai xem, lúc nào) — chống lạm dụng.
+ *
+ * BA LỚP, theo đúng thứ tự ngăn chặn trước — phát hiện sau:
+ *   1. authorize('admin','manager') — handler không bao giờ chạm tới được
+ *   2. Kiểm tra phạm vi phân công (bên dưới)
+ *   3. GHI NHẬT KÝ trước khi trả dữ liệu
+ *
+ * Vì sao lớp 1 và 2 cần thiết dù đã có nhật ký: trong hệ thống tố giác, CÁN BỘ
+ * THA HOÁ là mô hình đe doạ chính. Nhật ký chỉ phát hiện SAU khi danh tính đã
+ * bị xem, mà logs.js lại chỉ cho admin/manager đọc — nên handler biết rõ hành
+ * vi của mình không ai ngoài cấp trên nhìn thấy.
  */
-router.post('/:id/reveal', async (req, res) => {
+router.post('/:id/reveal', authorize('admin', 'manager'), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ?',
+      'SELECT assigned_to, sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ?',
       [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
@@ -159,12 +184,21 @@ router.post('/:id/reveal', async (req, res) => {
       return res.status(400).json({ error: 'Ý kiến này được gửi ẨN DANH — không có danh tính để xem.' });
     }
 
+    /* Chỉ admin, hoặc cán bộ ĐƯỢC PHÂN CÔNG hồ sơ này, mới xem được danh tính.
+       Không có bước này thì một manager vẫn tra được danh tính của MỌI người
+       tố giác trong hệ thống, kể cả hồ sơ mình không hề phụ trách. */
+    if (req.staff.role !== 'admin' && rows[0].assigned_to !== req.staff.id) {
+      return res.status(403).json({
+        error: 'Chỉ cán bộ được phân công xử lý ý kiến này mới xem được danh tính.',
+      });
+    }
+
     // GHI NHẬT KÝ trước khi trả dữ liệu
     await pool.query(
       'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
       [req.staff.id, 'reveal_identity', 'submission', req.params.id,
        JSON.stringify({ at: new Date().toISOString() }),
-       (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
+       clientIp(req)]
     );
 
     res.json({
@@ -296,7 +330,7 @@ router.post('/:id/review', async (req, res) => {
       'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
       [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
        'submission', req.params.id,
-       (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || '').slice(0, 45)]
+       clientIp(req)]
     );
 
     res.json({

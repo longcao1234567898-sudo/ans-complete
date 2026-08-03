@@ -5,7 +5,10 @@
  * Tin vào thùng rác được GIỮ 7 NGÀY, trong thời gian đó khôi phục lại được.
  * Quá 7 ngày hệ thống tự xoá vĩnh viễn (đỡ phình database).
  *
- * Route nằm sau requireAuth -> chỉ cán bộ đăng nhập mới gọi được.
+ * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
+ * (Comment cũ ghi đúng điều này nhưng file lại QUÊN gắn requireAuth, nên toàn bộ
+ *  thùng rác — gồm cả tin tố giác — đọc được từ Internet không cần đăng nhập.
+ *  Giờ bảo vệ nằm ở router cha nên không thể quên nữa.)
  */
 import { Router } from 'express';
 import { pool } from '../../db.js';
@@ -98,7 +101,8 @@ router.post('/:id/restore', async (req, res) => {
     try {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        [req.staff?.id ?? null, 'trash_restore', 'submission', req.params.id,
+        // req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh
+        [req.staff.id, 'trash_restore', 'submission', req.params.id,
          'Khôi phục tin từ thùng rác', (req.ip || '').slice(0, 45)]
       );
     } catch { /* bỏ qua nếu chưa có bảng nhật ký */ }
@@ -113,7 +117,7 @@ router.post('/:id/restore', async (req, res) => {
 /** DELETE /api/admin/trash/:id — xoá vĩnh viễn NGAY (không chờ hết 7 ngày) */
 router.delete('/:id', async (req, res) => {
   // Chỉ admin mới được xoá vĩnh viễn — tránh cán bộ thường xoá mất chứng cứ
-  if (req.staff?.role !== 'admin') {
+  if (req.staff.role !== 'admin') {
     return res.status(403).json({ error: 'Chỉ quản trị viên mới được xoá vĩnh viễn.' });
   }
 
@@ -143,7 +147,7 @@ router.delete('/:id', async (req, res) => {
 
 /** DELETE /api/admin/trash — dọn sạch toàn bộ thùng rác (chỉ admin) */
 router.delete('/', async (req, res) => {
-  if (req.staff?.role !== 'admin') {
+  if (req.staff.role !== 'admin') {
     return res.status(403).json({ error: 'Chỉ quản trị viên mới được dọn sạch thùng rác.' });
   }
   try {

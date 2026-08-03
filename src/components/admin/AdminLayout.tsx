@@ -5,7 +5,7 @@
  */
 import { ReactNode } from 'react';
 import { Navigate, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText, ShieldQuestion, QrCode, MonitorSmartphone, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText, ShieldQuestion, MonitorSmartphone, Trash2, Loader2 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 const NAV = [
@@ -13,7 +13,6 @@ const NAV = [
   { to: '/quan-tri/y-kien', label: 'Danh sách ý kiến', Icon: Inbox, exact: false },
   { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt', Icon: ShieldQuestion, exact: false },
   { to: '/quan-tri/ki-ot', label: 'Ki-ốt tiếp dân', Icon: MonitorSmartphone, exact: false },
-  { to: '/quan-tri/ma-qr', label: 'Mã QR', Icon: QrCode, exact: false },
   { to: '/quan-tri/thung-rac', label: 'Thùng rác', Icon: Trash2, exact: false },
   { to: '/quan-tri/bao-cao', label: 'Báo cáo', Icon: BarChart3, exact: false },
   { to: '/quan-tri/ban-do', label: 'Bản đồ điểm nóng', Icon: Map, exact: false },
@@ -27,8 +26,19 @@ function roleLabel(role: string) {
 }
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { staff, logout } = useAdminAuth();
+  const { staff, loading, logout } = useAdminAuth();
   const location = useLocation();
+
+  /* ĐANG hỏi máy chủ xem cookie refresh còn hiệu lực không -> phải CHỜ.
+     Nếu Navigate ngay ở đây thì cán bộ bị đá về trang đăng nhập mỗi lần F5,
+     vì access token giữ trong RAM nên tải lại trang là mất. */
+  if (loading) {
+    return (
+      <div className="container-page flex items-center gap-2 py-16 text-sm text-slate-500">
+        <Loader2 className="h-5 w-5 animate-spin" /> Đang khôi phục phiên đăng nhập...
+      </div>
+    );
+  }
 
   // Chưa đăng nhập -> chuyển sang trang đăng nhập
   if (!staff) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname }} />;

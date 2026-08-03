@@ -19,7 +19,24 @@ services:
         value: hop_thu_an_ninh_so
       - key: DB_SSL
         value: true
+      # CA của nhà cung cấp MySQL cloud, dán THẲNG nội dung file ca.pem.
+      # Từ bản vá này, DB_SSL=true VẪN xác thực chứng chỉ (chống man-in-the-middle).
+      # Aiven/PlanetScale dùng CA riêng -> chưa dán CA thì backend KHÔNG kết nối được DB.
+      - key: DB_SSL_CA_PEM
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      - key: JWT_SECRET
+        generateValue: true      # Render tự sinh chuỗi ngẫu nhiên mạnh
+      - key: ENCRYPTION_KEY
+        sync: false              # PHẢI tự dán. Tuyệt đối KHÔNG generateValue:
+                                 # đổi khoá = mất toàn bộ danh tính đã mã hoá.
+      - key: HASH_PEPPER
+        sync: false              # Tự dán. Đổi pepper chỉ mất tối đa 24h lịch sử
+                                 # chống spam, không hỏng dữ liệu nghiệp vụ.
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

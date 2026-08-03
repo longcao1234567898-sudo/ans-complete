@@ -19,6 +19,9 @@ import assert from 'node:assert/strict';
 process.env.ENCRYPTION_KEY =
   '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 
+// Pepper cho các hàm băm định danh — cũng là giá trị GIẢ, xem cảnh báo ở trên.
+process.env.HASH_PEPPER = 'pepper-gia-chi-dung-de-kiem-thu-0123456789';
+
 const {
   encrypt, decrypt, maskName, maskPhone, hashPhone,
   encryptionEnabled, encryptionProblem, EncryptionUnavailableError,
@@ -147,9 +150,11 @@ describe('crypto.js — Mã hoá danh tính', () => {
       assert.notEqual(hashPhone('0901234567'), hashPhone('0901234568'));
     });
 
-    test('bản băm SHA-256 phải dài đúng 64 ký tự hexa', () => {
+    /* HMAC-SHA256 cũng ra 64 ký tự hexa như SHA-256 trần, nên cột
+       sender_phone_hash CHAR(64) vẫn vừa khít — không cần ALTER TABLE. */
+    test('bản băm phải dài đúng 64 ký tự hexa (vừa cột CHAR(64))', () => {
       const bam = hashPhone('0901234567');
-      assert.equal(bam.length, 64, 'Không phải SHA-256');
+      assert.equal(bam.length, 64, 'Không phải HMAC-SHA256');
       assert.match(bam, /^[0-9a-f]{64}$/, 'Không phải chuỗi hexa');
     });
 

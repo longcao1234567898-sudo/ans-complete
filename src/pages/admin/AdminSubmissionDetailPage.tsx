@@ -27,15 +27,20 @@ export default function AdminSubmissionDetailPage() {
   // --- V2: danh tính đầy đủ (chỉ hiện khi bấm nút, có ghi nhật ký) ---
   const [revealed, setRevealed] = useState<{ sender_name: string; sender_phone: string; sender_email: string | null } | null>(null);
   const [revealing, setRevealing] = useState(false);
+  // Lỗi của riêng nút "Xem danh tính" — hiện NGAY dưới nút. Máy chủ nay có thể
+  // từ chối (403) khi cán bộ không được phân công hồ sơ này, hoặc tin gửi ẩn
+  // danh (400); báo ngay tại chỗ bấm, không để cán bộ tưởng nút bị hỏng.
+  const [revealError, setRevealError] = useState('');
 
   async function handleReveal() {
     setRevealing(true);
+    setRevealError('');
     try {
       const r = await revealIdentity(submissionId);
       setRevealed(r);
       setFeedback(r.warning);
     } catch (e) {
-      setFeedback(e instanceof Error ? e.message : 'Không xem được danh tính.');
+      setRevealError(e instanceof Error ? e.message : 'Không xem được danh tính.');
     } finally {
       setRevealing(false);
     }
@@ -177,6 +182,11 @@ export default function AdminSubmissionDetailPage() {
               ) : (
                 <p className="mt-3 rounded-xl bg-amber-50 p-2.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
                   Lượt xem danh tính này đã được ghi vào nhật ký hệ thống.
+                </p>
+              )}
+              {revealError && (
+                <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-rose-50 p-2.5 text-[11px] font-semibold leading-relaxed text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                  <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" /> {revealError}
                 </p>
               )}
               {!revealed && (
