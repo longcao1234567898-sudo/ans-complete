@@ -3,6 +3,11 @@
 ## Netlify tự đọc file này và gắn header vào MỌI phản hồi.
 ## Vá 6 lỗ hổng: HSTS, CSP, X-Frame-Options, X-Content-Type-Options,
 ##               Referrer-Policy, Permissions-Policy.
+##
+## ⚠️ VERCEL KHÔNG ĐỌC FILE NÀY — file này là định dạng riêng của Netlify.
+##    Cấu hình tương đương cho Vercel nằm ở "headers" trong vercel.json.
+##    SỬA MỘT BÊN THÌ PHẢI SỬA BÊN KIA, nếu không deploy Vercel sẽ chạy
+##    hoàn toàn KHÔNG có header bảo mật nào mà không ai nhận ra.
 ## =====================================================================
 
 /*
@@ -24,4 +29,8 @@
   ## Chống XSS: chỉ cho tải tài nguyên từ nguồn tin cậy đã liệt kê.
   ## script-src KHÔNG có 'unsafe-inline' và KHÔNG có 'data:' — chặn chèn mã độc.
   ## object-src 'none' — chặn plugin (Flash, applet) là nguồn tấn công cũ.
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; script-src-elem 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://hop-thu-so.onrender.com https://api.cloudinary.com https://generativelanguage.googleapis.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests
+  ## connect-src ĐÃ BỎ generativelanguage.googleapis.com: từ bản vá H3, trình duyệt
+  ## không còn gọi thẳng Gemini nữa (mọi lời gọi AI đi qua backend để giấu API key).
+  ## Giữ lại tên miền đó nghĩa là để ngỏ đúng đường vừa bịt — nếu ai vô tình khôi
+  ## phục mã cũ, CSP sẽ chặn ngay thay vì âm thầm cho chạy và làm lộ key.
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; script-src-elem 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://hop-thu-so.onrender.com https://api.cloudinary.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests

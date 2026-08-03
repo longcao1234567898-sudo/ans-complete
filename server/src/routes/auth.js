@@ -113,8 +113,18 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    // Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản qua thời gian phản hồi
-    const dummyHash = '$2a$12$0000000000000000000000000000000000000000000000000000';
+    /* Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản
+       qua thời gian phản hồi.
+
+       ⚠️ HASH NÀY PHẢI LÀ BCRYPT HỢP LỆ, ĐÚNG 60 KÝ TỰ, CÙNG COST VỚI HASH THẬT.
+       Bản trước dùng '$2a$12$' + 52 số 0 = 59 ký tự -> bcrypt coi là hash hỏng và
+       trả false NGAY LẬP TỨC (0ms), trong khi hash thật mất ~290ms. Chênh lệch đó
+       đủ để kẻ tấn công đo thời gian phản hồi và biết tài khoản nào CÓ THẬT —
+       đúng thứ mà đoạn mã này tưởng mình đang chống. Trông thì có phòng thủ,
+       thực tế không có. Xem test 'thời gian phản hồi' trong khong-duoc-pha.test.js.
+
+       Cost 12 phải khớp với cost dùng ở scripts-create-admin.js. */
+    const dummyHash = '$2b$12$a5cRreb79CS3PEr9Qb6lo.Gf0l3LyNwnL0mOAsFQQPuGXyfkW.Mv.';
     const ok = await bcrypt.compare(password, staff?.password_hash || dummyHash);
 
     if (!staff || !ok) {

@@ -57,6 +57,26 @@ export default function AdminReportsPage() {
         return ws;
       };
 
+      /* ===== CHỐNG CHÈN CÔNG THỨC VÀO EXCEL (Formula Injection) =====
+       * Excel/LibreOffice coi ô bắt đầu bằng = + - @ (hoặc tab/xuống dòng rồi tới
+       * các ký tự đó) là CÔNG THỨC và TỰ CHẠY khi mở file.
+       *
+       * Nội dung tin báo trong sheet "Danh sách chi tiết" là do người dân gõ. Kẻ
+       * tấn công chỉ cần gửi một tin báo bắt đầu bằng =HYPERLINK(...) hay công thức
+       * DDE, rồi chờ cán bộ xuất báo cáo và mở file: máy của LÃNH ĐẠO là nơi công
+       * thức chạy, không phải máy chủ. Đây là đường đi vòng qua toàn bộ lớp phòng
+       * thủ phía máy chủ.
+       *
+       * Cách chặn: thêm dấu nháy đơn ở đầu -> Excel hiểu là VĂN BẢN THUẦN.
+       * Dấu nháy này không hiện ra khi xem, chỉ nằm trong ô.
+       */
+      const chongCongThuc = (v: unknown) =>
+        typeof v === 'string' && /^[\s]*[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+
+      /** Bọc mọi giá trị chuỗi của một dòng trước khi đưa vào sheet */
+      const donDong = <T extends Record<string, unknown>>(row: T) =>
+        Object.fromEntries(Object.entries(row).map(([k, v]) => [k, chongCongThuc(v)]));
+
       // ───── Sheet 1: BÌA BÁO CÁO ─────
       const cover = XLSX.utils.aoa_to_sheet([
         ['BÁO CÁO TỔNG HỢP Ý KIẾN CÔNG DÂN'],
@@ -89,7 +109,7 @@ export default function AdminReportsPage() {
 
       // ───── Sheet 3: THEO NHÓM XỬ LÝ ─────
       XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
-        data.byCategory.map((c) => ({
+        data.byCategory.map((c) => donDong({
           'Nhóm xử lý': c.category,
           'Tổng': c.total,
           'Đã giải quyết': c.resolved,
@@ -103,7 +123,7 @@ export default function AdminReportsPage() {
       // ───── Sheet 4: THEO ĐỊA BÀN ─────
       const totalWard = data.byWard.reduce((a, w) => a + w.total, 0);
       XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
-        data.byWard.map((w) => ({
+        data.byWard.map((w) => donDong({
           'Địa bàn (phường/xã)': w.ward,
           'Số ý kiến': w.total,
           'Tỷ lệ': totalWard > 0 ? `${((w.total / totalWard) * 100).toFixed(1)}%` : '0%',
@@ -112,7 +132,7 @@ export default function AdminReportsPage() {
 
       // ───── Sheet 5: THEO CÁN BỘ ─────
       XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
-        data.byStaff.map((st) => ({
+        data.byStaff.map((st) => donDong({
           'Cán bộ phụ trách': st.staff,
           'Được phân công': st.assigned,
           'Đã giải quyết': st.resolved,
@@ -133,7 +153,9 @@ export default function AdminReportsPage() {
       try {
         const rows = await fetchReportDetails(range.from, range.to);
         XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
-          rows.map((r, i) => ({
+          // donDong(): bọc chống chèn công thức — sheet này chứa NỘI DUNG do
+          // người dân gõ, là nơi duy nhất kẻ tấn công đưa được chuỗi tuỳ ý vào file.
+          rows.map((r, i) => donDong({
             'STT': i + 1,
             'Mã tra cứu': r.trackingCode,
             'Ngày gửi': new Date(r.createdAt).toLocaleString('vi-VN'),

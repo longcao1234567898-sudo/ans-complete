@@ -24,6 +24,35 @@ const ANON_MAX_PER_DAY = 2;            // tối đa 2 ý kiến/ngày   (thườ
 const ANON_MIN_LENGTH = 50;            // nội dung tối thiểu 50 ký tự (chống gửi "aaaa")
 const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
 
+/* ===== KIỂM TRA LINK ẢNH TRƯỚC KHI LƯU =====
+ * Trước đây bất kỳ chuỗi nào cũng được lưu thẳng vào submission_images.image_url,
+ * rồi trang chi tiết quản trị render <img src={...}>. Kẻ tấn công gửi một tin báo
+ * kèm "ảnh" trỏ về máy chủ của mình -> mỗi lần một cán bộ mở tin đó, trình duyệt
+ * cán bộ tự gọi sang đấy, để lộ ĐỊA CHỈ IP, User-Agent và ĐÚNG THỜI ĐIỂM hồ sơ
+ * được xem. Đó là kênh do thám hoạt động điều tra, và là cách xác nhận tin báo
+ * đã tới tay ai.
+ *
+ * Chỉ chấp nhận: HTTPS trỏ đúng miền lưu ảnh đã cấu hình, hoặc data URL ảnh.
+ */
+const MIEN_ANH_CHO_PHEP = (process.env.IMAGE_HOST_ALLOWLIST || 'res.cloudinary.com')
+  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+function laLinkAnhAnToan(url) {
+  try {
+    const u = new URL(String(url));
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    return MIEN_ANH_CHO_PHEP.some((m) => host === m || host.endsWith('.' + m));
+  } catch {
+    return false;   // không phải URL hợp lệ
+  }
+}
+
+/** data URL ảnh (cách cũ, vẫn hỗ trợ). Chặn data:text/html và svg+xml (chứa script được). */
+function laDataUrlAnh(s) {
+  return /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=\s]+$/i.test(String(s));
+}
+
 /** GET /api/submissions/wards — danh sách địa bàn cho ô chọn ở form */
 router.get('/wards', async (_req, res) => {
   try {
@@ -246,18 +275,25 @@ router.post('/', async (req, res) => {
         // Ảnh có thể là:
         //  - Link Cloudinary: { url, publicId }  -> lưu LINK (nhẹ, khuyên dùng)
         //  - Chuỗi base64 (cách cũ)              -> vẫn lưu được, nhưng phình database
-        const values = images.map((img) => {
-          if (typeof img === 'object' && img?.url) {
-            return [result.insertId, String(img.url), img.publicId || null, 'cloudinary', 'image/jpeg', true, 'safe'];
-          }
-          return [result.insertId, String(img), null, 'base64', 'image/jpeg', true, 'safe'];
-        });
-        await pool.query(
-          `INSERT INTO submission_images
-           (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status)
-           VALUES ?`,
-          [values]
-        );
+        const values = images
+          .map((img) => {
+            if (typeof img === 'object' && img?.url) {
+              if (!laLinkAnhAnToan(img.url)) return null;
+              return [result.insertId, String(img.url), img.publicId || null, 'cloudinary', 'image/jpeg', true, 'safe'];
+            }
+            if (!laDataUrlAnh(img)) return null;
+            return [result.insertId, String(img), null, 'base64', 'image/jpeg', true, 'safe'];
+          })
+          .filter(Boolean);
+
+        if (values.length > 0) {
+          await pool.query(
+            `INSERT INTO submission_images
+             (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status)
+             VALUES ?`,
+            [values]
+          );
+        }
       } catch (e) {
         console.warn('Không lưu được ảnh đính kèm:', e.message);
       }

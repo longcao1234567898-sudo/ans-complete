@@ -73,6 +73,23 @@ export default function AdminKioskPage() {
     }
   }
 
+  /**
+   * Thoát ký tự HTML trước khi ghép vào phiếu in.
+   *
+   * VÌ SAO CẦN: cửa sổ in mở bằng window.open('') nên CÙNG NGUỒN GỐC với trang
+   * quản trị. Ghép thẳng họ tên do cán bộ gõ vào chuỗi HTML là mở đường XSS:
+   * bà con đọc cho cán bộ ghi một "họ tên" kiểu <img src=x onerror=...> là mã
+   * chạy trong phiên đăng nhập của cán bộ, truy cập được cả window.opener.
+   */
+  function thoatHtml(s: unknown) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   /** In phiếu tiếp nhận đưa bà con cầm về */
   function printReceipt() {
     if (!result) return;
@@ -95,24 +112,24 @@ export default function AdminKioskPage() {
       </style></head><body>
       <div class="box">
         <h1>PHIẾU TIẾP NHẬN Ý KIẾN</h1>
-        <div class="unit">${UNIT.name}</div>
+        <div class="unit">${thoatHtml(UNIT.name)}</div>
         <div style="text-align:center;font-size:13px;color:#555">Mã tra cứu của bà con</div>
-        <div class="code">${result.trackingCode}</div>
+        <div class="code">${thoatHtml(result.trackingCode)}</div>
         <table>
-          <tr><td>Người gửi:</td><td><b>${fullName}</b></td></tr>
-          <tr><td>Điện thoại:</td><td>${phone}</td></tr>
-          <tr><td>Nhóm xử lý:</td><td>${CATEGORIES.find((c) => c.code === category)?.label ?? ''}</td></tr>
-          <tr><td>Ngày tiếp nhận:</td><td>${new Date().toLocaleString('vi-VN')}</td></tr>
-          <tr><td>Hạn xử lý:</td><td><b>${new Date(result.deadlineAt).toLocaleDateString('vi-VN')}</b> (${result.slaDays} ngày)</td></tr>
+          <tr><td>Người gửi:</td><td><b>${thoatHtml(fullName)}</b></td></tr>
+          <tr><td>Điện thoại:</td><td>${thoatHtml(phone)}</td></tr>
+          <tr><td>Nhóm xử lý:</td><td>${thoatHtml(CATEGORIES.find((c) => c.code === category)?.label ?? '')}</td></tr>
+          <tr><td>Ngày tiếp nhận:</td><td>${thoatHtml(new Date().toLocaleString('vi-VN'))}</td></tr>
+          <tr><td>Hạn xử lý:</td><td><b>${thoatHtml(new Date(result.deadlineAt).toLocaleDateString('vi-VN'))}</b> (${thoatHtml(result.slaDays)} ngày)</td></tr>
         </table>
         <div class="note">
           <b>Cách tra cứu kết quả:</b><br>
-          1. Truy cập: <b>${window.location.host}</b> → bấm "Tra cứu kết quả"<br>
-          2. Nhập mã <b>${result.trackingCode}</b> để xem tiến độ xử lý<br>
+          1. Truy cập: <b>${thoatHtml(window.location.host)}</b> → bấm "Tra cứu kết quả"<br>
+          2. Nhập mã <b>${thoatHtml(result.trackingCode)}</b> để xem tiến độ xử lý<br>
           3. Hoặc gọi trực ban đơn vị để được hỗ trợ tra cứu<br><br>
           Danh tính của bà con được bảo mật theo quy định pháp luật.
         </div>
-        <div class="hotline">Khẩn cấp gọi 113 · Trực ban: ${UNIT.hotline}</div>
+        <div class="hotline">Khẩn cấp gọi 113 · Trực ban: ${thoatHtml(UNIT.hotline)}</div>
       </div>
       <script>window.print()</script>
       </body></html>
