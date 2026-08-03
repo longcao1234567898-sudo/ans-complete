@@ -73,7 +73,7 @@ File `database/hop_thu_an_ninh_so.sql` chứa schema hoàn chỉnh: 9 bảng, tr
 
 ## Bản vá bảo mật khẩn cấp — 2026-08-03 (nhánh `LOC`)
 
-Hệ thống trước bản vá đang **phơi dữ liệu tố giác tội phạm ra Internet** (2 router quản trị không xác thực, JWT_SECRET hard-code công khai trong repo, IP giả mạo được nên mọi hạn mức chống spam và cảnh báo dò mật khẩu vô hiệu, tin "ẩn danh" thực chất dò ngược được danh tính). Chi tiết đầy đủ nằm ở `PROMPT-VA-BAO-MAT.md`. Dưới đây là tóm tắt những gì đã sửa.
+Hệ thống trước bản vá đang **phơi dữ liệu tố giác tội phạm ra Internet** (2 router quản trị không xác thực, JWT_SECRET hard-code công khai trong repo, IP giả mạo được nên mọi hạn mức chống spam và cảnh báo dò mật khẩu vô hiệu, tin "ẩn danh" thực chất dò ngược được danh tính). Dưới đây là tóm tắt những gì đã sửa (tài liệu phân tích đầy đủ giữ ở máy nội bộ, không đưa lên repo công khai).
 
 **Nguyên tắc xuyên suốt**: khi phân vân giữa hai phương án, luôn chọn phương án bảo vệ người tố giác — kể cả khi đó là làm hệ thống **từ chối phục vụ** thay vì âm thầm hoạt động sai (fail-safe, không fail-open).
 
