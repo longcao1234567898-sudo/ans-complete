@@ -6,6 +6,8 @@ import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
+import { locDanhSachAnh } from '../lib/anh-an-toan.js';
+import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung } from '../lib/duplicate.js';
@@ -116,6 +118,23 @@ router.post('/', async (req, res) => {
     if (!scan.safe) return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${scan.reasons.join(', ')}).` });
     if (containsProfanity(content) || containsProfanity(fullName)) {
       return res.status(400).json({ error: 'Nội dung chứa ngôn từ không phù hợp. Vui lòng diễn đạt lịch sự.' });
+    }
+
+    /* 2b) CHẶN NỘI DUNG NHẢM
+       Ô nội dung bắt tối thiểu 20 ký tự để bà con mô tả cho rõ. Nhưng người
+       muốn nghịch chỉ cần gõ bừa cho đủ 20 ký tự ("Aaaabdjiwma...") là gửi
+       được. Mỗi ý kiến rác đều tốn công cán bộ mở ra đọc rồi mới xoá.
+
+       Bộ lọc đặt ở mức DỄ DÃI, phải có ít nhất hai dấu hiệu mạnh mới chặn —
+       thà bỏ lọt vài ý kiến rác còn hơn chặn nhầm một tố giác thật. */
+    const nham = kiemTraNoiDungNham(content);
+    if (nham.nham) {
+      console.warn(`Chặn nội dung nhảm (${nham.diem}đ): ${nham.chiTiet.join(' · ')}`);
+      return res.status(400).json({ error: nham.lyDo, code: 'NOI_DUNG_KHONG_RO' });
+    }
+    if (!isAnonymous) {
+      const tenNham = kiemTraHoTenNham(fullName);
+      if (tenNham.nham) return res.status(400).json({ error: tenNham.lyDo });
     }
 
     // 3) Số điện thoại nghiêm ngặt
@@ -229,15 +248,47 @@ router.post('/', async (req, res) => {
     // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
     if (images.length > 0) {
       try {
-        // Ảnh có thể là:
-        //  - Link Cloudinary: { url, publicId }  -> lưu LINK (nhẹ, khuyên dùng)
-        //  - Chuỗi base64 (cách cũ)              -> vẫn lưu được, nhưng phình database
-        const values = images.map((img) => {
-          if (typeof img === 'object' && img?.url) {
-            return [result.insertId, String(img.url), img.publicId || null, 'cloudinary', 'image/jpeg', true, 'safe'];
-          }
-          return [result.insertId, String(img), null, 'base64', 'image/jpeg', true, 'safe'];
+        /* ---------------------------------------------------------------
+           KIỂM TRA AN TOÀN ẢNH NGAY TẠI MÁY CHỦ.
+
+           Trước đây mọi ảnh gửi lên đều được ghi thẳng với trạng thái
+           'safe' mà không kiểm gì. Các lá chắn chỉ nằm ở trình duyệt —
+           tức là ở máy của người gửi, họ toàn quyền bỏ qua. Gọi thẳng API
+           bằng công cụ dòng lệnh là nạp được tệp bất kỳ vào hệ thống.
+
+           Nay máy chủ tự kiểm lại: chữ ký nhị phân, dấu vết mã thực thi,
+           gói nén nối ở đuôi tệp, và với ảnh dạng link thì bắt buộc phải
+           thuộc kho ảnh của đơn vị.
+           --------------------------------------------------------------- */
+        const { hopLe, biChan, canDuyet } = locDanhSachAnh(images, {
+          cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim(),
+          // Trình duyệt báo có ảnh nghi nhạy cảm -> đánh dấu chờ cán bộ xem
+          canhBaoNoiDung: body.anhNghiNgo === true,
         });
+
+        if (biChan.length > 0) {
+          console.warn(
+            `[ẢNH] Chặn ${biChan.length} ảnh của ${trackingCode}: `
+            + biChan.map((b) => `#${b.viTri} ${b.lyDo}`).join(' | ')
+          );
+        }
+
+        /* Có ảnh cần cán bộ xem -> cả ý kiến chuyển sang hàng chờ duyệt,
+           ảnh không hiện ra ngoài cho tới khi được duyệt. */
+        if (canDuyet) {
+          await pool.query(
+            `UPDATE submissions SET status = 'pending_review' WHERE id = ?`,
+            [result.insertId]
+          );
+        }
+
+        const values = hopLe.map(({ anh, trangThai }) => {
+          if (typeof anh === 'object' && anh?.url) {
+            return [result.insertId, String(anh.url), anh.publicId || null, 'cloudinary', 'image/jpeg', true, trangThai];
+          }
+          return [result.insertId, String(anh), null, 'base64', 'image/jpeg', true, trangThai];
+        });
+        if (values.length === 0) throw new Error('Không có ảnh nào hợp lệ');
         await pool.query(
           `INSERT INTO submission_images
            (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status)
