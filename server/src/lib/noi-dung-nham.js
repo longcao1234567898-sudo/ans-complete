@@ -134,9 +134,45 @@ export function kiemTraNoiDungNham(vanBanGoc) {
      "test test test test" — đếm tỷ lệ từ khác nhau trên tổng số từ. */
   if (cacTu.length >= 4) {
     const tyLeKhacNhau = new Set(cacTu).size / cacTu.length;
-    if (tyLeKhacNhau <= 0.35) {
+    if (tyLeKhacNhau <= 0.25) {
+      /* Rất ít từ khác nhau -> đủ mạnh để chặn một mình.
+         Trước đây chỉ cộng 35, chưa tới ngưỡng 60 nên
+         "xin chào xin chào xin chào xin chào" vẫn lọt qua. */
+      diem += 60;
+      chiTiet.push('lặp đi lặp lại cùng một vài từ');
+    } else if (tyLeKhacNhau <= 0.4) {
       diem += 35;
       chiTiet.push('lặp đi lặp lại cùng một vài từ');
+    }
+  }
+
+  /* ---- 4b. Lặp lại nguyên một CỤM TỪ ----------------------------------
+     Khác mục 4 ở chỗ: mục 4 đếm từ rời, mục này bắt cả cụm.
+
+     Vì sao cần thêm: bà con gõ bừa bằng TỪ TIẾNG VIỆT THẬT thì mục 4 không
+     bắt được. Ví dụ "không có gì không có gì không có gì không có gì" —
+     mỗi từ đều là tiếng Việt hợp lệ, tỷ lệ nguyên âm bình thường, không có
+     dãy phím liền. Nhưng cả câu rõ ràng vô nghĩa.
+
+     Cách làm: cắt câu thành các cụm 2, 3, 4 từ liền nhau rồi đếm cụm nào
+     lặp nhiều lần. Một cụm lặp từ 3 lần trở lên gần như chắc chắn là spam. */
+  if (cacTu.length >= 6) {
+    let lapNhieuNhat = 0;
+    let cumLap = '';
+    for (let n = 2; n <= 4; n += 1) {
+      if (cacTu.length < n * 3) break;   // không đủ dài để lặp 3 lần
+      const dem = new Map();
+      for (let i = 0; i + n <= cacTu.length; i += 1) {
+        const cum = cacTu.slice(i, i + n).join(' ');
+        dem.set(cum, (dem.get(cum) || 0) + 1);
+      }
+      for (const [cum, soLan] of dem) {
+        if (soLan > lapNhieuNhat) { lapNhieuNhat = soLan; cumLap = cum; }
+      }
+    }
+    if (lapNhieuNhat >= 3) {
+      diem += 60;
+      chiTiet.push(`cụm "${cumLap}" lặp lại ${lapNhieuNhat} lần`);
     }
   }
 
