@@ -70,19 +70,60 @@ router.get('/summary', async (req, res) => {
 });
 
 /** GET /api/admin/reports/map — dữ liệu bản đồ điểm nóng */
-router.get('/map', async (_req, res) => {
+router.get('/map', async (req, res) => {
   try {
+    /* ------------------------------------------------------------------
+       KHUNG THỜI GIAN
+
+       Trước đây bản đồ gộp TOÀN BỘ lịch sử. Một địa bàn có nhiều vụ từ năm
+       ngoái, đã giải quyết xong hết, vẫn hiện đỏ y như địa bàn đang có vụ
+       việc tuần này. Như vậy không còn là "điểm nóng" mà chỉ là bảng cộng
+       dồn — lãnh đạo nhìn vào không biết nên dồn lực vào đâu.
+
+       Nay lọc theo số ngày gần nhất. Mặc định 30 ngày.
+       ngay = 0 nghĩa là xem toàn bộ lịch sử (giữ cách xem cũ).
+       ------------------------------------------------------------------ */
+    const ngay = Math.min(Math.max(parseInt(req.query.ngay, 10) || 30, 0), 3650);
+    const loc = ngay > 0 ? 'AND s.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)' : '';
+
     const [rows] = await pool.query(
       `SELECT w.id, w.name, w.lat, w.lng,
               COUNT(s.id) AS total,
               SUM(s.status IN ('received','processing')) AS pending,
               SUM(s.status IN ('received','processing') AND s.deadline_at < NOW()) AS overdue,
-              SUM(c.code = 'to_giac') AS to_giac
+              SUM(c.code = 'to_giac')   AS to_giac,
+              SUM(c.code = 'khieu_nai') AS khieu_nai,
+              SUM(c.code = 'phan_anh')  AS phan_anh,
+              SUM(c.code = 'de_xuat')   AS de_xuat,
+              SUM(s.urgency = 'urgent') AS khan_cap,
+              MAX(s.created_at)         AS gan_nhat,
+              /* ---------------------------------------------------------
+                 SỐ VỤ Ở KỲ LIỀN TRƯỚC — để tính XU HƯỚNG
+
+                 Vì sao cần: bản đồ chỉ hiện số vụ trong kỳ thì lãnh đạo
+                 biết địa bàn nào NHIỀU, nhưng không biết địa bàn nào đang
+                 XẤU ĐI. Một xã 8 vụ mà kỳ trước 3 vụ đáng lo hơn nhiều so
+                 với một xã 12 vụ mà kỳ trước 20 vụ.
+
+                 Đếm số vụ trong khoảng [2×ngay, ngay) ngày trước — tức kỳ
+                 dài bằng đúng kỳ đang xem, ngay liền trước nó.
+                 --------------------------------------------------------- */
+              (SELECT COUNT(*) FROM submissions s2
+                WHERE s2.ward_id = w.id
+                  AND s2.deleted_at IS NULL
+                  AND ? > 0
+                  AND s2.created_at >= DATE_SUB(NOW(), INTERVAL (? * 2) DAY)
+                  AND s2.created_at <  DATE_SUB(NOW(), INTERVAL ? DAY)
+              ) AS ky_truoc
        FROM wards w
-       LEFT JOIN submissions s ON s.ward_id = w.id
+       LEFT JOIN submissions s
+              ON s.ward_id = w.id
+             AND s.deleted_at IS NULL
+             ${loc}
        LEFT JOIN categories c ON c.id = s.category_id
        GROUP BY w.id, w.name, w.lat, w.lng
-       ORDER BY total DESC`
+       ORDER BY total DESC`,
+      ngay > 0 ? [ngay, ngay, ngay, ngay] : [0, 0, 0]
     );
     res.json(rows.map((r) => ({
       ...r,
@@ -92,6 +133,12 @@ router.get('/map', async (_req, res) => {
       pending: Number(r.pending || 0),
       overdue: Number(r.overdue || 0),
       to_giac: Number(r.to_giac || 0),
+      khieu_nai: Number(r.khieu_nai || 0),
+      phan_anh: Number(r.phan_anh || 0),
+      de_xuat: Number(r.de_xuat || 0),
+      khan_cap: Number(r.khan_cap || 0),
+      gan_nhat: r.gan_nhat || null,
+      ky_truoc: Number(r.ky_truoc || 0),
     })));
   } catch (err) {
     console.error('Lỗi bản đồ:', err.message);

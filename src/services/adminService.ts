@@ -1,10 +1,13 @@
 /**
- * Dịch vụ cho khu vực cán bộ: đăng nhập, giữ access token, gọi API admin.
+ * Dịch vụ cho khu vực cán bộ: đăng nhập, lưu access token, gọi API admin.
+ * Access token lưu trong memory (biến module) + sessionStorage để giữ khi F5.
  * Refresh token do backend quản lý qua httpOnly cookie.
  */
 import { hasBackend } from './api';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '');
+const TOKEN_KEY = 'htans_admin_token';
+const STAFF_KEY = 'htans_admin_staff';
 
 export interface StaffInfo {
   id: number;
@@ -13,35 +16,29 @@ export interface StaffInfo {
   role: 'admin' | 'manager' | 'handler';
 }
 
-/* Access token và thông tin cán bộ giữ trong RAM, KHÔNG lưu sessionStorage.
-   VÌ SAO: sessionStorage đọc/ghi được bằng JavaScript, nên
-     - một lỗ XSS là mất trắng vé đăng nhập của cán bộ;
-     - và chỉ cần một dòng trong Console
-         sessionStorage.setItem('htans_admin_staff', '{"role":"admin",...}')
-       là vào được toàn bộ giao diện quản trị (AdminLayout chỉ chặn bằng `if (!staff)`).
-   Mất token khi F5 không sao: restoreSession() lấy lại được từ cookie refresh
-   httpOnly, cán bộ không thấy khác biệt. */
-let accessToken: string | null = null;
-let currentStaff: StaffInfo | null = null;
-
-/** Lấy token đang giữ */
+/** Lấy token đang lưu */
 export function getToken(): string | null {
-  return accessToken;
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
 /** Lấy thông tin cán bộ đang đăng nhập */
 export function getStoredStaff(): StaffInfo | null {
-  return currentStaff;
+  try {
+    const raw = sessionStorage.getItem(STAFF_KEY);
+    return raw ? (JSON.parse(raw) as StaffInfo) : null;
+  } catch {
+    return null;
+  }
 }
 
 function saveSession(token: string, staff: StaffInfo) {
-  accessToken = token;
-  currentStaff = staff;
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(STAFF_KEY, JSON.stringify(staff));
 }
 
 function clearSession() {
-  accessToken = null;
-  currentStaff = null;
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(STAFF_KEY);
 }
 
 /** Gọi API có kèm token; tự thử refresh 1 lần nếu token hết hạn */
@@ -71,16 +68,32 @@ export async function adminFetch<T>(path: string, options: RequestInit = {}, ret
 }
 
 /** Đăng nhập */
-export async function login(username: string, password: string): Promise<StaffInfo> {
+/** Lỗi đăng nhập kèm cờ báo cần xác minh captcha */
+export class LoginError extends Error {
+  canCaptcha: boolean;
+  constructor(message: string, canCaptcha = false) {
+    super(message);
+    this.canCaptcha = canCaptcha;
+  }
+}
+
+export async function login(
+  username: string,
+  password: string,
+  captchaToken?: string
+): Promise<StaffInfo> {
   if (!hasBackend) throw new Error('Chưa cấu hình máy chủ. Cần chạy backend để đăng nhập.');
   const res = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, captchaToken }),
     credentials: 'include',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string })?.error || 'Đăng nhập thất bại.');
+  if (!res.ok) {
+    const d = data as { error?: string; canCaptcha?: boolean };
+    throw new LoginError(d?.error || 'Đăng nhập thất bại.', Boolean(d?.canCaptcha));
+  }
   const { accessToken, staff } = data as { accessToken: string; staff: StaffInfo };
   saveSession(accessToken, staff);
   return staff;
@@ -91,21 +104,12 @@ async function tryRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
     if (!res.ok) return false;
-    const data = (await res.json()) as { accessToken: string; staff: StaffInfo };
-    saveSession(data.accessToken, data.staff);
+    const { accessToken, staff } = (await res.json()) as { accessToken: string; staff: StaffInfo };
+    saveSession(accessToken, staff);
     return true;
   } catch {
     return false;
   }
-}
-
-/**
- * Khôi phục phiên sau khi tải lại trang (token nằm trong RAM nên F5 là mất).
- * Trả về thông tin cán bộ nếu cookie refresh còn hiệu lực, ngược lại null.
- */
-export async function restoreSession(): Promise<StaffInfo | null> {
-  if (!hasBackend) return null;
-  return (await tryRefresh()) ? currentStaff : null;
 }
 
 /** Đăng xuất */
@@ -118,7 +122,24 @@ export async function logout(): Promise<void> {
 
 /* ============ Các lời gọi API nghiệp vụ ============ */
 
+/** Một việc quá hạn hoặc sắp tới hạn, hiện thẳng trên dashboard */
+export interface ViecCanGap {
+  id: number;
+  tracking_code: string;
+  preview: string;
+  urgency: 'normal' | 'important' | 'urgent';
+  status: string;
+  category_name: string | null;
+  assigned_name: string | null;
+  /** true = đã quá hạn; false = sắp tới hạn */
+  quaHan: boolean;
+  /** số ngày quá hạn, hoặc số ngày còn lại */
+  soNgay: number;
+}
+
 export interface DashboardStats {
+  /** Việc quá hạn / sắp hạn — sắp xếp khẩn cấp trước */
+  canGap?: ViecCanGap[];
   overview: {
     total_submissions: number;
     pending_count: number;
@@ -136,6 +157,12 @@ export interface DashboardStats {
   recent: Array<{
     tracking_code: string; status: string; sender_name: string; category_name: string; created_at: string;
   }>;
+  /** Số liệu hạn xử lý — có thể vắng nếu chưa chạy nâng cấp database */
+  sla?: {
+    overdue_count: number;     // đã quá hạn
+    near_due_count: number;    // còn dưới 3 ngày
+    unassigned_count: number;  // chưa có cán bộ phụ trách
+  };
 }
 
 export const fetchDashboardStats = () => adminFetch<DashboardStats>('/api/admin/dashboard/stats');
@@ -172,7 +199,8 @@ export interface SubmissionListResult {
 }
 
 export function fetchSubmissions(params: {
-  status?: string; category?: string; q?: string; page?: number; limit?: number;
+  status?: string; category?: string; urgency?: string; sla?: string; assigned?: string;
+  q?: string; page?: number; limit?: number;
 }): Promise<SubmissionListResult> {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -256,10 +284,65 @@ export const fetchReport = (from?: string, to?: string): Promise<ReportSummary> 
 export interface WardPoint {
   id: number; name: string; lat: number; lng: number;
   total: number; pending: number; overdue: number; to_giac: number;
+  /** Số vụ theo từng nhóm — để vẽ biểu đồ cơ cấu của địa bàn */
+  khieu_nai: number; phan_anh: number; de_xuat: number;
+  /** Số vụ được đánh dấu khẩn cấp */
+  khan_cap: number;
+  /** Thời điểm vụ việc gần nhất — biết địa bàn còn "nóng" hay đã nguội */
+  gan_nhat: string | null;
+  /** Số vụ ở KỲ LIỀN TRƯỚC, dài bằng đúng kỳ đang xem — dùng tính xu hướng.
+      Bằng 0 khi đang xem "Toàn bộ" (không có kỳ trước để so). */
+  ky_truoc: number;
 }
 
-/** Dữ liệu bản đồ điểm nóng */
-export const fetchMapData = (): Promise<WardPoint[]> => adminFetch<WardPoint[]>('/api/admin/reports/map');
+/* --------------------------------------------------------------------------
+   XU HƯỚNG CỦA MỘT ĐỊA BÀN
+
+   Vì sao cần: bản đồ chỉ hiện số vụ trong kỳ thì lãnh đạo biết địa bàn nào
+   NHIỀU, nhưng không biết địa bàn nào đang XẤU ĐI. Một xã 8 vụ mà kỳ trước
+   3 vụ đáng lo hơn nhiều so với một xã 12 vụ mà kỳ trước 20 vụ.
+   -------------------------------------------------------------------------- */
+export type XuHuong = 'tang' | 'giam' | 'on_dinh' | 'moi' | 'khong_ro';
+
+export interface KetQuaXuHuong {
+  huong: XuHuong;
+  /** Phần trăm thay đổi so với kỳ trước. null khi không tính được. */
+  phanTram: number | null;
+  nhan: string;
+}
+
+export function tinhXuHuong(w: WardPoint, dangXemToanBo: boolean): KetQuaXuHuong {
+  if (dangXemToanBo) {
+    return { huong: 'khong_ro', phanTram: null, nhan: 'Chọn khung thời gian để xem xu hướng' };
+  }
+  const nay = w.total;
+  const truoc = w.ky_truoc;
+
+  if (truoc === 0 && nay === 0) {
+    return { huong: 'on_dinh', phanTram: null, nhan: 'Không có vụ việc' };
+  }
+  if (truoc === 0) {
+    return { huong: 'moi', phanTram: null, nhan: `Mới phát sinh ${nay} vụ (kỳ trước không có)` };
+  }
+
+  const pt = Math.round(((nay - truoc) / truoc) * 100);
+
+  /* Dưới 20% coi như dao động bình thường, không phải xu hướng.
+     Không có ngưỡng này thì tháng nào cũng báo "tăng/giảm", mất ý nghĩa. */
+  if (Math.abs(pt) < 20) {
+    return { huong: 'on_dinh', phanTram: pt, nhan: `Ổn định (kỳ trước ${truoc} vụ)` };
+  }
+  return pt > 0
+    ? { huong: 'tang', phanTram: pt, nhan: `Tăng ${pt}% so với kỳ trước (${truoc} vụ)` }
+    : { huong: 'giam', phanTram: pt, nhan: `Giảm ${Math.abs(pt)}% so với kỳ trước (${truoc} vụ)` };
+}
+
+/**
+ * Dữ liệu bản đồ điểm nóng.
+ * @param ngay Số ngày gần nhất. 0 = toàn bộ lịch sử.
+ */
+export const fetchMapData = (ngay = 30): Promise<WardPoint[]> =>
+  adminFetch<WardPoint[]>(`/api/admin/reports/map?ngay=${ngay}`);
 
 export interface ActivityLog {
   id: number;

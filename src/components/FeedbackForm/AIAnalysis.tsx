@@ -3,7 +3,7 @@
  * thanh độ tin cậy, từ khoá nhận diện, cho phép phân tích lại.
  */
 import { useEffect, useState } from 'react';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
 import type { AIAnalysisResult } from '../../types/feedback';
 import { Skeleton } from '../common/Loading';
 import Button from '../common/Button';
@@ -153,11 +153,51 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
         </button>
       )}
 
+      {/* ------------------------------------------------------------------
+          CHƯA XÁC ĐỊNH ĐƯỢC NỘI DUNG -> MỜI VIẾT LẠI
+
+          Không cho sang bước chọn nhóm khi hệ thống chưa hiểu bà con trình
+          báo việc gì. Đưa đi tiếp thì cán bộ nhận được một đơn không xử lý
+          được, mà vẫn phải mở ra đọc và trả lời.
+
+          Nói rõ CÒN THIẾU GÌ chứ không chỉ báo "chưa hợp lệ" — bà con phải
+          biết bổ sung cái gì mới sửa được.
+          ------------------------------------------------------------------ */}
+      {result && result.duRo === false && (
+        <div className="mt-4 rounded-xl border-2 border-accent-300 bg-accent-50 p-4 dark:border-accent-700 dark:bg-accent-900/20">
+          <p className="mb-2 flex items-center gap-2 text-sm font-bold text-accent-800 dark:text-accent-200">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+            {result.lyDo || 'Nội dung chưa đủ rõ để tiếp nhận.'}
+          </p>
+          <p className="mb-2 text-sm text-slate-700 dark:text-slate-300">
+            Bà con vui lòng bấm <strong>Quay lại</strong> và bổ sung giúp:
+          </p>
+          <ul className="ml-1 space-y-1">
+            {(result.goiY && result.goiY.length > 0
+              ? result.goiY
+              : ['Chuyện gì đã xảy ra', 'Xảy ra ở đâu', 'Xảy ra khi nào']
+            ).map((g) => (
+              <li key={g} className="flex gap-2 text-sm text-slate-700 dark:text-slate-300">
+                <span aria-hidden>•</span>
+                <span>{g}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
+            Ví dụ: <em>"Tối qua khoảng 10 giờ, ở ấp 3 gần nhà ông A có nhóm
+            thanh niên tụ tập đánh nhau, bà con xung quanh rất lo."</em>
+          </p>
+        </div>
+      )}
+
       <div className="mt-6 flex justify-between">
         <Button variant="ghost" onClick={onBack}>
           Quay lại
         </Button>
-        <Button onClick={onNext} disabled={isLoading || !result}>
+        <Button
+          onClick={onNext}
+          disabled={isLoading || !result || result.duRo === false}
+        >
           Tiếp tục — Chọn nhóm
         </Button>
       </div>

@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { aiAvailable, geminiChat } from '../lib/ai.js';
-import { phanLoaiNoiDung } from '../lib/phan-loai.js';
+import { phanLoaiNoiDung, kiemTraDuRo } from '../lib/phan-loai.js';
 import { sanitizeText } from '../lib/security.js';
 
 const router = Router();
@@ -33,7 +33,9 @@ router.post('/analyze', async (req, res) => {
   const content = sanitizeText(req.body?.content || '', 2000);
   if (!content) return res.status(400).json({ error: 'Nội dung trống.' });
   try {
-    res.json(phanLoaiNoiDung(content));
+    /* Gắn thêm kết quả kiểm tra "đã đủ rõ chưa" để biểu mẫu quyết định có cho
+       sang bước phân loại hay mời bà con viết lại. */
+    res.json({ ...phanLoaiNoiDung(content), ...kiemTraDuRo(content) });
   } catch (err) {
     console.error('Phân loại lỗi:', err.message);
     res.status(500).json({ error: 'Không phân loại được nội dung.' });

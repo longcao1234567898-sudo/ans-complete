@@ -78,13 +78,13 @@ const bo_dau = (t) =>
 const TU_KHOA_EN = {
   to_giac: [
     { diem: 10, chuDe: 'ma tuý', tu: [
-      'drug', 'drugs', 'narcotic', 'heroin', 'meth', 'cocaine', 'cannabis', 'marijuana',
+      'drug', 'drugs', 'narcotic', 'heroin', 'meth lab', 'crystal meth', 'methamphetamine', 'cocaine', 'cannabis', 'marijuana',
       'drug dealer', 'selling drugs', 'drug trafficking'
     ] },
     { diem: 10, chuDe: 'trộm cắp', tu: [
       'theft', 'stolen', 'burglary', 'robbery', 'pickpocket', 'break in', 'broke into',
       'stole my', 'shoplifting'
-    ] },
+    , 'be khoa','cay khoa','pha khoa','dot nhap','leo rao','lay cap','mat xe','mat dien thoai','mat vi','trom cho','vat nuoi bi mat'] },
     { diem: 10, chuDe: 'cướp', tu: [
       'mugging', 'mugged', 'armed robbery', 'snatch', 'snatched'
     ] },
@@ -204,7 +204,7 @@ const BANG_TU_KHOA = {
   to_giac: {
     ten: 'Tố giác tin báo',
     nhom: [
-      { diem: 10, chuDe: 'ma tuý', tu: ['ma tuy', 'chich hut', 'hut chich', 'choi da', 'bay lac', 'tang tru ma tuy', 'buon ban ma tuy', 'hang trang', 'con nghien', 'tiem chich'] },
+      { diem: 10, chuDe: 'ma tuý', tu: ['ma tuy', 'chich hut', 'hut chich', 'choi da', 'bay lac', 'tang tru ma tuy', 'buon ban ma tuy', 'hang trang', 'con nghien', 'tiem chich', 'ke da', 'hang trang', 'di banh', 'thuoc lac', 'co my', 'bong cuoi', 'khi cuoi', 'bom keo', 'nuoc vui', 'tem giay', 'ban le ma tuy', 'tu diem ma tuy'] },
       { diem: 10, chuDe: 'cờ bạc', tu: ['danh bac', 'da ga', 'ghi de', 'ca do', 'xoc dia', 'lo de',
         /* ĐÃ BỎ 'so de' — cụm này nằm lọt trong "hồ sơ để lâu" (ho so de lau),
            là cách nói rất hay gặp trong đơn khiếu nại, khiến đơn khiếu nại bị
@@ -214,7 +214,7 @@ const BANG_TU_KHOA = {
       { diem: 10, chuDe: 'trộm cướp', tu: ['trom cap', 'trom xe', 'an trom', 'an cap', 'cuop', 'cuop giat', 'mat trom', 'be khoa', 'dot nhap', 'trom do'] },
       { diem: 10, chuDe: 'tín dụng đen', tu: ['cho vay nang lai', 'tin dung den', 'doi no thue', 'xiet no', 'lai suat cat co', 'khung bo doi no', 'tat den',
         'cho vay lai nang', 'vay lai nang', 'lai nang', 'rai to roi', 'to roi cho vay',
-        'vay khong the chap', 'bat no', 'de doa con no', 'tat son', 'nem chat ban'] },
+        'vay khong the chap', 'bat no', 'de doa con no', 'tat son', 'nem chat ban', 'vay app', 'app den', 'bom no', 'khung bo tinh than', 'goi cho nguoi than doi no', 'dang anh len mang doi no', 'ghep anh boi nho', 'giu giay to the chan'] },
       { diem: 10, chuDe: 'lừa đảo', tu: ['lua dao', 'chiem doat', 'da cap', 'lua tien', 'gia mao', 'lua dao qua mang', 'gia danh cong an', 'gia danh can bo',
         /* Giả danh cơ quan nhà nước — thủ đoạn phổ biến nhất hiện nay */
         'tu xung cong an', 'tu xung can bo', 'tu xung toa an', 'tu xung vien kiem sat',
@@ -234,7 +234,16 @@ const BANG_TU_KHOA = {
       { diem: 10, chuDe: 'xâm hại', tu: ['hiep dam', 'xam hai', 'dam o', 'quay roi tinh duc', 'xam hai tre em', 'du do tre'] },
       { diem: 10, chuDe: 'mại dâm', tu: ['mai dam', 'gai goi', 'chua chap mai dam', 'mua ban dam', 'kich duc'] },
       { diem: 10, chuDe: 'buôn lậu, hàng cấm', tu: ['buon lau', 'hang cam', 'hang gia', 'thuoc la lau', 'phao lau', 'xang gia', 'thuc pham ban', 'hang nhai'] },
-      { diem: 10, chuDe: 'vũ khí', tu: ['sung', 'vu khi', 'hung khi', 'dao kiem', 'vat lieu no', 'phao no', 'thuoc no', 'sung tu che'] },
+      /* Chiếm đoạt tài nguyên, tài sản công — là hành vi VI PHẠM PHÁP LUẬT
+         nên thuộc nhóm Tố giác, không phải Phản ánh. Trước đây thiếu hẳn. */
+      { diem: 10, chuDe: 'chiếm đoạt tài nguyên', tu: [
+        'cau trom dien', 'trom dien', 'trom nuoc', 'cau trom nuoc',
+        'khai thac cat trai phep', 'hut cat trai phep', 'cat tac',
+        'khai thac go trai phep', 'chat pha cay rung', 'pha rung', 'lam tac',
+        'khai thac khoang san trai phep', 'san bat dong vat hoang da',
+        'danh bat ca bang dien', 'kich dien bat ca', 'no min bat ca'] },
+      { diem: 10, chuDe: 'vũ khí', tu: ['sung', 'vu khi', 'hung khi', 'dao kiem', 'vat lieu no', 'phao no', 'thuoc no', 'sung tu che',
+        'dot phao', 'ban phao', 'phao lau', 'che tao phao', 'buon phao'] },
       { diem: 10, chuDe: 'mua bán người', tu: ['buon nguoi', 'bat coc', 'vuot bien', 'dua nguoi trai phep', 'mua ban nguoi', 'lua di lam viec nhe'] },
       { diem: 10, chuDe: 'án nghiêm trọng', tu: ['giet nguoi', 'giet', 'thu tieu', 'xac chet', 'tu vong bat thuong'] },
       { diem: 6, chuDe: 'gây rối', tu: ['gay roi trat tu', 'tu tap dong nguoi', 'quay roi', 'de doa', 'doa danh', 'doa giet', 'khung bo tinh than'] },
@@ -287,7 +296,12 @@ const BANG_TU_KHOA = {
       { diem: 10, chuDe: 'thủ tục giấy tờ', tu: ['thu tuc', 'ho so can gi', 'giay to gi', 'can nhung gi', 'lam can cuoc', 'can cuoc cong dan', 'ho chieu', 'ly lich tu phap', 'giay xac nhan', 'dang ky xe', 'sang ten'] },
       { diem: 10, chuDe: 'cư trú', tu: ['tam tru', 'tam vang', 'thuong tru', 'ho khau', 'dang ky cu tru', 'chuyen ho khau', 'nhap ho khau', 'tach ho khau'] },
       { diem: 10, chuDe: 'câu hỏi', tu: ['xin hoi', 'cho hoi', 'toi muon hoi', 'thac mac', 'huong dan giup', 'khong biet lam sao', 'lam the nao', 'the nao de', 'co can khong', 'bao lau thi xong', 'phi bao nhieu', 'le phi'] },
-      { diem: 10, chuDe: 'đề xuất', tu: ['de xuat', 'gop y', 'y kien dong gop', 'nen co them', 'mong duoc bo sung', 'sang kien', 'de nghi bo sung'] },
+      { diem: 10, chuDe: 'đề xuất', tu: ['de xuat', 'gop y', 'y kien dong gop', 'nen co them', 'mong duoc bo sung', 'sang kien', 'de nghi bo sung',
+        /* Bổ sung: hai dạng rất hay gặp mà trước rơi nhầm sang Phản ánh */
+        'de nghi mo', 'de nghi to chuc', 'de nghi lap', 'de nghi bo tri',
+        'de nghi tang cuong', 'tuyen truyen phap luat',
+        'muon xin xac nhan', 'xin xac nhan', 'xin giay xac nhan', 'can xac nhan',
+        'xin cap giay', 'xin cap lai', 'muon lam thu tuc'] },
       { diem: 6, chuDe: 'dịch vụ công', tu: ['dich vu cong', 'lam online', 'cong dich vu cong', 'vneid', 'dinh danh dien tu', 'nop truc tuyen'] },
       { diem: 6, chuDe: 'lịch làm việc', tu: ['gio lam viec', 'lam viec thu may', 'nghi trua', 'dia chi tru so', 'so dien thoai truc ban'] },
     ],
@@ -593,13 +607,13 @@ export const CHU_DE = [
     tuKhoa: ['ma tuy', 'ma tuý', 'heroin', 'ket ta', 'da ban', 'hang trang', 'chich hut',
       'hut chich', 'con nghien', 'nguoi nghien', 'chich choac', 'bay lac', 'choi da',
       'tang tru ma tuy', 'buon ma tuy', 'ban ma tuy', 'thuoc lac', 'bong cuoi', 'shisha',
-      'can sa', 'co my', 'nuoc vui', 'tem giay'],
+      'can sa', 'co my', 'nuoc vui', 'tem giay', 'ke da', 'di banh', 'thuoc lac', 'co my', 'bong cuoi', 'khi cuoi', 'bom keo', 'nuoc vui', 'tem giay', 'tu diem ma tuy', 'ban le ma tuy'],
   },
   {
     ma: 'trom_cap', nhom: 'to_giac', ten: 'Trộm cắp tài sản', trongSo: 3, khan: 'important',
     tuKhoa: ['trom cap', 'an trom', 'an cap', 'trom xe', 'mat trom', 'bi trom', 'ke trom',
       'be khoa', 'pha khoa', 'cay tu', 'trom cho', 'bat trom cho', 'moc tui', 'thoi mien',
-      'trom vat', 'lay cap'],
+      'trom vat', 'lay cap', 'be khoa', 'cay khoa', 'pha khoa', 'dot nhap', 'leo rao', 'lay cap', 'mat xe', 'mat dien thoai', 'mat vi', 'trom cho', 'vat nuoi bi mat', 'cay tu', 'moc tui'],
   },
   {
     ma: 'cuop_giat', nhom: 'to_giac', ten: 'Cướp, cướp giật', trongSo: 3, khan: 'urgent',
@@ -643,7 +657,7 @@ export const CHU_DE = [
       'cho vay lai nang', 'vay lai nang', 'lai nang', 'cho vay lai cao',
       'rai to roi', 'dan to roi', 'to roi cho vay', 'quang cao cho vay',
       'vay khong the chap', 'vay nhanh trong ngay', 'ho tro tai chinh',
-      'bat no', 'de doa con no', 'canh ne', 'khoa cua doi no', 'tat son'],
+      'bat no', 'de doa con no', 'canh ne', 'khoa cua doi no', 'tat son', 'vay app', 'app den', 'bom no', 'khung bo tinh than', 'doi no nguoi than', 'dang anh len mang', 'ghep anh boi nho', 'giu giay to the chan'],
   },
   {
     ma: 'gay_thuong_tich', nhom: 'to_giac', ten: 'Cố ý gây thương tích, ẩu đả', trongSo: 3, khan: 'urgent',
@@ -801,7 +815,7 @@ function demKhopCum(text, cum) {
    -------------------------------------------------------------------------- */
 const CHU_DE_EN = {
   ma_tuy: [
-    'drug', 'drugs', 'narcotic', 'heroin', 'meth', 'cocaine', 'cannabis', 'marijuana',
+    'drug', 'drugs', 'narcotic', 'heroin', 'meth lab', 'crystal meth', 'methamphetamine', 'cocaine', 'cannabis', 'marijuana',
     'drug dealer', 'selling drugs', 'drug trafficking', 'drug addict'
   ],
   trom_cap: [
@@ -1199,4 +1213,181 @@ for (const cd of CHU_DE) {
     chuDe: cd.ten.toLowerCase(),
     tu: tuEn,
   });
+}
+
+
+/* ==========================================================================
+   KIỂM TRA NỘI DUNG CÓ ĐỦ RÕ ĐỂ TIẾP NHẬN CHƯA
+   ==========================================================================
+
+   Dùng ở bước 1 của biểu mẫu: nếu hệ thống không hiểu bà con đang trình báo
+   việc gì thì mời viết lại rõ hơn, thay vì cho đi tiếp rồi cán bộ nhận được
+   một đơn không xử lý được.
+
+   ⚠️ CÂN NHẮC QUAN TRỌNG KHI ĐẶT NGƯỠNG:
+
+   Chặn quá tay còn hại hơn cho lọt. Người tố giác bị từ chối một lần thường
+   KHÔNG gửi lại lần hai — mất luôn nguồn tin, mà đó có thể là tin quan trọng
+   nhất. Nhiều bà con lớn tuổi diễn đạt mộc mạc, không dùng từ ngữ mà bộ luật
+   từ khoá biết trước.
+
+   VÌ VẬY chỉ báo "chưa rõ" khi HỘI ĐỦ CẢ BA điều kiện:
+     1. Không bắt được BẤT KỲ từ khoá nào (cả tiếng Việt lẫn tiếng Anh)
+     2. Không nhận ra chủ đề nào
+     3. Nội dung KHÔNG có dấu hiệu tối thiểu của một trình báo:
+        không nói ở đâu, không nói khi nào, không nói ai/cái gì
+
+   Chỉ thiếu một hoặc hai điều thì vẫn cho qua.
+   ========================================================================== */
+
+/* Dấu hiệu bà con có mô tả ĐỊA ĐIỂM */
+const DAU_HIEU_NOI_CHON = [
+  'o ap', 'tai ap', 'ap ', 'khom', 'xom', 'duong', 'hem', 'ngo',
+  /* KHÔNG dùng 'to ' (tổ) — khớp vào chữ "to" trong MỌI câu tiếng Anh
+     ("want to report", "how to apply"). Dùng cụm đầy đủ: */
+  'to dan pho', 'to nhan dan',
+  'gan nha', 'canh nha', 'truoc nha', 'sau nha', 'nha ong', 'nha ba', 'nha so',
+  'khu vuc', 'dia chi', 'truong', 'benh vien', 'ben pha', 'cau ',
+  /* KHÔNG dùng 'cho ' (chợ) — nó khớp vào "cho tôi", "cho biết", "cho phép",
+     là những cụm có mặt trong hầu hết mọi câu, khiến cổng kiểm tra mất tác dụng.
+     Thay bằng các cụm chỉ dùng khi thật sự nói về cái chợ: */
+  'ngoai cho', 'trong cho', 'gan cho', 'o cho', 'khu cho', 'cho dem',
+  'quan ', 'tiem ', 'cong ty', 'nha may', 'ubnd', 'tru so',
+  /* tiếng Anh */
+  'at the', 'near the', 'in front of', 'next door', 'my street', 'my alley',
+  'my neighbourhood', 'my neighborhood', 'the market', 'the school', 'address',
+];
+
+/* Dấu hiệu bà con có mô tả THỜI ĐIỂM */
+const DAU_HIEU_NOI_LUC = [
+  'hom qua', 'hom nay', 'sang nay', 'chieu nay', 'toi qua', 'dem qua', 'rang sang',
+  'tuan truoc', 'thang truoc', 'moi day', 'vua roi', 'lau nay', 'nhieu ngay',
+  'nhieu thang', 'thuong xuyen', 'moi toi', 'moi ngay', 'gio', 'ngay ',
+  /* tiếng Anh */
+  'yesterday', 'today', 'last night', 'this morning', 'last week', 'last month',
+  'every night', 'every day', 'recently', 'since', 'for weeks', 'for months',
+];
+
+/* Dấu hiệu bà con có nói tới NGƯỜI hoặc SỰ VIỆC */
+const DAU_HIEU_NOI_AI = [
+  'co nguoi', 'mot nguoi', 'nhom nguoi', 'thanh nien', 'ong ', 'hang xom',
+  /* KHÔNG dùng 'ba ' — khớp vào "bà con", cụm có trong gần như mọi đơn */
+  'ba ay', 'ba ta', 'anh ta', 'chi ta', 'co ta', 'nha ben', 'can bo', 'cong an', 'chu quan', 'nguoi la',
+  'toi bi', 'toi thay', 'toi phat hien', 'toi nghi', 'phat hien', 'chung kien',
+  /* Bổ sung sau kiểm thử: bà con hay kể qua người thân, nhất là chuyện của
+     trẻ em. Thiếu mấy cụm này thì tin bắt nạt học đường bị chặn oan. */
+  'con toi', 'chau toi', 'me toi', 'cha toi', 'bo toi', 'vo toi', 'chong toi',
+  'em toi', 'ban toi', 'nguoi than', 'gia dinh toi', 'nha toi',
+  'bi ban', 'bat nat', 'trong lop', 'cung lop', 'di hoc',
+  'my child', 'my son', 'my daughter', 'my family', 'my wife', 'my husband',
+  /* tiếng Anh */
+  'someone', 'a man', 'a woman', 'a group', 'my neighbour', 'my neighbor',
+  'i saw', 'i found', 'i suspect', 'i witnessed', 'there is', 'there are',
+];
+
+/**
+ * Nội dung đã đủ rõ để tiếp nhận chưa?
+ *
+ * @param {string} noiDung
+ * @returns {{ duRo: boolean, lyDo: string, goiY: string[] }}
+ */
+/* Câu chỉ nói Ý ĐỊNH trình báo, chưa nói nội dung gì.
+   Những câu này KHỚP từ khoá "tố giác chung" nên bị coi là đã hiểu, trong khi
+   thực tế cán bộ đọc xong vẫn không biết việc gì. */
+const CHI_NOI_Y_DINH = [
+  'muon trinh bao', 'can trinh bao', 'xin trinh bao', 'muon to giac',
+  'muon phan anh', 'muon khieu nai', 'can giup do', 'xin giup do',
+  'cho hoi', 'xin hoi', 'hoi mot chut', 'co viec can', 'co chuyen can',
+  'want to report', 'would like to report', 'need help', 'need to report',
+  'have something to report', 'wish to report', 'can you help',
+  /* Bổ sung sau kiểm thử: các câu MỞ ĐẦU ĐƠN THƯ. Bà con quen viết theo lối
+     hành chính — chào hỏi, nêu nguyện vọng — rồi mới vào việc. Nếu dừng ở đó
+     mà bấm tiếp thì cán bộ nhận được một lá đơn không có nội dung. */
+  'kinh gui', 'kinh thua', 'kinh de nghi', 'toi co y kien', 'toi xin co y kien',
+  'toi co chuyen', 'toi co viec', 'co chuyen can trinh bao', 'co viec can trinh bao',
+  'mong cac dong chi', 'mong quy co quan', 'mong co quan', 'mong duoc giai quyet',
+  'mong duoc xem xet', 'de nghi xem xet giup', 'xem xet giup toi', 'giai quyet giup toi',
+  'toi viet don nay', 'toi lam don nay', 'toi xin trinh bay', 'toi xin phan anh',
+  'viec nay rat nghiem trong', 'su viec rat nghiem trong', 'rat buc xuc',
+  'dear sir', 'dear madam', 'to whom it may concern', 'i am writing to',
+  'please look into this', 'please investigate', 'please help me',
+];
+
+/** Bỏ phần "ý định" đi thì còn lại gì không?
+ *
+ *  ⚠️ Bỏ theo TỪ NGUYÊN VẸN, không bỏ theo chuỗi con.
+ *  Bản trước dùng split/join trên cả từ đệm một chữ cái ('a', 'i', 'me'), nên
+ *  "phát hiện" bị cắt thành "ph t h en" — vẫn ra kết quả đúng nhờ may mắn về
+ *  độ dài, nhưng chỉ cần đổi ngưỡng một chút là sai hàng loạt.
+ */
+function conLaiGiSauYDinh(t) {
+  let con = t;
+  /* Cụm nhiều từ: bỏ theo chuỗi vì chúng là cụm cố định */
+  for (const y of CHI_NOI_Y_DINH) con = con.split(y).join(' ');
+  /* Bỏ các từ đệm không mang thông tin */
+  const dem = ['mot viec','mot chuyen','viec nay','chuyen nay','something','a case',
+    'an incident','a matter','toi','minh','a','the','is','are','to','of','please',
+    'duoc khong','a la','va','voi','cho','ve',
+    /* Bổ sung: từ đệm hành chính, không mang thông tin sự việc */
+    'cong an xa','cong an','xa','ap','khom','quy co quan','co quan','dong chi',
+    'cac dong chi','rat','nghiem trong','buc xuc','gap','a','ah','a.','xin','kinh',
+    'giup','giup do','giai quyet','xem xet','y kien','trinh bay','phan anh','don nay',
+    'sir','madam','concern','writing','investigate','help','me','my','i','we','you'];
+  /* Từ đệm: bỏ theo TỪ NGUYÊN VẸN. Tách ra thành mảng rồi lọc, thay vì
+     cắt chuỗi con — như vậy 'a' không ăn mất chữ 'a' trong "phát". */
+  const boTu = new Set(dem.filter((d) => !d.includes(' ')));
+  for (const d of dem) if (d.includes(' ')) con = con.split(d).join(' ');
+  con = con
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((w) => w && !boTu.has(w))
+    .join(' ');
+  return con.trim();
+}
+
+export function kiemTraDuRo(noiDung) {
+  const goc = String(noiDung || '').trim();
+  const t = bo_dau(goc);
+
+  /* Quá ngắn thì biểu mẫu đã chặn ở chỗ khác, ở đây không xét lại */
+  if (t.length < 10) return { duRo: true, lyDo: '', goiY: [] };
+
+  const kq = phanLoaiNoiDung(goc);
+
+  const coTuKhoa = Array.isArray(kq.keywords) && kq.keywords.length > 0;
+  const coChuDe = Boolean(kq.detectedTopic);
+
+  const noiChon = DAU_HIEU_NOI_CHON.some((d) => t.includes(d));
+  const noiLuc = DAU_HIEU_NOI_LUC.some((d) => t.includes(d));
+  const noiAi = DAU_HIEU_NOI_AI.some((d) => t.includes(d));
+  const soYeuTo = [noiChon, noiLuc, noiAi].filter(Boolean).length;
+
+  /* Trường hợp riêng: câu CHỈ NÓI Ý ĐỊNH.
+     Ví dụ "tôi muốn trình báo một việc" — khớp từ khoá "tố giác chung" nên
+     hai điều kiện đầu đều đạt, nhưng cán bộ đọc xong vẫn không biết việc gì.
+     Bỏ phần ý định đi mà còn lại quá ít chữ thì coi như chưa nói gì. */
+  const conLai = conLaiGiSauYDinh(t);
+  /* Ngưỡng nâng từ 12 lên 16 ký tự: sau khi bỏ hết phần "ý định" và từ đệm,
+     còn dưới 16 ký tự thì không đủ để mô tả một sự việc.
+     Bỏ luôn điều kiện !noiChon && !noiLuc — câu "kính gửi công an xã" có chữ
+     "xã" bị tính là NÓI CHỖ, nên thoát được vòng kiểm dù chẳng nói việc gì. */
+  const chiCoYDinh = conLai.length < 16;
+
+  /* Đủ rõ nếu: bắt được từ khoá, HOẶC nhận ra chủ đề,
+     HOẶC có ít nhất 1 trong 3 yếu tố ở đâu / khi nào / ai */
+  if (!chiCoYDinh && (coTuKhoa || coChuDe || soYeuTo >= 1)) {
+    return { duRo: true, lyDo: '', goiY: [] };
+  }
+
+  /* Tới đây là không hiểu được gì. Gợi ý đúng thứ còn thiếu. */
+  const goiY = [];
+  if (!noiAi) goiY.push('Ai liên quan, hoặc chuyện gì đã xảy ra');
+  if (!noiChon) goiY.push('Xảy ra ở đâu — ấp/khóm, tên đường, gần nhà ai');
+  if (!noiLuc) goiY.push('Xảy ra khi nào — hôm qua, tối nay, hay kéo dài nhiều ngày');
+
+  return {
+    duRo: false,
+    lyDo: 'Hệ thống chưa xác định được bà con đang trình báo việc gì.',
+    goiY,
+  };
 }
