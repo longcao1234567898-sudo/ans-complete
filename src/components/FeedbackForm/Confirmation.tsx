@@ -35,10 +35,9 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
     if (!submission || autoSaved.current) return;
     autoSaved.current = true;
     const t = setTimeout(() => {
-      try {
-        downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category });
-        setSavedReceipt(true);
-      } catch { /* trình duyệt chặn tải tự động -> bà con bấm nút thủ công */ }
+      downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })
+        .then(() => setSavedReceipt(true))
+        .catch(() => { /* trình duyệt chặn tải tự động -> bà con bấm nút thủ công */ });
     }, 900); // chờ chút cho màn hình hiện xong rồi mới tải
     return () => clearTimeout(t);
   }, [submission]);
@@ -121,8 +120,9 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             </button>
             <button
               onClick={() => {
-                downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category });
-                setSavedReceipt(true);
+                downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })
+                  .then(() => setSavedReceipt(true))
+                  .catch(() => { /* bỏ qua */ });
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700"
             >
@@ -148,7 +148,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
           <div ref={qrWrapRef} className="flex justify-center rounded-xl bg-white p-3 dark:bg-slate-100">
             <QRCodeSVG value={qrValue} size={140} fgColor="#1B5E20" />
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-2 text-[11px] text-slate-500">
             Lưu ảnh QR để tra cứu nhanh: vào mục Tra cứu → biểu tượng QR → chọn ảnh từ máy
           </p>
         </div>
@@ -176,7 +176,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
 
       <div className="space-y-4">
         <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">Nội dung (đã AI chuẩn hoá)</p>
+          <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">Nội dung (đã chuẩn hoá)</p>
           <p className="text-sm text-slate-700 dark:text-slate-200">
             {draft.analysis?.normalizedContent ?? draft.content}
           </p>

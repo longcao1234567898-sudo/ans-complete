@@ -1,7 +1,8 @@
 /** Các endpoint AI — key Gemini nằm phía server, trình duyệt không thấy */
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { aiAvailable, geminiChat, geminiAnalyze, geminiModerateImage } from '../lib/ai.js';
+import { aiAvailable, geminiChat } from '../lib/ai.js';
+import { phanLoaiNoiDung } from '../lib/phan-loai.js';
 import { sanitizeText } from '../lib/security.js';
 
 const router = Router();
@@ -27,28 +28,26 @@ router.post('/chat', async (req, res) => {
 });
 
 router.post('/analyze', async (req, res) => {
-  if (!aiAvailable()) return res.status(503).json({ error: 'AI chưa được cấu hình.' });
+  /* PHÂN LOẠI HOÀN TOÀN NỘI BỘ — không gọi AI bên ngoài.
+     Vì vậy KHÔNG kiểm tra aiAvailable(): mất khoá AI thì phân loại vẫn chạy. */
   const content = sanitizeText(req.body?.content || '', 2000);
   if (!content) return res.status(400).json({ error: 'Nội dung trống.' });
   try {
-    res.json(await geminiAnalyze(content));
+    res.json(phanLoaiNoiDung(content));
   } catch (err) {
-    console.error('AI analyze lỗi:', err.message);
-    res.status(502).json({ error: 'AI phân tích thất bại.' });
+    console.error('Phân loại lỗi:', err.message);
+    res.status(500).json({ error: 'Không phân loại được nội dung.' });
   }
 });
 
-router.post('/moderate-image', async (req, res) => {
-  if (!aiAvailable()) return res.json({ blocked: false }); // không có AI thì không chặn ở tầng này
-  const { dataUrl } = req.body || {};
-  if (!dataUrl || typeof dataUrl !== 'string') return res.status(400).json({ error: 'Thiếu ảnh.' });
-  try {
-    const sensitive = await geminiModerateImage(dataUrl);
-    res.json(sensitive ? { blocked: true, reason: 'AI phát hiện hình ảnh nhạy cảm/khiêu dâm' } : { blocked: false });
-  } catch (err) {
-    console.error('AI moderate lỗi:', err.message);
-    res.json({ blocked: false }); // lỗi AI thì để tầng heuristic phía client quyết
-  }
+router.post('/moderate-image', async (_req, res) => {
+  /* ĐÃ BỎ kiểm duyệt ảnh bằng AI ngoài.
+     Lý do: ảnh người dân gửi kèm tố giác là dữ liệu nhạy cảm nhất — có thể
+     chứa mặt người, biển số, địa chỉ. Gửi sang dịch vụ ngoài là rủi ro lớn
+     hơn nhiều so với lợi ích lọc được vài ảnh xấu.
+     Việc lọc nay do lớp heuristic ở trình duyệt (đo tỷ lệ màu da) và cán bộ
+     duyệt thủ công đảm nhiệm. */
+  res.json({ blocked: false, reason: 'Kiểm duyệt ảnh bằng AI ngoài đã được gỡ bỏ.' });
 });
 
 export default router;

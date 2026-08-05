@@ -18,13 +18,11 @@ router.get('/', async (req, res) => {
       sql += ' AND category = ?';
       params.push(TAG_TO_CAT[tag]);
     }
-    /* LUÔN có LIMIT và luôn chặn trên.
-       Trước đây `limit` do người gọi tự đặt, không kiểm: ?limit=99999999 kéo
-       nguyên bảng tin về mỗi request, còn ?limit=abc thành NaN đẩy xuống MySQL.
-       Không phải SQL Injection (vẫn tham số hoá), nhưng là đòn bẩy làm nghẽn
-       máy chủ rất rẻ cho kẻ tấn công. */
-    sql += ' ORDER BY published_at DESC LIMIT ?';
-    params.push(Math.min(100, Math.max(1, Number(limit) || 20)));
+    sql += ' ORDER BY published_at DESC';
+    if (limit) {
+      sql += ' LIMIT ?';
+      params.push(Number(limit));
+    }
     const [rows] = await pool.query(sql, params);
 
     res.json(

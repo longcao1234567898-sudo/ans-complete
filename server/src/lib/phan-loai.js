@@ -45,13 +45,172 @@ const bo_dau = (t) =>
       3 = dấu hiệu vừa, cần thêm căn cứ khác
    ========================================================================== */
 
+
+/* ==========================================================================
+   TỪ KHOÁ TIẾNG ANH
+   ==========================================================================
+
+   VÌ SAO CẦN: người nước ngoài sinh sống trên địa bàn, hoặc bà con dùng
+   công cụ dịch, có thể gửi ý kiến bằng tiếng Anh. Bảng tiếng Việt ở trên
+   không bắt được chữ nào, nên mọi đơn tiếng Anh đều rơi vào nhóm mặc định
+   "Phản ánh, kiến nghị" với độ tin cậy 0.3 — kể cả khi đó là tin tố giác
+   tội phạm nghiêm trọng.
+
+   ⚠️ QUY TẮC BẮT BUỘC KHI THÊM TỪ TIẾNG ANH — ĐỌC KỸ TRƯỚC KHI SỬA:
+
+   Hàm khớp dùng includes(), tức KHỚP CHUỖI CON, KHÔNG có ranh giới từ.
+   Mà văn bản đã được BỎ DẤU trước khi so. Hậu quả: rất nhiều từ tiếng Anh
+   ngắn nằm lọt bên trong từ tiếng Việt đã bỏ dấu:
+
+       'an'  nằm trong  "an ninh", "bán", "làm ăn", "an toàn"
+       'co'  nằm trong  "có", "công", "cổng"
+       'ban' nằm trong  "bán", "bàn", "ban đêm"
+       'can' nằm trong  "cán bộ", "cần"
+       'on'  nằm trong  "con", "còn", "không"
+       'in'  nằm trong  "ninh", "tin", "xin"
+
+   Thêm mấy từ đó là mọi đơn tiếng Việt đều bị chấm điểm sai.
+
+   NÊN: chỉ dùng từ TỪ 4 KÝ TỰ TRỞ LÊN, và ưu tiên CỤM NHIỀU TỪ.
+   Toàn bộ danh sách dưới đây đã được kiểm tra tự động: không từ nào khớp
+   nhầm vào kho câu tiếng Việt mẫu.
+   ========================================================================== */
+const TU_KHOA_EN = {
+  to_giac: [
+    { diem: 10, chuDe: 'ma tuý', tu: [
+      'drug', 'drugs', 'narcotic', 'heroin', 'meth', 'cocaine', 'cannabis', 'marijuana',
+      'drug dealer', 'selling drugs', 'drug trafficking'
+    ] },
+    { diem: 10, chuDe: 'trộm cắp', tu: [
+      'theft', 'stolen', 'burglary', 'robbery', 'pickpocket', 'break in', 'broke into',
+      'stole my', 'shoplifting'
+    ] },
+    { diem: 10, chuDe: 'cướp', tu: [
+      'mugging', 'mugged', 'armed robbery', 'snatch', 'snatched'
+    ] },
+    { diem: 10, chuDe: 'lừa đảo', tu: [
+      'scam', 'scammer', 'scammed', 'fraud', 'fraudulent', 'swindle', 'phishing',
+      'impersonating police', 'impersonate police', 'fake police',
+      'transfer money to verify', 'otp code', 'verification code', 'investment scam',
+      'job scam', 'easy money high salary', 'ponzi', 'pyramid scheme'
+    ] },
+    { diem: 10, chuDe: 'cờ bạc', tu: [
+      'gambling', 'gamble', 'illegal betting', 'betting ring', 'casino illegal',
+      'football betting', 'lottery ring'
+    ] },
+    { diem: 10, chuDe: 'tín dụng đen', tu: [
+      'loan shark', 'loansharking', 'usury', 'predatory lending', 'debt collector threat',
+      'threatening debt'
+    ] },
+    { diem: 10, chuDe: 'bạo lực', tu: [
+      'assault', 'assaulted', 'beat up', 'beating', 'stabbed', 'stabbing', 'violence',
+      'violent attack', 'domestic violence', 'abuse', 'abused', 'child abuse',
+      'beat his wife', 'hit his wife'
+    ] },
+    { diem: 10, chuDe: 'xâm hại', tu: [
+      'sexual assault', 'molest', 'molested', 'rape', 'raped', 'harassment sexual'
+    ] },
+    { diem: 10, chuDe: 'tính mạng', tu: [
+      'murder', 'killed', 'homicide', 'death threat', 'threaten to kill', 'kidnap',
+      'kidnapping', 'human trafficking'
+    ] },
+    { diem: 10, chuDe: 'vũ khí', tu: [
+      'firearm', 'illegal weapon', 'explosive', 'gunshot', 'carrying gun'
+    ] },
+    { diem: 10, chuDe: 'hàng giả', tu: [
+      'counterfeit', 'smuggling', 'contraband', 'fake goods', 'fake documents',
+      'forged papers'
+    ] },
+    { diem: 10, chuDe: 'mại dâm', tu: [
+      'prostitution', 'brothel', 'sex trade'
+    ] },
+    { diem: 8, chuDe: 'công nghệ cao', tu: [
+      'hacked', 'hacking', 'account stolen', 'data leak', 'identity theft',
+      'malicious link', 'malware', 'fake website'
+    ] },
+    { diem: 10, chuDe: 'tố giác chung', tu: [
+      'report a crime', 'report crime', 'criminal activity', 'illegal activity',
+      'suspicious activity', 'witness a crime',
+      /* Bổ sung sau kiểm thử: bà con nước ngoài hay mở đầu bằng
+         "I would like to report..." chứ không dùng chữ "crime". */
+      'report a case', 'report an incident', 'would like to report', 'want to report',
+      'wish to report', 'reporting an incident'
+    ] },
+  ],
+  khieu_nai: [
+    { diem: 10, chuDe: 'cán bộ vòi tiền', tu: [
+      'bribe', 'bribery', 'asked for money', 'demanded money', 'corruption',
+      'corrupt official', 'extortion by official', 'kickback'
+    ] },
+    { diem: 8, chuDe: 'thái độ', tu: [
+      'rude officer', 'rude official', 'bad attitude', 'disrespectful staff',
+      'unprofessional behaviour', 'unprofessional behavior'
+    ] },
+    { diem: 8, chuDe: 'chậm trễ', tu: [
+      'delayed paperwork', 'delay processing', 'still not resolved',
+      'no response for weeks', 'pending too long'
+    ] },
+    { diem: 10, chuDe: 'khiếu nại QĐ', tu: [
+      'file a complaint', 'lodge a complaint', 'appeal the decision',
+      'administrative decision', 'unfair fine', 'wrongful fine', 'dispute the penalty',
+      'denounce official'
+    ] },
+  ],
+  phan_anh: [
+    { diem: 8, chuDe: 'tiếng ồn', tu: [
+      'noise', 'noisy', 'loud music', 'karaoke loud', 'disturbing the peace',
+      'noise pollution'
+    ] },
+    { diem: 8, chuDe: 'tụ tập', tu: [
+      'loitering', 'gathering causing disorder', 'public disorder', 'rowdy group',
+      'disturbance'
+    ] },
+    { diem: 8, chuDe: 'giao thông', tu: [
+      'speeding', 'reckless driving', 'traffic violation', 'illegal parking',
+      'street racing', 'drunk driving'
+    ] },
+    { diem: 8, chuDe: 'hạ tầng', tu: [
+      'broken street light', 'streetlight', 'pothole', 'flooding', 'road damaged',
+      'no lighting'
+    ] },
+    { diem: 8, chuDe: 'môi trường', tu: [
+      'pollution', 'dumping waste', 'garbage dumping', 'sewage', 'littering',
+      'bad smell factory'
+    ] },
+    { diem: 8, chuDe: 'lấn chiếm', tu: [
+      'encroaching sidewalk', 'blocking the road', 'occupying pavement',
+      'illegal construction'
+    ] },
+  ],
+  de_xuat: [
+    { diem: 8, chuDe: 'thủ tục', tu: [
+      'procedure', 'how do i apply', 'how to apply', 'required documents',
+      'paperwork needed', 'residence registration', 'temporary residence',
+      'id card application', 'citizen id', 'passport application'
+    ] },
+    { diem: 8, chuDe: 'hỏi đáp', tu: [
+      'i would like to ask', 'may i ask', 'could you tell me', 'what documents',
+      'where should i go', 'opening hours', 'office hours'
+    ] },
+    { diem: 8, chuDe: 'đề xuất', tu: [
+      'i suggest', 'my suggestion', 'recommendation', 'propose to install',
+      'request more patrol', 'should install camera'
+    ] },
+  ],
+};
+
 const BANG_TU_KHOA = {
   /* ---- NHÓM 1: TỐ GIÁC TIN BÁO (hạn 20 ngày — Bộ luật TTHS 2015, Điều 147) */
   to_giac: {
     ten: 'Tố giác tin báo',
     nhom: [
       { diem: 10, chuDe: 'ma tuý', tu: ['ma tuy', 'chich hut', 'hut chich', 'choi da', 'bay lac', 'tang tru ma tuy', 'buon ban ma tuy', 'hang trang', 'con nghien', 'tiem chich'] },
-      { diem: 10, chuDe: 'cờ bạc', tu: ['danh bac', 'da ga', 'so de', 'ghi de', 'ca do', 'xoc dia', 'lo de', 'ca cuoc', 'sat phat', 'song bac'] },
+      { diem: 10, chuDe: 'cờ bạc', tu: ['danh bac', 'da ga', 'ghi de', 'ca do', 'xoc dia', 'lo de',
+        /* ĐÃ BỎ 'so de' — cụm này nằm lọt trong "hồ sơ để lâu" (ho so de lau),
+           là cách nói rất hay gặp trong đơn khiếu nại, khiến đơn khiếu nại bị
+           xếp nhầm sang nhóm Tố giác với chủ đề Cờ bạc.
+           Thay bằng các cụm dài hơn, không thể nhầm: */
+        'choi so de', 'danh so de', 'ghi so de', 'so de online', 'bao so de', 'ca cuoc', 'sat phat', 'song bac'] },
       { diem: 10, chuDe: 'trộm cướp', tu: ['trom cap', 'trom xe', 'an trom', 'an cap', 'cuop', 'cuop giat', 'mat trom', 'be khoa', 'dot nhap', 'trom do'] },
       { diem: 10, chuDe: 'tín dụng đen', tu: ['cho vay nang lai', 'tin dung den', 'doi no thue', 'xiet no', 'lai suat cat co', 'khung bo doi no', 'tat den',
         'cho vay lai nang', 'vay lai nang', 'lai nang', 'rai to roi', 'to roi cho vay',
@@ -135,6 +294,21 @@ const BANG_TU_KHOA = {
   },
 };
 
+/* --------------------------------------------------------------------------
+   HỢP BẢNG TIẾNG VIỆT VÀ TIẾNG ANH
+
+   Làm bằng mã thay vì chép tay từ khoá tiếng Anh vào từng dòng tiếng Việt.
+   Lý do: giữ hai danh sách TÁCH RIÊNG thì sửa danh sách này không sợ làm
+   hỏng danh sách kia, và nhìn vào biết ngay từ nào thuộc ngôn ngữ nào.
+   -------------------------------------------------------------------------- */
+for (const ma of Object.keys(TU_KHOA_EN)) {
+  /* Lưu ý cấu trúc: BANG_TU_KHOA[ma] là một OBJECT { ten, nhom: [...] },
+     mảng cụm từ khoá nằm ở thuộc tính .nhom chứ không phải ở gốc. */
+  if (!BANG_TU_KHOA[ma]?.nhom) continue;
+  BANG_TU_KHOA[ma].nhom.push(...TU_KHOA_EN[ma]);
+}
+
+
 /* ==========================================================================
    MỨC KHẨN CẤP
    ========================================================================== */
@@ -144,6 +318,7 @@ const TU_KHOA_KHAN = [
   'cap cuu', 'nguy hiem tinh mang', 'sap chet', 'bi thuong nang', 'mau',
   'dang danh nhau', 'dang danh', 'dang cuop', 'chay nha', 'chay no', 'hoa hoan',
   'doa giet', 'doa danh', 'bat coc', 'tu tu', 'nhay cau', 'tre em bi',
+  /* Tiếng Anh nối vào cuối file — xem KHAN_EN */
 ];
 
 const TU_KHOA_QUAN_TRONG = [
@@ -167,11 +342,15 @@ function demXuatHien(vanBan, cum) {
   return n;
 }
 
+/* Đưa ra ngoài hàm để nối thêm dấu hiệu tiếng Anh ở cuối file.
+   Trước đây khai báo bên trong hàm nên không bổ sung được. */
+const DAU_HIEU_HOI = ['xin hoi', 'cho hoi', 'co the', 'lam sao', 'the nao',
+  'bao nhieu', 'khi nao', 'o dau', 'can gi', 'phai lam gi'];
+
 /** Nhận diện câu hỏi — dấu hiệu mạnh của nhóm "Đề xuất, thắc mắc" */
 function laCauHoi(goc, khongDau) {
   if (goc.includes('?')) return true;
-  const dauHieu = ['xin hoi', 'cho hoi', 'co the', 'lam sao', 'the nao', 'bao nhieu', 'khi nao', 'o dau', 'can gi', 'phai lam gi'];
-  return dauHieu.some((d) => khongDau.includes(d));
+  return DAU_HIEU_HOI.some((d) => khongDau.includes(d));
 }
 
 /* ==========================================================================
@@ -451,7 +630,9 @@ export const CHU_DE = [
   },
   {
     ma: 'danh_bac', nhom: 'to_giac', ten: 'Cờ bạc, cá độ', trongSo: 3, khan: 'important',
-    tuKhoa: ['danh bac', 'da ga', 'so de', 'ghi de', 'ca do', 'ca cuoc', 'xoc dia',
+    tuKhoa: ['danh bac', 'da ga', 'ghi de', 'ca do', 'ca cuoc', 'xoc dia',
+      /* Bỏ 'so de' — xem giải thích ở bảng nhóm phía trên */
+      'choi so de', 'danh so de', 'ghi so de', 'so de online',
       'bai bac', 'tai xiu', 'lo de', 'ban ca an tien', 'game bai', 'sat phat'],
   },
   {
@@ -608,6 +789,349 @@ function demKhopCum(text, cum) {
   return n;
 }
 
+
+/* --------------------------------------------------------------------------
+   TỪ KHOÁ TIẾNG ANH CHO TỪNG CHỦ ĐỀ
+
+   Cùng quy tắc như bảng nhóm: tối thiểu 4 ký tự, ưu tiên cụm nhiều từ, đã
+   kiểm tra tự động là không khớp nhầm vào câu tiếng Việt.
+
+   Riêng 'karaoke' giữ lại dù xuất hiện trong cả hai ngôn ngữ — đó là từ mượn,
+   và trong cả hai trường hợp đều trỏ đúng chủ đề Tiếng ồn.
+   -------------------------------------------------------------------------- */
+const CHU_DE_EN = {
+  ma_tuy: [
+    'drug', 'drugs', 'narcotic', 'heroin', 'meth', 'cocaine', 'cannabis', 'marijuana',
+    'drug dealer', 'selling drugs', 'drug trafficking', 'drug addict'
+  ],
+  trom_cap: [
+    'theft', 'stolen', 'stole my', 'burglary', 'break in', 'broke into', 'shoplifting',
+    'pickpocket', 'my bike was stolen', 'motorbike stolen'
+  ],
+  cuop_giat: [
+    'robbery', 'mugging', 'mugged', 'armed robbery', 'snatched my', 'bag snatching'
+  ],
+  lua_dao: [
+    'scam', 'scammer', 'scammed', 'fraud', 'fraudulent', 'phishing', 'impersonating police',
+    'impersonate police', 'fake police', 'transfer money to verify', 'otp code',
+    'verification code', 'investment scam', 'job scam', 'fake website', 'ponzi',
+    'pyramid scheme', 'lost all my savings', 'easy money high salary'
+  ],
+  danh_bac: [
+    'gambling', 'gamble', 'illegal betting', 'betting ring', 'football betting',
+    'underground casino', 'lottery ring'
+  ],
+  tin_dung_den: [
+    'loan shark', 'loansharking', 'usury', 'predatory lending',
+    'threatening my family for debt', 'debt collector', 'harassing for debt'
+  ],
+  gay_thuong_tich: [
+    'assault', 'assaulted', 'beat up', 'beating', 'stabbed', 'stabbing',
+    'fighting in the street', 'brawl', 'injured me'
+  ],
+  bao_hanh: [
+    'domestic violence', 'husband beats', 'husband hits', 'wife beating', 'beats me',
+    'beat me', 'hits me', 'child abuse', 'abusing his wife', 'abusing children',
+    'my father beats', 'crying child neighbour'
+  ],
+  xam_hai: [
+    'sexual assault', 'sexual harassment', 'molest', 'molested', 'rape', 'raped',
+    'indecent exposure'
+  ],
+  giet_nguoi: [
+    'murder', 'homicide', 'killed someone', 'death threat', 'threaten to kill',
+    'threatened to kill me'
+  ],
+  bat_coc: [
+    'kidnap', 'kidnapping', 'abduction', 'human trafficking', 'missing child', 'trafficked'
+  ],
+  vu_khi: [
+    'firearm', 'illegal weapon', 'explosive', 'gunshot', 'carrying a gun', 'homemade bomb'
+  ],
+  buon_lau: [
+    'smuggling', 'contraband', 'counterfeit', 'fake goods', 'fake documents',
+    'forged papers', 'illegal import'
+  ],
+  mai_dam: [
+    'prostitution', 'brothel', 'sex trade', 'sex workers operating'
+  ],
+  to_giac_chung: [
+    'report a crime', 'report a case', 'report an incident', 'would like to report',
+    'want to report', 'criminal activity', 'illegal activity', 'suspicious activity',
+    'witnessed a crime'
+  ],
+  nhung_nhieu: [
+    'bribe', 'bribery', 'asked for money', 'demanded money', 'corruption',
+    'corrupt official', 'extortion', 'kickback', 'pay extra to speed up'
+  ],
+  thai_do_can_bo: [
+    'rude officer', 'rude official', 'rude staff', 'bad attitude', 'disrespectful',
+    'unprofessional behaviour', 'unprofessional behavior', 'shouted at me'
+  ],
+  ho_so_cham: [
+    'delayed', 'delay', 'has been delayed', 'still not resolved', 'no response',
+    'pending too long', 'waiting for weeks', 'waiting for months', 'never got a reply'
+  ],
+  quyet_dinh_sai: [
+    'file a complaint', 'lodge a complaint', 'appeal the decision',
+    'administrative decision', 'unfair fine', 'wrongful fine', 'dispute the penalty',
+    'wrong decision', 'denounce official'
+  ],
+  tieng_on: [
+    'noise', 'noisy', 'loud music', 'karaoke', 'disturbing the peace', 'noise pollution',
+    'too loud at night'
+  ],
+  tu_tap_gay_roi: [
+    'loitering', 'public disorder', 'rowdy', 'disturbance', 'gathering causing trouble',
+    'drunk people gathering'
+  ],
+  giao_thong: [
+    'speeding', 'reckless driving', 'traffic violation', 'illegal parking', 'street racing',
+    'drunk driving', 'dangerous driving'
+  ],
+  ha_tang: [
+    'street light', 'streetlight', 'broken light', 'pothole', 'flooding', 'road damaged',
+    'no lighting', 'water logging'
+  ],
+  moi_truong: [
+    'pollution', 'dumping waste', 'garbage', 'sewage', 'littering', 'bad smell',
+    'waste into the canal', 'factory smoke'
+  ],
+  lan_chiem: [
+    'encroaching', 'blocking the road', 'occupying pavement', 'occupying sidewalk',
+    'illegal construction', 'built without permit'
+  ],
+  phan_anh_chung: [
+    'complain about', 'want to reflect', 'bring to your attention'
+  ],
+  thu_tuc: [
+    'procedure', 'how do i apply', 'how to apply', 'required documents', 'what documents',
+    'paperwork needed', 'residence registration', 'temporary residence', 'citizen id',
+    'id card application', 'passport application', 'criminal record certificate'
+  ],
+  hoi_dap: [
+    'would like to ask', 'may i ask', 'could you tell me', 'where should i go',
+    'opening hours', 'office hours', 'is it possible to'
+  ],
+  gop_y: [
+    'i suggest', 'my suggestion', 'recommendation', 'propose to install',
+    'request more patrol', 'should install', 'it would be better if'
+  ],
+};
+
+/* Gộp vào bảng chủ đề tiếng Việt */
+for (const cd of CHU_DE) {
+  if (CHU_DE_EN[cd.ma]) cd.tuKhoa.push(...CHU_DE_EN[cd.ma]);
+}
+
+
+/* --------------------------------------------------------------------------
+   BỘ TỪ KHOÁ TIẾNG ANH MỞ RỘNG
+
+   Bổ sung cho 4 bộ phụ trợ mà bản trước bỏ sót hoàn toàn. Hậu quả nếu thiếu:
+   một tin báo "someone is threatening to kill my family right now" bị xếp
+   mức khẩn cấp BÌNH THƯỜNG — ngang với câu hỏi thủ tục hành chính.
+   -------------------------------------------------------------------------- */
+
+/* Chủ đề — bổ sung cách diễn đạt tự nhiên và biến thể Anh/Mỹ */
+const CHU_DE_EN2 = {
+  ma_tuy: [
+    'drug den', 'drug use', 'using drugs', 'injecting drugs', 'drug needles', 'syringes',
+    'ecstasy', 'ketamine', 'crystal meth', 'laughing gas', 'nitrous oxide', 'pills party',
+    'smoking weed', 'growing cannabis', 'drug lab', 'selling pills', 'drug ring', 'pushers'
+  ],
+  trom_cap: [
+    'thief', 'thieves', 'robbed my house', 'my house was robbed', 'my phone was stolen',
+    'wallet stolen', 'bicycle stolen', 'stealing from', 'broke my lock', 'forced the door',
+    'took my belongings', 'missing valuables', 'livestock stolen', 'stole cash'
+  ],
+  cuop_giat: [
+    'snatch theft', 'grabbed my bag', 'pulled my phone', 'motorbike snatcher',
+    'robbed at knifepoint', 'robbed at gunpoint', 'violent robbery', 'held me up'
+  ],
+  lua_dao: [
+    'online scam', 'telephone scam', 'phone scam', 'text message scam', 'sms scam',
+    'romance scam', 'dating scam', 'crypto scam', 'bitcoin scam', 'forex scam',
+    'fake job offer', 'advance fee', 'deposit first', 'pay upfront then', 'click the link',
+    'malicious link', 'fake bank message', 'fake delivery message', 'account frozen scam',
+    'tax scam', 'electricity bill scam', 'prize scam', 'lottery scam', 'conned me',
+    'ripped me off', 'tricked me into', 'duped', 'defrauded', 'lost my money to',
+    'sent money to a stranger', 'gave them my otp', 'shared verification code',
+    'fake official', 'pretending to be police', 'claims to be from the court',
+    'court summons scam'
+  ],
+  danh_bac: [
+    'betting site', 'online casino', 'online gambling', 'bookmaker', 'bookie',
+    'cock fighting', 'card game for money', 'poker for money', 'dice game', 'slot machines',
+    'placing bets', 'gambling den', 'gambling addiction ring'
+  ],
+  tin_dung_den: [
+    'illegal lending', 'high interest loan', 'black credit', 'extortionate interest',
+    'debt collectors harassing', 'threw paint at my house', 'threw dirty water',
+    'posted my photo online', 'threatening messages about debt', 'forced to sign loan',
+    'app loan harassment',
+    'throws paint', 'throwing paint', 'paint at my house', 'dirty water at my house',
+    'because of a loan', 'because of debt', 'owe money threats'
+  ],
+  gay_thuong_tich: [
+    'punched', 'kicked', 'hit me with', 'attacked me', 'group attacked', 'street fight',
+    'bar fight', 'brawl outside', 'wounded', 'bleeding', 'broken bones', 'hospitalised',
+    'hospitalized',
+    'a fight', 'fight happening', 'fighting now', 'with knives', 'with a knife',
+    'people fighting', 'group fighting', 'attacked with'
+  ],
+  bao_hanh: [
+    'beats his children', 'abusing his family', 'locked the child', 'starving the child',
+    'elderly abuse', 'abusing elderly', 'neglecting children', 'screaming and hitting',
+    'drunk and violent at home', 'threatens his wife', 'kicked out of the house',
+    'being beaten', 'is beaten', 'beaten next door', 'hitting a child', 'hitting his child',
+    'child crying next door', 'hears crying', 'violence at home', 'beating my',
+    'beating her', 'beating him'
+  ],
+  xam_hai: [
+    'inappropriate touching', 'touched me inappropriately', 'groping', 'stalking me',
+    'sexual abuse of a minor', 'child sexual abuse', 'peeping', 'filming without consent',
+    'revenge porn', 'sharing intimate photos'
+  ],
+  giet_nguoi: [
+    'attempted murder', 'stabbed to death', 'beaten to death', 'found dead', 'body found',
+    'threatening my life', 'wants to kill me', 'said he would kill',
+    'threatening to kill', 'threatens to kill', 'going to kill', 'will kill me',
+    'kill my family', 'kill me', 'kill him', 'kill her', 'wants me dead', 'tried to kill'
+  ],
+  bat_coc: [
+    'took my child', 'child taken', 'forced into a car', 'held against her will',
+    'held against his will', 'labour trafficking', 'labor trafficking', 'sold to a brothel',
+    'lured abroad', 'cannot contact my daughter',
+    'is missing', 'went missing', 'has gone missing', 'cannot find my daughter',
+    'cannot find my son', 'disappeared since', 'not come home'
+  ],
+  vu_khi: [
+    'knife attack', 'machete', 'carrying knives', 'illegal firearms', 'ammunition',
+    'grenade', 'fireworks illegal', 'making explosives'
+  ],
+  buon_lau: [
+    'counterfeit goods', 'fake branded', 'fake medicine', 'fake alcohol',
+    'expired food sold', 'smuggled cigarettes', 'illegal wildlife', 'ivory trade',
+    'fake certificates', 'forged licence', 'forged license'
+  ],
+  mai_dam: [
+    'massage parlour front', 'massage parlor front', 'karaoke with girls', 'pimping',
+    'soliciting'
+  ],
+  to_giac_chung: [
+    'i witnessed', 'i saw someone', 'there is a man who', 'i suspect that',
+    'happening in my neighbourhood', 'happening in my neighborhood', 'please investigate',
+    'please look into this', 'need police attention', 'anonymous report'
+  ],
+  nhung_nhieu: [
+    'under the table', 'asked for a bribe', 'wanted money to speed up', 'demanded a fee',
+    'unofficial fee', 'extra charge not on receipt', 'no receipt given', 'abuse of power',
+    'misuse of authority', 'favouritism', 'favoritism'
+  ],
+  thai_do_can_bo: [
+    'very rude to me', 'treated me badly', 'ignored me', 'refused to help', 'shouted at me',
+    'made me wait for hours', 'discriminated against me', 'arrogant officer'
+  ],
+  ho_so_cham: [
+    'application stuck', 'processing too slow', 'passed the deadline', 'over the deadline',
+    'promised but never', 'keep asking me to come back', 'sent me back and forth',
+    'lost my documents'
+  ],
+  quyet_dinh_sai: [
+    'i disagree with the decision', 'unjust decision', 'penalty is unfair',
+    'fined without reason', 'revoke the decision', 'request reconsideration',
+    'administrative appeal', 'wrongly accused', 'decision violates the law'
+  ],
+  tieng_on: [
+    'construction noise', 'noise at night', 'shouting all night', 'barking dogs',
+    'engine revving', 'loudspeakers', 'music until late', 'cannot sleep because of noise'
+  ],
+  tu_tap_gay_roi: [
+    'youths gathering', 'drinking in public', 'causing trouble at night',
+    'racing motorbikes at night', 'fighting in public', 'vandalism', 'graffiti',
+    'breaking things'
+  ],
+  giao_thong: [
+    'overloaded truck', 'trucks at night', 'no helmet', 'running red light',
+    'wrong way driving', 'blocked traffic', 'accident happened', 'hit and run',
+    'unsafe crossing', 'no traffic lights', 'children crossing danger'
+  ],
+  ha_tang: [
+    'broken pavement', 'damaged road', 'manhole open', 'no drainage', 'power outage',
+    'water supply problem', 'bridge damaged', 'dangerous electrical wires', 'fallen tree'
+  ],
+  moi_truong: [
+    'air pollution', 'water pollution', 'chemical smell', 'burning rubbish', 'burning waste',
+    'factory discharge', 'dead fish in the canal', 'open sewer', 'rubbish not collected',
+    'stagnant water mosquitoes'
+  ],
+  lan_chiem: [
+    'built on public land', 'extended into the alley', 'shop taking over the pavement',
+    'parking on the sidewalk', 'blocking the fire lane', 'fence on public land'
+  ],
+  phan_anh_chung: [
+    'i would like to reflect', 'bringing this to your attention', 'general feedback',
+    'concern about the area', 'local issue'
+  ],
+  thu_tuc: [
+    'household registration', 'permanent residence', 'change of address', 'police clearance',
+    'criminal record check', 'judicial record', 'notarisation', 'notarization',
+    'renew my id', 'lost my id card', 'replace id card', 'visa extension',
+    'temporary stay declaration', 'foreigner registration', 'work permit'
+  ],
+  hoi_dap: [
+    'what is the process', 'what should i do', 'do i need an appointment', 'is there a fee',
+    'how long does it take', 'can i do it online', 'which office handles',
+    'who should i contact'
+  ],
+  gop_y: [
+    'it would help if', 'please consider adding', 'suggest improving', 'idea to improve',
+    'more street lighting would', 'more patrols would help', 'community proposal',
+    'would help', 'would be helpful', 'would be better', 'please install',
+    'request to install', 'suggest installing', 'we need more', 'the area needs',
+    'proposal to'
+  ],
+};
+for (const cd of CHU_DE) {
+  if (CHU_DE_EN2[cd.ma]) cd.tuKhoa.push(...CHU_DE_EN2[cd.ma]);
+}
+
+/* Dấu hiệu KHẨN CẤP — cần xử lý ngay */
+const KHAN_EN = [
+  'right now', 'happening now', 'is happening', 'currently happening', 'in progress',
+  'just happened', 'a moment ago', 'emergency', 'urgent', 'urgently', 'immediately',
+  'help me now', 'life threatening', 'about to die', 'dying', 'severely injured',
+  'serious injury', 'bleeding heavily', 'unconscious', 'fire', 'house on fire', 'explosion',
+  'being attacked', 'being beaten', 'attacking someone', 'threatening to kill',
+  'threaten to kill', 'death threat', 'kidnapped', 'kidnapping in progress', 'suicide',
+  'about to jump', 'trying to kill himself', 'trying to kill herself', 'child in danger',
+  'armed', 'has a knife', 'has a gun', 'hostage'
+];
+
+/* Dấu hiệu QUAN TRỌNG — kéo dài, nhiều người, nhóm yếu thế */
+const QUAN_TRONG_EN = [
+  'many times', 'repeatedly', 'every night', 'every day', 'for months', 'for weeks',
+  'continues to', 'keeps happening', 'whole neighbourhood', 'whole neighborhood',
+  'many households', 'many people affected', 'children', 'elderly', 'pregnant', 'disabled',
+  'near the school', 'in front of the school', 'near the hospital', 'near the market',
+  'vulnerable'
+];
+
+/* Có TRẺ EM liên quan — nâng mức ưu tiên */
+const TRE_EM_EN = [
+  'child', 'children', 'kids', 'minor', 'minors', 'student', 'students', 'schoolchildren',
+  'my son', 'my daughter', 'baby', 'toddler', 'infant', 'under age', 'underage'
+];
+
+/* Dấu hiệu CÂU HỎI — để xếp vào nhóm Đề xuất, thắc mắc */
+const HOI_EN = [
+  'how do i', 'how can i', 'how long', 'how much', 'how many', 'what should',
+  'what documents', 'what is the', 'where can i', 'where should', 'when can i', 'when will',
+  'can i', 'could you', 'do i need', 'is there', 'are there', 'who should', 'which office',
+  'please advise', 'please guide'
+];
+
 /**
  * Tìm chủ đề chi tiết nhất trong một nhóm.
  * @returns {{ ma: string, ten: string }|null}
@@ -633,4 +1157,46 @@ const boDauCD = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, ''
 /** Liệt kê toàn bộ chủ đề — dùng cho thống kê và kiểm thử */
 export function danhSachChuDe() {
   return CHU_DE.map((c) => ({ ma: c.ma, ten: c.ten, nhom: c.nhom }));
+}
+
+
+/* ==========================================================================
+   NỐI CÁC BỘ TỪ KHOÁ TIẾNG ANH VÀO BỘ TIẾNG VIỆT
+
+   Đặt ở CUỐI FILE vì các danh sách tiếng Anh được khai báo sau danh sách
+   tiếng Việt. Nối sớm hơn sẽ lỗi "chưa khởi tạo biến".
+
+   Các danh sách này chỉ được ĐỌC lúc chạy hàm phân loại, nên nối ở đây vẫn
+   kịp — lúc có yêu cầu đầu tiên thì module đã nạp xong.
+   ========================================================================== */
+TU_KHOA_KHAN.push(...KHAN_EN);
+TU_KHOA_QUAN_TRONG.push(...QUAN_TRONG_EN);
+CO_TRE_EM.push(...TRE_EM_EN);
+DAU_HIEU_HOI.push(...HOI_EN);
+
+/* --------------------------------------------------------------------------
+   ĐỒNG BỘ: từ khoá CHỦ ĐỀ tiếng Anh -> bảng QUYẾT ĐỊNH NHÓM
+
+   Vì sao cần: hai bảng làm hai việc khác nhau (xem chú thích đầu file), nhưng
+   về mặt logic chúng liên quan — một cụm chỉ ra chủ đề "Giết người, đe doạ
+   tính mạng" thì đương nhiên cũng chỉ ra nhóm "Tố giác tin báo".
+
+   Không đồng bộ thì xảy ra đúng tình huống này: câu
+   "someone is threatening to kill my family" nhận đúng mức KHẨN CẤP nhưng bị
+   xếp vào nhóm "Phản ánh, kiến nghị" — hạn xử lý 15 ngày thay vì 20 ngày, và
+   không vào luồng tố giác.
+
+   CHỈ đồng bộ phần TIẾNG ANH. Bảng tiếng Việt đã được cân chỉnh riêng qua
+   nhiều vòng thử, đụng vào sẽ làm lệch kết quả đang đúng.
+   -------------------------------------------------------------------------- */
+for (const cd of CHU_DE) {
+  const tuEn = [...(CHU_DE_EN[cd.ma] || []), ...(CHU_DE_EN2[cd.ma] || [])];
+  if (tuEn.length === 0) continue;
+  const bang = BANG_TU_KHOA[cd.nhom];
+  if (!bang?.nhom) continue;
+  bang.nhom.push({
+    diem: cd.trongSo >= 3 ? 10 : 8,   // chủ đề càng đặc trưng, điểm càng cao
+    chuDe: cd.ten.toLowerCase(),
+    tu: tuEn,
+  });
 }

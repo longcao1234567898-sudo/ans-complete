@@ -2,14 +2,14 @@
  * NHẬT KÝ HỆ THỐNG — ai làm gì, lúc nào, từ IP nào.
  * Đặc biệt quan trọng: theo dõi các lượt XEM DANH TÍNH người tố giác
  * để chống cán bộ lạm dụng quyền.
- *
- * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
  */
 import { Router } from 'express';
 import { pool } from '../../db.js';
+import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 
 const router = Router();
+router.use(requireAuth);
 router.use(authorize('admin', 'manager')); // chỉ lãnh đạo được xem nhật ký
 
 /** GET /api/admin/logs?action=&page=&limit= */

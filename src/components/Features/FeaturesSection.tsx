@@ -28,11 +28,11 @@ function TypingDemo() {
   return (
     <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-800/60">
       <div>
-        <span className="font-semibold text-slate-400">Công dân nhập:</span>
+        <span className="font-semibold text-slate-500">Công dân nhập:</span>
         <p className="mt-0.5 italic text-slate-500 dark:text-slate-400">“{DEMO_INPUT}”</p>
       </div>
       <div>
-        <span className="font-semibold text-primary-600 dark:text-primary-400">AI hiểu:</span>
+        <span className="font-semibold text-primary-600 dark:text-primary-400">Hệ thống hiểu:</span>
         <p className="mt-0.5 min-h-[1.25rem] font-medium text-slate-700 dark:text-slate-200">
           “{shown}
           <span className="animate-pulse">|</span>”
@@ -99,7 +99,7 @@ export default function FeaturesSection() {
         <FeatureCard
           icon={<BrainCircuit className="h-6 w-6" aria-hidden />}
           title="Đọc hiểu nội dung"
-          description="AI tự động hiểu và diễn đạt lại nội dung rõ ràng, kể cả khi bà con viết thiếu dấu hay chưa đúng chính tả."
+          description="Hệ thống tự động nhận diện và diễn đạt lại nội dung rõ ràng, kể cả khi bà con viết thiếu dấu hay chưa đúng chính tả."
           delay={0}
         >
           <TypingDemo />

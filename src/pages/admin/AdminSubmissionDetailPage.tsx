@@ -27,20 +27,15 @@ export default function AdminSubmissionDetailPage() {
   // --- V2: danh tính đầy đủ (chỉ hiện khi bấm nút, có ghi nhật ký) ---
   const [revealed, setRevealed] = useState<{ sender_name: string; sender_phone: string; sender_email: string | null } | null>(null);
   const [revealing, setRevealing] = useState(false);
-  // Lỗi của riêng nút "Xem danh tính" — hiện NGAY dưới nút. Máy chủ nay có thể
-  // từ chối (403) khi cán bộ không được phân công hồ sơ này, hoặc tin gửi ẩn
-  // danh (400); báo ngay tại chỗ bấm, không để cán bộ tưởng nút bị hỏng.
-  const [revealError, setRevealError] = useState('');
 
   async function handleReveal() {
     setRevealing(true);
-    setRevealError('');
     try {
       const r = await revealIdentity(submissionId);
       setRevealed(r);
       setFeedback(r.warning);
     } catch (e) {
-      setRevealError(e instanceof Error ? e.message : 'Không xem được danh tính.');
+      setFeedback(e instanceof Error ? e.message : 'Không xem được danh tính.');
     } finally {
       setRevealing(false);
     }
@@ -106,14 +101,14 @@ export default function AdminSubmissionDetailPage() {
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">🟡 Quan trọng</span>
                 )}
               </div>
-              <p className="text-xs font-semibold text-slate-400">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
+              <p className="text-xs font-semibold text-slate-500">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
 
               <h3 className="mb-1 mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">Nội dung công dân gửi</h3>
               <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">{data.original_content}</p>
 
               {data.ai_processed_content && (
                 <>
-                  <h3 className="mb-1 mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">Nội dung AI chuẩn hoá</h3>
+                  <h3 className="mb-1 mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">Nội dung đã chuẩn hoá</h3>
                   <p className="rounded-xl bg-primary-50 p-3 text-sm text-slate-700 dark:bg-primary-900/20 dark:text-slate-200">{data.ai_processed_content}</p>
                 </>
               )}
@@ -149,7 +144,7 @@ export default function AdminSubmissionDetailPage() {
                     </div>
                     <div className="pb-1">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{STATUS_META[h.new_status]?.label || h.new_status}</p>
-                      <p className="text-[11px] text-slate-400">{formatDateTime(h.changed_at)}{h.changed_by_name ? ` · ${h.changed_by_name}` : ''}</p>
+                      <p className="text-[11px] text-slate-500">{formatDateTime(h.changed_at)}{h.changed_by_name ? ` · ${h.changed_by_name}` : ''}</p>
                       {h.note && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{h.note}</p>}
                     </div>
                   </div>
@@ -163,11 +158,11 @@ export default function AdminSubmissionDetailPage() {
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
               <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Thông tin người gửi</h3>
               <div className="space-y-2 text-sm">
-                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-400" /> {revealed?.sender_name ?? data.sender_name}</p>
-                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-400" /> {revealed?.sender_phone ?? data.sender_phone}</p>
-                {(revealed?.sender_email ?? data.sender_email) && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-400" /> {revealed?.sender_email ?? data.sender_email}</p>}
-                <p className="flex items-center gap-2 text-slate-400"><Clock className="h-4 w-4" /> {formatDateTime(data.created_at)}</p>
-                {data.ward_name && <p className="text-xs text-slate-400">Địa bàn: <span className="font-semibold text-slate-600 dark:text-slate-300">{data.ward_name}</span></p>}
+                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-500" /> {revealed?.sender_name ?? data.sender_name}</p>
+                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-500" /> {revealed?.sender_phone ?? data.sender_phone}</p>
+                {(revealed?.sender_email ?? data.sender_email) && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-500" /> {revealed?.sender_email ?? data.sender_email}</p>}
+                <p className="flex items-center gap-2 text-slate-500"><Clock className="h-4 w-4" /> {formatDateTime(data.created_at)}</p>
+                {data.ward_name && <p className="text-xs text-slate-500">Địa bàn: <span className="font-semibold text-slate-600 dark:text-slate-300">{data.ward_name}</span></p>}
               </div>
 
               {!revealed ? (
@@ -184,13 +179,8 @@ export default function AdminSubmissionDetailPage() {
                   Lượt xem danh tính này đã được ghi vào nhật ký hệ thống.
                 </p>
               )}
-              {revealError && (
-                <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-rose-50 p-2.5 text-[11px] font-semibold leading-relaxed text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-                  <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" /> {revealError}
-                </p>
-              )}
               {!revealed && (
-                <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                   Danh tính người tố giác được mã hoá và che bớt để bảo vệ an toàn cho công dân.
                 </p>
               )}
@@ -205,7 +195,7 @@ export default function AdminSubmissionDetailPage() {
                 value={data.assigned_to ?? ''}
                 onChange={(e) => assignMutation.mutate(e.target.value ? Number(e.target.value) : null)}
                 disabled={assignMutation.isPending}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
               >
                 <option value="">— Chưa phân công —</option>
                 {staffList?.map((st) => (
@@ -231,7 +221,7 @@ export default function AdminSubmissionDetailPage() {
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
                 placeholder="VD: Đã cử lực lượng xuống hiện trường..."
-                className="mb-3 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800"
+                className="mb-3 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base sm:text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800"
               />
 
               <div className="grid grid-cols-2 gap-2">
@@ -250,14 +240,14 @@ export default function AdminSubmissionDetailPage() {
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={2}
                   placeholder="VD: Không thuộc thẩm quyền Công an cấp xã..."
-                  className="mb-2 w-full rounded-lg border border-rose-200 bg-white p-2 text-sm outline-none dark:border-rose-900/40 dark:bg-slate-800"
+                  className="mb-2 w-full rounded-lg border border-rose-200 bg-white p-2 text-base sm:text-sm outline-none dark:border-rose-900/40 dark:bg-slate-800"
                 />
                 <button onClick={() => changeStatus('rejected')} disabled={mutation.isPending} className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50">
                   <XCircle className="h-4 w-4" /> Từ chối
                 </button>
               </div>
 
-              {mutation.isPending && <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400"><Loader2 className="h-3 w-3 animate-spin" /> Đang cập nhật...</p>}
+              {mutation.isPending && <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500"><Loader2 className="h-3 w-3 animate-spin" /> Đang cập nhật...</p>}
               {feedback && !mutation.isPending && <p className="mt-3 text-xs font-semibold text-primary-600 dark:text-primary-300">{feedback}</p>}
             </div>
           </div>

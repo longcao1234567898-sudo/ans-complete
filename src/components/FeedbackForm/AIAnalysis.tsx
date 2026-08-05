@@ -50,7 +50,7 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300">
           <Sparkles className="h-4 w-4" aria-hidden />
         </span>
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">AI đang phân tích nội dung của bà con</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Hệ thống đang phân tích nội dung của bà con</h3>
       </div>
 
       <div className="rounded-xl border border-primary-100 bg-primary-50/60 p-4 dark:border-primary-900/40 dark:bg-primary-900/10">
@@ -72,7 +72,7 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
             )}
             <TypedText text={result.normalizedContent} />
 
-            {/* Mức khẩn cấp AI đề xuất — hiện rõ để bà con biết và đổi lại nếu cần */}
+            {/* Mức khẩn cấp hệ thống đề xuất — hiện rõ để bà con biết và đổi lại nếu cần */}
             {result.suggestedUrgency && result.suggestedUrgency !== 'normal' && (
               <div
                 className={cn(
@@ -94,7 +94,7 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
                         : 'text-amber-700 dark:text-amber-300'
                     )}
                   >
-                    AI đánh giá: {result.suggestedUrgency === 'urgent' ? 'KHẨN CẤP' : 'Quan trọng'}
+                    Hệ thống đánh giá: {result.suggestedUrgency === 'urgent' ? 'KHẨN CẤP' : 'Quan trọng'}
                   </span>
                   {result.urgencyReason && (
                     <span className="block text-xs leading-relaxed text-slate-600 dark:text-slate-300">
@@ -130,7 +130,7 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
             {/* Từ khoá nhận diện */}
             {result.keywords.length > 0 && (
               <div className="mt-4">
-                <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">Từ khoá AI nhận diện</p>
+                <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">Từ khoá nhận diện được</p>
                 <div className="flex flex-wrap gap-1.5">
                   {result.keywords.map((kw) => (
                     <Badge key={kw} colorClass="bg-white text-primary-700 border border-primary-200 dark:bg-slate-800 dark:text-primary-300 dark:border-primary-800">
