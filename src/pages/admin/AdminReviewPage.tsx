@@ -7,7 +7,7 @@
  *
  * Đây cũng là cách các cơ quan thật sàng lọc tin báo nặc danh.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -28,6 +28,21 @@ export default function AdminReviewPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
 
+  /* ---------------------------------------------------------------------
+     CHỐT CHỐNG BẤM HAI LẦN
+
+     Nút có disabled={busyId === s.id}, nhưng setBusyId là hàm ĐẶT TRẠNG THÁI
+     — chỉ có hiệu lực ở lần vẽ lại tiếp theo. Bấm nhanh hai cái liên tiếp thì
+     cả hai lần bấm đều lọt qua trước khi nút kịp mờ đi.
+
+     Lần gửi thứ hai gặp ý kiến đã rời hàng chờ, máy chủ trả về "Ý kiến này
+     không nằm trong hàng chờ kiểm duyệt" — hiện ra như lỗi dù việc đầu đã
+     thành công. Cán bộ tưởng hỏng, bấm tiếp, càng rối.
+
+     useRef đổi giá trị NGAY LẬP TỨC, không chờ vẽ lại, nên chặn được.
+     --------------------------------------------------------------------- */
+  const dangGui = useRef<Set<number>>(new Set());
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-review-queue'],
     queryFn: () => fetchSubmissions({ status: 'pending_review', page: 1, limit: 50 }),
@@ -37,17 +52,76 @@ export default function AdminReviewPage() {
   const mutation = useMutation({
     mutationFn: ({ id, action }: { id: number; action: 'approve' | 'spam' }) =>
       reviewSubmission(id, action),
+
+    /* -------------------------------------------------------------------
+       BỎ THẺ KHỎI DANH SÁCH NGAY KHI BẤM (cập nhật lạc quan)
+
+       Trước đây phải chờ máy chủ trả lời xong mới thấy thẻ biến mất. Trên
+       gói máy chủ miễn phí, lần gọi đầu có thể chờ tới 50 giây — cán bộ
+       tưởng bấm hụt nên bấm lại. Lần bấm thứ hai gặp ý kiến đã rời hàng chờ
+       nên máy chủ trả về "Ý kiến này không nằm trong hàng chờ kiểm duyệt",
+       hiện ra như một lỗi dù việc đầu đã thành công.
+
+       Nay bỏ thẻ khỏi danh sách ngay lúc bấm. Nếu máy chủ báo lỗi thật thì
+       trả thẻ về chỗ cũ ở onError.
+       ------------------------------------------------------------------- */
+    onMutate: async ({ id }) => {
+      await qc.cancelQueries({ queryKey: ['admin-review-queue'] });
+      const truoc = qc.getQueryData(['admin-review-queue']);
+      qc.setQueryData(['admin-review-queue'], (cu: unknown) => {
+        const d = cu as { data?: { id: number }[]; total?: number } | undefined;
+        if (!d?.data) return cu;
+        const conLai = d.data.filter((x) => x.id !== id);
+        /* Trừ cả TỔNG SỐ, nếu không thì con số trên đầu trang vẫn đếm ý kiến
+           vừa duyệt xong — cán bộ nhìn tưởng chưa ăn. */
+        return { ...d, data: conLai, total: Math.max(0, (d.total ?? conLai.length + 1) - 1) };
+      });
+      return { truoc };
+    },
+
     onSuccess: (r) => {
       setMsg(r.message);
-      qc.invalidateQueries({ queryKey: ['admin-review-queue'] });
       qc.invalidateQueries({ queryKey: ['admin-submissions'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
-    onError: (e: Error) => setMsg(e.message),
-    onSettled: () => setBusyId(null),
+
+    onError: (e: Error, _bien, ctx) => {
+      /* Ý kiến đã rời hàng chờ = việc ĐÃ XONG, không phải lỗi.
+         Xảy ra khi cán bộ khác vừa duyệt cùng lúc, hoặc chính mình bấm hai
+         lần. Giữ nguyên thẻ đã bỏ, chỉ báo nhẹ nhàng — hiện chữ đỏ "lỗi"
+         trong tình huống này chỉ làm cán bộ hoang mang. */
+      if (/không nằm trong hàng chờ/i.test(e.message)) {
+        setMsg('Ý kiến này đã được xử lý (có thể cán bộ khác vừa duyệt).');
+        return;
+      }
+      /* Lỗi thật: trả thẻ về chỗ cũ để cán bộ thử lại */
+      if (ctx?.truoc !== undefined) qc.setQueryData(['admin-review-queue'], ctx.truoc);
+      setMsg(e.message);
+    },
+
+    onSettled: (_kq, _loi, bien) => {
+      dangGui.current.delete(bien.id);
+      setBusyId(null);
+      qc.invalidateQueries({ queryKey: ['admin-review-queue'] });
+    },
   });
 
   function act(id: number, action: 'approve' | 'spam') {
+    /* Chặn ngay, không chờ vẽ lại */
+    if (dangGui.current.has(id)) return;
+    /* Đánh dấu tin rác là việc KHÓ LÙI: ý kiến vào thùng rác, chỉ giữ 7 ngày.
+       Hỏi lại một câu trước khi làm. Nút "Duyệt" thì không hỏi vì duyệt nhầm
+       chỉ tốn công xử lý thêm, không mất dữ liệu. */
+    if (action === 'spam') {
+      const dongY = window.confirm(
+        'Đánh dấu tin rác sẽ đưa ý kiến này vào Thùng rác và chỉ giữ 7 ngày.\n\n'
+        + 'Bà con gửi tố giác ẩn danh thường viết ngắn và thiếu chi tiết — '
+        + 'nếu chưa chắc, nên bấm Duyệt để cán bộ xác minh thay vì loại bỏ.\n\n'
+        + 'Vẫn muốn đánh dấu tin rác?'
+      );
+      if (!dongY) return;
+    }
+    dangGui.current.add(id);
     setBusyId(id);
     setMsg('');
     mutation.mutate({ id, action });
@@ -89,7 +163,7 @@ export default function AdminReviewPage() {
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
             Không có tin báo nào chờ duyệt.
           </p>
-          <p className="mt-1 text-xs text-slate-400">Hàng chờ đang sạch.</p>
+          <p className="mt-1 text-xs text-slate-500">Hàng chờ đang sạch.</p>
         </div>
       )}
 
@@ -111,11 +185,11 @@ export default function AdminReviewPage() {
                   {s.category_name}
                 </span>
               )}
-              <span className="flex items-center gap-1 text-slate-400">
+              <span className="flex items-center gap-1 text-slate-500">
                 <Clock className="h-3 w-3" /> {timeAgo(s.created_at)}
               </span>
               {s.ward_name && (
-                <span className="flex items-center gap-1 text-slate-400">
+                <span className="flex items-center gap-1 text-slate-500">
                   <MapPin className="h-3 w-3" /> {s.ward_name}
                 </span>
               )}

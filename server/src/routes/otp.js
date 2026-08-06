@@ -200,21 +200,63 @@ export function verifyOtpToken(otpToken, email) {
      - Tạo ma sát, buộc người gửi đọc kỹ quy định trước khi gửi
    ===================================================================== */
 
-const ANON_MAX_CODES_PER_DAY = 5; // xin mã tối đa 5 lần/ngày/IP
+/* ---------------------------------------------------------------------------
+   HẠN MỨC CHO LUỒNG ẨN DANH
+
+   ⚠️ KHÁC HẲN LUỒNG EMAIL — đừng đặt chung con số.
+
+   Luồng email: mỗi lần xin mã là GỬI MỘT THƯ THẬT, tốn hạn mức Brevo và có
+   thể bị lạm dụng để quấy rối hộp thư người khác. Nên siết chặt là đúng.
+
+   Luồng ẩn danh: mã hiện THẲNG TRÊN MÀN HÌNH, không gửi đi đâu, không tốn
+   gì cả. Siết như email chỉ làm khó bà con mà không ngăn được gì.
+
+   ⚠️ VÌ SAO KHÔNG SIẾT CHẶT THEO IP ĐƯỢC:
+   Nhà mạng di động Việt Nam dùng CGNAT — hàng trăm, có khi hàng nghìn thuê
+   bao cùng ra Internet bằng MỘT địa chỉ IP công cộng. Đặt "5 mã/ngày/IP"
+   nghĩa là cả một vùng thuê bao Viettel chỉ được xin 5 mã mỗi ngày.
+   Bà con ở quê phần lớn vào bằng 4G — đúng nhóm bị chặn oan nhiều nhất.
+   --------------------------------------------------------------------------- */
+const ANON_MAX_CODES_PER_DAY = 50;  // nới từ 5 -> 50 vì lý do CGNAT ở trên
+const ANON_COOLDOWN_SEC = 10;       // nới từ 60s -> 10s: mã không gửi email
 
 /** POST /api/otp/anon-code — sinh mã xác thực cho người gửi ẩn danh */
 router.post('/anon-code', async (req, res) => {
   const ip = layIpThat(req);
 
   try {
-    // Băm IP làm "danh tính" tạm (không lưu IP thô trong bảng OTP)
-    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
+    /* ====================================================================
+       KHOÁ THEO MÃ PHIÊN, KHÔNG KHOÁ THEO IP
 
+       ⚠️ LỖI CŨ: cả lúc cấp mã lẫn lúc kiểm mã đều tra cứu bằng
+       sha256('anon:' + IP). Nếu địa chỉ IP đổi giữa hai lần gọi thì không
+       tìm thấy dòng nào, hệ thống báo "Mã đã hết hạn" dù bà con vừa lấy mã
+       xong và nhập đúng.
+
+       IP đổi giữa chừng là chuyện RẤT HAY XẢY RA:
+         · Mạng 4G/5G xoay IP liên tục
+         · Nhà mạng dùng chung IP cho nhiều thuê bao (CGNAT)
+         · Trình duyệt lúc đi IPv4 lúc đi IPv6
+
+       Triệu chứng thực tế: nhập mã lần 1, lần 2 báo lỗi, lần 3 lại được —
+       tuỳ lúc đó IP có trùng với lúc lấy mã hay không.
+
+       NAY: máy chủ sinh một MÃ PHIÊN ngẫu nhiên, trả về cho trình duyệt.
+       Trình duyệt gửi lại mã phiên đó khi xác nhận. Mã phiên không đổi theo
+       mạng nên không còn phụ thuộc IP.
+
+       IP vẫn dùng, nhưng CHỈ để đếm hạn mức chống lạm dụng — việc đó dù có
+       sai lệch đôi chút cũng không chặn oan bà con.
+       ==================================================================== */
+    const anonId = crypto.randomBytes(24).toString('hex');
+    const anonHash = crypto.createHash('sha256').update('anon:' + anonId).digest('hex');
+
+    /* Đếm hạn mức theo IP thô ở cột ip_address — không dùng cho việc tra mã */
     const [[stat]] = await pool.query(
       `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at
        FROM otp_codes
-       WHERE email_hash = ? AND created_at > NOW() - INTERVAL 1 DAY`,
-      [ipHash]
+       WHERE ip_address = ? AND created_at > NOW() - INTERVAL 1 DAY`,
+      [ip]
     );
 
     if (stat.cnt >= ANON_MAX_CODES_PER_DAY) {
@@ -224,15 +266,42 @@ router.post('/anon-code', async (req, res) => {
     }
     if (stat.last_at) {
       const waited = (Date.now() - new Date(stat.last_at).getTime()) / 1000;
-      if (waited < RESEND_COOLDOWN_SEC) {
+      if (waited < ANON_COOLDOWN_SEC) {
         return res.status(429).json({
-          error: `Vui lòng chờ ${Math.ceil(RESEND_COOLDOWN_SEC - waited)} giây trước khi xin mã mới.`,
+          error: `Vui lòng chờ ${Math.ceil(ANON_COOLDOWN_SEC - waited)} giây trước khi xin mã mới.`,
         });
       }
     }
 
-    // Huỷ mã cũ chưa dùng
-    await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE email_hash = ? AND is_used = FALSE', [ipHash]);
+    /* ----------------------------------------------------------------------
+       HUỶ MÃ CŨ — CHỈ HUỶ MÃ CỦA CHÍNH PHIÊN NÀY
+
+       ⚠️ TRƯỚC ĐÂY DÒNG NÀY LÀ:
+           UPDATE otp_codes SET is_used = TRUE WHERE ip_address = ? ...
+
+       Đó là lỗi nghiêm trọng. Nhà mạng di động dùng CGNAT nên hàng trăm thuê
+       bao chung một IP. Hệ quả thực tế:
+
+         1. Bà con A xin mã   -> hệ thống ghi mã A
+         2. Bà con B (cùng IP nhà mạng) xin mã -> HUỶ LUÔN MÃ CỦA A
+         3. Bà con A nhập mã, bấm Xác nhận -> "Mã đã hết hạn"
+
+       Bà con A không làm gì sai, mã vẫn đang hiện trên màn hình, mà bấm vào
+       lại báo hết hạn. Thử lại vài lần thì "tự nhiên được" — đúng lúc không
+       có ai khác cùng IP xin mã. Rất khó lần ra vì không tái hiện được khi
+       ngồi thử một mình.
+
+       Nay chỉ huỷ mã của ĐÚNG phiên trước đó, do chính trình duyệt gửi lên.
+       Không gửi cũng không sao: mã tự hết hạn sau 10 phút và chỉ dùng 1 lần.
+       ---------------------------------------------------------------------- */
+    const phienTruoc = String(req.body?.prevAnonId || '').trim();
+    if (/^[0-9a-f]{48}$/.test(phienTruoc)) {
+      const hashTruoc = crypto.createHash('sha256').update('anon:' + phienTruoc).digest('hex');
+      await pool.query(
+        'UPDATE otp_codes SET is_used = TRUE WHERE email_hash = ? AND is_used = FALSE',
+        [hashTruoc]
+      );
+    }
 
     const code = genCode();
     const codeHash = await bcrypt.hash(code, 10);
@@ -240,12 +309,13 @@ router.post('/anon-code', async (req, res) => {
 
     await pool.query(
       'INSERT INTO otp_codes (email_hash, code_hash, expires_at, ip_address) VALUES (?,?,?,?)',
-      [ipHash, codeHash, expiresAt, ip]
+      [anonHash, codeHash, expiresAt, ip]
     );
 
     res.json({
       ok: true,
       code,                       // hiện thẳng lên màn hình (ô vàng)
+      anonId,                     // trình duyệt giữ, gửi lại khi xác nhận
       expiresInMinutes: OTP_TTL_MIN,
       message: 'Bà con hãy nhập lại mã bên dưới để xác nhận gửi tin báo ẩn danh.',
     });
@@ -258,20 +328,24 @@ router.post('/anon-code', async (req, res) => {
 /** POST /api/otp/anon-verify — kiểm tra mã ẩn danh, cấp "vé" gửi ý kiến */
 router.post('/anon-verify', async (req, res) => {
   const code = String(req.body?.code || '').trim();
-  const ip = layIpThat(req);
+  const anonId = String(req.body?.anonId || '').trim();
 
   if (!/^\d{6}$/.test(code)) {
     return res.status(400).json({ error: 'Mã xác thực phải gồm 6 chữ số.' });
   }
+  if (!/^[0-9a-f]{48}$/.test(anonId)) {
+    return res.status(400).json({ error: 'Phiên xác thực không hợp lệ. Vui lòng bấm "Lấy mã xác thực" lại.' });
+  }
 
   try {
-    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
+    /* Tra theo MÃ PHIÊN, không theo IP — xem giải thích ở route cấp mã */
+    const anonHash = crypto.createHash('sha256').update('anon:' + anonId).digest('hex');
 
     const [rows] = await pool.query(
       `SELECT id, code_hash, attempts FROM otp_codes
        WHERE email_hash = ? AND is_used = FALSE AND expires_at > NOW()
        ORDER BY created_at DESC LIMIT 1`,
-      [ipHash]
+      [anonHash]
     );
     if (rows.length === 0) {
       return res.status(400).json({ error: 'Mã đã hết hạn. Vui lòng bấm "Lấy mã xác thực" lại.' });
@@ -295,7 +369,7 @@ router.post('/anon-verify', async (req, res) => {
     await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = ?', [otp.id]);
 
     const otpToken = jwt.sign(
-      { emailHash: ipHash, purpose: 'submit_anon' },
+      { emailHash: anonHash, purpose: 'submit_anon' },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
@@ -307,15 +381,20 @@ router.post('/anon-verify', async (req, res) => {
   }
 });
 
-/** Kiểm tra "vé" của người gửi ẩn danh (khớp theo IP) */
-export function verifyAnonToken(otpToken, ip) {
+/** Kiểm tra "vé" của người gửi ẩn danh.
+ *
+ *  Khớp theo MÃ PHIÊN chứ không theo IP. Trước đây khớp theo IP nên vé vừa
+ *  cấp xong đã dùng không được nếu mạng đổi IP giữa chừng — chuyện rất hay
+ *  xảy ra trên 4G và ở nhà mạng dùng chung IP.
+ */
+export function verifyAnonToken(otpToken, anonId) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực. Vui lòng bấm "Lấy mã xác thực".' };
   try {
     const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
     if (payload.purpose !== 'submit_anon') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
-    const ipHash = crypto.createHash('sha256').update('anon:' + ip).digest('hex');
-    if (payload.emailHash !== ipHash) {
-      return { ok: false, error: 'Thiết bị không khớp với lượt xác thực. Vui lòng lấy mã mới.' };
+    const anonHash = crypto.createHash('sha256').update('anon:' + String(anonId || '')).digest('hex');
+    if (payload.emailHash !== anonHash) {
+      return { ok: false, error: 'Phiên xác thực không khớp. Vui lòng bấm "Lấy mã xác thực" lại.' };
     }
     return { ok: true };
   } catch {

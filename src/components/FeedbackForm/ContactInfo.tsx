@@ -117,6 +117,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
 
   // ===== MÃ XÁC THỰC ẨN DANH (hiện trên màn hình, không qua email) =====
   const [anonCode, setAnonCode] = useState('');       // mã máy chủ cấp
+  const [anonId, setAnonId] = useState('');           // mã phiên, gửi kèm khi xác nhận
   const [anonInput, setAnonInput] = useState('');     // bà con gõ lại
   const [anonBusy, setAnonBusy] = useState(false);
   const [anonErr, setAnonErr] = useState('');
@@ -125,8 +126,11 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
   async function handleGetAnonCode() {
     setAnonBusy(true); setAnonErr('');
     try {
-      const r = await requestAnonCode();
+      /* Gửi kèm mã phiên cũ để máy chủ huỷ đúng mã của mình, thay vì huỷ
+         theo IP (sẽ huỷ nhầm mã của người khác dùng chung IP nhà mạng). */
+      const r = await requestAnonCode(anonId || undefined);
       setAnonCode(r.code);
+      setAnonId(r.anonId);
       setAnonInput('');
     } catch (e) {
       setAnonErr(e instanceof Error ? e.message : 'Không lấy được mã.');
@@ -139,8 +143,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
     if (!/^\d{6}$/.test(anonInput)) { setAnonErr('Mã gồm 6 chữ số.'); return; }
     setAnonBusy(true); setAnonErr('');
     try {
-      const r = await verifyAnonCode(anonInput);
-      onChange({ ...value, otpToken: r.otpToken });
+      const r = await verifyAnonCode(anonInput, anonId);
+      /* Giữ lại mã phiên trong bản nháp: lúc bấm Gửi, máy chủ cần nó để đối
+         chiếu "vé" xác thực. */
+      onChange({ ...value, otpToken: r.otpToken, anonId });
     } catch (e) {
       setAnonErr(e instanceof Error ? e.message : 'Mã không đúng.');
     } finally {
@@ -352,12 +358,12 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
         {wards && wards.length > 0 && (
           <div className="w-full">
             <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
-              Địa bàn xảy ra vụ việc <span className="font-normal text-slate-400">(không bắt buộc)</span>
+              Địa bàn xảy ra vụ việc <span className="font-normal text-slate-500">(không bắt buộc)</span>
             </label>
             <select
               value={value.wardId ?? ''}
               onChange={(e) => onChange({ ...value, wardId: e.target.value ? Number(e.target.value) : null })}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-base sm:text-sm text-slate-800 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
               <option value="">— Chọn phường/xã —</option>
               {wards.map((w) => (

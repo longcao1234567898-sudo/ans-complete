@@ -150,6 +150,9 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         wardId: draft.contact.wardId ?? null,
         captchaToken: draft.contact.captchaToken ?? '',
         otpToken: draft.contact.otpToken ?? '',
+        /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
+           Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
+        anonId: draft.contact.anonId ?? '',
         isAnonymous: draft.contact.isAnonymous === true,
         urgency: draft.urgency || 'normal',
       }),
@@ -238,19 +241,35 @@ export async function verifyOtp(email: string, code: string): Promise<OtpVerifyR
 export interface AnonCodeResult {
   ok: boolean;
   code: string;            // mã 6 số hiện trong ô vàng
+  /** Mã phiên do máy chủ cấp — trình duyệt giữ và gửi lại khi xác nhận.
+   *  Trước đây luồng ẩn danh khớp theo địa chỉ IP, nên mạng 4G đổi IP giữa
+   *  chừng là báo "Mã đã hết hạn" dù bà con vừa lấy mã xong. */
+  anonId: string;
   expiresInMinutes: number;
   message: string;
 }
 
-/** Xin mã xác thực cho người gửi ẩn danh */
-export async function requestAnonCode(): Promise<AnonCodeResult> {
-  return apiFetch<AnonCodeResult>('/api/otp/anon-code', { method: 'POST', body: JSON.stringify({}) });
+/**
+ * Xin mã xác thực cho người gửi ẩn danh.
+ *
+ * @param prevAnonId Mã phiên của lần xin trước, nếu có. Máy chủ dùng nó để huỷ
+ *   đúng mã cũ của CHÍNH bà con này.
+ *
+ *   Trước đây máy chủ huỷ mã theo địa chỉ IP. Nhà mạng di động cho hàng trăm
+ *   thuê bao dùng chung một IP, nên người khác xin mã là mã của mình bị huỷ —
+ *   bấm Xác nhận báo "Mã đã hết hạn" dù mã vẫn đang hiện trên màn hình.
+ */
+export async function requestAnonCode(prevAnonId?: string): Promise<AnonCodeResult> {
+  return apiFetch<AnonCodeResult>('/api/otp/anon-code', {
+    method: 'POST',
+    body: JSON.stringify(prevAnonId ? { prevAnonId } : {}),
+  });
 }
 
 /** Xác nhận mã ẩn danh — đúng thì nhận "vé" gửi tin báo (15 phút) */
-export async function verifyAnonCode(code: string): Promise<OtpVerifyResult> {
+export async function verifyAnonCode(code: string, anonId: string): Promise<OtpVerifyResult> {
   return apiFetch<OtpVerifyResult>('/api/otp/anon-verify', {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, anonId }),
   });
 }
