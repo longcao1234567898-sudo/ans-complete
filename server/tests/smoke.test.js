@@ -30,9 +30,22 @@ for (const duongDan of CAC_ROUTER) {
   });
 }
 
+/* ĐỌC danh sách import thẳng từ mã nguồn, KHÔNG liệt kê cứng.
+   Bản cũ liệt kê cứng ['aiAvailable','geminiChat','geminiAnalyze','geminiModerateImage'].
+   Khi phân loại chuyển sang chạy nội bộ bằng lib/phan-loai.js, hai hàm gemini*
+   kia bị bỏ đi ĐÚNG CHỦ Ý — nhưng test vẫn đòi nên báo đỏ, khiến người đọc
+   tưởng có hồi quy. Đọc từ nguồn thì test luôn kiểm đúng thứ đang được import. */
 test('lib/ai.js export ĐỦ những gì routes/ai.js import', async () => {
+  const { readFileSync } = await import('node:fs');
+  const nguon = readFileSync(new URL('../src/routes/ai.js', import.meta.url), 'utf8');
+  const khop = nguon.match(/import\s*\{([^}]+)\}\s*from\s*['"]\.\.\/lib\/ai\.js['"]/);
+  assert.ok(khop, 'routes/ai.js phải import từ ../lib/ai.js');
+
+  const canCo = khop[1].split(',').map((s) => s.trim().split(/\s+as\s+/)[0]).filter(Boolean);
+  assert.ok(canCo.length > 0, 'phải import ít nhất một thứ');
+
   const ai = await import('../src/lib/ai.js');
-  for (const ten of ['aiAvailable', 'geminiChat', 'geminiAnalyze', 'geminiModerateImage']) {
+  for (const ten of canCo) {
     assert.equal(typeof ai[ten], 'function', `lib/ai.js phải export hàm ${ten}`);
   }
 });

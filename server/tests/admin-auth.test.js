@@ -49,6 +49,9 @@ const CAC_DUONG_DAN = [
   ['/api/admin/logs', 'GET'],
   ['/api/admin/kiosk/submit', 'POST'],
   ['/api/admin/trash', 'GET'],
+  // V10 — mã QR định vị; V11 — nhóm sự kiện trùng lặp
+  ['/api/admin/qr-points', 'GET'],
+  ['/api/admin/incident-groups', 'GET'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {
