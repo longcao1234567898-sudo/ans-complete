@@ -140,14 +140,23 @@ export function buildReceiptImage(data: ReceiptData): string {
   return canvas.toDataURL('image/png');
 }
 
-/** Tải phiếu về máy (tự động hoặc khi bấm nút) */
-export function downloadReceipt(data: ReceiptData) {
-  const url = buildReceiptImage(data);
-  if (!url) return;
-  const a = document.createElement('a');
-  a.download = `Ma-tra-cuu-${data.trackingCode}.png`;
-  a.href = url;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+/**
+ * Tải phiếu về máy (tự động hoặc khi bấm nút).
+ * @returns true nếu đã kích hoạt tải; false khi trình duyệt không vẽ được canvas
+ *          hoặc chặn thao tác tải — nơi gọi dựa vào đây để hiện dòng "đã lưu".
+ */
+export function downloadReceipt(data: ReceiptData): boolean {
+  try {
+    const url = buildReceiptImage(data);
+    if (!url) return false;
+    const a = document.createElement('a');
+    a.download = `Ma-tra-cuu-${data.trackingCode}.png`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  } catch {
+    return false;
+  }
 }
