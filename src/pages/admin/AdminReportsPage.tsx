@@ -149,6 +149,16 @@ export default function AdminReportsPage() {
         }))
       ), [14, 12]), 'Theo ngày');
 
+      // ───── Sheet 6b: THEO KHUNG GIỜ (phục vụ bố trí ca trực) ─────
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+        byHourData.map((h) => ({ 'Khung giờ': h.gio, 'Số ý kiến': h.total }))
+      ), [12, 12]), 'Theo giờ');
+
+      // ───── Sheet 6c: THEO THỨ TRONG TUẦN ─────
+      XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet(
+        byWeekdayData.map((w) => ({ 'Thứ': w.thu, 'Số ý kiến': w.total }))
+      ), [12, 12]), 'Theo thứ');
+
       // ───── Sheet 7: DANH SÁCH CHI TIẾT (lấy thêm từ máy chủ) ─────
       try {
         const rows = await fetchReportDetails(range.from, range.to);
@@ -191,6 +201,24 @@ export default function AdminReportsPage() {
         { name: 'Từ chối', value: Number(data.overview.rejected) },
       ].filter((d) => d.value > 0)
     : [];
+
+  /* ===== V-mới: PHÂN TÍCH CHUỖI THỜI GIAN =====
+     Máy chủ chỉ trả về giờ/thứ CÓ ý kiến (GROUP BY bỏ qua giờ = 0).
+     Điền đủ 24h và đủ 7 thứ ở đây để biểu đồ không bị "thủng". */
+  const byHourMap = new Map((data?.byHour ?? []).map((h) => [Number(h.hour), Number(h.total)]));
+  const byHourData = Array.from({ length: 24 }, (_, h) => ({ gio: `${h}h`, total: byHourMap.get(h) ?? 0 }));
+  const gioCaoDiemNum = byHourData.some((d) => d.total > 0)
+    ? Number(byHourData.reduce((max, d) => (d.total > max.total ? d : max)).gio.replace('h', ''))
+    : null;
+
+  // DAYOFWEEK của MySQL: 1=CN...7=T7. Hiển thị theo thứ tự quen thuộc T2->CN.
+  const NHAN_THU: Record<number, string> = { 2: 'Thứ 2', 3: 'Thứ 3', 4: 'Thứ 4', 5: 'Thứ 5', 6: 'Thứ 6', 7: 'Thứ 7', 1: 'Chủ nhật' };
+  const THU_TU_HIEN = [2, 3, 4, 5, 6, 7, 1];
+  const byWeekdayMap = new Map((data?.byWeekday ?? []).map((w) => [Number(w.weekday), Number(w.total)]));
+  const byWeekdayData = THU_TU_HIEN.map((w) => ({ thu: NHAN_THU[w], total: byWeekdayMap.get(w) ?? 0 }));
+  const thuCaoDiem = byWeekdayData.some((d) => d.total > 0)
+    ? byWeekdayData.reduce((max, d) => (d.total > max.total ? d : max)).thu
+    : null;
 
   return (
     <AdminLayout>
@@ -348,6 +376,49 @@ export default function AdminReportsPage() {
                   <YAxis type="category" dataKey="dia_ban" fontSize={10} width={110} />
                   <Tooltip />
                   <Bar dataKey="total" name="Số ý kiến" fill="#F9A825" radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Cột — theo khung giờ trong ngày */}
+            <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Theo khung giờ trong ngày</h3>
+                {gioCaoDiemNum !== null && (
+                  <span className="rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                    Cao điểm: {gioCaoDiemNum}h–{(gioCaoDiemNum + 1) % 24}h
+                  </span>
+                )}
+              </div>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={byHourData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="gio" fontSize={10} interval={1} />
+                  <YAxis fontSize={11} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="total" name="Số ý kiến" fill="#1976D2" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="mt-2 text-[11px] text-slate-400">Gợi ý bố trí ca trực: tăng người vào khung giờ cao điểm.</p>
+            </div>
+
+            {/* Cột — theo thứ trong tuần */}
+            <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Theo thứ trong tuần</h3>
+                {thuCaoDiem && (
+                  <span className="rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                    Cao điểm: {thuCaoDiem}
+                  </span>
+                )}
+              </div>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={byWeekdayData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="thu" fontSize={11} />
+                  <YAxis fontSize={11} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="total" name="Số ý kiến" fill="#C62828" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

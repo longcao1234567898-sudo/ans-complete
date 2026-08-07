@@ -2,14 +2,15 @@
  * Trang "Gửi ý kiến": wizard 5 bước — nhập nội dung, AI phân tích, chọn nhóm,
  * thông tin liên hệ, xác nhận & nhận mã tra cứu.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type { ContactInfo as ContactInfoType, FeedbackCategory, FeedbackDraft, FeedbackSubmission } from '../types/feedback';
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { readDraft, clearDraft, useDraftAutosave } from '../hooks/useDraftAutosave';
 import { saveTrackingCode } from '../hooks/useTrackingHistory';
-import { submitFeedback } from '../services/feedbackService';
+import { submitFeedback, fetchQrPointInfo } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
 import ContentInput from '../components/FeedbackForm/ContentInput';
@@ -20,6 +21,7 @@ import Confirmation from '../components/FeedbackForm/Confirmation';
 import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageBackground from '../components/common/PageBackground';
+import { MapPin } from 'lucide-react';
 
 const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
@@ -38,6 +40,21 @@ export default function SendFeedbackPage() {
   });
   const [draftRestored, setDraftRestored] = useState(() => Boolean(readDraft()?.content));
   const [submission, setSubmission] = useState<FeedbackSubmission | null>(null);
+
+  /* V10: Mã QR định vị — bà con quét mã dán tại hiện trường
+     (?diem=MÃ trên đường dẫn) -> tự điền sẵn phường/xã, khỏi phải tự chọn. */
+  const [searchParams] = useSearchParams();
+  const [qrPointName, setQrPointName] = useState<string | null>(null);
+  useEffect(() => {
+    const diem = searchParams.get('diem');
+    if (!diem) return;
+    fetchQrPointInfo(diem).then((point) => {
+      if (!point) return; // mã không hợp lệ -> lặng lẽ bỏ qua, form vẫn dùng bình thường
+      setQrPointName(point.name);
+      setDraft((d) => ({ ...d, contact: { ...d.contact, wardId: point.ward_id } }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useDraftAutosave({ content: draft.content, category: draft.category, urgency: draft.urgency });
 
@@ -114,6 +131,11 @@ export default function SendFeedbackPage() {
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
           Chia sẻ tự nhiên — AI sẽ giúp bà con diễn đạt rõ ràng và chuyển đến đúng bộ phận xử lý.
         </p>
+        {qrPointName && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+            <MapPin size={13} /> Vị trí quét mã: {qrPointName} — đã tự động chọn địa bàn
+          </p>
+        )}
       </div>
 
       {!submission && <StepIndicator current={step} />}
@@ -174,6 +196,7 @@ export default function SendFeedbackPage() {
             onNext={() => setStep(5)}
             onBack={() => setStep(3)}
             category={draft.category}
+            qrPointName={qrPointName}
           />
         )}
 

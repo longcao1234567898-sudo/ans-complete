@@ -93,6 +93,79 @@ const NGUONG_CHAN_CUNG_IP = 0.75;   // cùng IP: giống 75% trở lên -> chặ
 const NGUONG_DANH_DAU     = 0.85;   // khác IP: giống 85% trở lên -> đánh dấu
 const SO_TIN_COI_LA_CHIEN_DICH = 4; // >=4 tin na ná trong 24h -> nghi có tổ chức
 
+/* =====================================================================
+ * GỘP SỰ KIỆN TRÙNG LẶP — "5 người cùng báo 1 vụ cháy thành 1 hồ sơ"
+ *
+ * Khác với kiemTraTrungLapGanDung() ở trên (mục tiêu: CHẶN spam/né tránh,
+ * nhìn TOÀN HỆ THỐNG trong 24 giờ), hàm này có mục tiêu khác hẳn: TÌM ra
+ * các ý kiến của NHIỀU người dân khác nhau đang mô tả CÙNG MỘT vụ việc
+ * ngoài đời thật, để gộp lại cho cán bộ xem một lần thay vì rời rạc.
+ *
+ * Vì mục tiêu khác nên tham số khác:
+ *   - Chỉ so trong CÙNG địa bàn + CÙNG nhóm xử lý (thu hẹp diện so sánh,
+ *     giảm khả năng gộp nhầm 2 vụ không liên quan)
+ *   - Khung giờ hẹp hơn nhiều: 30 PHÚT chứ không phải 24 giờ — mô phỏng
+ *     đúng nhịp "cùng lúc, cùng nơi" của một sự kiện thật
+ *   - Ngưỡng giống nội dung THẤP HƠN ngưỡng chống spam (0.75-0.85):
+ *     hai người kể lại cùng 1 vụ cháy bằng lời văn khác nhau sẽ KHÔNG
+ *     giống nhau tới mức đó. Bù lại bằng bộ lọc "cùng địa bàn + cùng
+ *     nhóm + cùng khung giờ" đã làm sẵn phần lớn việc thu hẹp.
+ *
+ * VẪN LÀ QUY TẮC TỰ ĐẶT, GIẢI THÍCH ĐƯỢC — không gọi AI ngoài, đúng
+ * nguyên tắc đã chọn cho toàn hệ thống (xem PHẦN V tài liệu tổng quan).
+ * ===================================================================== */
+const NGUONG_GOP_SU_KIEN = 0.30;   // giống >=30% + cùng địa bàn/nhóm/30 phút -> nghi cùng 1 vụ
+const PHUT_GOM_SU_KIEN = 30;
+
+/**
+ * Tìm ý kiến gần đây nhất (nếu có) nhiều khả năng đang mô tả CÙNG một vụ
+ * việc với nội dung sắp gửi.
+ *
+ * @param {object} pool
+ * @param {object} p
+ * @param {string} p.noiDung
+ * @param {number|null} p.wardId
+ * @param {number} p.categoryId
+ * @returns {Promise<{id:number, incident_group_id:number|null}|null>} ý kiến khớp nhất, hoặc null nếu không có
+ */
+export async function timSuKienTrung(pool, { noiDung, wardId, categoryId }) {
+  // Không có địa bàn thì không đủ căn cứ để gộp — bỏ qua, không phải lỗi
+  if (!wardId || !categoryId) return null;
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, original_content, incident_group_id, created_at
+       FROM submissions
+       WHERE ward_id = ?
+         AND category_id = ?
+         AND status != 'spam'
+         AND deleted_at IS NULL
+         AND created_at > NOW() - INTERVAL ? MINUTE
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [wardId, categoryId, PHUT_GOM_SU_KIEN]
+    );
+    if (!rows.length) return null;
+
+    const chuanMoi = chuanHoaManh(noiDung).slice(0, 1000);
+    if (chuanMoi.length < 20) return null; // quá ngắn thì không đủ căn cứ so
+
+    let tot = null;
+    let diemTot = 0;
+    for (const r of rows) {
+      const diem = doTuongDong(chuanMoi, chuanHoaManh(r.original_content || '').slice(0, 1000));
+      if (diem > diemTot) { diemTot = diem; tot = r; }
+    }
+
+    if (tot && diemTot >= NGUONG_GOP_SU_KIEN) return tot;
+    return null;
+  } catch (err) {
+    // Lỗi kiểm tra KHÔNG được chặn người dân gửi ý kiến — bỏ qua, coi như không tìm thấy
+    console.warn('Tìm sự kiện trùng lỗi (bỏ qua):', err.message);
+    return null;
+  }
+}
+
 /**
  * Kiểm tra một nội dung sắp gửi có trùng/na ná tin nào gần đây không.
  *

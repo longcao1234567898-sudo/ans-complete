@@ -27,6 +27,8 @@ import reportsRouter from './reports.js';
 import logsRouter from './logs.js';
 import kioskRouter from './kiosk.js';
 import trashRouter from './trash.js';
+import qrPointsRouter from './qr-points.js';
+import incidentGroupsRouter from './incident-groups.js';
 
 const router = Router();
 
@@ -42,5 +44,7 @@ router.use('/reports', reportsRouter);
 router.use('/logs', logsRouter);
 router.use('/kiosk', kioskRouter);
 router.use('/trash', trashRouter);
+router.use('/qr-points', qrPointsRouter);
+router.use('/incident-groups', incidentGroupsRouter);
 
 export default router;

@@ -163,6 +163,8 @@ export interface DashboardStats {
     near_due_count: number;    // còn dưới 3 ngày
     unassigned_count: number;  // chưa có cán bộ phụ trách
   };
+  /** Nhóm sự kiện trùng lặp CHƯA XEM — "nhiều người cùng báo 1 vụ việc" */
+  nhomTrungLap?: NhomSuKien[];
 }
 
 export const fetchDashboardStats = () => adminFetch<DashboardStats>('/api/admin/dashboard/stats');
@@ -268,6 +270,10 @@ export interface ReportSummary {
   };
   byCategory: { category: string; total: number; resolved: number; overdue: number; avg_hours: number | null }[];
   byDay: { day: string; total: number }[];
+  /** Số ý kiến theo khung giờ trong ngày (0-23h) — phục vụ bố trí ca trực */
+  byHour: { hour: number; total: number }[];
+  /** Số ý kiến theo thứ trong tuần — chuẩn MySQL DAYOFWEEK: 1=CN...7=T7 */
+  byWeekday: { weekday: number; total: number }[];
   byWard: { ward: string; total: number }[];
   byStaff: { staff: string; assigned: number; resolved: number }[];
 }
@@ -405,3 +411,70 @@ export interface ReportDetailRow {
 
 export const fetchReportDetails = (from: string, to: string) =>
   adminFetch<ReportDetailRow[]>(`/api/admin/reports/details?from=${from}&to=${to}`);
+
+
+/* ============================================================
+   V10 — MÃ QR ĐỊNH VỊ (dán tại hiện trường / quầy tiếp dân)
+   ============================================================ */
+export interface QrPoint {
+  id: number;
+  code: string;
+  name: string;
+  note: string | null;
+  is_active: boolean;
+  ward_id: number;
+  ward_name: string;
+  created_at: string;
+}
+
+export const fetchQrPoints = () =>
+  adminFetch<{ data: QrPoint[] }>('/api/admin/qr-points').then((r) => r.data);
+
+export const createQrPoint = (name: string, wardId: number, note?: string) =>
+  adminFetch<{ id: number; code: string; name: string; wardId: number }>('/api/admin/qr-points', {
+    method: 'POST',
+    body: JSON.stringify({ name, wardId, note }),
+  });
+
+export const toggleQrPoint = (id: number, isActive: boolean) =>
+  adminFetch<{ ok: boolean }>(`/api/admin/qr-points/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  });
+
+export const deleteQrPoint = (id: number) =>
+  adminFetch<{ ok: boolean }>(`/api/admin/qr-points/${id}`, { method: 'DELETE' });
+
+
+/* ============================================================
+   V11 — GỘP SỰ KIỆN TRÙNG LẶP (nhiều người cùng báo 1 vụ việc)
+   ============================================================ */
+export interface NhomSuKien {
+  id: number;
+  submission_count: number;
+  last_reported_at: string;
+  first_reported_at?: string;
+  ward_name: string | null;
+  category_name: string | null;
+  preview: string;
+  acknowledged?: boolean;
+  first_tracking_code?: string;
+}
+
+export interface ThanhVienNhomSuKien {
+  id: number;
+  tracking_code: string;
+  status: string;
+  is_anonymous: boolean;
+  created_at: string;
+  preview: string;
+}
+
+export const fetchIncidentGroups = (chuaXem = false) =>
+  adminFetch<{ data: NhomSuKien[] }>(`/api/admin/incident-groups${chuaXem ? '?chuaXem=1' : ''}`).then((r) => r.data);
+
+export const fetchIncidentGroupDetail = (id: number) =>
+  adminFetch<{ group: NhomSuKien; members: ThanhVienNhomSuKien[] }>(`/api/admin/incident-groups/${id}`);
+
+export const ackIncidentGroup = (id: number) =>
+  adminFetch<{ ok: boolean }>(`/api/admin/incident-groups/${id}/ack`, { method: 'POST' });

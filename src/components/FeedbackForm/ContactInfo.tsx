@@ -19,9 +19,11 @@ interface ContactInfoProps {
   onBack: () => void;
   /** Nhóm xử lý đã chọn — ẩn danh CHỈ áp dụng cho Tố giác tội phạm */
   category?: string | null;
+  /** V10: tên điểm QR đã quét (nếu có) — hiện chú thích cạnh ô chọn địa bàn */
+  qrPointName?: string | null;
 }
 
-export default function ContactInfo({ value, onChange, onNext, onBack, category }: ContactInfoProps) {
+export default function ContactInfo({ value, onChange, onNext, onBack, category, qrPointName }: ContactInfoProps) {
   // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
   const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
 
@@ -371,7 +373,9 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category 
               ))}
             </select>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Giúp cán bộ nắm được vụ việc xảy ra ở đâu để xử lý nhanh hơn.
+              {qrPointName
+                ? `Đã tự động chọn theo mã QR quét tại: ${qrPointName}. Bà con có thể đổi lại nếu chưa đúng.`
+                : 'Giúp cán bộ nắm được vụ việc xảy ra ở đâu để xử lý nhanh hơn.'}
             </p>
           </div>
         )}

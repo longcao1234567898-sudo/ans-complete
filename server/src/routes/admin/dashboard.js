@@ -49,6 +49,27 @@ router.get('/stats', async (_req, res) => {
       console.warn('Bỏ qua danh sách việc cần gấp:', e.message);
     }
 
+    /* NHÓM SỰ KIỆN TRÙNG LẶP CHƯA XEM — "nhiều người cùng báo 1 vụ việc".
+       Xem server/src/lib/duplicate.js -> timSuKienTrung() để biết cách gộp. */
+    let nhomTrungLap = [];
+    try {
+      const [rows] = await pool.query(
+        `SELECT g.id, g.submission_count, g.last_reported_at,
+                w.name AS ward_name, c.name AS category_name,
+                LEFT(s.original_content, 90) AS preview
+         FROM incident_groups g
+         LEFT JOIN wards w ON w.id = g.ward_id
+         LEFT JOIN categories c ON c.id = g.category_id
+         LEFT JOIN submissions s ON s.id = g.first_submission_id
+         WHERE g.acknowledged = FALSE AND g.submission_count >= 2
+         ORDER BY g.submission_count DESC, g.last_reported_at DESC
+         LIMIT 5`
+      );
+      nhomTrungLap = rows;
+    } catch (e) {
+      console.warn('Bỏ qua nhóm sự kiện trùng lặp:', e.message); // chưa chạy nang_cap_v11.sql
+    }
+
     // SLA — cảnh báo quá hạn / sắp hết hạn / chưa phân công
     let sla = { overdue_count: 0, near_due_count: 0, unassigned_count: 0, pending_review_count: 0 };
     try {
@@ -59,7 +80,7 @@ router.get('/stats', async (_req, res) => {
     // Che tên người gửi ở danh sách gần đây
     const recentSafe = recent.map((r) => ({ ...r, sender_name: maskName(decrypt(r.sender_name)) }));
 
-    res.json({ overview, byCategory, recent: recentSafe, sla, canGap });
+    res.json({ overview, byCategory, recent: recentSafe, sla, canGap, nhomTrungLap });
   } catch (err) {
     console.error('Lỗi thống kê:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });

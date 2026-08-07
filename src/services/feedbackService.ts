@@ -197,6 +197,21 @@ export async function fetchWards(): Promise<WardOption[]> {
   }
 }
 
+/**
+ * V10: Tra thông tin điểm QR định vị — dùng khi bà con quét mã QR dán tại
+ * hiện trường (?diem=MÃ trên đường dẫn) để tự điền sẵn địa bàn.
+ * Mã không hợp lệ hoặc chưa có backend -> trả null, form vẫn hoạt động bình thường.
+ */
+export interface QrPointInfo { name: string; ward_id: number; ward_name: string }
+export async function fetchQrPointInfo(code: string): Promise<QrPointInfo | null> {
+  if (!hasBackend || !code) return null;
+  try {
+    return await apiFetch<QrPointInfo>(`/api/submissions/qr-points/${encodeURIComponent(code)}`);
+  } catch {
+    return null;
+  }
+}
+
 
 /* ============================================================
    XÁC THỰC OTP QUA EMAIL — bắt buộc trước khi gửi ý kiến

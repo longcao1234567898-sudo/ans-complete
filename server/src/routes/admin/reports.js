@@ -44,6 +44,22 @@ router.get('/summary', async (req, res) => {
        GROUP BY DATE(created_at) ORDER BY day`, range
     );
 
+    /* Theo khung giờ trong ngày (0-23h) — phục vụ bố trí ca trực.
+       Dùng HOUR() trên created_at theo giờ MÁY CHỦ (đã đặt múi giờ VN),
+       khớp với cách "Theo ngày" ở trên đang làm. */
+    const [byHour] = await pool.query(
+      `SELECT HOUR(created_at) AS hour, COUNT(*) AS total
+       FROM submissions WHERE created_at BETWEEN ? AND ?
+       GROUP BY HOUR(created_at) ORDER BY hour`, range
+    );
+
+    /* Theo thứ trong tuần — 1=Chủ nhật...7=Thứ bảy (chuẩn DAYOFWEEK của MySQL) */
+    const [byWeekday] = await pool.query(
+      `SELECT DAYOFWEEK(created_at) AS weekday, COUNT(*) AS total
+       FROM submissions WHERE created_at BETWEEN ? AND ?
+       GROUP BY DAYOFWEEK(created_at) ORDER BY weekday`, range
+    );
+
     // Theo địa bàn
     const [byWard] = await pool.query(
       `SELECT w.name AS ward, COUNT(s.id) AS total
@@ -62,7 +78,7 @@ router.get('/summary', async (req, res) => {
        GROUP BY st.id, st.full_name ORDER BY assigned DESC`, range
     );
 
-    res.json({ from, to, overview, byCategory, byDay, byWard, byStaff });
+    res.json({ from, to, overview, byCategory, byDay, byHour, byWeekday, byWard, byStaff });
   } catch (err) {
     console.error('Lỗi báo cáo:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v2.sql chưa?' });

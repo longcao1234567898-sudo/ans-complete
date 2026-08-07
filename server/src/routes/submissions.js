@@ -10,7 +10,7 @@ import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
-import { kiemTraTrungLapGanDung } from '../lib/duplicate.js';
+import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 
 const router = Router();
 
@@ -33,6 +33,28 @@ router.get('/wards', async (_req, res) => {
     res.json(rows);
   } catch {
     res.json([]); // chưa chạy nâng cấp v2 -> trả rỗng, form vẫn dùng được
+  }
+});
+
+/**
+ * GET /api/submissions/qr-points/:code — bà con quét mã QR dán tại hiện
+ * trường, form gửi ý kiến gọi API này để tự điền sẵn địa bàn.
+ * KHÔNG cần đăng nhập — đây là mã công khai in trên giấy dán ở nơi công cộng.
+ */
+router.get('/qr-points/:code', async (req, res) => {
+  try {
+    const code = String(req.params.code || '').toUpperCase().slice(0, 8);
+    const [[point]] = await pool.query(
+      `SELECT p.name, p.ward_id, w.name AS ward_name
+       FROM qr_points p JOIN wards w ON w.id = p.ward_id
+       WHERE p.code = ? AND p.is_active = TRUE`,
+      [code]
+    );
+    if (!point) return res.status(404).json({ error: 'Mã QR không hợp lệ hoặc đã ngừng dùng.' });
+    res.json(point);
+  } catch {
+    // Chưa chạy nang_cap_v10.sql -> coi như không có, form vẫn dùng được bình thường
+    res.status(404).json({ error: 'Mã QR không hợp lệ.' });
   }
 });
 
@@ -210,6 +232,11 @@ router.post('/', async (req, res) => {
     } catch { /* chưa nâng cấp v2 -> dùng mặc định */ }
     const deadlineAt = new Date(Date.now() + slaDays * 24 * 60 * 60 * 1000);
 
+    /* 6b) GỘP SỰ KIỆN TRÙNG LẶP — "nhiều người cùng báo 1 vụ việc".
+       Tìm TRƯỚC khi lưu, vì cần so với các ý kiến ĐÃ có trong database.
+       Không chặn gì cả — chỉ để nối vào cùng 1 nhóm sau khi lưu xong. */
+    const suKienTrung = await timSuKienTrung(pool, { noiDung: content, wardId, categoryId: catId });
+
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
       `INSERT INTO submissions
@@ -244,6 +271,35 @@ router.post('/', async (req, res) => {
         trungLap.ghiChu || null,
       ]
     );
+
+    // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
+    // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không
+    // được phép làm hỏng việc bà con đã gửi thành công.
+    if (suKienTrung) {
+      try {
+        let groupId = suKienTrung.incident_group_id;
+        if (!groupId) {
+          // Ý kiến khớp chưa thuộc nhóm nào -> tạo nhóm mới gồm cả 2
+          const [g] = await pool.query(
+            `INSERT INTO incident_groups
+             (ward_id, category_id, first_submission_id, submission_count, first_reported_at, last_reported_at)
+             VALUES (?,?,?,2,?,NOW())`,
+            [wardId, catId, suKienTrung.id, suKienTrung.created_at]
+          );
+          groupId = g.insertId;
+          await pool.query('UPDATE submissions SET incident_group_id=? WHERE id=?', [groupId, suKienTrung.id]);
+        } else {
+          // Nhóm đã có sẵn -> chỉ cần cộng thêm 1
+          await pool.query(
+            'UPDATE incident_groups SET submission_count = submission_count + 1, last_reported_at = NOW(), acknowledged = FALSE WHERE id = ?',
+            [groupId]
+          );
+        }
+        await pool.query('UPDATE submissions SET incident_group_id=? WHERE id=?', [groupId, result.insertId]);
+      } catch (e) {
+        console.warn('Không gộp được vào nhóm sự kiện (bỏ qua):', e.message);
+      }
+    }
 
     // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
     if (images.length > 0) {

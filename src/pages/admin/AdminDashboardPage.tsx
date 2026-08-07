@@ -1,9 +1,10 @@
 /** Trang tổng quan: thẻ thống kê + ý kiến gần đây */
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Inbox, Clock3, CheckCircle2, XCircle, Loader2, TrendingUp } from 'lucide-react';
+import { Inbox, Clock3, CheckCircle2, XCircle, Loader2, TrendingUp, Users, Check } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { fetchDashboardStats } from '../../services/adminService';
+import { fetchDashboardStats, ackIncidentGroup } from '../../services/adminService';
 import { STATUS_META, formatDateTime } from '../../components/admin/statusMeta';
 
 export default function AdminDashboardPage() {
@@ -12,6 +13,19 @@ export default function AdminDashboardPage() {
     queryFn: fetchDashboardStats,
     refetchInterval: 30_000, // tự làm mới mỗi 30 giây
   });
+
+  // Ẩn ngay trên giao diện khi bấm "Đã xem", không cần chờ vòng làm mới 30 giây
+  const [daXemCucBo, setDaXemCucBo] = useState<Set<number>>(new Set());
+  const nhomChuaXem = (data?.nhomTrungLap ?? []).filter((n) => !daXemCucBo.has(n.id));
+
+  async function handleAckNhom(id: number) {
+    setDaXemCucBo((cur) => new Set(cur).add(id));
+    try {
+      await ackIncidentGroup(id);
+    } catch {
+      // Lỗi mạng thì thôi, vòng làm mới 30s tự đồng bộ lại — không cần báo lỗi làm phiền cán bộ
+    }
+  }
 
   return (
     <AdminLayout>
@@ -37,6 +51,42 @@ export default function AdminDashboardPage() {
             <StatCard Icon={XCircle} label="Từ chối" value={data.overview.rejected_count} color="bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300" />
             <StatCard Icon={TrendingUp} label="Hôm nay" value={data.overview.today_count} color="bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300" />
           </div>
+
+          {/* Nhóm sự kiện trùng lặp — "nhiều người cùng báo 1 vụ việc" (xem duplicate.js) */}
+          {nhomChuaXem.length > 0 && (
+            <div className="mt-6 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
+              <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-800 dark:text-amber-300">
+                <Users size={16} /> Nghi cùng một sự việc — nhiều người cùng báo
+              </h2>
+              <div className="space-y-2">
+                {nhomChuaXem.map((n) => (
+                  <div key={n.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 dark:bg-slate-900">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-slate-700 dark:text-slate-200">{n.preview}...</p>
+                      <p className="text-[11px] text-slate-400">
+                        {n.ward_name ?? 'Không rõ địa bàn'} · {n.category_name ?? ''} · mã đầu tiên <span className="font-mono">{n.first_tracking_code}</span> · {formatDateTime(n.last_reported_at)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                        {n.submission_count} người báo
+                      </span>
+                      <button
+                        onClick={() => handleAckNhom(n.id)}
+                        title="Đánh dấu đã xem"
+                        className="rounded-lg border border-slate-200 p-2 text-slate-400 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                Tự động gộp theo địa bàn + nhóm xử lý + nội dung gần giống trong vòng 30 phút. Vào từng ý kiến để xem đầy đủ trước khi xử lý.
+              </p>
+            </div>
+          )}
 
           {/* Thống kê theo nhóm */}
           <h2 className="mb-3 mt-8 text-base font-bold text-slate-800 dark:text-slate-100">Theo nhóm phân loại</h2>
