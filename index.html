@@ -35,14 +35,12 @@
       href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <!-- Áp dụng dark mode sớm để tránh nháy màn hình khi tải trang -->
-    <script>
-      try {
-        if (JSON.parse(localStorage.getItem('htans_theme')) === 'dark') {
-          document.documentElement.classList.add('dark');
-        }
-      } catch (e) {}
-    </script>
+    <!--
+      Áp dụng dark mode sớm để tránh nháy màn hình khi tải trang.
+      Để ở file riêng chứ KHÔNG viết inline: CSP chặn script inline (xem
+      public/theme-init.js). Không đặt defer/async — phải chạy xong trước khi vẽ.
+    -->
+    <script src="/theme-init.js"></script>
     <!-- Structured data cho SEO -->
     <script type="application/ld+json">
       {
