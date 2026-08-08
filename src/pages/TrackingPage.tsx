@@ -10,6 +10,7 @@ import { useTracking } from '../hooks/useTracking';
 import TrackingForm from '../components/Tracking/TrackingForm';
 import { useTrackingHistory } from '../hooks/useTrackingHistory';
 import StatusTimeline from '../components/Tracking/StatusTimeline';
+import DataRightsBox from '../components/Tracking/DataRightsBox';
 import Card from '../components/common/Card';
 import { Spinner } from '../components/common/Loading';
 import PageBackground from '../components/common/PageBackground';
@@ -127,7 +128,12 @@ export default function TrackingPage() {
         </div>
       )}
 
-      {data && !isLoading && !isFetching && <StatusTimeline result={data} />}
+      {data && !isLoading && !isFetching && (
+        <>
+          <StatusTimeline result={data} />
+          <DataRightsBox code={data.code} />
+        </>
+      )}
 
       {/* Chỉ mount + tải thư viện quét QR khi người dùng bấm nút quét */}
       {scannerOpen && (
