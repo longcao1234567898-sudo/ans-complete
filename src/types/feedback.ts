@@ -32,6 +32,14 @@ export interface AIAnalysisResult {
   suggestedUrgency?: UrgencyLevel;
   /** V6: lý do AI chọn mức đó (một câu ngắn) */
   urgencyReason?: string;
+  /* --- Kết quả kiemTraDuRo() ở backend (server/src/lib/phan-loai.js) ---
+     Vắng mặt khi chạy chế độ offline (không có backend) -> coi như đủ rõ. */
+  /** false = hệ thống chưa xác định được bà con đang trình báo việc gì */
+  duRo?: boolean;
+  /** Câu giải thích vì sao nội dung chưa đủ rõ */
+  lyDo?: string;
+  /** Những thông tin còn thiếu, gợi ý bà con bổ sung */
+  goiY?: string[];
 }
 
 /** Thông tin liên hệ (tất cả đều không bắt buộc) */
@@ -47,6 +55,10 @@ export interface ContactInfo {
   otpToken?: string;
   /** V4: gửi ẩn danh — không cung cấp danh tính, bảo vệ người tố giác */
   isAnonymous?: boolean;
+  /** Mã phiên ẩn danh do máy chủ cấp cùng mã xác thực; gửi kèm lúc nộp ý kiến
+   *  để máy chủ đối chiếu đúng "vé" của bà con (trước đây khớp theo IP nên
+   *  mạng 4G đổi IP giữa chừng là báo "phiên không khớp"). */
+  anonId?: string;
 }
 
 /** Bản nháp ý kiến trong quá trình đi qua 5 bước của form */

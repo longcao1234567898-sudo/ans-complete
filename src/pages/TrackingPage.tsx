@@ -10,7 +10,6 @@ import { useTracking } from '../hooks/useTracking';
 import TrackingForm from '../components/Tracking/TrackingForm';
 import { useTrackingHistory } from '../hooks/useTrackingHistory';
 import StatusTimeline from '../components/Tracking/StatusTimeline';
-import DataRightsBox from '../components/Tracking/DataRightsBox';
 import Card from '../components/common/Card';
 import { Spinner } from '../components/common/Loading';
 import PageBackground from '../components/common/PageBackground';
@@ -46,7 +45,7 @@ export default function TrackingPage() {
 
   return (
     <>
-      <PageBackground image="bg-lang-noi.webp" />
+      <PageBackground video="bg-lang-noi.mp4" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Tra cứu tiến độ</h1>
@@ -128,12 +127,7 @@ export default function TrackingPage() {
         </div>
       )}
 
-      {data && !isLoading && !isFetching && (
-        <>
-          <StatusTimeline result={data} />
-          <DataRightsBox code={data.code} />
-        </>
-      )}
+      {data && !isLoading && !isFetching && <StatusTimeline result={data} />}
 
       {/* Chỉ mount + tải thư viện quét QR khi người dùng bấm nút quét */}
       {scannerOpen && (

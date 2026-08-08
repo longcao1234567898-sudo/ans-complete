@@ -1,11 +1,21 @@
-/** API báo cáo thống kê + dữ liệu bản đồ điểm nóng */
+/**
+ * API báo cáo thống kê + dữ liệu bản đồ điểm nóng.
+ * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
+ */
 import { Router } from 'express';
 import { pool } from '../../db.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
-import { requireAuth } from '../../middleware/auth.js';
+import { authorize } from '../../middleware/authorize.js';
 
 const router = Router();
-router.use(requireAuth);
+
+/* CHỈ LÃNH ĐẠO ĐƯỢC XEM BÁO CÁO.
+   /details xuất tới 2000 dòng nội dung tin báo, /summary + /map cho thấy toàn
+   cảnh số liệu địa bàn. Trước đây mọi cán bộ handler đều tải được — một lần
+   tải là mang đi được gần như toàn bộ dữ liệu nghiệp vụ, mà nhật ký lại chỉ
+   admin/manager mới xem (logs.js), nên hành vi đó gần như vô hình.
+   Chốt ở tầng router để endpoint báo cáo thêm mới sau này cũng được bảo vệ. */
+router.use(authorize('admin', 'manager'));
 
 /** GET /api/admin/reports/summary?from=&to= — số liệu tổng hợp để xem + xuất Excel */
 router.get('/summary', async (req, res) => {

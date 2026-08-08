@@ -8,6 +8,11 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import bcrypt from 'bcryptjs';
+/* Cần biến môi trường hợp lệ: test này nay IMPORT routes/auth.js để lấy
+   DUMMY_HASH thật, mà auth.js -> lib/token.js sẽ ném lỗi nếu thiếu khoá. */
+import { datBienMoiTruongHopLe } from './helpers-test.js';
+
+datBienMoiTruongHopLe();
 
 const doc = (p) => readFile(new URL(p, import.meta.url), 'utf8');
 
@@ -17,12 +22,16 @@ describe('A07 — dummyHash phải khiến sai-tên và sai-mật-khẩu tốn t
      Đo thời gian phản hồi là biết tài khoản nào CÓ THẬT — đúng lỗ hổng mà đoạn
      mã đó tưởng mình đang chống (G6). Có phòng thủ trên giấy, không có thật. */
 
-  /** Lấy đúng chuỗi dummyHash đang dùng trong routes/auth.js */
+  /* Lấy đúng chuỗi dummyHash đang dùng trong routes/auth.js.
+
+     Bản trước bới chuỗi cứng ra khỏi mã nguồn bằng regex. Nay auth.js SINH
+     hash lúc nạp module (bcrypt.hashSync) thay vì gõ tay — cách đó bảo đảm
+     luôn đúng định dạng và luôn khớp cost, chính là thứ bản gõ tay làm sai.
+     Vì vậy test đọc GIÁ TRỊ THẬT được export ra, chắc chắn hơn đọc mã nguồn. */
   async function layDummyHash() {
-    const nguon = await doc('../src/routes/auth.js');
-    const khop = /const dummyHash = '([^']+)'/.exec(nguon);
-    assert.ok(khop, 'Không tìm thấy dummyHash trong routes/auth.js');
-    return khop[1];
+    const { DUMMY_HASH } = await import('../src/routes/auth.js');
+    assert.ok(DUMMY_HASH, 'routes/auth.js phải export DUMMY_HASH để kiểm chứng được');
+    return DUMMY_HASH;
   }
 
   test('dummyHash là bcrypt HỢP LỆ, đúng 60 ký tự', async () => {
@@ -107,11 +116,17 @@ describe('A01/A10 — chỉ nhận link ảnh từ miền đã cho phép', () =>
      mỗi lần cán bộ mở tin, trình duyệt cán bộ tự gọi sang đó, lộ IP + User-Agent
      + đúng thời điểm hồ sơ được xem. Đó là kênh do thám hoạt động điều tra. */
 
-  test('routes/submissions.js có kiểm tra link ảnh trước khi lưu', async () => {
+  /* Phép kiểm đã DỌN RA lib/anh-an-toan.js (trước nằm ngay trong submissions.js
+     dưới tên laLinkAnhAnToan/laDataUrlAnh). Kiểm ở nơi nó thật sự sống, và kiểm
+     rằng submissions.js vẫn GỌI nó — tách file mà quên gọi thì lỗ hổng quay lại
+     y nguyên, chỉ khác chỗ nấp. */
+  test('lib/anh-an-toan.js chặn theo miền, và submissions.js có gọi', async () => {
+    const lib = await doc('../src/lib/anh-an-toan.js');
+    assert.match(lib, /protocol !== 'https:'/, 'Chỉ nhận HTTPS');
+    assert.match(lib, /res\.cloudinary\.com/, 'Phải khoá đúng miền kho ảnh của đơn vị');
+
     const nguon = await doc('../src/routes/submissions.js');
-    assert.match(nguon, /function laLinkAnhAnToan/);
-    assert.match(nguon, /function laDataUrlAnh/);
-    assert.match(nguon, /\.filter\(Boolean\)/, 'Phải loại bỏ ảnh không hợp lệ, không lưu bừa');
+    assert.match(nguon, /locDanhSachAnh/, 'submissions.js phải gọi bộ lọc ảnh trước khi lưu');
   });
 
   test('chỉ chấp nhận HTTPS trỏ đúng miền, chặn http/javascript/miền lạ', async () => {
@@ -212,7 +227,8 @@ describe('A05 — header bảo mật phải có ở CẢ Netlify lẫn Vercel', 
 describe('A04 — tham số phân trang luôn có chặn trên', () => {
   test('news.js chặn limit tối đa, không cho kéo cả bảng', async () => {
     const nguon = await doc('../src/routes/news.js');
-    assert.match(nguon, /Math\.min\(100/, 'limit phải có chặn trên');
+    assert.match(nguon, /MAX_LIMIT = 100|Math\.min\(100/, 'limit phải có chặn trên');
+    assert.match(nguon, /Math\.min\(/, 'chặn trên phải được ÁP DỤNG, không chỉ khai báo');
     assert.match(nguon, /ORDER BY published_at DESC LIMIT \?/, 'phải LUÔN có LIMIT');
   });
 
