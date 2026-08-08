@@ -1,0 +1,57 @@
+# Cấu hình deploy backend lên Render (Blueprint)
+services:
+  - type: web
+    name: hop-thu-an-ninh-so-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: hop_thu_an_ninh_so
+      - key: DB_SSL
+        value: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+
+      # ======================================================================
+      # KHOÁ BÍ MẬT — BẮT BUỘC, KHÔNG CÓ GIÁ TRỊ MẶC ĐỊNH
+      #
+      # ⚠️ Trước đây file này THIẾU cả 5 biến dưới. Ai dựng lại dịch vụ từ
+      #    file này sẽ có một máy chủ chạy được nhưng:
+      #      · JWT_SECRET rơi về giá trị dự phòng ghi trong mã nguồn công khai
+      #        -> bất kỳ ai cũng tự ký được token quản trị
+      #      · ENCRYPTION_KEY trống -> hệ thống từ chối nhận ý kiến có danh tính
+      #
+      #    Nay khai báo đủ. "sync: false" nghĩa là Render sẽ HỎI giá trị lúc
+      #    dựng, không lưu trong file — nên file này an toàn để đưa lên GitHub.
+      # ======================================================================
+      - key: JWT_SECRET
+        sync: false            # chuỗi ngẫu nhiên >= 32 ký tự. Thiếu -> máy chủ KHÔNG khởi động
+      - key: ENCRYPTION_KEY
+        sync: false            # 64 ký tự hex. ⚠️ ĐỔI = MẤT VĨNH VIỄN danh tính đã mã hoá
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_USER
+        sync: false
+
+      # Model AI — đổi được mà không cần sửa mã nguồn
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-3.5-flash
+
+      - key: NODE_ENV
+        value: production

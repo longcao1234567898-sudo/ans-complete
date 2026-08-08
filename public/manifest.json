@@ -1,0 +1,13 @@
+{
+  "name": "Hộp Thư An Ninh Số",
+  "short_name": "HT An Ninh Số",
+  "description": "Tiếp nhận ý kiến công dân thông minh với AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1B5E20",
+  "lang": "vi",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
