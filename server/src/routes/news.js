@@ -18,18 +18,11 @@ router.get('/', async (req, res) => {
       sql += ' AND category = ?';
       params.push(TAG_TO_CAT[tag]);
     }
-    /* LIMIT là KHÔNG ĐIỀU KIỆN — luôn nối vào câu lệnh.
-       Bản trước chỉ thêm LIMIT khi client có gửi ?limit=, nên gọi trần
-       /api/news là kéo cả bảng tin tức về trong một lời gọi. Endpoint này
-       công khai, không cần đăng nhập, nên đó là đường làm nghẽn máy chủ
-       rẻ nhất mà ai cũng gọi được. */
-    const MAX_LIMIT = 100;
-    const soYeuCau = Number(limit);
-    const soLay = Number.isFinite(soYeuCau) && soYeuCau > 0
-      ? Math.min(Math.floor(soYeuCau), MAX_LIMIT)
-      : MAX_LIMIT;
-    sql += ' ORDER BY published_at DESC LIMIT ?';
-    params.push(soLay);
+    sql += ' ORDER BY published_at DESC';
+    if (limit) {
+      sql += ' LIMIT ?';
+      params.push(Number(limit));
+    }
     const [rows] = await pool.query(sql, params);
 
     res.json(

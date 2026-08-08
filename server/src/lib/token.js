@@ -23,7 +23,7 @@ import crypto from 'node:crypto';
    hỏng đã áp dụng cho khoá mã hoá danh tính — thà không chạy còn hơn chạy mà
    mở toang cửa quản trị.
    ============================================================================ */
-export const JWT_SECRET = (() => {
+const JWT_SECRET = (() => {
   const s = (process.env.JWT_SECRET || '').trim();
 
   if (!s) {

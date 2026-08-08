@@ -136,38 +136,9 @@ export function maskName(name) {
     .join(' ');
 }
 
-/* ===== BĂM ĐỊNH DANH — CÓ PEPPER =====
-   Pepper nằm ở biến môi trường, KHÔNG nằm trong database -> lộ database vẫn
-   không dò ngược được.
-
-   Đây là điểm khác biệt then chốt so với SHA-256 trần dùng trước đây: miền giá
-   trị SĐT di động Việt Nam chỉ khoảng 10^8, dựng bảng tra ngược toàn bộ mất vài
-   phút trên laptop. Nghĩa là cột sender_phone_hash đã PHÁ VỠ HOÀN TOÀN lớp
-   AES-256-GCM của cột sender_phone nằm ngay bên cạnh. */
-let cachedPepper;
-function getPepper() {
-  if (cachedPepper !== undefined) return cachedPepper;
-  const p = (process.env.HASH_PEPPER || '').trim();
-  if (p.length < 32) {
-    throw new Error(
-      'HASH_PEPPER chưa đặt hoặc quá ngắn (cần tối thiểu 32 ký tự). ' +
-      'Tạo: openssl rand -hex 32'
-    );
-  }
-  cachedPepper = p;
-  return cachedPepper;
-}
-
-/** Băm một định danh (SĐT, email, IP) theo cách KHÔNG dò ngược được. */
-export function hashIdentifier(value) {
-  return crypto.createHmac('sha256', getPepper())
-               .update(String(value ?? ''))
-               .digest('hex');
-}
-
 /** Băm SĐT để dò spam mà không lộ số thật */
 export function hashPhone(phone) {
-  return hashIdentifier(phone);
+  return crypto.createHash('sha256').update(String(phone || '')).digest('hex');
 }
 
 export function encryptionEnabled() {

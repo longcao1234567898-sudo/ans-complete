@@ -9,8 +9,6 @@ import type { NewsTag } from '../types/news';
 /** Thông tin đơn vị vận hành hệ thống */
 export const UNIT = {
   name: 'Công an thị xã Tân Châu',
-  /** Tên rút gọn — dùng ở chỗ hẹp: nút gọi khẩn cấp, chân phiếu mã tra cứu */
-  shortName: 'Công an thị xã Tân Châu',
   communeName: 'thị xã Tân Châu',
   province: 'tỉnh An Giang',
   address: 'Số 16 Phạm Hùng, khóm Long Thị D, phường Long Thạnh, thị xã Tân Châu, tỉnh An Giang',

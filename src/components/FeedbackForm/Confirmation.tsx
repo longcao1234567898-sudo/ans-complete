@@ -35,10 +35,9 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
     if (!submission || autoSaved.current) return;
     autoSaved.current = true;
     const t = setTimeout(() => {
-      // Trả về false = trình duyệt chặn tải tự động -> bà con bấm nút thủ công
-      if (downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
-        setSavedReceipt(true);
-      }
+      downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })
+        .then(() => setSavedReceipt(true))
+        .catch(() => { /* trình duyệt chặn tải tự động -> bà con bấm nút thủ công */ });
     }, 900); // chờ chút cho màn hình hiện xong rồi mới tải
     return () => clearTimeout(t);
   }, [submission]);
@@ -121,9 +120,9 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             </button>
             <button
               onClick={() => {
-                if (downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
-                  setSavedReceipt(true);
-                }
+                downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })
+                  .then(() => setSavedReceipt(true))
+                  .catch(() => { /* bỏ qua */ });
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700"
             >

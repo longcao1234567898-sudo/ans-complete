@@ -12,20 +12,6 @@ import {
 
 const router = Router();
 
-/* HASH GIẢ để so sánh khi KHÔNG tìm thấy tài khoản — chống dò tên đăng nhập
-   bằng cách đo thời gian phản hồi.
-
-   ⚠️ PHẢI LÀ BCRYPT THẬT, HỢP LỆ. Bản trước dùng chuỗi tự gõ
-   '$2a$12$0000...' — chỉ dài 59 ký tự, sai định dạng, nên bcrypt.compare()
-   phát hiện hỏng và trả về false NGAY LẬP TỨC (~0.4ms) thay vì tính toán
-   ~200ms như với hash thật. Kết quả: sai-tên-tài-khoản trả lời nhanh hơn hẳn
-   sai-mật-khẩu -> kẻ tấn công đo thời gian là liệt kê được tài khoản nào có
-   thật, đúng thứ mà lớp phòng thủ này sinh ra để ngăn.
-
-   Sinh lúc nạp module: tốn ~200ms một lần duy nhất, đổi lại luôn đúng định
-   dạng và luôn khớp chi phí (cost) với hash thật trong database. */
-export const DUMMY_HASH = bcrypt.hashSync('khong-bao-gio-trung-mat-khau-that', 12);
-
 // Chống dò mật khẩu: tối đa 5 lần đăng nhập / 15 phút / IP
 const loginLimiter = rateLimit({
   windowMs: 15 * 60_000,
@@ -126,7 +112,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     // Luôn so sánh bcrypt kể cả khi không tìm thấy user -> chống dò tài khoản qua thời gian phản hồi
-    const ok = await bcrypt.compare(password, staff?.password_hash || DUMMY_HASH);
+    const dummyHash = '$2a$12$0000000000000000000000000000000000000000000000000000';
+    const ok = await bcrypt.compare(password, staff?.password_hash || dummyHash);
 
     if (!staff || !ok) {
       // GHI VẾT — trước đây chỉ ghi lần đăng nhập THÀNH CÔNG, nên không

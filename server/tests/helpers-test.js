@@ -6,15 +6,8 @@
  * qua tham số, nên chỉ cần một pool giả trả dữ liệu dựng sẵn.
  */
 
-/* Khoá hợp lệ để nạp được lib/token.js và lib/crypto.js trong test.
-
-   ⚠️ KHÔNG được chứa các chuỗi trong danh sách cấm của lib/token.js
-   ('jwt-secret', 'changeme', 'your-secret', 'my-secret', 'secretkey',
-   'doi-secret-nay-trong-file-env'). Giá trị cũ là 'test-jwt-secret-...' —
-   chứa đúng 'jwt-secret' nên token.js NÉM LỖI ngay lúc import, kéo đổ dây
-   chuyền hơn 20 test ở các file khác và làm cả bộ test mất tác dụng gác
-   hồi quy. Cũng cần đủ 8 ký tự KHÁC NHAU để qua phép kiểm tra entropy. */
-export const TEST_JWT_SECRET = 'khoa-thu-nghiem-0123456789abcdef0123456789abcdef';
+/** Khoá hợp lệ để nạp được lib/token.js và lib/crypto.js trong test */
+export const TEST_JWT_SECRET = 'test-jwt-secret-du-32-ky-tu-0123456789';
 export const TEST_PEPPER = 'test-pepper-du-32-ky-tu-abcdefghijklmn';
 export const TEST_ENCRYPTION_KEY = 'a'.repeat(64);
 

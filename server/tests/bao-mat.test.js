@@ -35,43 +35,31 @@ describe('Bảo mật — chặn xác thực trang quản trị', () => {
       'router.use(requireAuth) phải đặt TRƯỚC các router con, nếu không sẽ vô tác dụng');
   });
 
-  /* ĐÃ ĐỔI CÁCH KIỂM — đọc kỹ trước khi sửa lại.
+  /* Từng router con cũng phải tự chặn — phòng khi được gắn ở chỗ khác.
+     trash.js và kiosk.js từng thiếu, khiến bất kỳ ai đọc được toàn bộ tin báo
+     đã xoá kèm danh tính người tố giác, và chèn được tin báo giả. */
+  const ROUTER = ['submissions', 'dashboard', 'banned-words', 'staff',
+                  'reports', 'logs', 'kiosk', 'trash'];
 
-     Bản cũ bắt TỪNG router con phải tự gọi requireAuth. Ý định đúng, nhưng
-     cách làm đó dựa vào việc người viết KHÔNG QUÊN — và đã quên thật:
-     trash.js, kiosk.js từng ghi trong chú thích "Route nằm sau requireAuth"
-     mà không hề gọi, nên toàn bộ thùng rác (kèm danh tính người tố giác) đọc
-     được từ Internet.
+  for (const ten of ROUTER) {
+    test(`${ten}.js — có import VÀ có gọi requireAuth`, () => {
+      const s = doc(`routes/admin/${ten}.js`);
 
-     Nay chặn ở TẦNG CHA (routes/admin/index.js, đã kiểm ở test phía trên),
-     nên router con thêm mới sau này cũng được bảo vệ mà không cần nhớ gì.
-     Vì thế bắt router con lặp lại requireAuth là thừa, và giữ nguyên test cũ
-     sẽ ép người ta thêm lại mã trùng lặp vô ích.
+      assert.match(s, /^import \{[^}]*requireAuth[^}]*\} from/m,
+        `${ten}.js phải IMPORT requireAuth`);
 
-     Điều CẦN kiểm bây giờ là tính chất thật sự bảo đảm an toàn: MỌI file
-     router trong routes/admin/ đều được index.js gắn vào — không file nào
-     bị mount ở nơi khác, ngoài tầm phủ của requireAuth. */
-  test('MỌI router con trong routes/admin/ đều được index.js gắn vào (không lọt ra ngoài requireAuth)', () => {
-    const indexSrc = doc('routes/admin/index.js');
-    const files = fs.readdirSync(path.join(SRC, 'routes/admin'))
-      .filter((f) => f.endsWith('.js') && f !== 'index.js');
+      /* Bỏ hết chú thích trước khi kiểm — trash.js và kiosk.js từng nhắc
+         requireAuth trong chú thích ("Route nằm sau requireAuth") mà không hề
+         gọi. Chú thích khẳng định một tính chất an toàn không tồn tại còn
+         nguy hiểm hơn là không viết gì. */
+      const khongChuThich = s
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/[^\n]*/g, '');
 
-    for (const f of files) {
-      assert.ok(
-        indexSrc.includes(`./${f}`),
-        `routes/admin/${f} không được index.js import — nếu nó được gắn ở chỗ khác `
-        + 'thì nằm NGOÀI requireAuth và mở ra Internet.'
-      );
-    }
-  });
-
-  /* Chặn kiểu chú thích nói dối: file khẳng định mình được bảo vệ mà thực tế
-     không nằm sau lớp chặn nào. Đây chính là cái bẫy đã sập với trash.js. */
-  test('không router con nào tự gắn requireAuth rồi lại thiếu ở index.js', () => {
-    const indexSrc = doc('routes/admin/index.js');
-    assert.match(indexSrc, /router\.use\(requireAuth\)/,
-      'Tầng cha là nơi DUY NHẤT chặn — mất dòng này là mọi router con hở');
-  });
+      assert.match(khongChuThich, /router\.use\(\s*requireAuth/,
+        `${ten}.js phải GỌI router.use(requireAuth) — import không thôi là vô nghĩa`);
+    });
+  }
 });
 
 describe('Bảo mật — khoá ký phiên đăng nhập', () => {

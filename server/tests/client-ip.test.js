@@ -11,8 +11,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-// Hàm đã đổi tên clientIp -> layIpThat; giữ tên cũ trong test cho dễ đọc
-import { layIpThat as clientIp } from '../src/lib/helpers.js';
+import { clientIp } from '../src/lib/helpers.js';
 
 test('KHÔNG lấy giá trị từ header x-forwarded-for do client tự đặt', () => {
   const req = { ip: '203.0.113.9', headers: { 'x-forwarded-for': '1.2.3.4' } };
@@ -56,15 +55,9 @@ test('không còn chỗ nào trong server/src đọc x-forwarded-for thủ công
       if (muc.isDirectory()) ketQua.push(...await quet(duong));
       else if (muc.name.endsWith('.js')) {
         const nguon = await readFile(duong, 'utf8');
-        /* Bắt việc ĐỌC header, không bắt phần comment giải thích vì sao không đọc
-           (comment đó là tài sản — nó ngăn người sau vô tình làm lại).
-           Ý định này đã ghi từ đầu nhưng phần kiểm bên dưới quét cả comment,
-           nên helpers.js — đúng file trích lại dòng nguy hiểm cũ để cảnh báo —
-           lại bị chính test báo đỏ. Nay bỏ comment ra trước khi quét. */
-        const khongChuThich = nguon
-          .replace(/\/\*[\s\S]*?\*\//g, '')
-          .replace(/\/\/[^\n]*/g, '');
-        if (/headers\s*\[\s*['"]x-forwarded-for['"]/i.test(khongChuThich)) ketQua.push(muc.name);
+        // Bắt việc ĐỌC header, không bắt phần comment giải thích vì sao không đọc
+        // (comment đó là tài sản — nó ngăn người sau vô tình làm lại).
+        if (/headers\s*\[\s*['"]x-forwarded-for['"]/i.test(nguon)) ketQua.push(muc.name);
       }
     }
     return ketQua;

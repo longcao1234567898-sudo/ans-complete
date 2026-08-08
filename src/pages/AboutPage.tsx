@@ -30,7 +30,7 @@ const PROCESS_STEPS = [
 export default function AboutPage() {
   return (
     <>
-      <PageBackground video="bg-nui-sam.mp4" />
+      <PageBackground image="bg-nui-sam.webp" />
       <div className="container-page max-w-3xl py-10 sm:py-14">
       <div className="mb-10 text-center">
         <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-4 py-1.5 text-xs font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">

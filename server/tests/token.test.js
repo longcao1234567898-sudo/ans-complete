@@ -32,35 +32,12 @@ test('JWT_SECRET chỉ toàn khoảng trắng -> NÉM LỖI (phải trim trướ
   await assert.rejects(() => napLai(DUONG_DAN, { JWT_SECRET: ' '.repeat(40) }), /JWT_SECRET/);
 });
 
-test('chuỗi mặc định cũ KHÔNG còn được dùng làm giá trị dự phòng', async () => {
+test('KHÔNG còn chuỗi mặc định cũ ở bất kỳ đâu trong module', async () => {
   const { readFile } = await import('node:fs/promises');
   const nguon = await readFile(new URL(DUONG_DAN, import.meta.url), 'utf8');
-
-  /* Bản trước của test này cấm chuỗi đó xuất hiện Ở BẤT KỲ ĐÂU. Nay token.js
-     đưa nó vào DANH SÁCH CẤM để chủ động từ chối — đó là dùng ĐÚNG, mạnh hơn
-     hẳn việc chỉ xoá đi (xoá thì ai điền lại giá trị cũ vẫn lọt).
-     Thứ phải cấm là dùng nó làm GIÁ TRỊ DỰ PHÒNG. */
-  /* Bỏ chú thích trước khi kiểm: token.js CỐ Ý trích lại dòng nguy hiểm cũ
-     trong chú thích để người đọc hiểu vì sao phải đổi. Trích dẫn trong chú
-     thích không phải mã đang chạy. */
-  const khongChuThich = nguon
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/[^\n]*/g, '');
-
   assert.ok(
-    !/process\.env\.JWT_SECRET\s*\|\|\s*['"]doi-secret-nay-trong-file-env/.test(khongChuThich),
-    'Không được dùng chuỗi mặc định làm giá trị dự phòng — thiếu khoá thì phải NÉM LỖI'
-  );
-  assert.ok(
-    nguon.includes('doi-secret-nay-trong-file-env'),
-    'Chuỗi cũ phải nằm trong danh sách cấm để từ chối nếu ai đó điền lại'
-  );
-});
-
-test('secret trùng chuỗi mặc định cũ -> NÉM LỖI', async () => {
-  await assert.rejects(
-    () => napLai(DUONG_DAN, { JWT_SECRET: 'doi-secret-nay-trong-file-env-them-vai-ky-tu' }),
-    /mặc định/
+    !nguon.includes('doi-secret-nay-trong-file-env'),
+    'Chuỗi secret mặc định cũ phải bị xoá hẳn, không được để lại kể cả trong comment'
   );
 });
 

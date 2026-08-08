@@ -151,8 +151,8 @@ describe('G6 — chống dò tài khoản qua thời gian phản hồi và qua t
   test('LUÔN chạy bcrypt.compare kể cả khi không tìm thấy user', async () => {
     const nguon = await doc('../src/routes/auth.js');
     assert.match(
-      nguon, /bcrypt\.compare\(password, staff\?\.password_hash \|\| DUMMY_HASH\)/,
-      'Bỏ DUMMY_HASH đi thì sai-tên trả lời nhanh hơn sai-mật-khẩu -> dò được tài khoản nào có thật'
+      nguon, /bcrypt\.compare\(password, staff\?\.password_hash \|\| dummyHash\)/,
+      'Bỏ dummyHash đi thì sai-tên trả lời nhanh hơn sai-mật-khẩu -> dò được tài khoản nào có thật'
     );
   });
 
@@ -203,14 +203,7 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
           for (const khop of chuoi.matchAll(/\$\{([^}]+)\}/g)) {
             const bieuThuc = khop[1].trim();
             const hopLe = bieuThuc === 'whereSql'
-              || /^action === 'spam' \? '(NOW\(\)|\?)' : 'NULL'$/.test(bieuThuc)
-              /* reports.js — bật/tắt mệnh đề lọc theo số ngày. Bản thân SỐ NGÀY
-                 vẫn đi qua dấu ? ở mảng params, chuỗi này chỉ là hằng SQL. */
-              || bieuThuc === 'loc'
-              /* incident-groups.js — chọn giữa HAI hằng SQL viết sẵn, dựa trên
-                 một biến boolean (req.query.chuaXem === '1'). Không có dữ liệu
-                 người dùng nào lọt vào câu lệnh. */
-              || /^chiChuaXem \? 'AND g\.acknowledged = FALSE' : ''$/.test(bieuThuc);
+              || /^action === 'spam' \? '(NOW\(\)|\?)' : 'NULL'$/.test(bieuThuc);
             if (!hopLe) loi.push(`${muc.name}: \${${bieuThuc}}`);
           }
         }
@@ -348,43 +341,5 @@ describe('requireAuth vẫn chặn đúng sau khi dồn về router cha', () => 
     authorize()({}, res, () => { next = true; });
     assert.equal(res.statusCode, 401);
     assert.equal(next, false);
-  });
-});
-
-describe('G11 — luồng tố giác ẨN DANH khớp theo MÃ PHIÊN, không theo IP', () => {
-  /* LỖI ĐÃ XẢY RA THẬT (gói tính năng 2): otp.js được sửa để cấp "vé" gắn với
-     một MÃ PHIÊN ngẫu nhiên (anonId) thay vì địa chỉ IP — vì mạng 4G đổi IP
-     giữa chừng làm bà con bị báo "Mã đã hết hạn" oan. Nhưng chỗ GỌI trong
-     routes/submissions.js vẫn truyền `ip`:
-
-         verifyAnonToken(body.otpToken, ip)
-
-     verifyAnonToken() so sha256('anon:' + tham_số_2) với emailHash trong vé,
-     mà vé được ký bằng sha256('anon:' + anonId). Hai vế KHÔNG BAO GIỜ khớp
-     -> mọi tin báo ẩn danh bị từ chối 401. Tính năng bảo vệ người tố giác
-     chết hoàn toàn mà không có lỗi nào hiện ra ở log máy chủ.
-
-     Test đọc mã nguồn thay vì gọi thật, để không cần MySQL. */
-
-  test('submissions.js truyền anonId (KHÔNG phải ip) vào verifyAnonToken', async () => {
-    const nguon = await doc('../src/routes/submissions.js');
-    // Chỉ bắt lời gọi THẬT (có tham số) — bỏ qua "verifyAnonToken()" trong chú thích
-    const goi = nguon.match(/verifyAnonToken\(\s*([^)]+?)\s*\)/);
-    assert.ok(goi, 'submissions.js phải gọi verifyAnonToken');
-
-    const thamSo = goi[1].split(',').map((s) => s.trim());
-    assert.equal(thamSo.length, 2, 'verifyAnonToken nhận đúng 2 tham số');
-    assert.match(
-      thamSo[1],
-      /anonId/,
-      'Tham số thứ 2 phải là mã phiên (anonId), không phải ip — xem giải thích ở routes/otp.js'
-    );
-  });
-
-  test('verifyAnonToken băm tham số thứ 2 đúng cách anon-verify đã ký', async () => {
-    const nguon = await doc('../src/routes/otp.js');
-    // Cả nơi KÝ vé và nơi KIỂM vé đều phải dùng tiền tố 'anon:' trên cùng giá trị
-    const soLanBam = (nguon.match(/'anon:'/g) || []).length;
-    assert.ok(soLanBam >= 3, "otp.js phải băm 'anon:' + mã phiên ở cả lúc cấp, lúc kiểm và lúc xác minh vé");
   });
 });

@@ -123,9 +123,7 @@ router.post('/submit', async (req, res) => {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
         [
-          // req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
-          // như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ.
-          req.staff.id,
+          req.staff?.id ?? null,
           'kiosk_submit',
           'submission',
           result.insertId,

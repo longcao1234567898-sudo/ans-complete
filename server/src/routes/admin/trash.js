@@ -107,8 +107,7 @@ router.post('/:id/restore', async (req, res) => {
     try {
       await pool.query(
         'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        // req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh
-        [req.staff.id, 'trash_restore', 'submission', req.params.id,
+        [req.staff?.id ?? null, 'trash_restore', 'submission', req.params.id,
          'Khôi phục tin từ thùng rác', layIpThat(req)]
       );
     } catch { /* bỏ qua nếu chưa có bảng nhật ký */ }
@@ -123,7 +122,7 @@ router.post('/:id/restore', async (req, res) => {
 /** DELETE /api/admin/trash/:id — xoá vĩnh viễn NGAY (không chờ hết 7 ngày) */
 router.delete('/:id', async (req, res) => {
   // Chỉ admin mới được xoá vĩnh viễn — tránh cán bộ thường xoá mất chứng cứ
-  if (req.staff.role !== 'admin') {
+  if (req.staff?.role !== 'admin') {
     return res.status(403).json({ error: 'Chỉ quản trị viên mới được xoá vĩnh viễn.' });
   }
 
@@ -153,7 +152,7 @@ router.delete('/:id', async (req, res) => {
 
 /** DELETE /api/admin/trash — dọn sạch toàn bộ thùng rác (chỉ admin) */
 router.delete('/', async (req, res) => {
-  if (req.staff.role !== 'admin') {
+  if (req.staff?.role !== 'admin') {
     return res.status(403).json({ error: 'Chỉ quản trị viên mới được dọn sạch thùng rác.' });
   }
   try {
