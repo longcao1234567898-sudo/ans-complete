@@ -1,0 +1,360 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Nền tảng ---------- */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply antialiased;
+  }
+  /* Tôn trọng người dùng tắt animation (accessibility) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ---------- Component dùng chung ---------- */
+@layer components {
+  /* Hiệu ứng glassmorphism nhẹ */
+  /* Glass: nền trắng đục 92% KHÔNG dùng backdrop-blur — backdrop-blur bắt GPU
+     làm mờ lại toàn bộ nền sau mỗi khung hình khi cuộn, là thủ phạm chính gây giật */
+  .glass {
+    @apply bg-white/[.92] border border-white/60 dark:bg-slate-900/[.92] dark:border-slate-700/50;
+  }
+  /* Khung nội dung trang */
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-slate-200 dark:bg-slate-700/60;
+  }
+  /* Pattern hình học subtle cho hero */
+  .hero-pattern {
+    background-image: radial-gradient(rgba(27, 94, 32, 0.1) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .dark .hero-pattern {
+    background-image: radial-gradient(rgba(52, 211, 153, 0.12) 1px, transparent 1px);
+  }
+}
+
+/* ---------- Thanh cuộn ---------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300 dark:bg-slate-600;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Nội dung markdown trong chat ---------- */
+.chat-markdown p {
+  @apply mb-2 last:mb-0;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  @apply mb-2 ml-4 list-disc space-y-1;
+}
+.chat-markdown ol {
+  @apply list-decimal;
+}
+.chat-markdown code {
+  @apply rounded bg-slate-200/80 px-1 py-0.5 text-[0.85em] dark:bg-slate-700;
+}
+.chat-markdown strong {
+  @apply font-semibold;
+}
+
+/* ---------- Hiệu ứng sống động ---------- */
+@layer components {
+  /* Chữ gradient chuyển động (dùng cho tiêu đề hero) */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent;
+    background-size: 200% auto;
+  }
+}
+
+/* ---------- Chuyển trang bằng CSS thuần ---------- */
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-page {
+  animation: page-fade-in 0.18s ease-out both;
+}
+
+/* =====================================================================
+   HIỆU ỨNG LÀM ĐẸP GIAO DIỆN (V6)
+   ===================================================================== */
+
+/* ---------- Thẻ nổi lên khi rê chuột (mượt hơn bản cũ) ---------- */
+.card-lift {
+  transition: transform 0.35s cubic-bezier(0.21, 0.65, 0.36, 1),
+              box-shadow 0.35s cubic-bezier(0.21, 0.65, 0.36, 1);
+}
+.card-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px -14px rgba(27, 94, 32, 0.28);
+}
+
+/* ---------- Vệt sáng lướt qua nút khi rê chuột ---------- */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.55s ease;
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  left: 130%;
+}
+
+/* ---------- Icon lơ lửng nhẹ nhàng (dùng cho hero, khối nổi bật) ---------- */
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.animate-float {
+  animation: float-soft 3.6s ease-in-out infinite;
+}
+
+/* ---------- Vầng sáng thở quanh phần tử nhấn mạnh ---------- */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(27, 94, 32, 0.35); }
+  50%      { box-shadow: 0 0 0 12px rgba(27, 94, 32, 0); }
+}
+.animate-glow {
+  animation: glow-pulse 2.6s ease-in-out infinite;
+}
+
+/* ---------- Gạch chân lan ra khi rê chuột (link đẹp) ---------- */
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* ---------- Tôn trọng người dùng bật "giảm chuyển động" ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .card-lift,
+  .btn-shine::after,
+  .animate-float,
+  .animate-glow {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* =====================================================================
+   BỘ HIỆU ỨNG NÂNG CAO (V7)
+   ===================================================================== */
+
+/* ---------- Viền sáng chạy quanh thẻ nổi bật ---------- */
+@keyframes border-spin {
+  to { --angle: 360deg; }
+}
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.border-glow {
+  position: relative;
+  isolation: isolate;
+}
+.border-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(from var(--angle),
+              transparent 55%, rgb(27, 94, 32), rgb(217, 119, 6), transparent 85%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-spin 4s linear infinite;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+}
+.border-glow:hover::before { opacity: 1; }
+
+/* ---------- Thẻ nghiêng theo con trỏ (3D tilt nhẹ) ---------- */
+.tilt-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.21, 0.65, 0.36, 1),
+              box-shadow 0.4s ease;
+}
+.tilt-3d:hover {
+  transform: perspective(900px) rotateX(2.5deg) rotateY(-2.5deg) translateY(-6px) scale(1.015);
+  box-shadow: 0 22px 45px -18px rgba(27, 94, 32, 0.35);
+}
+
+/* ---------- Icon nảy nhẹ khi rê chuột vào thẻ cha ---------- */
+.group:hover .icon-pop {
+  transform: scale(1.15) rotate(-6deg);
+}
+.icon-pop {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------- Chữ đổ dần từng dòng (dùng cùng Reveal) ---------- */
+@keyframes text-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-text-rise {
+  animation: text-rise 0.6s cubic-bezier(0.21, 0.65, 0.36, 1) both;
+}
+
+/* ---------- Nền chuyển màu chầm chậm (khối nhấn mạnh) ---------- */
+@keyframes gradient-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-drift 8s ease infinite;
+}
+
+/* ---------- Vòng sóng lan (dùng cho nút khẩn cấp 113) ---------- */
+@keyframes ripple-out {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.animate-ripple::before,
+.animate-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  animation: ripple-out 2s ease-out infinite;
+  pointer-events: none;
+}
+.animate-ripple::after { animation-delay: 1s; }
+
+/* ---------- Skeleton lấp lánh (thay vì nhấp nháy đơn điệu) ---------- */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg,
+              rgba(226, 232, 240, 0.35) 25%,
+              rgba(226, 232, 240, 0.75) 50%,
+              rgba(226, 232, 240, 0.35) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* ---------- Thanh tiến trình các bước: vệt sáng chạy ---------- */
+@keyframes progress-flow {
+  from { background-position: 0 0; }
+  to   { background-position: 40px 0; }
+}
+.animate-progress {
+  background-image: linear-gradient(45deg,
+              rgba(255,255,255,0.22) 25%, transparent 25%,
+              transparent 50%, rgba(255,255,255,0.22) 50%,
+              rgba(255,255,255,0.22) 75%, transparent 75%);
+  background-size: 40px 40px;
+  animation: progress-flow 1s linear infinite;
+}
+
+/* ---------- Giảm chuyển động ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .border-glow::before,
+  .tilt-3d,
+  .icon-pop,
+  .animate-text-rise,
+  .animate-gradient,
+  .animate-ripple::before,
+  .animate-ripple::after,
+  .animate-shimmer,
+  .animate-progress {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* =====================================================================
+   SỬA LỖI CẮT DẤU CHỮ HOA TIẾNG VIỆT
+   =====================================================================
+   Chữ HOA tiếng Việt có dấu CHỒNG 2 TẦNG: Ố = Ô + dấu sắc, Ộ = Ô + dấu nặng,
+   Ế = Ê + dấu sắc... Dấu tầng trên vượt CAO hơn chiều cao chữ hoa thông thường.
+
+   Nếu line-height quá chặt (leading-none = 1, leading-tight = 1.25),
+   trình duyệt CẮT MẤT dấu tầng trên:
+       "HỘP THƯ AN NINH SỐ"  ->  hiện thành  "HỘP THƯ AN NINH SÔ"   ❌
+
+   Cách sửa: mọi khối chữ HOA phải có chiều cao dòng tối thiểu 1.4,
+   và không được overflow:hidden cắt phần trên.
+   ===================================================================== */
+
+.uppercase {
+  line-height: 1.5;
+}
+
+/* Tiện ích: dùng cho bất kỳ chữ HOA tiếng Việt nào để chắc chắn không cắt dấu */
+.vn-caps {
+  line-height: 1.5;
+  padding-top: 0.08em;   /* chừa chỗ cho dấu tầng trên */
+}
+
+/* =====================================================================
+   CHỐNG CẮT DẤU TIẾNG VIỆT — bản triệt để
+   =====================================================================
+   Chữ HOA có dấu 2 tầng: Ố = Ô + dấu sắc · Ộ = Ô + nặng · Ế, Ữ, Ằ...
+   Dấu tầng 2 vươn CAO hơn đỉnh chữ hoa thường -> dễ bị:
+     1. line-height chặt cắt cụt
+     2. container overflow:hidden cắt mất
+   ===================================================================== */
+
+/* Tiêu đề: chiều cao dòng đủ rộng cho dấu tiếng Việt */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.45;
+}
+
+/* Chữ HOA cỡ nhỏ (logo, nhãn) — dấu càng dễ bị cắt, nới rộng nhất */
+.vn-caps {
+  line-height: 1.6;
+  padding-top: 0.15em;
+  overflow: visible;
+}
