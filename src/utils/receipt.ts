@@ -7,7 +7,6 @@
  *
  * Vẽ bằng canvas ngay trên máy người dùng, không gửi gì lên máy chủ.
  */
-import QRCode from 'qrcode';
 import { UNIT } from './constants';
 
 interface ReceiptData {
@@ -28,12 +27,9 @@ const SLA_DAYS: Record<string, number> = {
   to_giac: 20, khieu_nai: 30, phan_anh: 15, de_xuat: 10,
 };
 
-/**
- * Vẽ phiếu ra canvas rồi trả về dataURL PNG.
- * Bất đồng bộ vì phải sinh mã QR trước khi vẽ.
- */
-export async function buildReceiptImage(data: ReceiptData): Promise<string> {
-  const W = 720, H = 1180;
+/** Vẽ phiếu ra canvas rồi trả về dataURL PNG */
+export function buildReceiptImage(data: ReceiptData): string {
+  const W = 720, H = 1000;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -105,76 +101,30 @@ export async function buildReceiptImage(data: ReceiptData): Promise<string> {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // ───── MÃ QR: quét là mở thẳng trang tra cứu, khỏi gõ mã ─────
-  y += 45;
-  const trackUrl = `${window.location.origin}/tra-cuu?ma=${data.trackingCode}`;
-  const QR_SIZE = 210;
-  try {
-    const qrCanvas = document.createElement('canvas');
-    await QRCode.toCanvas(qrCanvas, trackUrl, {
-      width: QR_SIZE,
-      margin: 1,
-      color: { dark: '#1B5E20', light: '#ffffff' },
-      errorCorrectionLevel: 'H', // in ra giấy dễ nhoè -> mức sửa lỗi cao nhất
-    });
-
-    // QR bên trái
-    const qrX = 70;
-    ctx.drawImage(qrCanvas, qrX, y);
-
-    // Khung viền quanh QR cho nổi
-    ctx.strokeStyle = '#1B5E20';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(qrX - 6, y - 6, QR_SIZE + 12, QR_SIZE + 12);
-
-    // Hướng dẫn bên phải QR
-    const tx = qrX + QR_SIZE + 32;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#1B5E20';
-    ctx.font = 'bold 22px "Be Vietnam Pro", Arial, sans-serif';
-    ctx.fillText('QUÉT MÃ ĐỂ', tx, y + 34);
-    ctx.fillText('XEM KẾT QUẢ', tx, y + 62);
-
-    ctx.fillStyle = '#475569';
-    ctx.font = '16px "Be Vietnam Pro", Arial, sans-serif';
-    ctx.fillText('Mở camera điện thoại,', tx, y + 100);
-    ctx.fillText('đưa vào mã bên cạnh —', tx, y + 124);
-    ctx.fillText('không cần gõ mã.', tx, y + 148);
-
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = '14px "Be Vietnam Pro", Arial, sans-serif';
-    ctx.fillText('Hoặc xem cách thủ công', tx, y + 186);
-    ctx.fillText('ở phía dưới.', tx, y + 206);
-
-    y += QR_SIZE + 45;
-  } catch {
-    // Sinh QR lỗi -> bỏ qua, phiếu vẫn dùng được bằng mã chữ
-  }
-
-  // Hướng dẫn thủ công (phòng khi không quét được)
-  ctx.textAlign = 'left';
+  // Hướng dẫn tra cứu
+  y += 55;
   ctx.fillStyle = '#1B5E20';
-  ctx.font = 'bold 20px "Be Vietnam Pro", Arial, sans-serif';
-  ctx.fillText('HOẶC XEM THỦ CÔNG', 70, y);
+  ctx.font = 'bold 21px "Be Vietnam Pro", Arial, sans-serif';
+  ctx.fillText('CÁCH XEM KẾT QUẢ', 70, y);
 
   ctx.fillStyle = '#334155';
-  ctx.font = '17px "Be Vietnam Pro", Arial, sans-serif';
+  ctx.font = '18px "Be Vietnam Pro", Arial, sans-serif';
   const steps = [
     `1. Vào trang: ${window.location.host}`,
     '2. Bấm mục "Tra cứu kết quả"',
     `3. Nhập mã ${data.trackingCode}`,
   ];
-  y += 32;
+  y += 38;
   for (const st of steps) {
     ctx.fillText(st, 70, y);
-    y += 28;
+    y += 32;
   }
 
   ctx.fillStyle = '#64748B';
-  ctx.font = '15px "Be Vietnam Pro", Arial, sans-serif';
-  y += 8;
+  ctx.font = '16px "Be Vietnam Pro", Arial, sans-serif';
+  y += 12;
   ctx.fillText('Máy của bà con đã tự nhớ mã này — lần sau vào trang', 70, y);
-  ctx.fillText('Tra cứu là thấy sẵn, không cần nhập lại.', 70, y + 24);
+  ctx.fillText('Tra cứu là thấy sẵn, không cần nhập lại.', 70, y + 26);
 
   // Chân phiếu: hotline
   ctx.fillStyle = '#FEF2F2';
@@ -192,19 +142,21 @@ export async function buildReceiptImage(data: ReceiptData): Promise<string> {
 
 /**
  * Tải phiếu về máy (tự động hoặc khi bấm nút).
- *
- * Trả về TRUE khi đã thật sự bấm tải, FALSE khi không vẽ được phiếu. Màn hình
- * xác nhận dựa vào giá trị này để hiện dòng "đã lưu vào máy" — nếu hàm không
- * trả gì thì dòng đó luôn hiện, kể cả lúc bà con chưa có tấm ảnh nào cả.
+ * @returns true nếu đã kích hoạt tải; false khi trình duyệt không vẽ được canvas
+ *          hoặc chặn thao tác tải — nơi gọi dựa vào đây để hiện dòng "đã lưu".
  */
-export async function downloadReceipt(data: ReceiptData): Promise<boolean> {
-  const url = await buildReceiptImage(data);
-  if (!url) return false;
-  const a = document.createElement('a');
-  a.download = `Ma-tra-cuu-${data.trackingCode}.png`;
-  a.href = url;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  return true;
+export function downloadReceipt(data: ReceiptData): boolean {
+  try {
+    const url = buildReceiptImage(data);
+    if (!url) return false;
+    const a = document.createElement('a');
+    a.download = `Ma-tra-cuu-${data.trackingCode}.png`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
+  } catch {
+    return false;
+  }
 }

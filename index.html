@@ -7,10 +7,10 @@
     <!-- SEO -->
     <meta
       name="description"
-      content="Hộp Thư Số — Điểm Chạm An Ninh — Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của Công an xã/phường."
+      content="Hộp Thư An Ninh Số — Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của Công an xã/phường."
     />
     <meta name="keywords" content="hộp thư an ninh số, công an xã, phản ánh, tố giác, tra cứu, AI" />
-    <meta property="og:title" content="Hộp Thư Số — Điểm Chạm An Ninh" />
+    <meta property="og:title" content="Hộp Thư An Ninh Số" />
     <meta property="og:description" content="Tiếp nhận ý kiến công dân thông minh với AI" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="vi_VN" />
@@ -23,7 +23,7 @@
 
       VÌ SAO ĐỔI TỪ INTER SANG:
       Inter là font phương Tây, dấu tiếng Việt 2 tầng (Ố = Ô + sắc, Ộ, Ế, Ữ...)
-      bị vẽ đè hoặc cắt cụt -> "HỘP THƯ SỐ — ĐIỂM CHẠM AN NINH" hiện thành "...SÔ".
+      bị vẽ đè hoặc cắt cụt -> "HỘP THƯ AN NINH SỐ" hiện thành "...SÔ".
       Be Vietnam Pro dựng riêng từng glyph cho dấu 2 tầng nên luôn hiển thị đủ.
 
       Google tự gửi kèm bộ ký tự tiếng Việt qua unicode-range (không cần &subset=,
@@ -31,36 +31,27 @@
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!--
-      Hai phông, hai vai trò:
-        · Be Vietnam Pro (không chân) — nội dung, nút bấm, biểu mẫu
-        · Bitter (slab serif, chân vuông) — TIÊU ĐỀ
-
-      Vì sao tiêu đề dùng phông có chân: Nghị định 30/2020/NĐ-CP quy định văn bản
-      hành chính dùng phông có chân, nên chữ có chân gợi ngay cảm giác công văn,
-      giấy tờ chính thức. Bitter dựng cho màn hình (khác Times vốn dựng cho in
-      giấy) và có đủ bộ dấu tiếng Việt.
-
-      Gộp chung 1 đường dẫn để trình duyệt chỉ phải mở 1 kết nối.
-    -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Bitter:wght@600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <!-- Áp dụng chế độ tối sớm để tránh nháy màn hình.
-         Tách ra file riêng vì CSP không cho script viết thẳng trong HTML. -->
+    <!--
+      Áp dụng dark mode sớm để tránh nháy màn hình khi tải trang.
+      Để ở file riêng chứ KHÔNG viết inline: CSP chặn script inline (xem
+      public/theme-init.js). Không đặt defer/async — phải chạy xong trước khi vẽ.
+    -->
     <script src="/theme-init.js"></script>
     <!-- Structured data cho SEO -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "GovernmentOrganization",
-        "name": "Hộp Thư Số — Điểm Chạm An Ninh",
+        "name": "Hộp Thư An Ninh Số",
         "description": "Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI",
         "areaServed": "VN"
       }
     </script>
-    <title>Hộp Thư Số — Điểm Chạm An Ninh | Tiếp nhận ý kiến công dân thông minh với AI</title>
+    <title>Hộp Thư An Ninh Số | Tiếp nhận ý kiến công dân thông minh với AI</title>
   </head>
   <body>
     <div id="root"></div>

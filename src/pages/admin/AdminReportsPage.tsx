@@ -40,8 +40,8 @@ export default function AdminReportsPage() {
   const [exporting, setExporting] = useState(false);
 
   /**
-   * XUẤT EXCEL TỔNG HỢP — 9 sheet, định dạng sẵn để nộp lãnh đạo.
-   * Sheet cuối (danh sách chi tiết) lấy thêm dữ liệu từ máy chủ, danh tính CHE SẴN.
+   * XUẤT EXCEL TỔNG HỢP — 7 sheet, định dạng sẵn để nộp lãnh đạo.
+   * Sheet 7 (danh sách chi tiết) lấy thêm dữ liệu từ máy chủ, danh tính CHE SẴN.
    */
   async function exportExcel() {
     if (!data) return;
@@ -80,7 +80,7 @@ export default function AdminReportsPage() {
       // ───── Sheet 1: BÌA BÁO CÁO ─────
       const cover = XLSX.utils.aoa_to_sheet([
         ['BÁO CÁO TỔNG HỢP Ý KIẾN CÔNG DÂN'],
-        ['Hệ thống Hộp Thư Số — Điểm Chạm An Ninh'],
+        ['Hệ thống Hộp Thư An Ninh Số'],
         [UNIT.name],
         [],
         ['Kỳ báo cáo:', `Từ ${new Date(range.from).toLocaleDateString('vi-VN')} đến ${new Date(range.to).toLocaleDateString('vi-VN')}`],
@@ -202,7 +202,7 @@ export default function AdminReportsPage() {
       ].filter((d) => d.value > 0)
     : [];
 
-  /* ===== PHÂN TÍCH CHUỖI THỜI GIAN =====
+  /* ===== V-mới: PHÂN TÍCH CHUỖI THỜI GIAN =====
      Máy chủ chỉ trả về giờ/thứ CÓ ý kiến (GROUP BY bỏ qua giờ = 0).
      Điền đủ 24h và đủ 7 thứ ở đây để biểu đồ không bị "thủng". */
   const byHourMap = new Map((data?.byHour ?? []).map((h) => [Number(h.hour), Number(h.total)]));
@@ -235,7 +235,7 @@ export default function AdminReportsPage() {
           className="btn-shine flex min-h-[44px] items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Download className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
-          {exporting ? 'Đang tạo file...' : 'Xuất Excel (9 sheet)'}
+          {exporting ? 'Đang tạo file...' : 'Xuất Excel (7 sheet)'}
         </button>
       </div>
 
@@ -245,14 +245,14 @@ export default function AdminReportsPage() {
           <label className="mb-1 block text-xs font-semibold text-slate-500">Từ ngày</label>
           <input
             type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-500">Đến ngày</label>
           <input
             type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
           />
         </div>
         <button
@@ -308,7 +308,7 @@ export default function AdminReportsPage() {
             ].map((s) => (
               <div key={s.label} className="rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value ?? 0}</p>
-                <p className="mt-1 text-[11px] font-medium text-slate-500">{s.label}</p>
+                <p className="mt-1 text-[11px] font-medium text-slate-400">{s.label}</p>
               </div>
             ))}
           </div>
@@ -399,7 +399,7 @@ export default function AdminReportsPage() {
                   <Bar dataKey="total" name="Số ý kiến" fill="#1976D2" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-              <p className="mt-2 text-[11px] text-slate-500">Gợi ý bố trí ca trực: tăng người vào khung giờ cao điểm.</p>
+              <p className="mt-2 text-[11px] text-slate-400">Gợi ý bố trí ca trực: tăng người vào khung giờ cao điểm.</p>
             </div>
 
             {/* Cột — theo thứ trong tuần */}
@@ -429,10 +429,7 @@ export default function AdminReportsPage() {
             <h3 className="border-b border-slate-100 px-5 py-4 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200">
               Hiệu suất cán bộ
             </h3>
-            {/* Bọc lớp cuộn ngang: bảng có 4 cột số, trên điện thoại sẽ tràn
-                khỏi màn hình và cắt mất cột "Tỷ lệ" nếu không cho cuộn. */}
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-sm">
+            <table className="w-full text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800">
                 <tr>
                   <th className="px-5 py-2.5 text-left font-semibold">Cán bộ</th>
@@ -458,7 +455,6 @@ export default function AdminReportsPage() {
                 })}
               </tbody>
             </table>
-            </div>
           </div>
         </>
       )}

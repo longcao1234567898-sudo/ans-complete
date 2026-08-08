@@ -37,28 +37,13 @@ export async function lookupTracking(rawCode: string): Promise<TrackingResult> {
   throw new Error('Không tìm thấy mã tra cứu. Vui lòng kiểm tra lại 6 ký tự trên phiếu tiếp nhận.');
 }
 
-/**
- * YÊU CẦU XOÁ DỮ LIỆU CÁ NHÂN — theo Nghị định 13/2023/NĐ-CP
- *
- * Trả về một trong bốn trạng thái:
- *   done    - đã xoá ngay (hồ sơ đã đóng)
- *   pending - đã ghi nhận, chờ đóng hồ sơ mới xoá được
- *   already - đã xoá từ trước
- *   nothing - tin ẩn danh, vốn không có gì để xoá
- */
-export interface DeletionResult {
-  ok: boolean;
-  status: 'done' | 'pending' | 'already' | 'nothing';
-  message: string;
-  requestedAt?: string;
-}
-
-export async function requestDataDeletion(rawCode: string): Promise<DeletionResult> {
+/** Yêu cầu xoá thông tin cá nhân theo Nghị định 13/2023/NĐ-CP (xem server/src/routes/tracking.js) */
+export async function requestDataDeletion(
+  rawCode: string
+): Promise<{ status: string; message: string; requestedAt?: string }> {
   const code = rawCode.trim().toUpperCase();
-  if (!hasBackend) {   // hasBackend là BIẾN boolean, không phải hàm
-    throw new Error('Chức năng này cần kết nối máy chủ.');
+  if (!hasBackend) {
+    throw new Error('Chức năng này cần kết nối máy chủ, hiện không khả dụng ở chế độ ngoại tuyến.');
   }
-  return apiFetch<DeletionResult>(`/api/tracking/${code}/request-deletion`, {
-    method: 'POST',
-  });
+  return apiFetch(`/api/tracking/${encodeURIComponent(code)}/request-deletion`, { method: 'POST' });
 }

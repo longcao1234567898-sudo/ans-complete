@@ -46,7 +46,7 @@ export default function TrackingPage() {
 
   return (
     <>
-      <PageBackground image="bg-lang-noi.webp" />
+      <PageBackground video="bg-lang-noi.mp4" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Tra cứu tiến độ</h1>
@@ -62,7 +62,7 @@ export default function TrackingPage() {
           onOpenScanner={() => setScannerOpen(true)}
           isLoading={isLoading || isFetching}
         />
-        <p className="mt-3 text-center text-xs text-slate-500">
+        <p className="mt-3 text-center text-xs text-slate-400">
           Thử ngay với mã demo: <span className="font-mono font-semibold">DEMO01</span>,{' '}
           <span className="font-mono font-semibold">DEMO02</span>,{' '}
           <span className="font-mono font-semibold">DEMO03</span>,{' '}
@@ -79,7 +79,7 @@ export default function TrackingPage() {
             </h2>
             <button
               onClick={() => { if (confirm('Xoá toàn bộ lịch sử mã trên máy này?')) history.clearAll(); }}
-              className="text-xs text-slate-500 underline hover:text-red-500"
+              className="text-xs text-slate-400 underline hover:text-red-500"
             >
               Xoá hết
             </button>
@@ -95,7 +95,7 @@ export default function TrackingPage() {
                   className="flex min-h-[40px] flex-1 items-center gap-3 text-left"
                 >
                   <span className="font-mono text-sm font-bold text-primary-600 dark:text-primary-300">{it.code}</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-400">
                     {new Date(it.savedAt).toLocaleDateString('vi-VN')}
                   </span>
                 </button>
@@ -110,7 +110,7 @@ export default function TrackingPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
             Danh sách này chỉ lưu trên máy của bà con, không ai khác xem được.
             Nếu dùng máy chung, bà con nên bấm "Xoá hết" sau khi tra cứu xong.
           </p>
@@ -131,7 +131,6 @@ export default function TrackingPage() {
       {data && !isLoading && !isFetching && (
         <>
           <StatusTimeline result={data} />
-          {/* Quyền dữ liệu cá nhân theo Nghị định 13/2023 */}
           <DataRightsBox code={data.code} />
         </>
       )}

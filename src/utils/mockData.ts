@@ -274,7 +274,7 @@ export const MOCK_NEWS: NewsArticle[] = [
     id: 'n8',
     title: 'Nghị quyết 66-NQ/TW về đổi mới công tác xây dựng và thi hành pháp luật trong kỷ nguyên mới',
     summary:
-      'Hoàn thiện thể chế, đưa pháp luật đi vào cuộc sống — cơ sở chính trị quan trọng để các mô hình tiếp nhận ý kiến công dân như Hộp Thư Số — Điểm Chạm An Ninh hoạt động minh bạch, đúng quy định.',
+      'Hoàn thiện thể chế, đưa pháp luật đi vào cuộc sống — cơ sở chính trị quan trọng để các mô hình tiếp nhận ý kiến công dân như Hộp Thư An Ninh Số hoạt động minh bạch, đúng quy định.',
     thumbnail: 'https://picsum.photos/seed/htans-nq66/640/400',
     publishedAt: daysAgo(15),
     tag: 'van_ban',

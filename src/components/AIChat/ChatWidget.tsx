@@ -16,10 +16,10 @@ import { UNIT } from '../../utils/constants';
 const SUGGESTIONS = [
   'Cách gửi ý kiến?',
   'Gửi ẩn danh thế nào?',
-  'Tôi muốn xoá thông tin cá nhân',
   'Không nhận được mã qua email',
+  'Quên mã tra cứu phải làm sao?',
   'Bao lâu thì được giải quyết?',
-  'Cảnh giác lừa đảo qua điện thoại',
+  'Thông tin của tôi có bị lộ không?',
 ];
 
 export default function ChatWidget() {
@@ -57,14 +57,10 @@ export default function ChatWidget() {
                   <p className="text-sm font-bold leading-tight">Trợ lý AI {UNIT.name}</p>
                   <p className="flex items-center gap-1 text-[11px] leading-tight text-white/80">
                     Chào bà con {UNIT.communeName}
-                    {/* Đã gỡ nhãn tên nhà cung cấp AI (trước đây hiện "Gemini").
-                        Lý do: bà con không cần biết hệ thống dùng dịch vụ của
-                        hãng nào — thông tin đó chỉ gây phân tâm. Nay chỉ còn
-                        chấm xanh báo trợ lý đang hoạt động. */}
                     {AI_ENGINE_LABEL && (
                       <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-1.5 py-px font-semibold">
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" aria-hidden />
-                        Đang hoạt động
+                        {AI_ENGINE_LABEL}
                       </span>
                     )}
                   </p>
@@ -115,7 +111,7 @@ export default function ChatWidget() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Nhập câu hỏi của bà con..."
                 aria-label="Nhập tin nhắn"
-                className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-base sm:text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               />
               <button
                 type="submit"

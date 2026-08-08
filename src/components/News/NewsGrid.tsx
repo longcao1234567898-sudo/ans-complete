@@ -30,7 +30,7 @@ export default function NewsGrid({ articles, isLoading }: NewsGridProps) {
 
   if (articles.length === 0) {
     return (
-      <p className="py-16 text-center text-sm text-slate-500">Chưa có bản tin nào thuộc chủ đề này.</p>
+      <p className="py-16 text-center text-sm text-slate-400">Chưa có bản tin nào thuộc chủ đề này.</p>
     );
   }
 

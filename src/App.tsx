@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppToaster from './components/common/Toast';
 import Header from './components/Layout/Header';
-import MobileTabBar from './components/Layout/MobileTabBar';
 import Footer from './components/Layout/Footer';
 import ScrollProgress from './components/common/ScrollProgress';
 import ChatWidget from './components/AIChat/ChatWidget';
@@ -26,10 +25,9 @@ import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminMapPage from './pages/admin/AdminMapPage';
 import AdminLogsPage from './pages/admin/AdminLogsPage';
 import AdminReviewPage from './pages/admin/AdminReviewPage';
-import AdminQrPage from './pages/admin/AdminQrPage';
-import AdminQrPosterPage from './pages/admin/AdminQrPosterPage';
 import AdminKioskPage from './pages/admin/AdminKioskPage';
 import AdminTrashPage from './pages/admin/AdminTrashPage';
+import AdminQrPage from './pages/admin/AdminQrPage';
 import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
@@ -58,22 +56,10 @@ function AppShell() {
     <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100">
       <ScrollProgress />
       <ScrollToTop />
-      {/* Liên kết "nhảy thẳng vào nội dung" — bình thường ẩn, chỉ hiện khi
-          người dùng bấm phím Tab lần đầu. Giúp người dùng bàn phím và người
-          dùng trình đọc màn hình bỏ qua toàn bộ thanh điều hướng thay vì phải
-          Tab qua từng mục ở mọi trang. Đây là yêu cầu trợ năng cơ bản của
-          một trang dịch vụ công. */}
-      <a
-        href="#noi-dung-chinh"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-primary-700 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg"
-      >
-        Bỏ qua điều hướng, vào thẳng nội dung
-      </a>
-
       <Header />
       {/* relative z-10: nội dung + footer phải nổi TRÊN lớp nền ảnh
           (PageBackground dùng fixed inset-0 -z-10 phủ toàn màn hình) */}
-      <main id="noi-dung-chinh" tabIndex={-1} className="relative z-10 flex-1">
+      <main className="relative z-10 flex-1">
         {/* ⚠️ KHÔNG dùng transform (translateY/scale) để chuyển trang!
             Phần tử có transform trở thành KHUNG THAM CHIẾU MỚI cho position:fixed
             -> PageBackground (nền ảnh An Giang, dùng fixed inset-0) sẽ MẤT HẾT.
@@ -96,20 +82,12 @@ function AppShell() {
             <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
             <Route path="/quan-tri/nhat-ky" element={<AdminLogsPage />} />
             <Route path="/quan-tri/kiem-duyet" element={<AdminReviewPage />} />
-            {/* Hai trang QR khác nhau, đừng gộp:
-                · ma-qr           — quản lý ĐIỂM QR (bảng qr_points), quét xong
-                                    form tự điền sẵn phường/xã của điểm đó
-                · qr-tuyen-truyen — áp phích QR chung để in dán nơi công cộng */}
-            <Route path="/quan-tri/ma-qr" element={<AdminQrPage />} />
-            <Route path="/quan-tri/qr-tuyen-truyen" element={<AdminQrPosterPage />} />
             <Route path="/quan-tri/ki-ot" element={<AdminKioskPage />} />
             <Route path="/quan-tri/thung-rac" element={<AdminTrashPage />} />
+            <Route path="/quan-tri/ma-qr" element={<AdminQrPage />} />
           </Routes>
         </div>
       </main>
-
-      {/* Thanh chức năng đáy màn hình — chỉ hiện trên điện thoại */}
-      <MobileTabBar />
       <Footer />
       {!isAdminArea && <ChatWidget />}
       {!isAdminArea && <EmergencyButton />}

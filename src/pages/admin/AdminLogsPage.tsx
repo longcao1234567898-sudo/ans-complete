@@ -120,7 +120,7 @@ export default function AdminLogsPage() {
       )}
 
       {data && data.data.length === 0 && (
-        <div className="rounded-2xl bg-white p-10 text-center text-sm text-slate-500 shadow-soft dark:bg-slate-900">
+        <div className="rounded-2xl bg-white p-10 text-center text-sm text-slate-400 shadow-soft dark:bg-slate-900">
           Chưa có hoạt động nào được ghi nhận.
         </div>
       )}
@@ -160,7 +160,7 @@ export default function AdminLogsPage() {
                         </>
                       )}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
+                    <p className="mt-0.5 text-[11px] text-slate-400">
                       {fmt(log.created_at)}
                       {log.ip_address ? ` · IP ${log.ip_address}` : ''}
                     </p>
@@ -172,7 +172,7 @@ export default function AdminLogsPage() {
 
           {/* Phân trang */}
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               Trang {data.page}/{data.totalPages} · Tổng {data.total} hoạt động
             </p>
             <div className="flex gap-2">

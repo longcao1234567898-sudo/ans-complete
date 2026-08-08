@@ -14,7 +14,7 @@ export default function Card({ glass = false, hover = false, className, children
     <div
       className={cn(
         'rounded-2xl p-5 shadow-soft',
-        glass ? 'glass' : 'bg-white/[.88] backdrop-blur-sm dark:bg-slate-900/[.88] border border-slate-100 dark:border-slate-800',
+        glass ? 'glass' : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800',
         hover && 'card-lift will-change-transform',
         className
       )}

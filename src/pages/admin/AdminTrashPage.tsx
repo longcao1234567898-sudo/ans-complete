@@ -71,7 +71,7 @@ export default function AdminTrashPage() {
   return (
     <AdminLayout>
       <h1 className="mb-1 flex items-center gap-2 text-xl font-extrabold text-slate-800 dark:text-slate-100">
-        <Trash2 className="h-5 w-5 text-slate-500" /> Thùng rác
+        <Trash2 className="h-5 w-5 text-slate-400" /> Thùng rác
       </h1>
       <p className="mb-5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
         Tin đã đánh dấu "Tin rác" được giữ <b>{keepDays} ngày</b> trước khi xoá vĩnh viễn.
@@ -101,7 +101,7 @@ export default function AdminTrashPage() {
         <div className="rounded-2xl bg-white/80 py-16 text-center backdrop-blur-sm dark:bg-slate-800/80">
           <Trash2 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Thùng rác trống</p>
-          <p className="mt-1 text-xs text-slate-500">Chưa có tin nào bị đánh dấu là tin rác.</p>
+          <p className="mt-1 text-xs text-slate-400">Chưa có tin nào bị đánh dấu là tin rác.</p>
         </div>
       )}
 
@@ -123,7 +123,7 @@ export default function AdminTrashPage() {
                   </span>
                 )}
                 {it.category_name && (
-                  <span className="text-xs text-slate-500">{it.category_name}</span>
+                  <span className="text-xs text-slate-400">{it.category_name}</span>
                 )}
                 <span
                   className={`ml-auto flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
@@ -141,7 +141,7 @@ export default function AdminTrashPage() {
                 {it.preview}
               </p>
 
-              <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+              <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
                 <span>Bà con gửi: {formatDateTime(it.created_at)}</span>
                 <span>Đưa vào thùng rác: {formatDateTime(it.deleted_at)}</span>
                 {it.deleted_by_name && <span>Bởi: {it.deleted_by_name}</span>}

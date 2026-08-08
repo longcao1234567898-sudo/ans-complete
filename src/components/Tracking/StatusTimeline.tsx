@@ -51,16 +51,16 @@ export default function StatusTimeline({ result }: { result: TrackingResult }) {
                   ? step.status === 'rejected'
                     ? 'bg-red-500 text-white'
                     : 'bg-primary-600 text-white'
-                  : 'bg-slate-200 text-slate-500 dark:bg-slate-700'
+                  : 'bg-slate-200 text-slate-400 dark:bg-slate-700'
               )}
             >
               {step.done ? <Check className="h-3.5 w-3.5" /> : <Circle className="h-2.5 w-2.5 fill-current" />}
             </span>
-            <p className={cn('text-sm font-semibold', step.done ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500')}>
+            <p className={cn('text-sm font-semibold', step.done ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400')}>
               {step.label}
             </p>
             {step.timestamp && (
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
                 <Clock className="h-3 w-3" /> {formatDate(step.timestamp)}
               </p>
             )}

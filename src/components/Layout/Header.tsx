@@ -34,12 +34,12 @@ export default function Header() {
     <>
       <header
         className={`glass sticky top-0 z-40 transition-all duration-300 ${
-          scrolled ? 'shadow-lg shadow-primary-900/5' : 'shadow-sm'
+          scrolled ? 'shadow-lg shadow-primary-900/5 backdrop-blur-xl' : 'shadow-sm'
         }`}
       >
         <div
           className={`container-page flex items-center justify-between gap-3 transition-all duration-300 ${
-            scrolled ? 'py-2' : 'py-3'
+            scrolled ? 'h-14' : 'h-16'
           }`}
         >
           {/* Logo + tên hệ thống */}
@@ -47,16 +47,15 @@ export default function Header() {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-secondary-500 text-white shadow-soft">
               <Shield className="h-5 w-5" aria-hidden />
             </span>
-            <span className="flex flex-col justify-center">
-              {/* KHÔNG dùng leading-none ở thẻ cha này: nó ép chiều cao dòng con
-                  về 1.0 và cắt mất dấu sắc vươn cao trên chữ "Số".
-                  Để mỗi dòng con tự quản line-height của nó. */}
-              {/* Bỏ dòng "Hộp Thư Số" ở logo — tên đã hiện rất lớn ở giữa trang chủ,
-                  nhắc lại ở góc chỉ làm rối. Giữ định danh và tên đơn vị. */}
-              <span className="block text-[15px] font-bold leading-[1.5] text-primary-700 dark:text-primary-300">
-                Điểm chạm an ninh
+            <span>
+              {/* Dùng chữ viết hoa ĐẦU TỪ thay vì IN HOA TOÀN BỘ:
+                  chữ in hoa có dấu 2 tầng (Ố = Ô + sắc) rất dễ bị cắt/vẽ xấu
+                  tuỳ font. Chữ thường "ố" thấp hơn nhiều -> dấu luôn nằm gọn
+                  trong dòng, hiển thị đúng trên MỌI font, mọi thiết bị. */}
+              <span className="block text-[15px] font-extrabold leading-normal tracking-wide text-primary-700 dark:text-primary-300">
+                Hộp Thư An Ninh Số
               </span>
-              <span className="block text-[11px] leading-[1.4] text-slate-500 dark:text-slate-400">{UNIT.shortName ?? UNIT.name}</span>
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400">{UNIT.name}</span>
             </span>
           </Link>
 
@@ -81,7 +80,7 @@ export default function Header() {
             {staff && (
               <Link
                 to="/quan-tri"
-                className="ml-1 flex items-center gap-1.5 rounded-xl bg-accent-700 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-accent-800"
+                className="ml-1 flex items-center gap-1.5 rounded-xl bg-accent-500 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-accent-600"
               >
                 <ShieldCheck className="h-4 w-4" /> Quản trị
               </Link>

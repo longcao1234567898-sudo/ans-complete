@@ -19,7 +19,7 @@ export default function NewsPage() {
 
   return (
     <>
-      <PageBackground image="bg-ho-tinh-tam.webp" />
+      <PageBackground video="bg-ho-tinh-tam.mp4" />
       <div className="container-page py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Tin tức &amp; Pháp luật</h1>

@@ -3,7 +3,7 @@
  * Ảnh được nén ngay trên trình duyệt trước khi lưu.
  */
 import { ChangeEvent, useRef, useState } from 'react';
-import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ClipboardList, ShieldAlert} from 'lucide-react';
+import { AlertCircle, ImagePlus, Loader2, X, RotateCcw} from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
 import { MAX_FEEDBACK_IMAGES } from '../../utils/constants';
@@ -63,18 +63,12 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       // Lá chắn 2: tái mã hoá qua canvas — loại bỏ mọi mã độc ẩn trong tệp gốc
       try {
         const dataUrl = await compressImageFile(file);
-        // Lá chắn 3: kiểm duyệt nội dung nhạy cảm — phân tích NGAY TRÊN MÁY người
-        // gửi, ảnh KHÔNG rời khỏi máy để đi kiểm duyệt
+        // Lá chắn 3: kiểm duyệt nội dung nhạy cảm (heuristic + AI Gemini)
+        // truyền nội dung -> ảnh tố giác sẽ KHÔNG bị gửi sang AI bên ngoài
         const moderation = await checkImageSensitive(dataUrl, value);
         if (moderation.blocked) {
           toast.error(`"${file.name}": ${moderation.reason}. Ảnh không được tiếp nhận.`, { duration: 6000 });
           continue;
-        }
-        /* Ảnh nghi ngờ nhưng chưa đủ căn cứ chặn -> vẫn nhận, báo cho bà con
-           biết là ảnh sẽ qua cán bộ xem trước. Nói trước để bà con không thấy
-           lạ khi ý kiến chưa hiện ngay. */
-        if (moderation.needsReview) {
-          toast(`"${file.name}": ${moderation.reason}.`, { duration: 5000, icon: 'ℹ️' });
         }
         added.push(dataUrl);
       } catch (err) {
@@ -112,51 +106,6 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         </div>
       )}
 
-      {/* HƯỚNG DẪN VIẾT ĐẦY ĐỦ — đặt ngay đầu form, TRƯỚC khi bà con gõ.
-          Quan trọng nhất với tin gửi ẩn danh: cán bộ KHÔNG liên hệ lại được
-          để hỏi thêm, nên thiếu thông tin là không xử lý được. */}
-      <div className="mb-4 rounded-2xl border-2 border-primary-200 bg-primary-50/70 p-4 dark:border-primary-800 dark:bg-primary-900/15">
-        <p className="mb-2 flex items-center gap-2 text-sm font-bold text-primary-800 dark:text-primary-200">
-          <ClipboardList className="h-4 w-4 shrink-0" />
-          Bà con nên nêu rõ 4 điều sau
-        </p>
-        <ul className="mb-3 grid gap-1.5 text-xs text-slate-700 dark:text-slate-300 sm:grid-cols-2">
-          <li className="flex items-start gap-1.5">
-            <span className="font-bold text-primary-600">•</span>
-            <span><b>Thời gian:</b> ngày giờ xảy ra (hoặc "khoảng 8 giờ tối qua")</span>
-          </li>
-          <li className="flex items-start gap-1.5">
-            <span className="font-bold text-primary-600">•</span>
-            <span><b>Địa điểm:</b> càng cụ thể càng tốt — số nhà, ấp/khóm, gần chỗ nào</span>
-          </li>
-          <li className="flex items-start gap-1.5">
-            <span className="font-bold text-primary-600">•</span>
-            <span><b>Sự việc:</b> chuyện gì đã xảy ra, diễn biến ra sao</span>
-          </li>
-          <li className="flex items-start gap-1.5">
-            <span className="font-bold text-primary-600">•</span>
-            <span><b>Người liên quan:</b> đặc điểm nhận dạng, biển số xe (nếu biết)</span>
-          </li>
-        </ul>
-
-        {/* Giới thiệu GỬI ẨN DANH ngay từ đầu để bà con biết mà cân nhắc */}
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-          <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
-            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-            Bà con sợ bị lộ danh tính?
-          </p>
-          <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-            Với <b>tố giác tin báo tội phạm</b>, ở bước điền thông tin bà con có thể bật{' '}
-            <b>"Gửi ẩn danh"</b> — không cần họ tên, số điện thoại hay email. Cán bộ
-            <b> không thể xem</b> danh tính người gửi ẩn danh.
-          </p>
-          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-amber-800 dark:text-amber-300">
-            Lưu ý: gửi ẩn danh thì cán bộ <b>không liên hệ lại được</b> để hỏi thêm.
-            Bà con hãy viết thật đầy đủ ngay từ bây giờ (tối thiểu 50 chữ), kèm ảnh nếu có.
-          </p>
-        </div>
-      </div>
-
       <label htmlFor="content" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
         Nội dung ý kiến của bà con
       </label>
@@ -166,8 +115,8 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         maxLength={CONTENT_MAX_LENGTH}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={'Bà con cứ viết tự nhiên, không cần đúng chính tả hay dấu câu — AI sẽ tự hiểu.\n\nVí dụ: Khoang 8 gio toi ngay 15/7, tai quan nuoc gan ben pha, co nhom khoang 5 thanh nien tu tap danh bac an tien. Mot nguoi di xe may mau do bien so 67...'}
-        className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-base sm:text-sm leading-relaxed text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+        placeholder="Bà con cứ chia sẻ tự nhiên, không cần đúng chính tả hay dấu câu — AI sẽ tự hiểu. Ví dụ: co nguoi danh nhau gan ben pha tan chau..."
+        className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
       />
       <div className="mt-1.5 flex items-center justify-between text-xs">
         {tooShort ? (
@@ -175,9 +124,9 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             <AlertCircle className="h-3.5 w-3.5" /> Bà con mô tả rõ hơn một chút để AI hiểu đúng nhé
           </span>
         ) : (
-          <span className="text-slate-500">Không bắt buộc đúng chính tả, dấu câu</span>
+          <span className="text-slate-400">Không bắt buộc đúng chính tả, dấu câu</span>
         )}
-        <span className="text-slate-500">{value.length}/{CONTENT_MAX_LENGTH} ký tự</span>
+        <span className="text-slate-400">{value.length}/{CONTENT_MAX_LENGTH} ký tự</span>
       </div>
 
       {/* 🎤 Nhập bằng GIỌNG NÓI — cho bà con lớn tuổi, ngại gõ phím.
@@ -187,7 +136,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       {/* Đính kèm ảnh minh chứng */}
       <div className="mt-5">
         <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-          Ảnh minh chứng <span className="font-normal text-slate-500">(tối đa {MAX_FEEDBACK_IMAGES} ảnh, không bắt buộc)</span>
+          Ảnh minh chứng <span className="font-normal text-slate-400">(tối đa {MAX_FEEDBACK_IMAGES} ảnh, không bắt buộc)</span>
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {images.map((src, idx) => (
@@ -213,7 +162,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={processing}
-              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 transition hover:border-primary-400 hover:text-primary-500 disabled:opacity-60 dark:border-slate-600"
+              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-primary-400 hover:text-primary-500 disabled:opacity-60 dark:border-slate-600"
             >
               {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
               <span className="text-[10px] font-medium">{processing ? 'Đang kiểm tra...' : 'Thêm ảnh'}</span>
@@ -229,7 +178,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             aria-hidden
           />
         </div>
-        <p className="mt-1.5 text-xs text-slate-500">Hỗ trợ JPG, PNG, WebP... tối đa {MAX_FILE_MB}MB/ảnh. Mỗi ảnh được kiểm tra định dạng thật, tái mã hoá loại bỏ mã độc ẩn và kiểm duyệt nội dung nhạy cảm.</p>
+        <p className="mt-1.5 text-xs text-slate-400">Hỗ trợ JPG, PNG, WebP... tối đa {MAX_FILE_MB}MB/ảnh. Mỗi ảnh được kiểm tra định dạng thật, tái mã hoá loại bỏ mã độc ẩn và kiểm duyệt nội dung nhạy cảm.</p>
       </div>
 
       {/* Mức độ khẩn cấp — người dân tự đánh dấu, cán bộ ưu tiên việc gấp */}
@@ -265,12 +214,8 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
           {urgency === 'urgent' && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {/* Bọc TOÀN BỘ chữ trong 1 span: thẻ cha dùng flex + gap, nếu để chữ
-                  và <b> đứng rời thì mỗi cái thành 1 ô flex -> bị tách xa nhau. */}
-              <span>
-                Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số <b>113</b>,
-                hoặc bấm nút SOS đỏ ở góc dưới màn hình.
-              </span>
+              Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số{' '}
+              <b>113</b>, hoặc bấm nút SOS đỏ ở góc dưới màn hình.
             </p>
           )}
         </div>

@@ -51,7 +51,7 @@ export default function HomePage() {
       {/* Dải CTA */}
       <Reveal delay={0.05}>
       <section className="container-page pb-16">
-        <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-primary-700 px-6 py-8 text-center text-white sm:flex-row sm:text-left">
+        <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 px-6 py-8 text-center text-white sm:flex-row sm:text-left">
           <div className="flex items-center gap-3">
             <MascotWave className="hidden h-24 w-auto shrink-0 sm:block" aria-hidden />
             <div>
@@ -61,7 +61,7 @@ export default function HomePage() {
           </div>
           <Link
             to="/gui-y-kien"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-accent-700 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-accent-800"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-accent-500 px-6 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-accent-600"
           >
             Gửi ý kiến ngay
           </Link>

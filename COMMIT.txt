@@ -1,0 +1,65 @@
+============================================================
+NỘI DUNG COMMIT — dán vào ô mô tả khi Upload files trên GitHub
+============================================================
+
+── Dòng tiêu đề (bắt buộc, dán vào ô đầu tiên) ──
+
+Them 3 chuc nang moi + sua loi build thieu thu vien qrcode
+
+── Phần mô tả (dán vào ô lớn bên dưới) ──
+
+Them 3 chuc nang:
+- Bieu do chuoi thoi gian: byHour/byWeekday trong /api/admin/reports/summary,
+  2 bieu do cot tren trang Bao cao kem nhan "Cao diem" tu tinh, 2 sheet Excel moi
+- Ma QR dinh vi: bang qr_points (nang_cap_v10.sql), route cong khai + CRUD quan tri,
+  trang AdminQrPage lap vao muc "Ma QR" tren thanh dieu huong,
+  trang Gui y kien doc ?diem= tren URL de tu chon san phuong/xa
+- Gop su kien trung lap: mo rong duplicate.js (cung dia ban + cung nhom + trong 30 phut
+  + do giong noi dung >= 30%), bang incident_groups (nang_cap_v11.sql),
+  canh bao "Nghi cung mot su viec" tren trang Tong quan
+
+Sua loi:
+- Them thu vien qrcode + @types/qrcode vao package.json.
+  AdminQrPosterPage.tsx import 'qrcode' nhung package.json chi khai bao 'qrcode.react'
+  (hai thu vien khac nhau) -> npm run build that bai
+- Bo sung du 4 bien cong khai vao .env.production.
+  Truoc do chi co VITE_API_URL, thieu Turnstile site key va Cloudinary ->
+  neu Netlify tu dung tu GitHub thi CAPTCHA roi ve khoa cu va Cloudinary bi tat
+- Dung lai dist: ban cu co _headers con tro ve hop-thu-so.onrender.com (thieu -v2)
+  nen trinh duyet chan het moi yeu cau -> web mat ket noi backend
+
+Kiem thu: 285/285 dat. TypeScript: 0 loi.
+
+
+============================================================
+CAC BUOC DAY LEN GITHUB
+============================================================
+
+1. Vao github.com/<tai-khoan>/ans-complete
+2. Add file -> Upload files
+3. Keo THA toan bo noi dung goi nay (tru file COMMIT.txt nay)
+4. Dan tieu de + mo ta o tren vao 2 o commit
+5. Bam Commit changes
+
+Render se tu deploy lai sau ~2 phut.
+
+
+============================================================
+SAU KHI DAY — 3 VIEC PHAI LAM
+============================================================
+
+1. CHAY 2 FILE SQL (neu chua chay)
+   HeidiSQL -> chon database -> chay lan luot:
+       database/nang_cap_v10.sql   (bang qr_points)
+       database/nang_cap_v11.sql   (bang incident_groups)
+   Khong chay thi trang Ma QR va canh bao gop su kien se bao loi thieu bang.
+
+2. KEO dist LEN NETLIFY
+   Giai nen dist-HOAN-CHINH.zip -> keo tha thu muc dist vao tab Deploys.
+   Ban dist trong goi nay da co du 3 chuc nang va da khop _headers.
+
+3. KIEM TRA
+   - Mo web bang cua so an danh (Ctrl+Shift+N) de tranh bo nho dem
+   - Quan tri -> Bao cao: phai thay 2 bieu do moi (Theo khung gio, Theo thu)
+   - Quan tri -> Ma QR: trang phai mo duoc, khong bao loi
+   - Log Render phai co: "Ket noi MySQL thanh cong" va "Ma hoa danh tinh: DA BAT"
