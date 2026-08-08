@@ -47,16 +47,3 @@ export async function requestDataDeletion(
   }
   return apiFetch(`/api/tracking/${encodeURIComponent(code)}/request-deletion`, { method: 'POST' });
 }
-// Thêm hàm này để xử lý yêu cầu xóa dữ liệu (dùng cho file DataRightsBox.tsx)
-export async function requestDataDeletion(code: string): Promise<boolean> {
-  // Có backend: Gửi request xóa lên server
-  if (hasBackend) {
-    return apiFetch<boolean>(`/api/tracking/${encodeURIComponent(code)}/delete`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Không có backend: Giả lập thời gian chờ (mock) rồi báo thành công
-  await delay(800);
-  return true;
-}
