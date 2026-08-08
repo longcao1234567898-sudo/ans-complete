@@ -23,23 +23,40 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
+      # Tên kho ảnh Cloudinary của đơn vị — phải KHỚP với VITE_CLOUDINARY_CLOUD_NAME
+      # bên frontend. Để trống thì kiemTraLinkCloudinary() vẫn chặn miền lạ,
+      # nhưng KHÔNG phân biệt được kho ảnh của đơn vị với kho Cloudinary của
+      # người khác -> kẻ xấu gửi link ảnh trên tài khoản Cloudinary của họ vẫn lọt.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
 
       # ======================================================================
       # KHOÁ BÍ MẬT — BẮT BUỘC, KHÔNG CÓ GIÁ TRỊ MẶC ĐỊNH
       #
-      # ⚠️ Trước đây file này THIẾU cả 5 biến dưới. Ai dựng lại dịch vụ từ
+      # ⚠️ Trước đây file này THIẾU cả 6 biến dưới. Ai dựng lại dịch vụ từ
       #    file này sẽ có một máy chủ chạy được nhưng:
       #      · JWT_SECRET rơi về giá trị dự phòng ghi trong mã nguồn công khai
       #        -> bất kỳ ai cũng tự ký được token quản trị
       #      · ENCRYPTION_KEY trống -> hệ thống từ chối nhận ý kiến có danh tính
+      #      · HASH_PEPPER trống -> hashIdentifier() ném lỗi ngay lần băm ĐẦU TIÊN
       #
       #    Nay khai báo đủ. "sync: false" nghĩa là Render sẽ HỎI giá trị lúc
       #    dựng, không lưu trong file — nên file này an toàn để đưa lên GitHub.
+      #
+      #    Biến nào KHÔNG khai ở đây thì Render KHÔNG HỎI lúc dựng -> người
+      #    deploy làm đúng hướng dẫn vẫn ra một máy chủ thiếu khoá. Vì vậy
+      #    server/tests/khong-duoc-pha.test.js có test đọc thẳng file này.
       # ======================================================================
       - key: JWT_SECRET
         sync: false            # chuỗi ngẫu nhiên >= 32 ký tự. Thiếu -> máy chủ KHÔNG khởi động
       - key: ENCRYPTION_KEY
         sync: false            # 64 ký tự hex. ⚠️ ĐỔI = MẤT VĨNH VIỄN danh tính đã mã hoá
+      # Pepper cho hashIdentifier() — chống trùng lặp, băm IP chống spam.
+      # >= 32 ký tự (openssl rand -hex 32). Thiếu -> KHÔNG lỗi lúc dựng, mà vỡ
+      # lúc chạy ngay tin báo đầu tiên. Đổi pepper chỉ mất tối đa 24h lịch sử
+      # chống spam, không hỏng dữ liệu đã lưu.
+      - key: HASH_PEPPER
+        sync: false
       - key: TURNSTILE_SECRET_KEY
         sync: false
       - key: BREVO_API_KEY

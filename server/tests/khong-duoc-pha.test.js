@@ -289,6 +289,76 @@ describe('Ngưỡng và hạn mức được chọn từ số liệu — không 
   });
 });
 
+describe('G12 — render.yaml khai đủ MỌI khoá bắt buộc', () => {
+  /* LỖI ĐÃ XẢY RA THẬT: tài liệu ghi "render.yaml đã bổ sung JWT_SECRET,
+     ENCRYPTION_KEY, HASH_PEPPER, TURNSTILE_SECRET_KEY" nhưng file thật chỉ có
+     3 — HASH_PEPPER bị bỏ sót.
+
+     Vì sao nguy hiểm hơn vẻ ngoài: Render Blueprint CHỈ HỎI những biến có
+     "sync: false" được khai trong file. Biến không khai thì người deploy làm
+     đúng từng chữ trong hướng dẫn vẫn KHÔNG BAO GIỜ được hỏi. Máy chủ dựng
+     xong, build xanh, khởi động bình thường — rồi getPepper() ném lỗi ở tin
+     báo ĐẦU TIÊN có chống trùng lặp / băm IP. Hỏng lúc chạy, không hỏng lúc
+     dựng, nên không ai thấy cho tới khi người dân gửi tin.
+
+     Test này đọc thẳng render.yaml thay vì tin vào tài liệu. */
+
+  const RENDER_YAML = '../../render.yaml';
+
+  /* Vì sao mỗi biến này bắt buộc — người xoá phải đọc trước khi làm đỏ test */
+  const BAT_BUOC = {
+    JWT_SECRET: 'thiếu -> token.js từ chối khởi động máy chủ',
+    ENCRYPTION_KEY: 'thiếu -> mọi tin báo có danh tính bị trả 503',
+    HASH_PEPPER: 'thiếu -> hashIdentifier() ném lỗi ở tin báo đầu tiên',
+    TURNSTILE_SECRET_KEY: 'thiếu -> bỏ qua CAPTCHA, mở cửa cho bot',
+  };
+
+  test('mọi khoá bắt buộc đều có mặt trong render.yaml', async () => {
+    const yaml = await doc(RENDER_YAML);
+
+    // Chỉ tính dòng khai báo thật ("- key: X"), không tính chữ trong chú thích
+    const daKhai = new Set(
+      [...yaml.matchAll(/^\s*-\s*key:\s*([A-Z0-9_]+)\s*$/gm)].map((m) => m[1])
+    );
+
+    const thieu = Object.keys(BAT_BUOC).filter((k) => !daKhai.has(k));
+    assert.deepEqual(
+      thieu, [],
+      'render.yaml thiếu khoá bắt buộc -> Render sẽ KHÔNG hỏi lúc dựng. '
+      + thieu.map((k) => `${k}: ${BAT_BUOC[k]}`).join(' | ')
+    );
+  });
+
+  test('khoá bí mật dùng sync: false, KHÔNG ghi giá trị thẳng vào file', async () => {
+    const yaml = await doc(RENDER_YAML);
+
+    for (const khoa of Object.keys(BAT_BUOC)) {
+      // Lấy phần ngay sau dòng "- key: KHOA" tới dòng "- key:" kế tiếp
+      const khoi = yaml.split(new RegExp(`^\\s*-\\s*key:\\s*${khoa}\\s*$`, 'm'))[1] || '';
+      const dongDau = khoi.split(/^\s*-\s*key:/m)[0];
+
+      assert.match(
+        dongDau, /sync:\s*false/,
+        `${khoa} phải là "sync: false" — Render hỏi lúc dựng, file an toàn để đưa lên GitHub`
+      );
+      assert.ok(
+        !/^\s*value:/m.test(dongDau),
+        `${khoa} có "value:" -> khoá bí mật bị ghi thẳng vào file công khai trên GitHub`
+      );
+    }
+  });
+
+  test('.env.example liệt kê đủ các khoá đó (người chạy local cũng không hụt)', async () => {
+    const env = await doc('../.env.example');
+    for (const khoa of Object.keys(BAT_BUOC)) {
+      assert.match(
+        env, new RegExp(`^${khoa}=`, 'm'),
+        `.env.example thiếu ${khoa} -> người dựng local sẽ hụt biến này`
+      );
+    }
+  });
+});
+
 describe('maskName / maskPhone không để lọt đủ danh tính', () => {
   test('maskPhone không lộ đủ 10 số để gọi được', async () => {
     const { maskPhone } = await napLai(CRYPTO, MOI_TRUONG);
