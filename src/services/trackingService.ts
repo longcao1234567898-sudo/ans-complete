@@ -36,3 +36,14 @@ export async function lookupTracking(rawCode: string): Promise<TrackingResult> {
 
   throw new Error('Không tìm thấy mã tra cứu. Vui lòng kiểm tra lại 6 ký tự trên phiếu tiếp nhận.');
 }
+
+/** Yêu cầu xoá thông tin cá nhân theo Nghị định 13/2023/NĐ-CP (xem server/src/routes/tracking.js) */
+export async function requestDataDeletion(
+  rawCode: string
+): Promise<{ status: string; message: string; requestedAt?: string }> {
+  const code = rawCode.trim().toUpperCase();
+  if (!hasBackend) {
+    throw new Error('Chức năng này cần kết nối máy chủ, hiện không khả dụng ở chế độ ngoại tuyến.');
+  }
+  return apiFetch(`/api/tracking/${encodeURIComponent(code)}/request-deletion`, { method: 'POST' });
+}
