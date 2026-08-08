@@ -1,49 +1,137 @@
 # Hộp Thư An Ninh Số
 
-Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI dành cho Công an xã/phường.
+Nền tảng tiếp nhận, phân loại và xử lý ý kiến/tố giác công dân bằng AI, dành cho Công an xã/phường (bản demo hiện cấu hình cho Công an thị xã Tân Châu, tỉnh An Giang — xem mục [Tuỳ biến cho đơn vị](#tuỳ-biến-cho-đơn-vị)).
 
-## Công nghệ
-- React 18 + TypeScript + Vite
-- Tailwind CSS (dark mode, glassmorphism, animation)
-- Framer Motion (hiệu ứng chuyển động)
-- TanStack React Query (quản lý dữ liệu bất đồng bộ)
-- html5-qrcode (quét QR), qrcode.react (sinh QR)
-- react-markdown, react-hot-toast, react-router-dom
+Gồm 2 phần độc lập, có thể chạy riêng:
+- **Frontend** (thư mục gốc): React SPA — chạy được **một mình** ở chế độ offline (lưu localStorage), không bắt buộc phải có backend.
+- **Backend** (`server/`): Node/Express/MySQL — bật khi cần dữ liệu thật, xác thực cán bộ, và giấu key AI khỏi trình duyệt. Xem [server/README.md](server/README.md) để biết chi tiết API.
 
-## Chạy dự án (VS Code)
-```bash
-# 1. Cài dependencies (cần Node.js >= 18)
-npm install
+## Trạng thái hiện tại (2026-08-08)
+- ✅ `npm run build` (frontend) chạy sạch, không lỗi TypeScript.
+- ✅ Backend: 285/285 test pass (`cd server && npm test`).
+- ⚠️ Xem mục [Việc còn tồn đọng](#việc-còn-tồn-đọng--hướng-phát-triển-tiếp-theo) trước khi bàn giao hoặc mở rộng — có vài chỗ tài liệu/cấu hình chưa theo kịp code.
 
-# 2. Chạy môi trường phát triển
-npm run dev   # mở http://localhost:3000
-
-# 3. Build production
-npm run build
-npm run preview
+## Kiến trúc & thư mục chính
+```
+ans-complete/
+├─ src/                  Frontend (React + TS)
+│  ├─ pages/              Trang công khai (Home, Gửi ý kiến, Tra cứu, Tin tức...)
+│  ├─ pages/admin/         Trang quản trị (Dashboard, Bản đồ, Thùng rác, QR, Nhật ký...)
+│  ├─ components/          UI theo tính năng (AIChat, FeedbackForm, Tracking, admin...)
+│  ├─ services/            Gọi API / logic nghiệp vụ phía client (adminService, aiService, uploadService...)
+│  └─ utils/               constants, security.ts (lá chắn nội dung), mockData.ts
+├─ server/                Backend (Node + Express + MySQL), xem server/README.md
+├─ database/              Schema + migration SQL (xem mục Database bên dưới)
+├─ docs/adr/               Quyết định kiến trúc (Architecture Decision Records)
+└─ docs/CHANGELOG-BAO-MAT.md   Nhật ký đợt vá bảo mật lớn 2026-08-03
 ```
 
-## Bật AI thật cho trợ lý hỏi đáp (tuỳ chọn)
+## Công nghệ
+**Frontend**: React 18 + TypeScript + Vite · Tailwind CSS · Framer Motion · TanStack React Query · React Router · react-leaflet/Leaflet (bản đồ) · recharts (biểu đồ) · xlsx (xuất báo cáo) · html5-qrcode + qrcode.react (QR) · react-markdown · react-hot-toast
 
-Kể từ bản vá bảo mật 2026-08-03, **key AI chỉ đặt ở backend**, không bao giờ đặt ở frontend nữa (xem mục "Bản vá bảo mật" bên dưới, mục H3).
+**Backend**: Express · MySQL (mysql2) · JWT (jsonwebtoken) · bcryptjs · helmet · express-rate-limit · nodemailer/Resend/Brevo (email OTP) · otplib · qrcode
 
-1. Vào https://aistudio.google.com/app/apikey (Google Gemini, có gói miễn phí), đăng nhập Gmail, bấm **Create API key**
-2. Trong `server/.env`, dán vào dòng `GEMINI_API_KEY=...`
-3. Khởi động lại backend (`npm run dev` trong thư mục `server/`)
+## Chạy dự án (dev)
 
-Frontend gọi AI qua hai endpoint proxy của backend: `POST /api/ai/chat` (chatbot) và `POST /api/ai/moderate-image` (kiểm duyệt ảnh) — key không bao giờ lộ xuống trình duyệt.
+### 1. Frontend
+```bash
+npm install          # cần Node.js >= 18
+npm run dev           # http://localhost:3000
+npm run build          # kiểm tra production build
+npm run preview
+```
+Không cần backend để chạy — mặc định hoạt động offline với dữ liệu mẫu (`src/utils/mockData.ts`) và lưu vào `localStorage`.
 
-Không có backend hoặc chưa cấu hình `GEMINI_API_KEY`: trợ lý AI vẫn hoạt động bằng bộ câu trả lời mẫu tại `src/utils/mockData.ts`, kiểm duyệt ảnh dùng heuristic cục bộ — không tính năng nào bị chặn hẳn.
+### 2. Backend (tuỳ chọn, cần cho dữ liệu thật)
+```bash
+cd server
+npm install
+cp .env.example .env    # rồi điền JWT_SECRET/ENCRYPTION_KEY/HASH_PEPPER (bắt buộc), xem server/README.md
+npm run dev              # http://localhost:4000
+```
+Yêu cầu MySQL đang chạy + đã import database (xem mục dưới). Sau khi có backend, đặt `VITE_API_URL=http://localhost:4000` ở `.env` của frontend để 2 phần nói chuyện được với nhau.
 
-## Lá chắn an toàn nội dung (`src/utils/security.ts`)
-- **Văn bản**: quét mẫu tấn công (script/iframe, javascript:, on*=, SQL/template injection...), loại ký tự điều khiển và ký tự tàng hình, giới hạn 2000 ký tự — kiểm tra 2 lớp (trước khi AI phân tích và ngay trước khi lưu).
-- **Hình ảnh**: xác minh chữ ký nhị phân (magic bytes) chống tệp giả mạo đuôi ảnh, từ chối SVG, chặn bom giải nén (>40MP), và **tái mã hoá toàn bộ ảnh qua canvas** để xoá mã độc ẩn trong metadata.
-- Lưu ý: đây là phòng thủ phía trình duyệt; khi có backend thật phải kiểm tra lại phía máy chủ.
+### 3. Database (MySQL/MariaDB)
+Import theo đúng thứ tự:
+```bash
+mysql -u root -p hop_thu_an_ninh_so < database/TRON_BO_DATABASE_V5.sql   # 1. Nền: schema gốc + nâng cấp V2–V5 + tin tức mẫu
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v6.sql            # 2. Mức độ khẩn cấp
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v7.sql            #    Thùng rác (xoá mềm 7 ngày)
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v8.sql            #    Quyền xoá dữ liệu cá nhân (NĐ 13/2023/NĐ-CP)
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v9.sql            #    Tăng cường bảo mật đăng nhập cán bộ
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v10.sql           #    Mã QR định vị hiện trường
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v11.sql           # 3. Gộp sự kiện trùng lặp (nhiều người báo 1 vụ)
+```
+`gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 
-## Quy tắc form gửi ý kiến
-- **Họ và tên**: bắt buộc
-- **Số điện thoại**: bắt buộc (định dạng Việt Nam)
-- **Email**: không bắt buộc
+File cũ `hop_thu_an_ninh_so.sql` (bản gốc, trước khi có V2–V11) vẫn còn trong repo để tham khảo lịch sử — **không dùng để cài đặt mới**, dùng `TRON_BO_DATABASE_V5.sql` ở trên.
+
+Sau khi import, tạo mật khẩu admin:
+```bash
+cd server && node scripts-create-admin.js MatKhauCuaBan@2026
+```
+
+## Tính năng
+
+### Công khai (người dân)
+- Gửi ý kiến/tố giác — ẩn danh hoặc có danh tính, xác thực bằng **OTP gửi qua email** trước khi backend nhận (`/api/otp`), kèm mức độ khẩn cấp (bình thường/quan trọng/khẩn cấp).
+- Lá chắn nội dung 2 lớp phía trình duyệt (`src/utils/security.ts`) + kiểm tra lại phía server.
+- Trợ lý AI hỏi đáp (chatbot) — chạy qua backend proxy nếu có, fallback về câu trả lời mẫu nếu không.
+- Tra cứu tiến độ bằng mã 6 ký tự.
+- Tin tức đơn vị.
+- CAPTCHA Cloudflare Turnstile chống bot (tuỳ chọn, bật khi có `TURNSTILE_SECRET_KEY`).
+- Ảnh bằng chứng: kiểm duyệt AI + tái mã hoá qua canvas, tải lên Cloudinary nếu đã cấu hình (`VITE_CLOUDINARY_CLOUD_NAME`/`VITE_CLOUDINARY_PRESET`), fallback lưu base64 nếu chưa.
+- PWA: `manifest.json` + `sw.js`.
+
+### Quản trị (cán bộ, cần đăng nhập — mọi route dưới `/api/admin` đều qua `requireAuth`)
+- Dashboard thống kê.
+- Danh sách/chi tiết ý kiến: lọc, tìm kiếm, phân trang, đổi trạng thái, phân công cán bộ, xem danh tính (`/reveal`, giới hạn quyền).
+- Duyệt tin (review).
+- Bản đồ vụ việc (Leaflet).
+- Gộp sự kiện trùng lặp — nhiều người cùng báo một vụ việc.
+- Quản lý mã QR định vị (dán tại hiện trường/quầy tiếp dân).
+- Chế độ Kiosk — cán bộ nhập tin "đã xác minh tại trụ sở" thay người dân.
+- Thùng rác — xoá mềm, giữ 7 ngày, khôi phục được.
+- Nhật ký hoạt động cán bộ + cảnh báo bất thường.
+- Quản lý cán bộ, quản lý từ cấm (banned words).
+- Báo cáo/thống kê, xuất Excel (xlsx).
+
+## Biến môi trường
+
+**Frontend** (`.env`, xem `.env.example`):
+| Biến | Bắt buộc | Ghi chú |
+|---|---|---|
+| `VITE_API_URL` | Không | Trống = chạy offline (localStorage) |
+| `VITE_CLOUDINARY_CLOUD_NAME` / `VITE_CLOUDINARY_PRESET` | Không | Bật upload ảnh lên Cloudinary (xem `src/services/uploadService.ts`) |
+
+**Backend** (`server/.env`, xem `server/.env.example` và [server/README.md](server/README.md)) — chi tiết đầy đủ ở đó. Ba khoá `JWT_SECRET`/`ENCRYPTION_KEY`/`HASH_PEPPER` là bắt buộc, thiếu là server từ chối khởi động (cố ý, fail-safe).
+
+⚠️ Không bao giờ đặt key AI (`GEMINI_API_KEY`) hay bất kỳ secret nào vào biến `VITE_*` — Vite inline thẳng vào bundle JS, ai mở DevTools cũng đọc được.
+
+## Bảo mật
+Dự án từng trải qua một đợt vá bảo mật khẩn cấp lớn (2026-08-03) — chi tiết đầy đủ (lỗ hổng, cách vá, cách kiểm chứng) ở [docs/CHANGELOG-BAO-MAT.md](docs/CHANGELOG-BAO-MAT.md). Tóm tắt các nguyên tắc còn áp dụng:
+- **Fail-safe, không fail-open**: thiếu khoá bí mật → server từ chối khởi động, không âm thầm chạy với giá trị mặc định yếu.
+- IP người dùng chỉ tin từ `req.ip` (đã qua `trust proxy`), không bao giờ tin header client tự đặt.
+- SĐT/email băm bằng HMAC + pepper (biến môi trường, không nằm trong DB) — không phải SHA-256 trần.
+- Danh tính người tố giác chỉ `admin` hoặc cán bộ **được phân công đúng hồ sơ đó** mới xem được, mọi lượt xem đều ghi log.
+- Access token cán bộ giữ trong RAM (không `localStorage`/`sessionStorage`); phiên khôi phục qua cookie refresh `httpOnly`.
+- Hệ thống giả định **một đơn vị/một database** — xem [docs/adr/001-pham-vi-du-lieu-theo-don-vi.md](docs/adr/001-pham-vi-du-lieu-theo-don-vi.md) trước khi gộp nhiều xã/phường dùng chung một database.
+- Kiểm chứng: `cd server && npm test` (285 test, không cần MySQL).
+
+## Tuỳ biến cho đơn vị
+Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/utils/constants.ts` (hằng số `UNIT`) và `server/src/lib/unit.js` (dùng trong email OTP).
+
+## Deploy công khai
+- **Netlify Drop (nhanh nhất):** `npm run build` → kéo thả `dist` vào https://app.netlify.com/drop. `public/_redirects` đã cấu hình sẵn cho SPA.
+- **Vercel + GitHub (tự động):** đẩy code lên GitHub → import vào vercel.com → thêm `VITE_API_URL` (+ `VITE_CLOUDINARY_*` nếu dùng) → Deploy. `vercel.json` đã cấu hình security headers — **phải giữ khớp** với `public/_headers` (bản Netlify), Vercel không đọc file `_headers`.
+- **Backend (Render):** xem `render.yaml` — bắt buộc đặt `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`, `TURNSTILE_SECRET_KEY`, `BREVO_API_KEY`/`MAIL_USER` thật trước khi deploy.
+- Key AI, key mail, Turnstile secret chỉ đặt trên backend/Render — không đặt ở biến `VITE_*` của frontend.
+
+## Việc còn tồn đọng / hướng phát triển tiếp theo
+- **Đa đơn vị (`unit_id`)**: quyết định sớm nếu định mở rộng nhiều xã/phường dùng chung database — xem ADR 001, thêm sau khi đã có dữ liệu thật sẽ tốn kém hơn nhiều.
+- Stored procedure `check_spam` trong `database/hop_thu_an_ninh_so.sql` (bản cũ) là code chết — backend không gọi tới, và so sánh SĐT dạng chữ thường với cột đã mã hoá nên không bao giờ khớp. Chưa dọn.
+- `database/` có nhiều file migration rời rạc (`nang_cap_v6`…`v11`) — cân nhắc gộp vào một file "trọn bộ" mới (như `TRON_BO_DATABASE_V5.sql` đã làm cho V2–V5) khi ổn định, để người cài mới không phải chạy 7 lệnh liên tiếp.
+- Chưa có test tự động cho frontend (chỉ có kiểm tra kiểu TypeScript qua `tsc`) — nếu tính năng quan trọng thêm vào, cân nhắc thêm Vitest/Playwright.
 
 ## Mã tra cứu demo
 | Mã     | Trạng thái     |
@@ -53,61 +141,4 @@ Không có backend hoặc chưa cấu hình `GEMINI_API_KEY`: trợ lý AI vẫn
 | DEMO03 | Đã giải quyết  |
 | DEMO04 | Từ chối        |
 
-Ý kiến gửi mới được lưu vào localStorage và tra cứu được bằng mã 6 ký tự do hệ thống cấp.
-
-## Tuỳ biến cho đơn vị
-Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/utils/constants.ts` — hằng số `UNIT`.
-
-## Ghi chú
-- AI phân tích/phân loại ý kiến hiện là **mock** tại `src/services/aiService.ts` — khi có API thật chỉ cần thay phần gọi mạng, giữ nguyên interface.
-- PWA: đã có `manifest.json` + `sw.js` (đăng ký khi build production).
-
-## Deploy công khai (public)
-- **Netlify Drop (nhanh nhất):** chạy `npm run build` → kéo thả thư mục `dist` vào https://app.netlify.com/drop → nhận link `.netlify.app`. File `public/_redirects` đã cấu hình sẵn cho SPA.
-- **Vercel + GitHub (tự động):** đẩy code lên GitHub → import vào vercel.com → thêm biến môi trường `VITE_API_URL` (địa chỉ backend) → Deploy. File `vercel.json` đã cấu hình sẵn.
-- Backend (Render): xem `render.yaml` — bắt buộc đặt `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER` thật trước khi deploy (chi tiết ở mục "Bản vá bảo mật" bên dưới).
-- Key AI (`GEMINI_API_KEY`) chỉ đặt trên backend, **không** đặt ở biến `VITE_*` của frontend — key ở frontend sẽ công khai cho mọi người xem được qua DevTools.
-
-## Database (MySQL/MariaDB)
-File `database/hop_thu_an_ninh_so.sql` chứa schema hoàn chỉnh: 9 bảng, trigger, function sinh mã tra cứu, procedure cập nhật trạng thái/tra cứu/chống spam, 3 view thống kê, kèm dữ liệu demo DEMO01–DEMO04. Import bằng phpMyAdmin/MySQL Workbench hoặc: `mysql -u root -p < database/hop_thu_an_ninh_so.sql`. Lưu ý: đổi password_hash tài khoản admin bằng bcrypt trước khi dùng thật. Web hiện vẫn chạy localStorage — database này dùng khi xây backend API.
-
-## Bản vá bảo mật khẩn cấp — 2026-08-03 (nhánh `LOC`)
-
-Hệ thống trước bản vá đang **phơi dữ liệu tố giác tội phạm ra Internet** (2 router quản trị không xác thực, JWT_SECRET hard-code công khai trong repo, IP giả mạo được nên mọi hạn mức chống spam và cảnh báo dò mật khẩu vô hiệu, tin "ẩn danh" thực chất dò ngược được danh tính). Dưới đây là tóm tắt những gì đã sửa (tài liệu phân tích đầy đủ giữ ở máy nội bộ, không đưa lên repo công khai).
-
-**Nguyên tắc xuyên suốt**: khi phân vân giữa hai phương án, luôn chọn phương án bảo vệ người tố giác — kể cả khi đó là làm hệ thống **từ chối phục vụ** thay vì âm thầm hoạt động sai (fail-safe, không fail-open).
-
-### Giai đoạn 0 — làm cho chạy được
-- **B1**: `server/src/lib/ai.js` thiếu export `geminiAnalyze`/`geminiModerateImage` mà `routes/ai.js` lại import → ESM ném `SyntaxError`, backend chết ngay lúc khởi động. Đã viết bổ sung 2 hàm này (tái dùng `callOnce`/`callGemini` sẵn có); nội dung tố giác vẫn phân tích **nội bộ**, không gửi ra Google.
-- **B2**: `src/App.tsx` import `./pages/admin/AdminQRPage` — file không tồn tại, `npm run build` chết ở bước `tsc`. Đã gỡ route/menu liên quan.
-
-### Giai đoạn 1 — CRITICAL
-- **C1**: `routes/admin/kiosk.js` và `routes/admin/trash.js` quên gắn `requireAuth` → đọc/ghi được toàn bộ thùng rác (gồm tin tố giác) và chèn tin "đã xác minh tại trụ sở" **không cần đăng nhập**. Chốt `requireAuth` ở tầng router cha `routes/admin/index.js` để không router con nào quên được nữa.
-- **C2**: `JWT_SECRET` có giá trị mặc định hard-code trong mã nguồn công khai trên GitHub → ai đọc repo cũng tự ký được token admin. Bỏ hẳn giá trị mặc định, bắt buộc ≥ 32 ký tự, thiếu thì server từ chối khởi động. `render.yaml` bổ sung `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`, `TURNSTILE_SECRET_KEY`.
-- **C3**: 8 nơi trong mã nghiệp vụ đọc IP từ header `X-Forwarded-For` do **client tự đặt** (giả mạo được bằng một dòng `curl -H`), vô hiệu mọi hạn mức chống spam và làm mù cảnh báo dò mật khẩu. Thêm `clientIp(req)` dùng `req.ip` (đã đi qua `trust proxy`), thay thế đủ 8 vị trí.
-- **C4**: SĐT/email băm bằng SHA-256 trần (miền giá trị SĐT di động VN chỉ ~10⁸, dò ngược mất vài phút) → phá vỡ lớp mã hoá AES-256-GCM ngay bên cạnh. Thêm `hashIdentifier()` dùng HMAC với `HASH_PEPPER` (biến môi trường, không nằm trong DB). IP và User-Agent của người gửi ẩn danh không còn lưu dạng chữ trần. Bỏ `SELECT s.*` ở endpoint chi tiết — trước đây spread thẳng cả `ip_address`/`user_agent` vào response cho mọi cán bộ.
-
-### Giai đoạn 2 — HIGH
-- **H1**: `authorize('admin','manager')` cho `POST /:id/reveal` và toàn bộ `/reports/*` — trước đây mọi cán bộ `handler` đều xem được danh tính đầy đủ và xuất được 2000 dòng nội dung tin báo.
-- **H2**: `/reveal` giờ chỉ cho `admin` hoặc cán bộ **được phân công đúng hồ sơ đó** — chống cán bộ tha hoá tra danh tính hồ sơ mình không phụ trách. Giao diện hiện lỗi 403 rõ ràng ngay dưới nút, không còn trắng màn hình.
-- **H3**: gỡ nhánh gọi thẳng OpenAI/Gemini từ trình duyệt — key bị Vite inline thẳng vào bundle JS (ai mở DevTools cũng lấy được), và ảnh bằng chứng của dân bị gửi thẳng sang Google. Chỉ còn đường qua backend (`/api/ai/chat`, `/api/ai/moderate-image`).
-- **H4**: kết nối MySQL với `DB_SSL=true` trước đây **không xác thực chứng chỉ** (`rejectUnauthorized: false`) → chống nghe lén thụ động nhưng không chống man-in-the-middle. Nay xác thực CA hệ thống, hỗ trợ thêm `DB_SSL_CA_PEM` để dán trực tiếp nội dung PEM (Render không có filesystem cố định để trỏ đường dẫn file).
-- **H5**: access token của cán bộ chuyển từ `sessionStorage` (đọc được bằng một dòng JavaScript, dễ bị đánh cắp qua XSS) sang biến trong RAM; phiên đăng nhập khôi phục qua cookie refresh `httpOnly` khi tải lại trang. Xoá cặp `authService.ts` + `useAuth.tsx` — bản an toàn hơn nhưng không nơi nào dùng, còn bản kém an toàn (`adminService.ts`) mới là bản chạy thật.
-- **H6**: `docs/adr/001-pham-vi-du-lieu-theo-don-vi.md` — ghi rõ hệ thống hiện giả định **một đơn vị/một database**; nếu gộp nhiều đơn vị dùng chung DB thì cần thêm `unit_id` và đây sẽ là IDOR ngang nghiêm trọng ngay lập tức.
-
-### Kiểm chứng
-- 187 test (`server/tests/`, chạy bằng `node --test`, không cần MySQL): `cd server && npm install && npm test`.
-- Mỗi lỗ hổng có test hồi quy — đã tự kiểm chứng bằng cách revert từng phần bản vá và xác nhận test tương ứng chuyển đỏ.
-- Có thêm bộ test khoá lại 10 quyết định bảo mật đúng đắn đã tồn tại từ trước (không khoá tài khoản khi sai mật khẩu, luôn chạy `bcrypt.compare` kể cả khi không tìm thấy user, cookie `secure` mặc định bật, v.v.) để không ai vô tình phá khi sửa code sau này.
-
-### Việc người vận hành phải tự làm (agent không tự làm được)
-1. Đặt `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER` thật trên Render (`openssl rand -hex 32`).
-2. `TRUNCATE TABLE refresh_tokens;` — huỷ mọi phiên cấp bằng secret cũ.
-3. Đổi mật khẩu tài khoản `admin`: `node scripts-create-admin.js <mật_khẩu_mới>`.
-4. Rà bảng `staff` xem có tài khoản lạ không (kẻ tấn công có thể đã tự tạo bằng token giả).
-5. Nạp CA vào `DB_SSL_CA_PEM` **trước khi** deploy bản vá — nếu không, backend không kết nối được MySQL cloud.
-6. Thu hồi key AI nếu từng đặt vào `VITE_OPENAI_API_KEY`/`VITE_GEMINI_API_KEY` trên bản deploy cũ.
-
-### Còn tồn đọng — chưa sửa, ngoài phạm vi bảo mật
-- **`npm run build` (frontend) hiện KHÔNG chạy được** — 10 lỗi TypeScript có sẵn từ trước bản vá (đã kiểm chứng bằng cách stash bản vá và chạy lại `tsc --noEmit` trên cây gốc). Đáng chú ý nhất: `src/components/common/VoiceInput.tsx` được import ở 2 nơi nhưng không tồn tại. Đây là lỗi tính năng, không phải lỗi bảo mật, nên không tự sửa.
-- Stored procedure `check_spam` trong `database/hop_thu_an_ninh_so.sql` là code chết (backend không gọi, so sánh SĐT plaintext với cột đã mã hoá nên không bao giờ khớp) — chưa xoá.
+Ý kiến gửi mới ở chế độ offline được lưu vào `localStorage` và tra cứu được bằng mã 6 ký tự do hệ thống cấp.
