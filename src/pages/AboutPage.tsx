@@ -30,13 +30,13 @@ const PROCESS_STEPS = [
 export default function AboutPage() {
   return (
     <>
-      <PageBackground video="bg-nui-sam.mp4" />
+      <PageBackground image="bg-nui-sam.webp" />
       <div className="container-page max-w-3xl py-10 sm:py-14">
       <div className="mb-10 text-center">
         <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-4 py-1.5 text-xs font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
           <Sparkles className="h-3.5 w-3.5" /> Giới thiệu hệ thống
         </span>
-        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Hộp Thư An Ninh Số</h1>
+        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Hộp Thư Số — Điểm Chạm An Ninh</h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
           Là kênh tiếp nhận ý kiến, phản ánh, kiến nghị của công dân do {UNIT.name} triển khai, ứng dụng trí tuệ
           nhân tạo để tiếp nhận nhanh chóng, phân loại chính xác và minh bạch trong theo dõi tiến độ xử lý.
@@ -97,28 +97,28 @@ export default function AboutPage() {
           <div className="flex items-start gap-3">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
             <div>
-              <p className="text-xs font-medium text-slate-400">Địa chỉ</p>
+              <p className="text-xs font-medium text-slate-500">Địa chỉ</p>
               <p className="text-sm text-slate-700 dark:text-slate-200">{UNIT.address}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
             <div>
-              <p className="text-xs font-medium text-slate-400">Hotline</p>
+              <p className="text-xs font-medium text-slate-500">Hotline</p>
               <p className="text-sm text-slate-700 dark:text-slate-200">{UNIT.hotline}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
             <div>
-              <p className="text-xs font-medium text-slate-400">Email</p>
+              <p className="text-xs font-medium text-slate-500">Email</p>
               <p className="text-sm text-slate-700 dark:text-slate-200">{UNIT.email}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
             <div>
-              <p className="text-xs font-medium text-slate-400">Giờ làm việc</p>
+              <p className="text-xs font-medium text-slate-500">Giờ làm việc</p>
               <p className="text-sm text-slate-700 dark:text-slate-200">Thứ 2 – Thứ 6: 7:30–12:00, 13:30–17:00 (trực ban 24/24)</p>
             </div>
           </div>

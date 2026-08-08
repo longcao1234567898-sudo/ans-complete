@@ -18,7 +18,7 @@ import { Navigate, Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText,
-  ShieldQuestion, QrCode, MonitorSmartphone, Trash2,
+  ShieldQuestion, QrCode, Printer, MonitorSmartphone, Trash2,
 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
@@ -46,7 +46,8 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
     ten: 'Tại quầy',
     muc: [
       { to: '/quan-tri/ki-ot', label: 'Ki-ốt tiếp dân', Icon: MonitorSmartphone, exact: false },
-      { to: '/quan-tri/ma-qr', label: 'Mã QR', Icon: QrCode, exact: false },
+      { to: '/quan-tri/ma-qr', label: 'Điểm QR', Icon: QrCode, exact: false },
+      { to: '/quan-tri/qr-tuyen-truyen', label: 'QR tuyên truyền', Icon: Printer, exact: false },
     ],
   },
   {

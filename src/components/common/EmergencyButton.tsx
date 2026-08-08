@@ -16,7 +16,11 @@ export default function EmergencyButton() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-5 left-4 z-50 sm:bottom-6 sm:left-6">
+    <div
+      className="fixed left-4 z-50 transition-[bottom] duration-300 sm:left-6"
+      /* Tự đẩy lên khi thanh chức năng đáy hiện ra, khỏi bị che */
+      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem))' }}
+    >
       {open && (
         <div className="mb-3 w-72 overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl dark:border-red-900/50 dark:bg-slate-900">
           <div className="flex items-center justify-between bg-red-600 px-4 py-3">
@@ -57,7 +61,7 @@ export default function EmergencyButton() {
               </a>
             )}
 
-            <p className="px-1 text-[11px] leading-relaxed text-slate-400">
+            <p className="px-1 text-[11px] leading-relaxed text-slate-500">
               Chỉ dùng khi tình huống khẩn cấp cần lực lượng có mặt ngay.
               Việc chưa gấp, bà con hãy gửi ý kiến để được xử lý theo quy trình.
             </p>
@@ -65,7 +69,11 @@ export default function EmergencyButton() {
         </div>
       )}
 
-      <div className="flex flex-col items-center">
+      {/* Chữ "SOS" đặt TUYỆT ĐỐI bên dưới nút.
+          Trước đây nó nằm trong luồng bình thường nên đẩy vòng tròn lên
+          cao 18px, khiến nút SOS lệch hẳn so với nút trợ lý ảo bên phải.
+          Đặt tuyệt đối thì chữ vẫn hiện mà nút giữ đúng độ cao. */}
+      <div className="relative flex flex-col items-center">
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Gọi khẩn cấp"
@@ -73,7 +81,9 @@ export default function EmergencyButton() {
         >
           <Siren className="h-6 w-6" />
         </button>
-        <p className="mt-1 select-none text-center text-[10px] font-bold tracking-wide text-red-600 dark:text-red-400">SOS</p>
+        <p className="pointer-events-none absolute top-full mt-0.5 select-none text-center text-[10px] font-bold tracking-wide text-red-600 drop-shadow-sm dark:text-red-400">
+          SOS
+        </p>
       </div>
     </div>
   );

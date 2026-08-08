@@ -1,4 +1,4 @@
-# robots.txt — Hộp Thư An Ninh Số
+# robots.txt — Hộp Thư Số — Điểm Chạm An Ninh
 # Cho phép lập chỉ mục trang công khai, CHẶN khu vực nhạy cảm.
 
 User-agent: *

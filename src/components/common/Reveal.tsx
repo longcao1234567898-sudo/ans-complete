@@ -29,7 +29,8 @@ export default function Reveal({ children, delay = 0, distance = 28, className }
       className={className}
       initial={reduce ? { opacity: 1 } : { opacity: 0, y: distance }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
+      // amount 0.1: chỉ cần 10% khối vào màn hình là hiện — không bao giờ bị kẹt ẩn
+      viewport={{ once: true, amount: 0.1 }}
       transition={{ duration: 0.55, delay, ease: [0.21, 0.65, 0.36, 1] }}
     >
       {children}

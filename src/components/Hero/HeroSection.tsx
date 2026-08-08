@@ -4,14 +4,14 @@
  * dải cam kết). Đã bỏ toàn bộ nhân vật SVG và cảnh sông nước.
  */
 import { motion } from 'framer-motion';
-import Magnetic from '../common/Magnetic';
+import { UNIT } from '../../utils/constants';
 import { Link } from 'react-router-dom';
 import { Bot, Clock3, Mail, QrCode, Search, ShieldCheck, Zap } from 'lucide-react';
 
 /** 4 thẻ tính năng nổi bật */
 const STATS = [
   { Icon: Clock3, title: '24/7', sub: 'Tiếp nhận trực tuyến', color: 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300' },
-  { Icon: Bot, title: 'AI phân loại', sub: 'Tự động, chính xác', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
+  { Icon: Bot, title: 'Tự động phân loại', sub: 'Nhanh, giải thích rõ', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
   { Icon: Zap, title: '1 phút', sub: 'Gửi ý kiến nhanh gọn', color: 'bg-accent-100 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500' },
   { Icon: ShieldCheck, title: 'Bảo mật', sub: 'Thông tin được bảo vệ', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
 ];
@@ -19,8 +19,8 @@ const STATS = [
 /** Dải cam kết dưới cùng */
 const TRUST_ITEMS = [
   'Mọi phản ánh đều được bảo mật',
-  'Được tiếp nhận bởi Công an thị xã Tân Châu',
-  'Vì một Tân Châu bình yên và phát triển',
+  `Được tiếp nhận bởi ${UNIT.name}`,
+  `Vì một ${UNIT.communeName} bình yên và phát triển`,
 ];
 
 /** Quốc huy cách điệu vàng của đơn vị */
@@ -39,7 +39,21 @@ function UnitEmblem({ className }: { className?: string }) {
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
-      {/* NỀN VIDEO chuyển động */}
+      {/* NỀN VIDEO chuyển động
+
+          LỖI ĐÃ SỬA: trước đây đặt poster="/media/police-assistant.png".
+          Ảnh poster là thứ trình duyệt hiện TRƯỚC khi video kịp tải —
+          mà ảnh đó lại là mockup khung chat có dòng "Xin chào! Tôi là trợ lý
+          ảo của Công an thị xã Tân Châu...". Nên mỗi lần mở web, người dùng
+          thấy ảnh chat lạ chớp qua rồi biến mất khi video chạy.
+
+          Bỏ poster đi. Thay bằng một lớp nền màu tĩnh phía dưới — video
+          chưa tải thì thấy nền xanh nhạt êm dịu, không còn chớp ảnh lạ.
+          Bỏ luôn được 1,2 MB tải về ngay lúc mở trang. */}
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-primary-50 via-white to-primary-50/60 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900"
+        aria-hidden
+      />
       <video
         className="absolute inset-0 h-full w-full object-cover"
         src="/media/hero-bg.mp4"
@@ -47,7 +61,7 @@ export default function HeroSection() {
         muted
         loop
         playsInline
-        poster="/media/police-assistant.png"
+        preload="metadata"
         aria-hidden
       />
       {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video */}
@@ -84,47 +98,68 @@ export default function HeroSection() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-          <h1 id="hero-title" className="mx-auto max-w-4xl text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
-            <span className="text-gradient">HỘP THƯ AN NINH SỐ</span>
-            <span className="ml-3 inline-flex -translate-y-1.5 items-center rounded-xl border-2 border-primary-500 bg-white/80 px-2.5 py-0.5 align-middle text-base font-black text-primary-600 dark:bg-slate-800 dark:text-primary-300 sm:-translate-y-3 sm:text-xl">AI</span>
+          {/* ===== TÊN HỆ THỐNG — TRUNG TÂM CỦA TRANG =====
+              Đây là "luận đề" của giao diện: người dân mở web ra phải thấy
+              ngay mình đang ở đâu. Nên chữ được đẩy lên rất lớn, siết chặt
+              khoảng cách chữ (tracking) cho khối chữ đặc và chắc.
+
+              Ba cỡ theo màn hình: điện thoại 5xl, máy tính bảng 7xl, màn lớn 8xl. */}
+          <h1 id="hero-title" className="mx-auto max-w-5xl text-center font-black tracking-tighter">
+            <span className="relative block text-5xl leading-[1.15] sm:text-7xl lg:text-8xl">
+              {/* Đã gỡ huy hiệu "AI" cạnh tên hệ thống.
+                  Lý do: AI nay chỉ còn ở trợ lý hỏi đáp, không tham gia phân
+                  loại ý kiến nữa. Để chữ AI cạnh tên hệ thống là nói quá vai
+                  trò của nó, dễ bị hỏi lại khi bảo vệ. */}
+              <span className="text-primary-700 dark:text-primary-300">HỘP THƯ SỐ</span>
+            </span>
+
+            {/* Dòng phụ: gạch ngang hai bên để neo mắt vào giữa */}
+            <span className="mt-2.5 flex items-center justify-center gap-3 sm:mt-4 sm:gap-4">
+              <span className="h-px w-8 bg-primary-400/50 sm:w-14" />
+              <span className="text-lg font-bold uppercase tracking-[0.12em] text-primary-700 dark:text-primary-300 sm:text-2xl lg:text-3xl">
+                Điểm chạm an ninh
+              </span>
+              <span className="h-px w-8 bg-primary-400/50 sm:w-14" />
+            </span>
           </h1>
 
-          <p className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
-            Tiếp nhận ý kiến công dân thông minh với AI — gửi trong 1 phút, theo dõi tiến độ mọi lúc.
+          {/* KHẨU HIỆU */}
+          <p className="mx-auto mt-5 max-w-xl text-[15px] font-semibold italic text-primary-600 dark:text-primary-400 sm:mt-6 sm:text-lg">
+            Chạm để kết nối — Kết nối để bình yên
+          </p>
+
+          <p className="mx-auto mt-3 max-w-xl text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
+            Tiếp nhận ý kiến công dân trực tuyến — gửi trong 1 phút, theo dõi tiến độ mọi lúc.
           </p>
 
           {/* 2 nút CTA 2 dòng */}
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             {/* Nút chính: hút theo con trỏ + vệt sáng lướt + vầng sáng thở */}
-            <Magnetic className="w-full sm:w-auto">
               <Link
                 to="/gui-y-kien"
-                className="btn-shine animate-glow group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-500 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto"
+                className="group flex w-full items-center gap-3 rounded-2xl bg-primary-600 px-6 py-3 text-left text-white shadow-soft transition-colors hover:bg-primary-700 sm:w-auto"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                  <Mail className="icon-pop h-5 w-5" aria-hidden />
+                  <Mail className="h-5 w-5" aria-hidden />
                 </span>
                 <span>
                   <span className="block text-base font-bold leading-tight">Gửi ý kiến ngay</span>
                   <span className="block text-[11px] text-white/85">Gửi phản ánh, kiến nghị</span>
                 </span>
               </Link>
-            </Magnetic>
 
-            <Magnetic className="w-full sm:w-auto">
               <Link
                 to="/tra-cuu"
-                className="btn-shine group flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-secondary-500 to-secondary-600 px-6 py-3 text-left text-white shadow-soft transition-transform will-change-transform hover:-translate-y-0.5 sm:w-auto"
+                className="group flex w-full items-center gap-3 rounded-2xl bg-secondary-500 px-6 py-3 text-left text-white shadow-soft transition-colors hover:bg-secondary-600 sm:w-auto"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                  <Search className="icon-pop h-5 w-5" aria-hidden />
+                  <Search className="h-5 w-5" aria-hidden />
                 </span>
                 <span>
                   <span className="block text-base font-bold leading-tight">Tra cứu kết quả</span>
                   <span className="block text-[11px] text-white/85">Theo dõi tiến độ xử lý</span>
                 </span>
               </Link>
-            </Magnetic>
           </div>
 
           {/* Dải 4 thẻ tính năng */}

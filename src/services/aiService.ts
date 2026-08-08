@@ -1,15 +1,19 @@
 /**
  * Dịch vụ AI.
- * - analyzeContent: phân tích/phân loại nội dung ý kiến (MOCK).
- * - getChatReply: trợ lý hỏi đáp, chỉ có hai đường:
- *     1. Backend /api/ai/chat  — key Gemini nằm phía máy chủ, trình duyệt không thấy
- *     2. Câu trả lời mẫu       — luôn sẵn sàng, không cần key
+ * - analyzeContent: phân tích/phân loại nội dung ý kiến.
+ * - getChatReply: trợ lý hỏi đáp.
  *
- * ⚠️ VÌ SAO KHÔNG CÒN GỌI THẲNG OpenAI/Gemini TỪ TRÌNH DUYỆT:
- * Vite INLINE mọi biến VITE_* vào file JavaScript tĩnh. Key đặt ở frontend nằm
- * nguyên văn trong bundle -> mở DevTools là lấy được, ai cũng tiêu quota của
- * đơn vị. Đường an toàn (backend giữ key) đã có sẵn từ trước, nên đường nguy
- * hiểm bị gỡ hẳn thay vì để làm "phương án dự phòng".
+ * Thứ tự ưu tiên của cả hai hàm:
+ *     1. Backend /api/ai/*  — API key nằm PHÍA MÁY CHỦ (Render), trình duyệt không thấy
+ *     2. Phân tích cục bộ / câu trả lời mẫu — luôn sẵn sàng, không cần key
+ *   Backend lỗi thì rơi xuống phương án 2 — bà con luôn có câu trả lời.
+ *
+ * 🔒 BẢO MẬT — KHÔNG ĐƯỢC PHÁ QUY TẮC NÀY:
+ * Frontend TUYỆT ĐỐI không giữ API key. Mọi biến `VITE_*` đều bị Vite nhúng
+ * thẳng vào file JS build, ai mở F12 cũng đọc được. Vì vậy ở đây KHÔNG có
+ * VITE_GEMINI_API_KEY / VITE_OPENAI_API_KEY, và KHÔNG gọi trực tiếp
+ * generativelanguage.googleapis.com hay api.openai.com.
+ * Muốn thêm nhà cung cấp AI mới -> thêm ở server/src/lib/ai.js, không thêm ở đây.
  */
 import type { AIAnalysisResult, FeedbackCategory } from '../types/feedback';
 import type { ChatMessage } from '../types/chat';
@@ -27,24 +31,30 @@ const CATEGORY_PREFIX: Record<FeedbackCategory, string> = {
 };
 
 /**
- * Phân tích nội dung công dân gửi:
- * - Khớp từ khoá (đã bỏ dấu) để hiểu được cả văn bản viết thiếu dấu/sai chính tả
- * - Gợi ý nhóm xử lý + độ tin cậy + từ khoá nhận diện được
+ * Phân tích nội dung công dân gửi.
+ *
+ * 🔒 KHÔNG DÙNG AI BÊN NGOÀI. Máy chủ phân loại bằng bộ luật từ khoá nội bộ,
+ * nội dung không rời khỏi hệ thống. Máy chủ không truy cập được thì rơi
+ * xuống bộ phân loại rút gọn chạy ngay trên trình duyệt.
+ *
+ * Vì sao bỏ AI ở khâu này: mọi ý kiến người dân gửi đều là dữ liệu nhạy cảm,
+ * không riêng gì tố giác. Khiếu nại có tên cán bộ, phản ánh có địa chỉ nhà —
+ * gửi sang dịch vụ ngoài đều là rủi ro. Phân loại bằng luật còn giải thích
+ * được VÌ SAO xếp vào nhóm đó, điều mà AI không làm được.
  */
 export async function analyzeContent(raw: string): Promise<AIAnalysisResult> {
-  // Ưu tiên AI thật qua backend (key nằm phía server)
-  if (hasBackend && (await backendHasAI())) {
+  // Máy chủ phân loại bằng bộ luật nội bộ — KHÔNG kiểm tra AI có bật hay không
+  if (hasBackend) {
     try {
       return await apiFetch<AIAnalysisResult>('/api/ai/analyze', {
         method: 'POST',
         body: JSON.stringify({ content: raw }),
       });
     } catch (e) {
-      console.warn('Backend analyze lỗi, dùng phân tích cục bộ:', e);
+      console.warn('Máy chủ phân loại lỗi, dùng bộ phân loại trên trình duyệt:', e);
     }
   }
-  // Giả lập thời gian AI "suy nghĩ"
-  await delay(1400 + Math.random() * 800);
+  await delay(300);
 
   const plain = stripDiacritics(raw.toLowerCase());
   const scores: Record<FeedbackCategory, number> = { to_giac: 0, khieu_nai: 0, phan_anh: 0, de_xuat: 0 };
@@ -88,10 +98,19 @@ export async function analyzeContent(raw: string): Promise<AIAnalysisResult> {
 /* Trợ lý hỏi đáp: backend (giấu key) → câu trả lời mẫu                 */
 /* ------------------------------------------------------------------ */
 
-/** Nhãn "bộ não" đang hoạt động — hiển thị trên header widget chat */
-export const AI_ENGINE_LABEL: string | null = hasBackend ? 'Gemini' : null;
+/**
+ * Cờ báo trợ lý có sẵn sàng không — dùng để hiện/ẩn chấm xanh trên đầu
+ * khung chat. KHÔNG còn mang tên nhà cung cấp: bà con không cần biết hệ
+ * thống dùng dịch vụ của hãng nào, thông tin đó chỉ gây phân tâm.
+ * Rỗng = không có máy chủ -> chạy câu trả lời mẫu, không hiện chấm.
+ *
+ * Lưu ý: prompt hệ thống (vai trò trợ lý, thông tin đơn vị) nay nằm ở
+ * server/src/lib/ai.js — trước đây đặt ở đây là thừa vì frontend không còn
+ * tự gọi AI nữa.
+ */
+export const AI_ENGINE_LABEL: string | null = hasBackend ? 'san-sang' : null;
 
-/** Trả lời theo kịch bản mẫu (mock) — dùng khi không có backend hoặc backend lỗi */
+/** Trả lời theo kịch bản mẫu (mock) — dùng khi không có API key hoặc API lỗi */
 async function getChatReplyFromMock(userMessage: string): Promise<string> {
   await delay(800 + Math.random() * 700);
   const plain = stripDiacritics(userMessage.toLowerCase());
@@ -108,14 +127,13 @@ function warnAIFailureOnce() {
   if (hasWarnedAIFailure) return;
   hasWarnedAIFailure = true;
   toast.error(
-    'Không gọi được trợ lý AI — mở F12 → Console để xem mã lỗi chi tiết. Tạm dùng câu trả lời mẫu.',
+    'Không gọi được trợ lý AI — mở F12 → Console để xem mã lỗi. Kiểm tra GEMINI_API_KEY trên Render (biến của MÁY CHỦ, không phải file .env của frontend). Tạm dùng câu trả lời mẫu.',
     { duration: 7000 }
   );
 }
 
 /**
- * Hàm chính widget chat gọi: backend (giữ key phía máy chủ) → câu trả lời mẫu.
- * Không có nhánh gọi thẳng nhà cung cấp: xem khối giải thích ở đầu file.
+ * Hàm chính widget chat gọi: backend (giấu key) → câu trả lời mẫu.
  */
 export async function getChatReply(userMessage: string, history: ChatMessage[] = []): Promise<string> {
   if (hasBackend && (await backendHasAI())) {

@@ -35,10 +35,13 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
     if (!submission || autoSaved.current) return;
     autoSaved.current = true;
     const t = setTimeout(() => {
+      // downloadReceipt nay VẼ ẢNH BẤT ĐỒNG BỘ (chờ nạp phông + sinh QR) nên
+      // trả về Promise — phải await, nếu viết `if (downloadReceipt(...))` thì
+      // Promise luôn "đúng" và cờ đã-lưu bật cả khi trình duyệt chặn tải.
       // Trả về false = trình duyệt chặn tải tự động -> bà con bấm nút thủ công
-      if (downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
-        setSavedReceipt(true);
-      }
+      downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })
+        .then((ok) => { if (ok) setSavedReceipt(true); })
+        .catch(() => { /* vẽ phiếu lỗi -> để bà con bấm nút tải thủ công */ });
     }, 900); // chờ chút cho màn hình hiện xong rồi mới tải
     return () => clearTimeout(t);
   }, [submission]);
@@ -120,8 +123,9 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
               {copied ? 'Đã sao chép' : 'Sao chép mã'}
             </button>
             <button
-              onClick={() => {
-                if (downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
+              onClick={async () => {
+                // downloadReceipt là hàm bất đồng bộ — phải await, xem giải thích ở useEffect trên
+                if (await downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
                   setSavedReceipt(true);
                 }
               }}

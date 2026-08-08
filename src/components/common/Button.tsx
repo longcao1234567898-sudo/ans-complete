@@ -19,7 +19,10 @@ const VARIANTS: Record<Variant, string> = {
     'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500 shadow-soft',
   secondary:
     'bg-secondary-500 text-white hover:bg-secondary-600 focus-visible:ring-secondary-400 shadow-soft',
-  accent: 'bg-accent-500 text-white hover:bg-accent-600 focus-visible:ring-accent-500',
+  /* Vàng đồng: dùng bậc 700 chứ KHÔNG dùng 500.
+     Nền accent-500 + chữ trắng chỉ đạt 2,15:1 — dưới chuẩn WCAG AA (4,5:1),
+     ra nắng hoặc mắt kém là không đọc được. Bậc 700 đạt 5,76:1. */
+  accent: 'bg-accent-700 text-white hover:bg-accent-800 focus-visible:ring-accent-600',
   outline:
     'border border-primary-600 text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:border-primary-400 dark:hover:bg-primary-900/30',
   ghost: 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',

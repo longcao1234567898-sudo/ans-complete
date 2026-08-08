@@ -9,7 +9,49 @@
   }
   body {
     @apply antialiased;
+    /* Vẽ dấu tiếng Việt sắc nét hơn, nhất là ở cỡ chữ nhỏ */
+    text-rendering: optimizeLegibility;
   }
+
+  /* =====================================================================
+     THANG CHỮ — hai phông, hai vai trò
+
+     TIÊU ĐỀ dùng Bitter (slab serif, chân vuông): gợi cảm giác công văn,
+     giấy tờ chính thức của cơ quan nhà nước.
+     NỘI DUNG dùng Be Vietnam Pro (không chân): đọc màn hình dễ, dấu tiếng
+     Việt 2 tầng đầy đủ.
+
+     Trước đây cả web chỉ dùng MỘT phông, tiêu đề và nội dung chỉ khác nhau ở
+     độ đậm — mắt không phân được tầng bậc, trang nào cũng "phẳng" như nhau.
+
+     Ghi ở @layer base nên mọi class Tailwind viết trực tiếp trong component
+     vẫn đè lên được, không sợ vỡ chỗ nào đang cố tình dùng khác.
+     ===================================================================== */
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+    /* Slab serif ở cỡ lớn cần bóp nhẹ khoảng cách chữ cho đặc và chắc */
+    letter-spacing: -0.015em;
+    /* Dấu tiếng Việt 2 tầng (Ố, Ộ, Ế, Ữ) vươn cao hơn chữ La-tinh:
+       để dòng quá sát là dấu chạm vào dòng trên */
+    line-height: 1.25;
+  }
+  h4,
+  h5,
+  h6 {
+    @apply font-sans font-semibold;
+    line-height: 1.35;
+  }
+
+  /* Chừa chỗ ở cuối trang cho thanh chức năng đáy màn hình (chỉ điện thoại),
+     nếu không thì dòng cuối cùng của trang bị thanh che mất. */
+  @media (max-width: 767px) {
+    body {
+      padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    }
+  }
+
   /* Tôn trọng người dùng tắt animation (accessibility) */
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -83,6 +125,14 @@
   .text-gradient {
     @apply bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent;
     background-size: 200% auto;
+    /* SỬA LỖI MẤT DẤU TIẾNG VIỆT với chữ gradient:
+       text-transparent + bg-clip-text -> màu chữ = nền gradient cắt theo LINE BOX.
+       Dấu sắc trên "Ố" IN HOA vươn CAO hơn line box -> phần dấu KHÔNG có nền
+       -> trong suốt -> nhìn như mất, dù glyph vẫn được vẽ.
+       Fix: inline-block + padding dọc -> vùng nền phủ rộng hơn glyph. */
+    display: inline-block;
+    padding: 0.18em 0.05em;
+    margin: -0.18em -0.05em;
   }
 }
 
@@ -322,7 +372,7 @@
 
    Nếu line-height quá chặt (leading-none = 1, leading-tight = 1.25),
    trình duyệt CẮT MẤT dấu tầng trên:
-       "HỘP THƯ AN NINH SỐ"  ->  hiện thành  "HỘP THƯ AN NINH SÔ"   ❌
+       "HỘP THƯ SỐ — ĐIỂM CHẠM AN NINH"  ->  hiện thành  "HỘP THƯ AN NINH SÔ"   ❌
 
    Cách sửa: mọi khối chữ HOA phải có chiều cao dòng tối thiểu 1.4,
    và không được overflow:hidden cắt phần trên.
@@ -357,4 +407,25 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.6;
   padding-top: 0.15em;
   overflow: visible;
+}
+
+
+/* =====================================================================
+   TYPOGRAPHY & KHẢ NĂNG ĐỌC (V6)
+   ===================================================================== */
+
+/* Tiêu đề: ép nhẹ khoảng cách chữ cho chắc chắn (giữ line-height 1.45
+   đã đặt ở trên để không cắt dấu tiếng Việt) */
+h1, h2, h3 {
+  letter-spacing: -0.015em;
+}
+
+/* Đoạn văn dài (hướng dẫn, tin tức): giãn dòng dễ đọc cho người lớn tuổi */
+.prose-vn, .prose-vn p {
+  line-height: 1.75;
+}
+
+/* Nút bấm thân thiện ngón tay: mọi button trong form tối thiểu 44px */
+form button, form a[role='button'] {
+  min-height: 44px;
 }

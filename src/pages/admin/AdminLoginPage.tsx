@@ -1,16 +1,22 @@
 /** Trang đăng nhập khu vực cán bộ */
 import { useState } from 'react';
+import Turnstile from '../../components/common/Turnstile';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, User, Loader2 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 export default function AdminLoginPage() {
-  const { login, staff, loading: dangKhoiPhucPhien } = useAdminAuth();
+  const { login, staff } = useAdminAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  /* Sai mật khẩu nhiều lần -> máy chủ yêu cầu xác minh captcha.
+     Dùng captcha thay vì khoá tài khoản: chặn được máy dò mật khẩu tự động,
+     mà cán bộ thật vẫn vào được ngay — kẻ xấu không thể khoá ai ra ngoài. */
+  const [canCaptcha, setCanCaptcha] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
 
   async function handleSubmit() {
     if (!username.trim() || !password) {
@@ -20,23 +26,18 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
     try {
-      await login(username.trim(), password);
+      await login(username.trim(), password, captchaToken || undefined);
       navigate('/quan-tri');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Đăng nhập thất bại.');
+      // Máy chủ báo cần captcha -> hiện ô xác minh
+      if (e && typeof e === 'object' && 'canCaptcha' in e && (e as { canCaptcha: boolean }).canCaptcha) {
+        setCanCaptcha(true);
+      }
+      setCaptchaToken('');   // buộc tích lại cho lần thử sau
     } finally {
       setLoading(false);
     }
-  }
-
-  /* Chờ khôi phục phiên xong rồi mới quyết định — nếu không, cán bộ đang có
-     phiên hợp lệ sẽ thấy form đăng nhập loé lên một nhịp trước khi bị chuyển đi. */
-  if (dangKhoiPhucPhien) {
-    return (
-      <div className="container-page flex items-center justify-center gap-2 py-20 text-sm text-slate-500">
-        <Loader2 className="h-5 w-5 animate-spin" /> Đang kiểm tra phiên đăng nhập...
-      </div>
-    );
   }
 
   // Đã đăng nhập -> vào thẳng khu quản trị
@@ -51,7 +52,7 @@ export default function AdminLoginPage() {
           </span>
           <h1 className="text-xl font-extrabold text-slate-800 dark:text-slate-100">Khu vực cán bộ</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Hộp Thư An Ninh Số — Công an thị xã Tân Châu
+            Hộp Thư Số — Điểm Chạm An Ninh — Công an thị xã Tân Châu
           </p>
         </div>
 
@@ -63,9 +64,9 @@ export default function AdminLoginPage() {
 
         <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-300">Tên đăng nhập</label>
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-300 px-3 focus-within:border-primary-500 dark:border-slate-700">
-          <User className="h-4 w-4 text-slate-400" />
+          <User className="h-4 w-4 text-slate-500" />
           <input
-            className="w-full bg-transparent py-2.5 text-sm outline-none"
+            className="w-full bg-transparent py-2.5 text-base sm:text-sm outline-none"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
@@ -76,10 +77,10 @@ export default function AdminLoginPage() {
 
         <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-300">Mật khẩu</label>
         <div className="mb-6 flex items-center gap-2 rounded-xl border border-slate-300 px-3 focus-within:border-primary-500 dark:border-slate-700">
-          <Lock className="h-4 w-4 text-slate-400" />
+          <Lock className="h-4 w-4 text-slate-500" />
           <input
             type="password"
-            className="w-full bg-transparent py-2.5 text-sm outline-none"
+            className="w-full bg-transparent py-2.5 text-base sm:text-sm outline-none"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
@@ -88,15 +89,27 @@ export default function AdminLoginPage() {
           />
         </div>
 
+        {/* Ô XÁC MINH — chỉ hiện sau khi sai mật khẩu nhiều lần.
+            Cách này chặn được máy dò mật khẩu tự động mà KHÔNG khoá tài khoản,
+            nên kẻ xấu không thể cố ý gõ sai để khoá cán bộ thật ra ngoài. */}
+        {canCaptcha && (
+          <div className="mb-3">
+            <p className="mb-1.5 text-xs text-slate-500 dark:text-slate-400">
+              Vui lòng xác minh để tiếp tục:
+            </p>
+            <Turnstile onToken={setCaptchaToken} />
+          </div>
+        )}
+
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || (canCaptcha && !captchaToken)}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 py-3 font-bold text-white shadow-soft transition-opacity hover:opacity-95 disabled:opacity-60"
         >
           {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang đăng nhập...</> : 'Đăng nhập'}
         </button>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
+        <p className="mt-4 text-center text-xs text-slate-500">
           Chỉ dành cho cán bộ được cấp tài khoản. Mọi thao tác đều được ghi nhật ký.
         </p>
       </div>

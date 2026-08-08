@@ -14,7 +14,6 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import { Skeleton } from '../common/Loading';
 import SpotlightCard from '../common/SpotlightCard';
-import SpeakButton from '../common/SpeakButton';
 
 export default function NewsCard({ article }: { article: NewsArticle }) {
   const [loaded, setLoaded] = useState(false);
@@ -48,7 +47,7 @@ export default function NewsCard({ article }: { article: NewsArticle }) {
         </div>
 
         <div className="flex flex-1 flex-col p-4">
-          <p className="mb-1.5 text-xs text-slate-400">{formatDate(article.publishedAt, false)}</p>
+          <p className="mb-1.5 text-xs text-slate-500">{formatDate(article.publishedAt, false)}</p>
 
           <h3 className="mb-2 line-clamp-2 text-sm font-bold leading-snug text-slate-800 transition group-hover:text-primary-600 dark:text-slate-100 dark:group-hover:text-primary-400">
             {article.title}
@@ -58,12 +57,9 @@ export default function NewsCard({ article }: { article: NewsArticle }) {
             {article.summary}
           </p>
 
-          <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 transition group-hover:gap-2.5 dark:text-primary-400">
-              Đọc tại {article.source} <ExternalLink className="h-3 w-3" />
-            </span>
-            <SpeakButton text={`${article.title}. ${article.summary}`} label="Nghe" />
-          </div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 transition group-hover:gap-2.5 dark:text-primary-400">
+            Đọc tại {article.source} <ExternalLink className="h-3 w-3" />
+          </span>
         </div>
       </Card>
       </SpotlightCard>

@@ -103,7 +103,7 @@ export default function QRScanner({ open, onClose, onDetected }: QRScannerProps)
         {reading && <Spinner label="Đang đọc mã QR trong ảnh..." className="py-14 text-slate-300" />}
         {error && !reading ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-slate-300">
-            <CameraOff className="h-8 w-8 text-slate-400" />
+            <CameraOff className="h-8 w-8 text-slate-500" />
             {error}
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function QRScanner({ open, onClose, onDetected }: QRScannerProps)
 
       {/* Chọn ảnh QR từ máy */}
       <div className="mt-4">
-        <div className="mb-3 flex items-center gap-3 text-xs text-slate-400">
+        <div className="mb-3 flex items-center gap-3 text-xs text-slate-500">
           <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
           hoặc
           <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />

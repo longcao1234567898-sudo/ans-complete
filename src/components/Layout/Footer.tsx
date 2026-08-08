@@ -31,7 +31,7 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
               <Shield className="h-4 w-4 text-accent-500" aria-hidden />
             </span>
-            <span className="block py-0.5 text-[17px] font-bold leading-[1.5] text-white">Hộp Thư An Ninh Số</span>
+            <span className="block py-0.5 text-[17px] font-bold leading-[1.5] text-white">Hộp Thư Số — Điểm Chạm An Ninh</span>
           </div>
           <p className="text-sm leading-relaxed text-slate-300">
             Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của {UNIT.name}.
@@ -104,9 +104,9 @@ export default function Footer() {
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-bold leading-tight text-white">
-                  Fanpage Công an thị xã Tân Châu
+                  Fanpage {UNIT.name}
                 </span>
-                <span className="block truncate text-xs text-slate-400 transition group-hover:text-slate-200">
+                <span className="block truncate text-xs text-slate-500 transition group-hover:text-slate-200">
                   Theo dõi thông báo, cảnh báo mới nhất
                 </span>
               </span>
@@ -125,7 +125,7 @@ export default function Footer() {
                 <span className="block text-sm font-bold leading-tight text-white">
                   Cổng TTĐT Công an tỉnh An Giang
                 </span>
-                <span className="block truncate text-xs text-slate-400 transition group-hover:text-slate-200">
+                <span className="block truncate text-xs text-slate-500 transition group-hover:text-slate-200">
                   congan.angiang.gov.vn — kênh chính thức
                 </span>
               </span>
@@ -137,14 +137,14 @@ export default function Footer() {
       {/* KHU VỰC CÁN BỘ — nút bấm rõ ràng, nối thẳng vào hệ thống quản trị */}
       <div className="border-t border-white/10 py-6">
         <div className="container-page flex flex-col items-center gap-3 text-center">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Dành cho cán bộ Công an được cấp tài khoản
           </p>
 
           {staff ? (
             <Link
               to="/quan-tri"
-              className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-accent-600"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent-700 px-6 py-3 text-sm font-bold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-accent-800"
             >
               <LayoutDashboard className="h-4 w-4" />
               Vào trang quản trị ({staff.name})
@@ -152,7 +152,7 @@ export default function Footer() {
           ) : (
             <Link
               to="/dang-nhap"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-500"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-accent-500 hover:bg-accent-700"
             >
               <ShieldCheck className="h-4 w-4" />
               Đăng nhập cán bộ
@@ -161,7 +161,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-white/10 py-4 text-center text-xs text-slate-400">
+      <div className="border-t border-white/10 py-4 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} {UNIT.name}. Dữ liệu công dân được bảo mật theo quy định pháp luật.
       </div>
     </footer>
