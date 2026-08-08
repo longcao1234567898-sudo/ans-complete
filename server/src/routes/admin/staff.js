@@ -1,10 +1,11 @@
-/** GET /api/admin/staff — danh sách cán bộ (để phân công) */
+/**
+ * GET /api/admin/staff — danh sách cán bộ (để phân công).
+ * Bảo vệ bởi requireAuth gắn ở routes/admin/index.js -> chỉ cán bộ đăng nhập gọi được.
+ */
 import { Router } from 'express';
 import { pool } from '../../db.js';
-import { requireAuth } from '../../middleware/auth.js';
 
 const router = Router();
-router.use(requireAuth);
 
 router.get('/', async (_req, res) => {
   try {

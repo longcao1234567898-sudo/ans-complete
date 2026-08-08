@@ -19,6 +19,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { sendOtpEmail, mailConfigured } from '../lib/mailer.js';
+/* Dùng CHUNG khoá đã qua kiểm tra của lib/token.js, không đọc thẳng
+   JWT_SECRET. Đọc thẳng là bỏ qua toàn bộ phép kiểm tra ở đó
+   (độ dài, chuỗi mặc định, entropy) — vé OTP sẽ được ký bằng một khoá yếu
+   mà không có gì báo động. */
+import { JWT_SECRET } from '../lib/token.js';
 
 const router = Router();
 
@@ -153,7 +158,7 @@ router.post('/verify', async (req, res) => {
 
     const otpToken = jwt.sign(
       { emailHash: eHash, purpose: 'submit' },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -172,7 +177,7 @@ router.post('/verify', async (req, res) => {
 export function verifyOtpToken(otpToken, email) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực email. Vui lòng bấm "Gửi mã xác thực".' };
   try {
-    const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
+    const payload = jwt.verify(otpToken, JWT_SECRET);
     if (payload.purpose !== 'submit') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
     if (payload.emailHash !== hashEmail(email)) {
       return { ok: false, error: 'Email không khớp với email đã xác thực.' };
@@ -370,7 +375,7 @@ router.post('/anon-verify', async (req, res) => {
 
     const otpToken = jwt.sign(
       { emailHash: anonHash, purpose: 'submit_anon' },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '15m' }
     );
 
@@ -390,7 +395,7 @@ router.post('/anon-verify', async (req, res) => {
 export function verifyAnonToken(otpToken, anonId) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực. Vui lòng bấm "Lấy mã xác thực".' };
   try {
-    const payload = jwt.verify(otpToken, process.env.JWT_SECRET);
+    const payload = jwt.verify(otpToken, JWT_SECRET);
     if (payload.purpose !== 'submit_anon') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
     const anonHash = crypto.createHash('sha256').update('anon:' + String(anonId || '')).digest('hex');
     if (payload.emailHash !== anonHash) {

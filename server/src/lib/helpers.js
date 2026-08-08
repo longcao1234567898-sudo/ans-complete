@@ -50,11 +50,20 @@ export const STATUS_LABEL = {
    can thiệp được.
    ============================================================================ */
 export function layIpThat(req) {
-  /* .trim() nằm TRONG hàm, không để nơi gọi tự làm.
-     Vì sao quan trọng: vé xác thực ẩn danh được cấp bằng cách băm chuỗi IP
-     (otp.js), rồi lúc gửi ý kiến lại băm lần nữa để đối chiếu
-     (submissions.js). Hai nơi mà xử lý chuỗi khác nhau — một bên trim, một
-     bên không — thì bản băm lệch nhau và vé vừa cấp xong đã không dùng được.
-     Gom vào một chỗ là hết đường lệch. */
-  return String(req?.ip || '').trim().slice(0, 45);
+  /* Chuẩn hoá nằm TRONG hàm, không để nơi gọi tự làm.
+     Vì sao quan trọng: chuỗi IP này được BĂM rồi dùng làm khoá đối chiếu ở
+     nhiều nơi (hạn mức chống spam, đếm tin ẩn danh theo thiết bị, phát hiện
+     trùng lặp). Hai chỗ xử lý chuỗi khác nhau là ra hai bản băm khác nhau,
+     và mọi phép đối chiếu âm thầm trượt hết. Gom vào một chỗ là hết đường lệch. */
+  const tho = String(req?.ip || '').trim();
+
+  /* BÓC TIỀN TỐ IPv4-mapped "::ffff:".
+     Node trả cùng một máy khách lúc là "192.168.1.7", lúc là
+     "::ffff:192.168.1.7" tuỳ socket đang chạy IPv4 hay dual-stack. Không bóc
+     thì cùng một người ra hai khoá băm khác nhau -> hạn mức chống spam và
+     giới hạn tin ẩn danh/ngày đếm nhầm thành hai thiết bị riêng biệt.
+     Chỉ bóc khi phần còn lại đúng là IPv4, để không cắt nhầm IPv6 thật. */
+  const daBoc = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(tho);
+
+  return (daBoc ? daBoc[1] : tho).slice(0, 45);
 }
