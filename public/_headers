@@ -10,6 +10,38 @@
 ##    hoàn toàn KHÔNG có header bảo mật nào mà không ai nhận ra.
 ## =====================================================================
 
+# ============================================================================
+#  QUY ĐỊNH LƯU ĐỆM — ĐẶT TRƯỚC MỤC /* VÌ NETLIFY LẤY QUY TẮC KHỚP ĐẦU TIÊN
+# ============================================================================
+#
+#  ⚠️ ĐÂY LÀ GỐC RỄ CỦA LỖI "DIST CŨ QUAY LẠI".
+#
+#  Trình duyệt lưu đệm chính tệp sw.js theo mặc định. Hệ quả: đăng bản mới lên
+#  Netlify xong, trình duyệt vẫn dùng sw.js CŨ lấy từ bộ nhớ đệm, mà bản cũ đó
+#  lại phục vụ giao diện cũ. Người dùng kẹt ở bản cũ vĩnh viễn, xoá cache thủ
+#  công mới thoát — mà bà con thì không biết cách xoá.
+#
+#  Bắt buộc revalidate với 3 thứ:
+#     sw.js       — nếu không, không bao giờ nhận được service worker mới
+#     index.html  — tệp trỏ tới tên bundle, cũ là trỏ nhầm bundle đã xoá
+#     _headers    — chính tệp này
+#
+#  Ngược lại /assets/* có tên chứa mã băm (index-AbC123.js) nên đổi nội dung
+#  là đổi tên tệp -> lưu đệm vĩnh viễn được, càng nhanh.
+# ============================================================================
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.json
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
 /*
   ## Ép trình duyệt LUÔN dùng HTTPS trong 2 năm (chống nghe lén, hạ cấp HTTP)
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload

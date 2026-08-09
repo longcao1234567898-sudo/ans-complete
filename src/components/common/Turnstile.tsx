@@ -53,6 +53,25 @@ interface Props {
 export default function Turnstile({ onToken }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
+
+  /* ------------------------------------------------------------------------
+     GIỮ onToken TRONG REF — CHỐNG VÒNG LẶP DỰNG LẠI
+
+     Component cha truyền onToken bằng hàm mũi tên viết thẳng trong JSX:
+         <Turnstile onToken={(t) => onChange({ ...value, captchaToken: t })} />
+
+     Mỗi lần cha vẽ lại là một HÀM MỚI. Nếu useCallback phụ thuộc onToken thì:
+         cha vẽ lại -> onToken mới -> dungLen mới -> useEffect chạy lại
+         -> dựng lại ô CAPTCHA -> gọi onToken -> cha vẽ lại -> ...
+
+     Vòng lặp vô tận. Biểu hiện đúng như đã gặp: ô xác minh xoay rồi ẩn hiện
+     liên tục, Console báo "Cannot find Widget ... consider using
+     turnstile.remove()" vì ô cũ bị bỏ giữa chừng.
+
+     Cất vào ref thì hàm luôn mới nhất mà KHÔNG làm đổi phụ thuộc.
+     ------------------------------------------------------------------------ */
+  const onTokenRef = useRef(onToken);
+  useEffect(() => { onTokenRef.current = onToken; }, [onToken]);
   const [loi, setLoi] = useState<string>('');
   const [dangTai, setDangTai] = useState(true);
 
@@ -71,13 +90,13 @@ export default function Turnstile({ onToken }: Props) {
       widgetId.current = window.turnstile.render(ref.current, {
         sitekey: SITE_KEY,
         language: 'vi',
-        callback: (token: string) => { setDangTai(false); setLoi(''); onToken(token); },
+        callback: (token: string) => { setDangTai(false); setLoi(''); onTokenRef.current(token); },
         'expired-callback': () => {
-          onToken('');
+          onTokenRef.current('');
           setLoi('Phiên xác minh đã hết hạn. Bà con bấm "Thử lại" giúp.');
         },
         'error-callback': (ma: string) => {
-          onToken('');
+          onTokenRef.current('');
           setDangTai(false);
           setLoi(giaiNghiaLoi(ma));
           /* Ghi ra Console để quản trị viên xem được mã lỗi gốc */
@@ -90,7 +109,7 @@ export default function Turnstile({ onToken }: Props) {
       setLoi('Không dựng được ô xác minh.');
       console.error('[Turnstile]', e);
     }
-  }, [onToken]);
+  }, []);   // <- KHÔNG phụ thuộc gì: hàm ổn định, effect chỉ chạy một lần
 
   useEffect(() => {
     if (!captchaEnabled) return;
@@ -128,7 +147,18 @@ export default function Turnstile({ onToken }: Props) {
       }, 15000);
     }
 
-    return () => { if (huy) window.clearInterval(huy); };
+    return () => {
+      if (huy) window.clearInterval(huy);
+      /* DỌN Ô KHI RỜI TRANG.
+         Thiếu bước này, Cloudflare vẫn giữ tham chiếu tới ô đã bị React gỡ
+         khỏi màn hình, rồi báo "Cannot find Widget ... consider using
+         turnstile.remove()". Lỗi này tự nó vô hại nhưng làm rối Console và
+         che mất lỗi thật. */
+      if (widgetId.current !== null && window.turnstile) {
+        try { window.turnstile.remove(widgetId.current); } catch { /* bỏ qua */ }
+        widgetId.current = null;
+      }
+    };
   }, [dungLen]);
 
   if (!captchaEnabled) return null;

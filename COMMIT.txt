@@ -1,63 +1,79 @@
 ============================================================
-NỘI DUNG COMMIT — dán vào ô mô tả khi Upload files trên GitHub
+LỆNH GIT — dán thẳng vào Terminal
 ============================================================
 
-── Tiêu đề (ô đầu tiên) ──
-
-Sua loi build thieu qrcode, sua Turnstile nuot loi, them netlify.toml
-
-── Mô tả (ô lớn bên dưới) ──
-
-Sua loi:
+git add .
+git commit -m "Sua Turnstile lap vo tan, sua dist cu quay lai, them netlify.toml" -m "Sua loi:
+- Turnstile lap vo tan (o xac minh xoay va an hien lien tuc):
+  component cha truyen onToken bang ham mui ten viet thang trong JSX nen moi
+  lan ve lai la mot ham moi -> useCallback doi -> useEffect chay lai -> dung
+  lai o CAPTCHA -> goi onToken -> cha ve lai -> lap vo tan.
+  Console bao 'Cannot find Widget ... consider using turnstile.remove()'.
+  Da sua: cat onToken vao useRef, useCallback khong con phu thuoc gi.
+  Them don o khi roi trang bang turnstile.remove().
+- Turnstile nuot loi im lang: error-callback cu chi goi onToken('') nen o
+  CAPTCHA trang tron, khong ai biet vi sao. Nay hien khung vang noi ro nguyen
+  nhan (ten mien chua khai bao / sai site key / mat mang), co nut 'Thu lai',
+  ghi ma loi goc ra Console.
+- Turnstile: bo khoa du phong ghi cung trong ma nguon.
+- 'DIST CU QUAY LAI' - tim ra goc re: _headers khong co quy dinh Cache-Control
+  cho sw.js. Trinh duyet luu dem chinh tep service worker nen khong bao gio
+  nhan duoc ban moi -> mai phuc vu giao dien cu. Da them no-cache cho
+  sw.js / index.html / manifest.json, va cache vinh vien cho /assets/*
+  (ten tep co ma bam nen doi noi dung la doi ten).
+  Them ep kiem tra ban moi + tu tai lai mot lan trong main.tsx cho nhung may
+  DA ket san. Doi ten cache htans-v40 -> v41.
 - Them thu vien qrcode + @types/qrcode. AdminQrPosterPage.tsx import 'qrcode'
-  nhung package.json chi khai bao 'qrcode.react' (hai thu vien khac nhau)
-  -> npm run build that bai -> dist khong bao gio co du 3 chuc nang moi
-- Turnstile: bo error-callback nuot loi im lang. Nay hien ro nguyen nhan
-  (ten mien chua khai bao, sai site key, mat mang...), co nut "Thu lai",
-  ghi ma loi goc ra Console
-- Turnstile: bo khoa du phong ghi cung trong ma nguon. Khoa do khien loi
-  kho lan ra vi he thong am tham dung khoa cua tai khoan cu
-- Bo sung du 4 bien VITE_* vao .env.production. Truoc do chi co VITE_API_URL
+  nhung package.json chi khai bao 'qrcode.react' -> npm run build that bai.
+- Bo sung du 4 bien VITE_* vao .env.production.
 
 Them:
 - netlify.toml: khai bao lenh dung, thu muc publish, co dinh Node 20.
-  Can cho truong hop noi GitHub de Netlify tu dung moi lan commit
 
-Kiem thu: 285/285 dat. TypeScript: 0 loi.
+Kiem thu: 285/285 dat. TypeScript: 0 loi."
+git push
 
 
 ============================================================
-SAU KHI DAY LEN GITHUB — 4 VIEC
+TRUOC KHI CHAY — KIEM TRA 2 DIEU
 ============================================================
 
-1. KHAI BAO TEN MIEN TRONG CLOUDFLARE  ← nguyen nhan Turnstile loi
+1. Dang dung dung thu muc du an (thu muc co .git):
+       git status
+   Bao 'not a git repository' -> sai thu muc.
+
+2. Nhin danh sach trong git status, KHONG DUOC thay:
+       server/.env      hoac      .env
+   (Thay .env.production va .env.example thi binh thuong.)
+   Neu thay -> DUNG LAI, do la khoa that bi lo.
+
+
+============================================================
+SAU KHI PUSH — 4 VIEC
+============================================================
+
+1. KHAI BAO TEN MIEN TRONG CLOUDFLARE   <- Turnstile van loi neu thieu
    dash.cloudflare.com -> Turnstile -> chon widget -> Settings -> Domains
-   Them ten mien MOI:
-        diem-cham-binh-yen.netlify.app
-   Go dung nhu tren: khong co https://, khong co dau / o cuoi.
-   Ten mien cu (diemchambinhyen.netlify.app) co the xoa neu khong dung nua.
-
-   Thieu buoc nay thi Cloudflare tra ma loi 110200 -> o CAPTCHA khong hien.
+   Them:   diem-cham-binh-yen.netlify.app
+   Khong co https://, khong co dau / o cuoi.
 
 2. CHAY 2 FILE SQL (neu chua chay)
-   HeidiSQL -> chon database -> chay lan luot:
-        database/nang_cap_v10.sql   (bang qr_points)
-        database/nang_cap_v11.sql   (bang incident_groups)
+       database/nang_cap_v10.sql   (bang qr_points)
+       database/nang_cap_v11.sql   (bang incident_groups)
 
-3. DUA GIAO DIEN LEN NETLIFY — chon MOT trong hai cach, dung lan lon:
+3. DUA GIAO DIEN LEN NETLIFY
+   Keo tha thu muc dist trong dist-HOAN-CHINH.zip vao tab Deploys.
 
-   Cach A (nhanh, dang dung):
-        Giai nen dist-HOAN-CHINH.zip -> keo tha thu muc dist vao tab Deploys
+4. KIEM TRA - LAN DAU PHAI LAM DUNG CACH
+   Vi may ban dang ket o ban cu, mo cua so an danh la CHUA DU.
+   Lam theo thu tu:
+       F12 -> tab Application -> Service Workers -> bam Unregister
+       F12 -> tab Application -> Storage -> Clear site data
+       Dong het tab cua trang -> mo lai
+   Tu lan sau tro di khong can lam nua, ban va Cache-Control da lo phan do.
 
-   Cach B (noi GitHub, tu dung moi lan commit):
-        Netlify -> Site configuration -> Build & deploy -> Link repository
-        Netlify se tu doc netlify.toml, khong can dien tay lenh dung.
-        Luu y: cach nay lay bien tu .env.production trong repo.
-
-4. KIEM TRA
-   - Mo web bang cua so an danh (Ctrl+Shift+N)
-   - Trang Gui y kien: o "Toi khong phai la nguoi may" phai hien
-     Neu hien khung vang bao loi -> doc dung nguyen nhan trong do
+   Sau khi mo lai, kiem tra:
+   - Trang Gui y kien: o "Toi khong phai la nguoi may" hien va DUNG YEN
+     (khong xoay an hien lien tuc nua)
    - Quan tri -> Bao cao: 2 bieu do moi (Theo khung gio, Theo thu)
    - Quan tri -> Ma QR: trang mo duoc
-   - Log Render: "Ket noi MySQL thanh cong" + "Ma hoa danh tinh: DA BAT"

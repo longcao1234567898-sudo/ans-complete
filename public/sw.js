@@ -7,7 +7,7 @@
  *
  * Chỉ ảnh/font mới cache-first (chúng không đổi nội dung, lại nặng).
  */
-const CACHE = 'htans-v40'; // đổi tên -> xoá sạch cache cũ
+const CACHE = 'htans-v41'; // đổi tên -> xoá sạch cache cũ
 
 /**
  * Chỉ lưu vào cache khi phản hồi ĐÚNG chuẩn 200 đầy đủ.
