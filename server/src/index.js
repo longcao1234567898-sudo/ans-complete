@@ -14,6 +14,7 @@ import { aiAvailable } from './lib/ai.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './routes/auth.js';
 import trackingRouter from './routes/tracking.js';
+import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
@@ -163,6 +164,8 @@ app.get('/api/health/schema', async (_req, res) => {
 // Public API
 app.use('/api/auth', authRouter);
 app.use('/api/tracking', trackingRouter);
+/* Kênh trao đổi hai chiều với người gửi ý kiến (vào bằng mã tra cứu + PIN) */
+app.use('/api/chat', chatRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/otp', otpRouter);
 app.use('/api/submissions', submissionsRouter);

@@ -19,13 +19,14 @@ const STATUS_TABS = [
 export default function AdminSubmissionsPage() {
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
+  const [urgency, setUrgency] = useState('');
   const [q, setQ] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['admin-submissions', status, category, q, page],
-    queryFn: () => fetchSubmissions({ status, category, q, page, limit: 15 }),
+    queryKey: ['admin-submissions', status, category, urgency, q, page],
+    queryFn: () => fetchSubmissions({ status, category, urgency, q, page, limit: 15 }),
     placeholderData: keepPreviousData,
   });
 
@@ -52,6 +53,42 @@ export default function AdminSubmissionsPage() {
             }`}
           >
             {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ====================================================================
+          LỌC THEO 3 MỨC KHẨN CẤP
+
+          Vì sao tách riêng thành thanh nút thay vì nhét vào ô chọn: mức khẩn
+          cấp là thứ cán bộ nhìn ĐẦU TIÊN mỗi buổi sáng — "hôm nay có việc gì
+          gấp không". Giấu trong ô chọn thì phải bấm hai lần mới thấy.
+
+          Màu theo đúng mức nghiêm trọng: đỏ cho khẩn cấp, hổ phách cho quan
+          trọng — trùng với màu nhãn hiển thị trên từng thẻ bên dưới, để mắt
+          nối được ngay bộ lọc với kết quả.
+          ==================================================================== */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        {[
+          { value: '',          nhan: 'Tất cả mức',  chon: 'bg-slate-700 text-white',
+            thuong: 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800' },
+          { value: 'urgent',    nhan: '🔴 Khẩn cấp',  chon: 'bg-rose-600 text-white',
+            thuong: 'bg-white text-rose-700 hover:bg-rose-50 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-900/30' },
+          { value: 'important', nhan: '🟠 Quan trọng', chon: 'bg-amber-600 text-white',
+            thuong: 'bg-white text-amber-700 hover:bg-amber-50 dark:bg-slate-900 dark:text-amber-300 dark:hover:bg-amber-900/30' },
+          { value: 'normal',    nhan: '⚪ Bình thường', chon: 'bg-slate-600 text-white',
+            thuong: 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800' },
+        ].map((m) => (
+          <button
+            key={m.value || 'all'}
+            type="button"
+            onClick={() => { setUrgency(m.value); setPage(1); }}
+            className={
+              'rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold transition dark:border-slate-700 '
+              + (urgency === m.value ? m.chon : m.thuong)
+            }
+          >
+            {m.nhan}
           </button>
         ))}
       </div>
@@ -129,6 +166,15 @@ export default function AdminSubmissionsPage() {
           <div className="mt-4 flex items-center justify-between">
             <p className="text-xs text-slate-400">
               Trang {data.page}/{data.totalPages} · Tổng {data.total} ý kiến
+              {urgency && (
+                /* Nhắc rõ đang lọc mức nào — cán bộ hay quên là mình đang bật
+                   bộ lọc rồi tưởng hệ thống mất dữ liệu. */
+                <span className="ml-1 font-semibold">
+                  {urgency === 'urgent' ? '(mức Khẩn cấp)'
+                    : urgency === 'important' ? '(mức Quan trọng)'
+                    : '(mức Bình thường)'}
+                </span>
+              )}
               {isFetching && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
             </p>
             <div className="flex gap-2">

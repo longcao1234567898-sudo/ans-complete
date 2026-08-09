@@ -27,6 +27,7 @@ import reportsRouter from './reports.js';
 import logsRouter from './logs.js';
 import kioskRouter from './kiosk.js';
 import trashRouter from './trash.js';
+import chatRouter from './chat.js';
 import qrPointsRouter from './qr-points.js';
 import incidentGroupsRouter from './incident-groups.js';
 
@@ -44,6 +45,8 @@ router.use('/reports', reportsRouter);
 router.use('/logs', logsRouter);
 router.use('/kiosk', kioskRouter);
 router.use('/trash', trashRouter);
+/* Chat với người tố giác + quản lý danh sách khoá thiết bị */
+router.use('/chat', chatRouter);
 router.use('/qr-points', qrPointsRouter);
 router.use('/incident-groups', incidentGroupsRouter);
 

@@ -124,7 +124,7 @@ export default function SendFeedbackPage() {
 
   return (
     <>
-      <PageBackground video="bg-nui-cam.mp4" />
+      <PageBackground anh="bg-nui-cam.webp" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Gửi ý kiến</h1>

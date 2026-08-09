@@ -52,6 +52,8 @@ const CAC_DUONG_DAN = [
   // V10 — mã QR định vị; V11 — nhóm sự kiện trùng lặp
   ['/api/admin/qr-points', 'GET'],
   ['/api/admin/incident-groups', 'GET'],
+  // V12 — chat với người tố giác + danh sách khoá thiết bị
+  ['/api/admin/chat/blacklist', 'GET'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {

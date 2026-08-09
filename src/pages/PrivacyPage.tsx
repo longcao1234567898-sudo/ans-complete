@@ -42,7 +42,7 @@ const SECTIONS = [
 export default function PrivacyPage() {
   return (
     <div className="relative min-h-screen">
-      <PageBackground video="bg-nui-sam.mp4" />
+      <PageBackground anh="bg-nui-sam.webp" />
       <div className="container-page max-w-3xl py-10 sm:py-14">
         <div className="mb-6 text-center">
           <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-soft">

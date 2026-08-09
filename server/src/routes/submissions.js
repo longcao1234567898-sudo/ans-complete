@@ -7,6 +7,8 @@ import {
 } from '../lib/security.js';
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
+import { xetTruocKhiNhan, xetKhoaIp } from '../lib/chan-spam.js';
+import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
@@ -256,14 +258,41 @@ router.post('/', async (req, res) => {
        Không chặn gì cả — chỉ để nối vào cùng 1 nhóm sau khi lưu xong. */
     const suKienTrung = await timSuKienTrung(pool, { noiDung: content, wardId, categoryId: catId });
 
+    /* ---------------------------------------------------------------------
+       6b) XÉT CHẶN NGẦM (shadow ban)
+
+       Thiết bị hoặc IP đang bị khoá thì VẪN nhận đơn, VẪN cấp mã tra cứu, màn
+       hình VẪN báo thành công — nhưng đánh dấu is_spam = 1 để đơn không vào
+       hàng chờ của cán bộ.
+
+       Vì sao không báo thẳng "bạn bị khoá": báo thẳng là mách nước, kẻ phá
+       hoại xoá bộ nhớ trình duyệt đổi máy ngay. Chặn ngầm thì họ tưởng bình
+       thường, gửi mãi chẳng ai xử lý rồi mất hứng.
+       --------------------------------------------------------------------- */
+    const { chanNgam, deviceId } = await xetTruocKhiNhan(pool, req);
+
+    /* ---------------------------------------------------------------------
+       6c) SINH MÃ PIN VÀO PHÒNG CHAT
+
+       Cấp MỘT LẦN duy nhất, trả về cho bà con ngay màn hình xác nhận. Database
+       chỉ giữ bản băm bcrypt — kể cả quản trị viên cũng không đọc lại được,
+       đúng nguyên tắc đã áp dụng cho mật khẩu cán bộ.
+
+       Mất PIN thì không vào phòng chat được nữa, nhưng vẫn tra cứu tiến độ
+       bình thường bằng mã tra cứu. Đánh đổi này chấp nhận được: chat chứa câu
+       hỏi nghiệp vụ của cán bộ, lộ ra là lộ hướng xác minh.
+       --------------------------------------------------------------------- */
+    const chatPin = String(Math.floor(100000 + Math.random() * 900000));
+    const chatPinHash = await bcrypt.hash(chatPin, 10);
+
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
-        is_flagged, flag_reason)
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?)`,
+        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash)
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?)`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -276,7 +305,8 @@ router.post('/', async (req, res) => {
         // 11-15
         // ẨN DANH -> vào HÀNG CHỜ KIỂM DUYỆT (cán bộ duyệt mới vào quy trình chính,
         // giống cách cơ quan thật sàng lọc tin báo nặc danh)
-        isAnonymous ? 'pending_review' : 'received',
+        // Bị chặn ngầm -> 'spam' ngay, không vào hàng chờ làm phiền cán bộ
+        chanNgam ? 'spam' : (isAnonymous ? 'pending_review' : 'received'),
         ipHash,
         // User-Agent của người gửi ẨN DANH: KHÔNG lưu. Chuỗi UA hiếm cộng với
         // thời điểm gửi là một dấu vân tay đủ hẹp để lần ra người tố giác.
@@ -290,8 +320,20 @@ router.post('/', async (req, res) => {
         // Cờ nghi gửi hàng loạt (lớp chống trùng gần đúng phát hiện)
         trungLap.danhDau ? 1 : 0,
         trungLap.ghiChu || null,
+        // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat
+        deviceId || null,
+        chanNgam ? 1 : 0,
+        chatPinHash,
       ]
     );
+
+    /* Đơn vừa lưu bị chặn ngầm -> xét xem có nên khoá luôn cả IP không.
+       Chỉ khoá khi cùng một IP có nhiều THIẾT BỊ KHÁC NHAU cùng gửi đơn rác —
+       dấu hiệu kẻ phá hoại xoá bộ nhớ trình duyệt để đổi mã thiết bị.
+       Bọc riêng vì lỗi ở đây không được làm hỏng việc đã gửi thành công. */
+    if (chanNgam) {
+      xetKhoaIp(pool, ip).catch(() => { /* bỏ qua */ });
+    }
 
     // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
     // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không
@@ -379,6 +421,10 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       trackingCode,
+      /* MÃ PIN VÀO PHÒNG CHAT — trả về ĐÚNG MỘT LẦN duy nhất.
+         Database chỉ giữ bản băm bcrypt nên không cấp lại được. Màn hình xác
+         nhận phải nhắc bà con lưu lại cùng mã tra cứu. */
+      chatPin,
       pendingReview: isAnonymous,   // ẩn danh -> đang chờ cán bộ duyệt
       content,
       normalizedContent,

@@ -39,19 +39,21 @@ function UnitEmblem({ className }: { className?: string }) {
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
-      {/* NỀN VIDEO chuyển động */}
-      <video
+      {/* ẢNH NỀN TĨNH — đã bỏ video.
+          Video chạy lặp làm nóng máy, tốn pin và tốn dung lượng 3G/4G, trong
+          khi bị phủ trắng tới mức gần như không thấy chuyển động. Trang để
+          người dân tố giác tội phạm cũng không hợp với nền động. */}
+      <img
         className="absolute inset-0 h-full w-full object-cover"
-        src="/media/hero-bg.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        poster="/media/police-assistant.png"
+        src="/media/bg-lang-noi.webp"
+        alt=""
+        loading="eager"
+        decoding="async"
         aria-hidden
       />
-      {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/70 to-white/90 dark:from-slate-950/85 dark:via-slate-950/70 dark:to-slate-950/90" aria-hidden />
+      {/* Lớp phủ nâng lên 92-95% (trước 70-90%): ảnh chỉ còn là sắc nền rất
+          nhạt hoà vào giao diện, mắt tập trung vào nội dung. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/94 via-white/92 to-white/96 dark:from-slate-950/94 dark:via-slate-950/90 dark:to-slate-950/96" aria-hidden />
 
       {/* Huy hiệu Bảo mật góc trái */}
       <div className="glass absolute left-4 top-4 z-10 hidden items-center gap-2 rounded-2xl px-3 py-2 md:flex" aria-hidden>
@@ -86,11 +88,14 @@ export default function HeroSection() {
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
           <h1 id="hero-title" className="mx-auto max-w-4xl text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
             <span className="text-gradient">HỘP THƯ AN NINH SỐ</span>
-            <span className="ml-3 inline-flex -translate-y-1.5 items-center rounded-xl border-2 border-primary-500 bg-white/80 px-2.5 py-0.5 align-middle text-base font-black text-primary-600 dark:bg-slate-800 dark:text-primary-300 sm:-translate-y-3 sm:text-xl">AI</span>
+            {/* Đã gỡ huy hiệu "AI" cạnh tên hệ thống.
+                  AI nay chỉ còn ở trợ lý hỏi đáp, không tham gia phân loại ý
+                  kiến nữa. Để chữ AI cạnh tên là nói quá vai trò của nó, dễ bị
+                  hội đồng hỏi vặn. */}
           </h1>
 
           <p className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
-            Tiếp nhận ý kiến công dân thông minh với AI — gửi trong 1 phút, theo dõi tiến độ mọi lúc.
+            Tiếp nhận ý kiến công dân trực tuyến — gửi trong 1 phút, theo dõi tiến độ mọi lúc.
           </p>
 
           {/* 2 nút CTA 2 dòng */}

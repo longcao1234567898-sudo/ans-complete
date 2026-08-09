@@ -46,7 +46,7 @@ export default function TrackingPage() {
 
   return (
     <>
-      <PageBackground video="bg-lang-noi.mp4" />
+      <PageBackground anh="bg-lang-noi.webp" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Tra cứu tiến độ</h1>

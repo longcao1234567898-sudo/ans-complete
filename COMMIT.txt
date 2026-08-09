@@ -3,82 +3,88 @@ LỆNH GIT — dán thẳng vào Terminal
 ============================================================
 
 git add .
-git commit -m "Gop giao dien tu ban V9, sua Turnstile lap vo tan, sua dist cu quay lai" -m "Khoi phuc tu ban dist V9 (ma nguon trong repo da mat):
-- Khoi huong dan 'Ba con nen neu ro 4 dieu sau' (thoi gian, dia diem, su viec,
-  nguoi lien quan) ngay tai o nhap noi dung
-- Khoi tran an 'Ba con so bi lo danh tinh?' — noi ro co the gui an danh va can
-  bo khong the xem danh tinh, kem luu y an danh thi khong lien he lai duoc
-- Bo sung 2 cau goi y chat: 'Toi muon xoa thong tin ca nhan' va
-  'Canh giac lua dao qua dien thoai'
-- Khoi phuc lien ket 'Bo qua dieu huong' (tro nang cho nguoi dung ban phim)
-- Khoi phuc nhan chat trung tinh 'Dang hoat dong' thay vi hien ten Gemini
-- Sua the tinh nang 'AI phan loai' -> 'Tu dong phan loai' (AI khong con phan loai)
+git commit -m "Them chat an danh 2 chieu + chan spam theo thiet bi, bo nen video, loc 3 muc khan cap" -m "TINH NANG MOI (backend da xong, giao dien lam o buoc sau):
 
-Sua loi:
-- Turnstile lap vo tan (o xac minh xoay va an hien lien tuc): component cha
-  truyen onToken bang ham mui ten trong JSX nen moi lan ve lai la ham moi ->
-  useCallback doi -> useEffect chay lai -> dung lai o CAPTCHA -> lap vo tan.
-  Console bao 'Cannot find Widget ... turnstile.remove()'.
-  Da sua: cat onToken vao useRef, useCallback khong con phu thuoc gi,
-  them turnstile.remove() khi roi trang.
-- Turnstile nuot loi im lang: error-callback cu chi goi onToken('') nen o
-  CAPTCHA trang tron. Nay hien khung vang noi ro nguyen nhan, co nut 'Thu lai'.
-- 'DIST CU QUAY LAI' — goc re: _headers khong co Cache-Control cho sw.js nen
-  trinh duyet luu dem chinh tep service worker, khong bao gio nhan ban moi.
-  Da them no-cache cho sw.js/index.html/manifest.json, cache vinh vien cho
-  /assets/* (ten co ma bam). Them ep kiem tra ban moi trong main.tsx cho may
-  da ket san. Doi ten cache htans-v40 -> v41.
-- Them thu vien qrcode + @types/qrcode (AdminQrPosterPage import 'qrcode'
-  nhung package.json chi khai 'qrcode.react' -> build that bai).
-- Bo sung du 4 bien VITE_* vao .env.production.
+1. CHAT AN DANH HAI CHIEU
+   - Bang report_messages: chi luu noi dung + ben gui (can bo/nguoi dan) +
+     thoi diem. KHONG luu ten, so dien thoai, email hay IP.
+   - Cot chat_pin_hash: ma PIN 6 so cap MOT LAN luc gui don, database chi giu
+     ban bam bcrypt. Vao phong chat can ma tra cuu + PIN.
+     Ly do can them PIN: ma tra cuu chi de XEM tien do, lo ra khong sao. Phong
+     chat co cau hoi nghiep vu cua can bo, lo ra la lo huong xac minh.
+   - API cong khai: POST /api/chat/open, GET|POST /api/chat/messages
+   - API can bo:   GET|POST /api/admin/chat/:id/messages
+   - LUAT DONG CHAT o CA HAI LOP: ho so o trang thai resolved/rejected/spam thi
+     may chu tra 403 va giao dien khoa o nhap. Chan o may chu moi la lop that
+     su — nguoi dung cong cu goi API van di thang vao duoc.
+   - Chong do PIN: 5 lan thu sai / 15 phut moi IP. Sai ma tra cuu va sai PIN
+     tra ve CUNG MOT thong bao de khong lo ma nao co that.
 
-Them:
-- netlify.toml: lenh dung, thu muc publish, co dinh Node 20.
+2. CHAN SPAM THEO THIET BI (shadow ban)
+   - Bang blacklists + cot device_id, is_spam trong submissions
+   - Khoa theo MA THIET BI (UUID trinh duyet tu sinh), KHONG khoa theo IP:
+     nha mang di dong dung CGNAT, hang tram thue bao chung mot IP -> khoa IP
+     la khoa oan ca vung thue bao, dung nhom ba con dung 4G o que.
+   - CHAN NGAM: van nhan don, van cap ma tra cuu, man hinh van bao thanh cong,
+     nhung danh dau is_spam=1 nen khong vao hang cho can bo. Bao thang la mach
+     nuoc cho ke pha hoai xoa bo nho trinh duyet doi may.
+   - Luat du phong theo IP: chi khoa khi cung 1 IP co >=3 don rac tu >=3 thiet
+     bi khac nhau trong 1 gio (dau hieu xoa cache doi ma thiet bi). Khoa 2 gio.
+   - Khoa LUON CO HAN (thiet bi 24h, IP 2h), khong bao gio vinh vien: may o
+     tiem net, dien thoai muon nguoi than co the doi chu.
+   - Can bo go khoa duoc bat cu luc nao.
 
-Giu nguyen 3 chuc nang da co: Ma QR dinh vi, bieu do khung gio/thu, gop su kien.
+GIAO DIEN:
+- Bo HET nen video (hero-bg, nui-cam, nui-sam, ho-tinh-tam, lang-noi),
+  dung anh .webp da co san. Video chay lap lam nong may, ton pin va dung luong
+  3G/4G trong khi bi phu trang toi muc khong thay chuyen dong.
+  Xoa 5 tep .mp4 -> dist giam tu 5.0M xuong 4.0M.
+- Nang lop phu trang tu 70-90% len 92-97%: anh chi con la sac nen rat nhat
+  hoa vao giao dien, mat tap trung vao noi dung.
+- Danh sach y kien: them thanh loc 3 MUC KHAN CAP (Khan cap / Quan trong /
+  Binh thuong), mau trung voi nhan tren tung the. Hien ro dang loc muc nao.
+- Go huy hieu 'AI' canh ten he thong va cau 'thong minh voi AI' (AI khong con
+  tham gia phan loai).
 
-Kiem thu: 285/285 dat. TypeScript: 0 loi."
+Kiem thu: 286/286 dat (them 1 bai canh router chat phai co chan xac thuc).
+TypeScript: 0 loi."
 git push
-
-
-============================================================
-VI SAO TRUOC DAY "VAN LA BAN CU"
-============================================================
-
-Ban dist V9 va ma nguon trong repo la HAI NHANH KHAC NHAU, moi ben co thu
-ben kia khong co:
-
-   Ban V9 co        : khoi huong dan 4 dieu, tran an an danh, 2 cau goi y chat,
-                      lien ket bo qua dieu huong, nhan chat trung tinh
-   Ma nguon repo co : Ma QR dinh vi, bieu do khung gio/thu, gop su kien,
-                      Turnstile bao loi ro
-
-Toi khong co ma nguon sinh ra V9 (chi co ban da nen, khong dung nguoc lai
-duoc). Nen toi TRICH cac khoi giao dien tu V9 roi dung lai vao ma nguon.
-Ban dist lan nay co DU CA HAI BEN.
 
 
 ============================================================
 SAU KHI PUSH — 3 VIEC
 ============================================================
 
-1. CHAY 2 FILE SQL (neu chua chay)
-       database/nang_cap_v10.sql   (bang qr_points)
-       database/nang_cap_v11.sql   (bang incident_groups)
+1. CHAY SQL — BAT BUOC, khong chay thi chat va chan spam khong hoat dong
+       database/nang_cap_v12.sql
 
-2. KEO dist LEN NETLIFY
-       Giai nen dist-HOAN-CHINH.zip -> keo tha thu muc dist vao tab Deploys
+   (Da sua loi 3780 "Referencing column ... are incompatible": cot
+    submission_id truoc khai BIGINT UNSIGNED nhung submissions.id la BIGINT
+    khong dau. MySQL doi hai ben khoa ngoai khop kieu TUYET DOI, ke ca khac
+    nhau o cho co dau hay khong. Da doi ve BIGINT.)
+   (neu chua chay v10, v11 thi chay truoc)
+   Kiem tra cuoi file phai ra: bang_chat=1 · bang_khoa=1 · cot_moi=3 · view_moi=2
 
-3. KIEM TRA — LAN DAU PHAI XOA THU CONG MOT LAN
-   May ban dang ket o service worker cu, mo cua so an danh CHUA DU:
-       F12 -> Application -> Service Workers -> Unregister
-       F12 -> Application -> Storage -> Clear site data
-       Dong het tab cua trang -> mo lai
-   Tu lan sau khong can lam nua.
+2. KEO dist LEN NETLIFY (giai nen dist-HOAN-CHINH.zip)
 
-   Sau do kiem tra:
-   - Trang Gui y kien: thay khoi xanh "Ba con nen neu ro 4 dieu sau"
-     va khung vang "Ba con so bi lo danh tinh?"
-   - O "Toi khong phai la nguoi may" hien va DUNG YEN (khong xoay an hien)
-   - Quan tri -> Bao cao: 2 bieu do moi
-   - Quan tri -> Ma QR: trang mo duoc
+3. KIEM TRA
+   - Trang chu: khong con nen video, anh nen rat nhat, khong con chu 'AI'
+     canh ten he thong
+   - Quan tri -> Danh sach y kien: co 4 nut loc muc khan cap o tren
+   - Gui thu mot y kien -> man hinh xac nhan phai hien MA PIN 6 so
+     (giao dien hien PIN se lam o buoc sau, hien tai PIN da co trong du lieu
+      tra ve cua API)
+
+
+============================================================
+CON LAI (buoc sau)
+============================================================
+
+Backend hai tinh nang da xong va da kiem thu. Con phan GIAO DIEN:
+  - Khung chat tren trang Tra cuu (nhap ma tra cuu + PIN de vao)
+  - Khung chat tren trang chi tiet ho so cua can bo
+  - Man hinh xac nhan hien ma PIN kem nhac luu lai
+  - Trang quan ly danh sach khoa thiet bi
+  - Trinh duyet sinh va gui deviceId khi gui y kien
+
+Nhan "tiep tuc" la toi lam tiep phan giao dien.
