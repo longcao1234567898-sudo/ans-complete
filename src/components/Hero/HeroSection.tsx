@@ -39,21 +39,23 @@ function UnitEmblem({ className }: { className?: string }) {
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
-      {/* ẢNH NỀN TĨNH — đã bỏ video.
-          Video chạy lặp làm nóng máy, tốn pin và tốn dung lượng 3G/4G, trong
-          khi bị phủ trắng tới mức gần như không thấy chuyển động. Trang để
-          người dân tố giác tội phạm cũng không hợp với nền động. */}
-      <img
+      {/* NỀN VIDEO chuyển động — GIỮ NGUYÊN cho riêng trang chủ.
+          Trang chủ là nơi gây ấn tượng đầu tiên, nền động ở đây có giá trị.
+          Các trang phụ (gửi ý kiến, tra cứu, tin tức, giới thiệu) thì dùng ảnh
+          tĩnh vì bà con ở lại lâu, video chạy lặp làm nóng máy và tốn dung
+          lượng mà nền lại bị phủ mờ gần hết. */}
+      <video
         className="absolute inset-0 h-full w-full object-cover"
-        src="/media/bg-lang-noi.webp"
-        alt=""
-        loading="eager"
-        decoding="async"
+        src="/media/hero-bg.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        poster="/media/police-assistant.png"
         aria-hidden
       />
-      {/* Lớp phủ nâng lên 92-95% (trước 70-90%): ảnh chỉ còn là sắc nền rất
-          nhạt hoà vào giao diện, mắt tập trung vào nội dung. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/94 via-white/92 to-white/96 dark:from-slate-950/94 dark:via-slate-950/90 dark:to-slate-950/96" aria-hidden />
+      {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/70 to-white/90 dark:from-slate-950/85 dark:via-slate-950/70 dark:to-slate-950/90" aria-hidden />
 
       {/* Huy hiệu Bảo mật góc trái */}
       <div className="glass absolute left-4 top-4 z-10 hidden items-center gap-2 rounded-2xl px-3 py-2 md:flex" aria-hidden>

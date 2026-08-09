@@ -11,6 +11,7 @@ import TrackingForm from '../components/Tracking/TrackingForm';
 import { useTrackingHistory } from '../hooks/useTrackingHistory';
 import StatusTimeline from '../components/Tracking/StatusTimeline';
 import DataRightsBox from '../components/Tracking/DataRightsBox';
+import ChatPanel from '../components/Tracking/ChatPanel';
 import Card from '../components/common/Card';
 import { Spinner } from '../components/common/Loading';
 import PageBackground from '../components/common/PageBackground';
@@ -131,6 +132,10 @@ export default function TrackingPage() {
       {data && !isLoading && !isFetching && (
         <>
           <StatusTimeline result={data} />
+          {/* Kênh trao đổi hai chiều — cán bộ hỏi thêm, bà con bổ sung.
+              Vào bằng mã PIN cấp lúc gửi ý kiến. */}
+          <ChatPanel code={data.code} />
+
           <DataRightsBox code={data.code} />
         </>
       )}

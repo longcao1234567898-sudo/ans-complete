@@ -111,6 +111,31 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             {submission.trackingCode}
           </p>
 
+          {/* ==================================================================
+              MÃ PIN VÀO PHÒNG TRAO ĐỔI
+
+              Máy chủ chỉ trả về ĐÚNG MỘT LẦN này. Database giữ bản băm bcrypt
+              nên không cấp lại được — phải nhắc bà con lưu ngay, đặt cạnh mã
+              tra cứu để chụp màn hình là được cả hai.
+              ================================================================== */}
+          {submission.chatPin && (
+            <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+              <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
+                Mã PIN vào phòng trao đổi
+              </p>
+              <p className="my-1 font-mono text-2xl font-extrabold tracking-[0.3em] text-amber-900 dark:text-amber-200">
+                {submission.chatPin}
+              </p>
+              <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                Dùng mã này ở trang <b>Tra cứu</b> để trao đổi thêm với cán bộ khi cần
+                bổ sung thông tin.
+                <br />
+                <b>Chỉ hiện một lần duy nhất</b> — bà con lưu lại ngay, hệ thống không
+                cấp lại được.
+              </p>
+            </div>
+          )}
+
           <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
             <button
               onClick={handleCopy}

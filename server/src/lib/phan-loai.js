@@ -330,8 +330,56 @@ for (const ma of Object.keys(TU_KHOA_EN)) {
 const TU_KHOA_KHAN = [
   'dang xay ra', 'ngay bay gio', 'ngay luc nay', 'vua moi xay ra', 'khan cap',
   'cap cuu', 'nguy hiem tinh mang', 'sap chet', 'bi thuong nang', 'mau',
-  'dang danh nhau', 'dang danh', 'dang cuop', 'chay nha', 'chay no', 'hoa hoan',
+  'dang danh nhau', 'dang danh', 'dang cuop', 'chay no', 'hoa hoan',
+  /* ĐÃ BỎ 'chay nha' (cháy nhà) — sau khi bỏ dấu nó nằm lọt trong "chạy nhanh"
+     (chay nhanh), khiến câu "xe tải chạy nhanh trong khu dân cư" bị báo KHẨN
+     CẤP. Thay bằng các cụm dài hơn, không thể nhầm: */
+  'chay nha dan', 'nha bi chay', 'chay nha hang xom', 'ngoi nha dang chay',
   'doa giet', 'doa danh', 'bat coc', 'tu tu', 'nhay cau', 'tre em bi',
+
+  /* =====================================================================
+     BỔ SUNG SAU KIỂM THỬ — bản trước bỏ sót 8/18 tình huống khẩn cấp thật.
+
+     Nguyên nhân bỏ sót: danh sách cũ chỉ có dạng "đang + động từ"
+     ("dang danh nhau", "dang cuop"). Nhưng bà con gọi báo lúc hoảng loạn
+     thường viết theo cách khác hẳn:
+       · Nêu HIỆN TƯỢNG đang thấy: "khói mù mịt", "có tiếng kêu cứu"
+       · Nêu HẬU QUẢ: "nằm bất tỉnh", "chảy máu nhiều"
+       · Nêu TÌNH THẾ của mình: "tôi đang trốn", "bị nhốt không ra được"
+     Ba cách này đều khẩn cấp không kém, mà không có chữ "đang" đứng trước.
+     ===================================================================== */
+
+  /* -- Cháy nổ: bà con tả khói/lửa chứ ít khi viết đúng chữ "hoả hoạn" -- */
+  'dang chay', 'chay lon', 'khoi mu mit', 'boc chay', 'lua chay', 'chay rui',
+  'no binh gas', 'ro ri gas', 'mui gas nong nac', 'chap dien chay',
+
+  /* -- Đang bị tấn công / truy đuổi -- */
+  'ruot chem', 'ruot danh', 'dang chem', 'dang dam', 'dang hanh hung',
+  'cam dao duoi', 'cam hung khi', 'vua bi dam', 'vua bi chem', 'vua bi danh',
+  'dang pha cua', 'be khoa nha', 'cay cua', 'dot nhap nha',
+  'trom con trong nha', 'ke trom con trong', 'dang trong nha toi',
+
+  /* -- Hậu quả về người: dấu hiệu cần cấp cứu ngay -- */
+  'bat tinh', 'ngat xiu', 'khong tinh', 'chay mau nhieu', 'mau chay nhieu',
+  'gay xuong', 'thuong tich nang', 'nguy kich', 'kho tho', 'co giat',
+  'tai nan giao thong', 'vua xay ra tai nan', 'dam xe', 'lat xe',
+
+  /* -- Người bị khống chế / mất tích -- */
+  'bi nhot', 'nhot trong nha', 'khong ra duoc', 'bi giam giu', 'bi khong che',
+  'mat tich', 'chua ve nha', 'khong lien lac duoc', 'lac mat con',
+  'con toi mat tich', 'khong thay con dau',
+
+  /* -- Kêu cứu trực tiếp -- */
+  'cuu toi', 'cuu voi', 'giup toi voi', 'xin cuu gap', 'cuu gap',
+  'tieng keu cuu', 'keu cuu', 'la het', 'gao khoc',
+
+  /* -- Đe doạ tức thời -- */
+  'doa giet ca nha', 'se giet', 'dang doa', 'cam dao doa', 'doa dot nha',
+  'dang dap pha', 'dap pha nha',
+
+  /* -- Tự gây hại -- */
+  'dinh nhay', 'muon chet', 'uong thuoc doc', 'cat tay', 'tu van',
+
   /* Tiếng Anh nối vào cuối file — xem KHAN_EN */
 ];
 
@@ -1120,7 +1168,19 @@ const KHAN_EN = [
   'being attacked', 'being beaten', 'attacking someone', 'threatening to kill',
   'threaten to kill', 'death threat', 'kidnapped', 'kidnapping in progress', 'suicide',
   'about to jump', 'trying to kill himself', 'trying to kill herself', 'child in danger',
-  'armed', 'has a knife', 'has a gun', 'hostage'
+  'armed', 'has a knife', 'has a gun', 'hostage',
+  /* --- Bổ sung sau kiểm thử tiếng Anh (7/10 -> đủ) ---
+     Ba nhóm bị sót, đều là cách người nước ngoài mô tả tình huống gấp:
+       · Đột nhập đang diễn ra   : "broke into", "someone is inside"
+       · Bị khống chế, không thoát: "locked inside", "cannot get out"
+       · Kêu cứu                  : "screaming for help", "calling for help" */
+  'broke into', 'breaking into', 'someone is inside', 'intruder', 'burglar inside',
+  'forced the door', 'smashed the window', 'i am hiding', 'hiding from',
+  'locked inside', 'locked in', 'cannot get out', 'can not get out', 'trapped',
+  'held against', 'cannot escape', 'being held',
+  'screaming for help', 'calling for help', 'crying for help', 'shouting for help',
+  'help me now', 'please help urgently', 'someone screaming', 'hear screaming',
+  'smoke everywhere', 'house on fire', 'building on fire', 'flames'
 ];
 
 /* Dấu hiệu QUAN TRỌNG — kéo dài, nhiều người, nhóm yếu thế */

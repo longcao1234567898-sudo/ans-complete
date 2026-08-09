@@ -152,6 +152,13 @@ export interface ViecCanGap {
 export interface DashboardStats {
   /** Việc quá hạn / sắp hạn — sắp xếp khẩn cấp trước */
   canGap?: ViecCanGap[];
+  /** Ba con số điều hành: đã quá hạn · sắp hạn (3 ngày) · chưa phân công.
+      Trả lời đúng câu hỏi của người chỉ huy khi mở máy buổi sáng. */
+  dieuHanh?: {
+    qua_han: number;
+    sap_han: number;
+    chua_phan_cong: number;
+  };
   overview: {
     total_submissions: number;
     pending_count: number;

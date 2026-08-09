@@ -265,12 +265,23 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               </label>
             ))}
           </div>
+          {/* ⚠️ LỖI BỐ CỤC ĐÃ SỬA:
+              Khối này trước dùng "flex" ngay trên thẻ chữ, nên MỌI phần tử con
+              — biểu tượng, đoạn chữ, số 113, đoạn đuôi — bị xếp thành các CỘT
+              riêng. Kết quả: số 113 nhảy sang giữa dòng, câu văn đứt làm hai
+              mảng rời nhau, đọc không ra.
+
+              Cách đúng: chỉ dùng flex cho lớp bọc NGOÀI (biểu tượng + khối
+              chữ), còn câu văn để nguyên trong một thẻ chữ để tự xuống dòng
+              liền mạch. */}
           {urgency === 'urgent' && (
-            <p className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
+            <div className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số{' '}
-              <b>113</b>, hoặc bấm nút SOS đỏ ở góc dưới màn hình.
-            </p>
+              <p className="leading-relaxed">
+                Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số{' '}
+                <b className="whitespace-nowrap">113</b>, hoặc bấm nút SOS đỏ ở góc dưới màn hình.
+              </p>
+            </div>
           )}
         </div>
       )}

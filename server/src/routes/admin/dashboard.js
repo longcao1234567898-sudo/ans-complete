@@ -11,6 +11,62 @@ router.use(requireAuth);
 router.get('/stats', async (_req, res) => {
   try {
     const [[overview]] = await pool.query('SELECT * FROM vw_dashboard_stats');
+
+    /* ---------------------------------------------------------------------
+       BA CON SỐ ĐIỀU HÀNH — thứ trưởng phòng cần biết ngay khi mở máy
+
+       View vw_dashboard_stats chỉ đếm theo TRẠNG THÁI (đã tiếp nhận, đang xử
+       lý, đã giải quyết...). Nhưng câu hỏi thật của người chỉ huy không phải
+       "có bao nhiêu đơn đang xử lý" mà là:
+           · Có việc nào ĐÃ TRỄ HẠN chưa?          -> phải giải trình
+           · Có việc nào SẮP TRỄ trong 3 ngày tới?  -> còn kịp cứu
+           · Có việc nào CHƯA AI NHẬN?             -> đang rơi vào khoảng trống
+
+       Con số thứ ba quan trọng nhất mà hay bị bỏ quên: đơn đã tiếp nhận nhưng
+       chưa phân công cho ai thì không ai thấy mình có trách nhiệm, cứ nằm đó
+       tới lúc quá hạn mới lộ ra.
+       --------------------------------------------------------------------- */
+    let dieuHanh = { qua_han: 0, sap_han: 0, chua_phan_cong: 0 };
+    try {
+      const [[dh]] = await pool.query(
+        `SELECT
+           SUM(s.status IN ('received','processing')
+               AND s.deadline_at IS NOT NULL
+               AND s.deadline_at < NOW())                        AS qua_han,
+           SUM(s.status IN ('received','processing')
+               AND s.deadline_at IS NOT NULL
+               AND s.deadline_at >= NOW()
+               AND s.deadline_at <= DATE_ADD(NOW(), INTERVAL 3 DAY)) AS sap_han,
+           SUM(s.status IN ('received','processing')
+               AND s.assigned_to IS NULL)                        AS chua_phan_cong
+         FROM submissions s
+         WHERE s.deleted_at IS NULL
+           AND (s.is_spam IS NULL OR s.is_spam = 0)`
+      );
+      dieuHanh = {
+        qua_han: Number(dh?.qua_han || 0),
+        sap_han: Number(dh?.sap_han || 0),
+        chua_phan_cong: Number(dh?.chua_phan_cong || 0),
+      };
+    } catch (e) {
+      /* Cột is_spam chưa có (chưa chạy nang_cap_v12.sql) -> thử lại không lọc.
+         Thà thiếu một điều kiện còn hơn cả khối số liệu trắng trơn. */
+      try {
+        const [[dh2]] = await pool.query(
+          `SELECT
+             SUM(status IN ('received','processing') AND deadline_at < NOW())     AS qua_han,
+             SUM(status IN ('received','processing') AND deadline_at >= NOW()
+                 AND deadline_at <= DATE_ADD(NOW(), INTERVAL 3 DAY))              AS sap_han,
+             SUM(status IN ('received','processing') AND assigned_to IS NULL)     AS chua_phan_cong
+           FROM submissions WHERE deleted_at IS NULL`
+        );
+        dieuHanh = {
+          qua_han: Number(dh2?.qua_han || 0),
+          sap_han: Number(dh2?.sap_han || 0),
+          chua_phan_cong: Number(dh2?.chua_phan_cong || 0),
+        };
+      } catch { /* để mặc định 0 */ }
+    }
     const [byCategory] = await pool.query('SELECT * FROM vw_category_stats');
     const [recent] = await pool.query(
       `SELECT s.tracking_code, s.status, s.sender_name, c.name AS category_name, s.created_at
@@ -80,7 +136,7 @@ router.get('/stats', async (_req, res) => {
     // Che tên người gửi ở danh sách gần đây
     const recentSafe = recent.map((r) => ({ ...r, sender_name: maskName(decrypt(r.sender_name)) }));
 
-    res.json({ overview, byCategory, recent: recentSafe, sla, canGap, nhomTrungLap });
+    res.json({ overview, byCategory, recent: recentSafe, sla, dieuHanh, canGap, nhomTrungLap });
   } catch (err) {
     console.error('Lỗi thống kê:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });

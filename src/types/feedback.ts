@@ -78,6 +78,9 @@ export interface FeedbackDraft {
 /** Ý kiến đã gửi thành công (được cấp mã tra cứu) */
 export interface FeedbackSubmission {
   trackingCode: string;
+  /** Mã PIN 6 số vào phòng trao đổi — máy chủ trả về ĐÚNG MỘT LẦN lúc gửi.
+      Không có ở các ý kiến gửi trước khi có tính năng này. */
+  chatPin?: string;
   content: string;
   normalizedContent: string;
   category: FeedbackCategory;
