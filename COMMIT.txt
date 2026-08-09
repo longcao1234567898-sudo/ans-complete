@@ -2,64 +2,62 @@
 NỘI DUNG COMMIT — dán vào ô mô tả khi Upload files trên GitHub
 ============================================================
 
-── Dòng tiêu đề (bắt buộc, dán vào ô đầu tiên) ──
+── Tiêu đề (ô đầu tiên) ──
 
-Them 3 chuc nang moi + sua loi build thieu thu vien qrcode
+Sua loi build thieu qrcode, sua Turnstile nuot loi, them netlify.toml
 
-── Phần mô tả (dán vào ô lớn bên dưới) ──
-
-Them 3 chuc nang:
-- Bieu do chuoi thoi gian: byHour/byWeekday trong /api/admin/reports/summary,
-  2 bieu do cot tren trang Bao cao kem nhan "Cao diem" tu tinh, 2 sheet Excel moi
-- Ma QR dinh vi: bang qr_points (nang_cap_v10.sql), route cong khai + CRUD quan tri,
-  trang AdminQrPage lap vao muc "Ma QR" tren thanh dieu huong,
-  trang Gui y kien doc ?diem= tren URL de tu chon san phuong/xa
-- Gop su kien trung lap: mo rong duplicate.js (cung dia ban + cung nhom + trong 30 phut
-  + do giong noi dung >= 30%), bang incident_groups (nang_cap_v11.sql),
-  canh bao "Nghi cung mot su viec" tren trang Tong quan
+── Mô tả (ô lớn bên dưới) ──
 
 Sua loi:
-- Them thu vien qrcode + @types/qrcode vao package.json.
-  AdminQrPosterPage.tsx import 'qrcode' nhung package.json chi khai bao 'qrcode.react'
-  (hai thu vien khac nhau) -> npm run build that bai
-- Bo sung du 4 bien cong khai vao .env.production.
-  Truoc do chi co VITE_API_URL, thieu Turnstile site key va Cloudinary ->
-  neu Netlify tu dung tu GitHub thi CAPTCHA roi ve khoa cu va Cloudinary bi tat
-- Dung lai dist: ban cu co _headers con tro ve hop-thu-so.onrender.com (thieu -v2)
-  nen trinh duyet chan het moi yeu cau -> web mat ket noi backend
+- Them thu vien qrcode + @types/qrcode. AdminQrPosterPage.tsx import 'qrcode'
+  nhung package.json chi khai bao 'qrcode.react' (hai thu vien khac nhau)
+  -> npm run build that bai -> dist khong bao gio co du 3 chuc nang moi
+- Turnstile: bo error-callback nuot loi im lang. Nay hien ro nguyen nhan
+  (ten mien chua khai bao, sai site key, mat mang...), co nut "Thu lai",
+  ghi ma loi goc ra Console
+- Turnstile: bo khoa du phong ghi cung trong ma nguon. Khoa do khien loi
+  kho lan ra vi he thong am tham dung khoa cua tai khoan cu
+- Bo sung du 4 bien VITE_* vao .env.production. Truoc do chi co VITE_API_URL
+
+Them:
+- netlify.toml: khai bao lenh dung, thu muc publish, co dinh Node 20.
+  Can cho truong hop noi GitHub de Netlify tu dung moi lan commit
 
 Kiem thu: 285/285 dat. TypeScript: 0 loi.
 
 
 ============================================================
-CAC BUOC DAY LEN GITHUB
+SAU KHI DAY LEN GITHUB — 4 VIEC
 ============================================================
 
-1. Vao github.com/<tai-khoan>/ans-complete
-2. Add file -> Upload files
-3. Keo THA toan bo noi dung goi nay (tru file COMMIT.txt nay)
-4. Dan tieu de + mo ta o tren vao 2 o commit
-5. Bam Commit changes
+1. KHAI BAO TEN MIEN TRONG CLOUDFLARE  ← nguyen nhan Turnstile loi
+   dash.cloudflare.com -> Turnstile -> chon widget -> Settings -> Domains
+   Them ten mien MOI:
+        diem-cham-binh-yen.netlify.app
+   Go dung nhu tren: khong co https://, khong co dau / o cuoi.
+   Ten mien cu (diemchambinhyen.netlify.app) co the xoa neu khong dung nua.
 
-Render se tu deploy lai sau ~2 phut.
+   Thieu buoc nay thi Cloudflare tra ma loi 110200 -> o CAPTCHA khong hien.
 
-
-============================================================
-SAU KHI DAY — 3 VIEC PHAI LAM
-============================================================
-
-1. CHAY 2 FILE SQL (neu chua chay)
+2. CHAY 2 FILE SQL (neu chua chay)
    HeidiSQL -> chon database -> chay lan luot:
-       database/nang_cap_v10.sql   (bang qr_points)
-       database/nang_cap_v11.sql   (bang incident_groups)
-   Khong chay thi trang Ma QR va canh bao gop su kien se bao loi thieu bang.
+        database/nang_cap_v10.sql   (bang qr_points)
+        database/nang_cap_v11.sql   (bang incident_groups)
 
-2. KEO dist LEN NETLIFY
-   Giai nen dist-HOAN-CHINH.zip -> keo tha thu muc dist vao tab Deploys.
-   Ban dist trong goi nay da co du 3 chuc nang va da khop _headers.
+3. DUA GIAO DIEN LEN NETLIFY — chon MOT trong hai cach, dung lan lon:
 
-3. KIEM TRA
-   - Mo web bang cua so an danh (Ctrl+Shift+N) de tranh bo nho dem
-   - Quan tri -> Bao cao: phai thay 2 bieu do moi (Theo khung gio, Theo thu)
-   - Quan tri -> Ma QR: trang phai mo duoc, khong bao loi
-   - Log Render phai co: "Ket noi MySQL thanh cong" va "Ma hoa danh tinh: DA BAT"
+   Cach A (nhanh, dang dung):
+        Giai nen dist-HOAN-CHINH.zip -> keo tha thu muc dist vao tab Deploys
+
+   Cach B (noi GitHub, tu dung moi lan commit):
+        Netlify -> Site configuration -> Build & deploy -> Link repository
+        Netlify se tu doc netlify.toml, khong can dien tay lenh dung.
+        Luu y: cach nay lay bien tu .env.production trong repo.
+
+4. KIEM TRA
+   - Mo web bang cua so an danh (Ctrl+Shift+N)
+   - Trang Gui y kien: o "Toi khong phai la nguoi may" phai hien
+     Neu hien khung vang bao loi -> doc dung nguyen nhan trong do
+   - Quan tri -> Bao cao: 2 bieu do moi (Theo khung gio, Theo thu)
+   - Quan tri -> Ma QR: trang mo duoc
+   - Log Render: "Ket noi MySQL thanh cong" + "Ma hoa danh tinh: DA BAT"

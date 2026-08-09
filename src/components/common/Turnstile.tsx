@@ -1,15 +1,49 @@
 /**
  * CAPTCHA chống bot — Cloudflare Turnstile.
- * Nếu CHƯA cấu hình VITE_TURNSTILE_SITE_KEY thì component tự ẩn,
- * hệ thống vẫn chạy bình thường (không chặn ai).
+ *
+ * Nếu CHƯA cấu hình VITE_TURNSTILE_SITE_KEY thì component tự ẩn, hệ thống vẫn
+ * chạy bình thường (không chặn ai).
+ *
+ * ⚠️ HAI KHOÁ ĐI THÀNH CẶP:
+ *     Site key   -> ở đây (trình duyệt)        — công khai
+ *     Secret key -> TURNSTILE_SECRET_KEY trên Render — bí mật
+ *   Phải cùng MỘT tài khoản Cloudflare. Lệch nhau thì người dân tick thấy xanh
+ *   nhưng máy chủ luôn báo sai, không ai gửi được ý kiến.
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD6i_-Eq5RMylwf9').trim();
+const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim();
 export const captchaEnabled = Boolean(SITE_KEY);
 
 declare global {
   interface Window { turnstile?: any }
+}
+
+/* --------------------------------------------------------------------------
+   GIẢI NGHĨA MÃ LỖI CỦA CLOUDFLARE
+
+   Trước đây error-callback chỉ gọi onToken('') — nuốt lỗi hoàn toàn. Ô CAPTCHA
+   trắng trơn, người dân không biết vì sao không gửi được, cán bộ cũng không
+   biết đường nào mà lần.
+
+   Nay hiện đúng nguyên nhân. Nguyên nhân hay gặp nhất là mã 110200: TÊN MIỀN
+   CHƯA ĐƯỢC KHAI BÁO — xảy ra ngay sau khi đổi tên site Netlify.
+   -------------------------------------------------------------------------- */
+function giaiNghiaLoi(ma: string): string {
+  const m = String(ma || '');
+  if (m.startsWith('110200')) {
+    return 'Tên miền của trang web chưa được khai báo trong Cloudflare Turnstile.';
+  }
+  if (m.startsWith('1102') || m.startsWith('1100')) {
+    return 'Khoá xác minh (site key) không hợp lệ hoặc không thuộc tài khoản Cloudflare này.';
+  }
+  if (m.startsWith('300') || m.startsWith('600')) {
+    return 'Không kết nối được tới Cloudflare. Có thể do mạng chập chờn.';
+  }
+  if (m.startsWith('106')) {
+    return 'Phiên xác minh đã quá hạn.';
+  }
+  return `Cloudflare báo lỗi (mã ${m || 'không rõ'}).`;
 }
 
 interface Props {
@@ -18,50 +52,121 @@ interface Props {
 
 export default function Turnstile({ onToken }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const rendered = useRef(false);
+  const widgetId = useRef<string | null>(null);
+  const [loi, setLoi] = useState<string>('');
+  const [dangTai, setDangTai] = useState(true);
 
-  useEffect(() => {
-    if (!captchaEnabled || rendered.current) return;
+  const dungLen = useCallback(() => {
+    if (!ref.current || !window.turnstile) return;
 
-    function render() {
-      if (!ref.current || rendered.current || !window.turnstile) return;
-      rendered.current = true;
-      window.turnstile.render(ref.current, {
-        sitekey: SITE_KEY,
-        language: 'vi',
-        callback: (token: string) => onToken(token),
-        'expired-callback': () => onToken(''),
-        'error-callback': () => onToken(''),
-      });
+    /* Dọn ô cũ trước khi dựng lại — nếu không, bấm "Thử lại" sẽ chồng hai ô */
+    if (widgetId.current !== null) {
+      try { window.turnstile.remove(widgetId.current); } catch { /* bỏ qua */ }
+      widgetId.current = null;
     }
 
-    if (window.turnstile) { render(); return; }
+    setLoi('');
+    setDangTai(true);
+    try {
+      widgetId.current = window.turnstile.render(ref.current, {
+        sitekey: SITE_KEY,
+        language: 'vi',
+        callback: (token: string) => { setDangTai(false); setLoi(''); onToken(token); },
+        'expired-callback': () => {
+          onToken('');
+          setLoi('Phiên xác minh đã hết hạn. Bà con bấm "Thử lại" giúp.');
+        },
+        'error-callback': (ma: string) => {
+          onToken('');
+          setDangTai(false);
+          setLoi(giaiNghiaLoi(ma));
+          /* Ghi ra Console để quản trị viên xem được mã lỗi gốc */
+          console.error('[Turnstile] mã lỗi:', ma, '· tên miền:', window.location.hostname);
+        },
+      });
+      setDangTai(false);
+    } catch (e) {
+      setDangTai(false);
+      setLoi('Không dựng được ô xác minh.');
+      console.error('[Turnstile]', e);
+    }
+  }, [onToken]);
+
+  useEffect(() => {
+    if (!captchaEnabled) return;
+
+    if (window.turnstile) { dungLen(); return; }
 
     const id = 'cf-turnstile-script';
+    let huy: number | undefined;
+
     if (!document.getElementById(id)) {
       const sc = document.createElement('script');
       sc.id = id;
       sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
       sc.async = true;
       sc.defer = true;
-      sc.onload = render;
+      sc.onload = dungLen;
+      /* Tải kịch bản thất bại thường do CSP chặn hoặc mạng bị chặn Cloudflare */
+      sc.onerror = () => {
+        setDangTai(false);
+        setLoi('Không tải được ô xác minh từ Cloudflare. Kiểm tra kết nối mạng.');
+      };
       document.head.appendChild(sc);
     } else {
-      const t = setInterval(() => {
-        if (window.turnstile) { clearInterval(t); render(); }
+      const t = window.setInterval(() => {
+        if (window.turnstile) { window.clearInterval(t); dungLen(); }
       }, 200);
-      return () => clearInterval(t);
+      huy = t;
+      /* Chờ tối đa 15 giây rồi báo, không để người dùng đợi vô tận */
+      window.setTimeout(() => {
+        window.clearInterval(t);
+        if (!window.turnstile) {
+          setDangTai(false);
+          setLoi('Ô xác minh tải quá lâu. Bà con thử tải lại trang.');
+        }
+      }, 15000);
     }
-  }, [onToken]);
+
+    return () => { if (huy) window.clearInterval(huy); };
+  }, [dungLen]);
 
   if (!captchaEnabled) return null;
 
   return (
     <div className="mt-4">
       <div ref={ref} />
-      <p className="mt-1.5 text-[11px] text-slate-400">
-        Bước xác minh này giúp ngăn máy tự động gửi tin rác.
-      </p>
+
+      {dangTai && !loi && (
+        <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+          Đang tải ô xác minh…
+        </p>
+      )}
+
+      {loi && (
+        <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/25">
+          <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+            Không hiện được ô xác minh
+          </p>
+          <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">{loi}</p>
+          <button
+            type="button"
+            onClick={dungLen}
+            className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+          >
+            Thử lại
+          </button>
+          <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400">
+            Nếu vẫn không được, bà con vui lòng gọi trực tiếp số trực ban.
+          </p>
+        </div>
+      )}
+
+      {!loi && !dangTai && (
+        <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+          Bước xác minh này giúp ngăn máy tự động gửi tin rác.
+        </p>
+      )}
     </div>
   );
 }

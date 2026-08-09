@@ -1,0 +1,42 @@
+# ============================================================================
+#  CẤU HÌNH NETLIFY — để Netlify tự dựng khi có commit mới trên GitHub
+# ============================================================================
+#
+#  Có tệp này thì Netlify tự biết phải làm gì, không cần vào bảng điều khiển
+#  điền tay. Thiếu nó, Netlify đoán sai lệnh dựng và bản đăng lên sẽ trắng
+#  trang hoặc thiếu tệp.
+#
+#  ⚠️ HAI CÁCH ĐĂNG, ĐỪNG LẪN LỘN:
+#     1. Kéo thả thư mục dist  -> Netlify KHÔNG dựng, chỉ nhận tệp có sẵn
+#     2. Nối GitHub (tệp này)  -> Netlify TỰ dựng từ mã nguồn mỗi lần commit
+#
+#     Dùng cách 2 thì phải chắc .env.production có đủ 4 biến VITE_*, vì đó là
+#     nơi Vite lấy giá trị lúc dựng. Thiếu VITE_TURNSTILE_SITE_KEY là CAPTCHA
+#     hỏng, thiếu VITE_CLOUDINARY_* là không tải được ảnh.
+# ============================================================================
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Cố định phiên bản Node. Không ghi thì Netlify dùng bản mặc định của họ,
+  # đổi lúc nào không báo trước, dựng đang chạy tự nhiên hỏng.
+  NODE_VERSION = "20"
+  # Bỏ qua cảnh báo lệ thuộc phiên bản khi cài
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# ---------------------------------------------------------------------------
+#  ĐIỀU HƯỚNG CHO ỨNG DỤNG MỘT TRANG
+#
+#  React Router xử lý đường dẫn ở phía trình duyệt. Người dùng gõ thẳng
+#  /tra-cuu hay bấm F5 giữa chừng thì máy chủ Netlify đi tìm tệp /tra-cuu.html
+#  — không có, trả 404. Dòng dưới bảo Netlify luôn trả index.html để React
+#  Router tự đọc đường dẫn.
+#
+#  (Đã có sẵn trong public/_redirects, ghi lại đây cho chắc.)
+# ---------------------------------------------------------------------------
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
