@@ -3,7 +3,7 @@
  * Ảnh được nén ngay trên trình duyệt trước khi lưu.
  */
 import { ChangeEvent, useRef, useState } from 'react';
-import { AlertCircle, ImagePlus, Loader2, X, RotateCcw} from 'lucide-react';
+import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
 import { MAX_FEEDBACK_IMAGES } from '../../utils/constants';
@@ -105,6 +105,60 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
           </div>
         </div>
       )}
+
+      {/* ====================================================================
+          HƯỚNG DẪN BÀ CON VIẾT ĐỦ Ý — khôi phục từ bản dist V9
+
+          Vì sao cần: phần lớn đơn gửi lên thiếu thời gian, địa điểm, hoặc đặc
+          điểm người liên quan. Cán bộ nhận được đơn kiểu "có người bán ma tuý
+          gần chợ" thì không đủ căn cứ đi xác minh, phải liên hệ hỏi lại — mà
+          với đơn ẩn danh thì không hỏi lại được.
+
+          Nhắc trước 4 điều ngay tại chỗ nhập rẻ hơn nhiều so với hỏi lại sau.
+          ==================================================================== */}
+      <div className="mb-4 rounded-2xl border-2 border-primary-200 bg-primary-50/70 p-4 dark:border-primary-800 dark:bg-primary-900/15">
+        <p className="mb-2 flex items-center gap-2 text-sm font-bold text-primary-800 dark:text-primary-200">
+          <ListChecks className="h-4 w-4 shrink-0" />
+          Bà con nên nêu rõ 4 điều sau
+        </p>
+        <ul className="mb-3 grid gap-1.5 text-xs text-slate-700 dark:text-slate-300 sm:grid-cols-2">
+          <li className="flex items-start gap-1.5">
+            <span className="font-bold text-primary-600">•</span>
+            <span><b>Thời gian:</b> ngày giờ xảy ra (hoặc &quot;khoảng 8 giờ tối qua&quot;)</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="font-bold text-primary-600">•</span>
+            <span><b>Địa điểm:</b> càng cụ thể càng tốt — số nhà, ấp/khóm, gần chỗ nào</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="font-bold text-primary-600">•</span>
+            <span><b>Sự việc:</b> chuyện gì đã xảy ra, diễn biến ra sao</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="font-bold text-primary-600">•</span>
+            <span><b>Người liên quan:</b> đặc điểm nhận dạng, biển số xe (nếu biết)</span>
+          </li>
+        </ul>
+
+        {/* Trấn an người sợ bị trả thù — đây là rào cản tâm lý lớn nhất khiến
+            bà con không dám tố giác. Nói rõ ngay tại chỗ nhập, không bắt họ
+            tự mò tới bước sau mới biết có tuỳ chọn ẩn danh. */}
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+          <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+            <ShieldQuestion className="h-3.5 w-3.5 shrink-0" />
+            Bà con sợ bị lộ danh tính?
+          </p>
+          <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+            Với <b>tố giác tin báo tội phạm</b>, ở bước điền thông tin bà con có thể bật{' '}
+            <b>&quot;Gửi ẩn danh&quot;</b> — không cần họ tên, số điện thoại hay email. Cán bộ
+            <b> không thể xem</b> danh tính người gửi ẩn danh.
+          </p>
+          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-amber-800 dark:text-amber-300">
+            Lưu ý: gửi ẩn danh thì cán bộ <b>không liên hệ lại được</b> để hỏi thêm. Bà con
+            hãy viết thật đầy đủ ngay từ bây giờ (tối thiểu 50 chữ), kèm ảnh nếu có.
+          </p>
+        </div>
+      </div>
 
       <label htmlFor="content" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
         Nội dung ý kiến của bà con

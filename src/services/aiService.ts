@@ -88,8 +88,13 @@ export async function analyzeContent(raw: string): Promise<AIAnalysisResult> {
 /* Trợ lý hỏi đáp: backend (giấu key) → câu trả lời mẫu                 */
 /* ------------------------------------------------------------------ */
 
-/** Nhãn "bộ não" đang hoạt động — hiển thị trên header widget chat */
-export const AI_ENGINE_LABEL: string | null = hasBackend ? 'Gemini' : null;
+/**
+ * Cờ báo trợ lý có sẵn sàng không — dùng để hiện/ẩn chấm xanh trên đầu khung
+ * chat. KHÔNG còn mang tên nhà cung cấp: bà con không cần biết hệ thống dùng
+ * dịch vụ của hãng nào, thông tin đó chỉ gây phân tâm.
+ * Rỗng = không có máy chủ -> chạy câu trả lời mẫu, không hiện chấm.
+ */
+export const AI_ENGINE_LABEL: string | null = hasBackend ? 'san-sang' : null;
 
 /** Trả lời theo kịch bản mẫu (mock) — dùng khi không có backend hoặc backend lỗi */
 async function getChatReplyFromMock(userMessage: string): Promise<string> {

@@ -3,77 +3,82 @@ LỆNH GIT — dán thẳng vào Terminal
 ============================================================
 
 git add .
-git commit -m "Sua Turnstile lap vo tan, sua dist cu quay lai, them netlify.toml" -m "Sua loi:
-- Turnstile lap vo tan (o xac minh xoay va an hien lien tuc):
-  component cha truyen onToken bang ham mui ten viet thang trong JSX nen moi
-  lan ve lai la mot ham moi -> useCallback doi -> useEffect chay lai -> dung
-  lai o CAPTCHA -> goi onToken -> cha ve lai -> lap vo tan.
-  Console bao 'Cannot find Widget ... consider using turnstile.remove()'.
-  Da sua: cat onToken vao useRef, useCallback khong con phu thuoc gi.
-  Them don o khi roi trang bang turnstile.remove().
+git commit -m "Gop giao dien tu ban V9, sua Turnstile lap vo tan, sua dist cu quay lai" -m "Khoi phuc tu ban dist V9 (ma nguon trong repo da mat):
+- Khoi huong dan 'Ba con nen neu ro 4 dieu sau' (thoi gian, dia diem, su viec,
+  nguoi lien quan) ngay tai o nhap noi dung
+- Khoi tran an 'Ba con so bi lo danh tinh?' — noi ro co the gui an danh va can
+  bo khong the xem danh tinh, kem luu y an danh thi khong lien he lai duoc
+- Bo sung 2 cau goi y chat: 'Toi muon xoa thong tin ca nhan' va
+  'Canh giac lua dao qua dien thoai'
+- Khoi phuc lien ket 'Bo qua dieu huong' (tro nang cho nguoi dung ban phim)
+- Khoi phuc nhan chat trung tinh 'Dang hoat dong' thay vi hien ten Gemini
+- Sua the tinh nang 'AI phan loai' -> 'Tu dong phan loai' (AI khong con phan loai)
+
+Sua loi:
+- Turnstile lap vo tan (o xac minh xoay va an hien lien tuc): component cha
+  truyen onToken bang ham mui ten trong JSX nen moi lan ve lai la ham moi ->
+  useCallback doi -> useEffect chay lai -> dung lai o CAPTCHA -> lap vo tan.
+  Console bao 'Cannot find Widget ... turnstile.remove()'.
+  Da sua: cat onToken vao useRef, useCallback khong con phu thuoc gi,
+  them turnstile.remove() khi roi trang.
 - Turnstile nuot loi im lang: error-callback cu chi goi onToken('') nen o
-  CAPTCHA trang tron, khong ai biet vi sao. Nay hien khung vang noi ro nguyen
-  nhan (ten mien chua khai bao / sai site key / mat mang), co nut 'Thu lai',
-  ghi ma loi goc ra Console.
-- Turnstile: bo khoa du phong ghi cung trong ma nguon.
-- 'DIST CU QUAY LAI' - tim ra goc re: _headers khong co quy dinh Cache-Control
-  cho sw.js. Trinh duyet luu dem chinh tep service worker nen khong bao gio
-  nhan duoc ban moi -> mai phuc vu giao dien cu. Da them no-cache cho
-  sw.js / index.html / manifest.json, va cache vinh vien cho /assets/*
-  (ten tep co ma bam nen doi noi dung la doi ten).
-  Them ep kiem tra ban moi + tu tai lai mot lan trong main.tsx cho nhung may
-  DA ket san. Doi ten cache htans-v40 -> v41.
-- Them thu vien qrcode + @types/qrcode. AdminQrPosterPage.tsx import 'qrcode'
-  nhung package.json chi khai bao 'qrcode.react' -> npm run build that bai.
+  CAPTCHA trang tron. Nay hien khung vang noi ro nguyen nhan, co nut 'Thu lai'.
+- 'DIST CU QUAY LAI' — goc re: _headers khong co Cache-Control cho sw.js nen
+  trinh duyet luu dem chinh tep service worker, khong bao gio nhan ban moi.
+  Da them no-cache cho sw.js/index.html/manifest.json, cache vinh vien cho
+  /assets/* (ten co ma bam). Them ep kiem tra ban moi trong main.tsx cho may
+  da ket san. Doi ten cache htans-v40 -> v41.
+- Them thu vien qrcode + @types/qrcode (AdminQrPosterPage import 'qrcode'
+  nhung package.json chi khai 'qrcode.react' -> build that bai).
 - Bo sung du 4 bien VITE_* vao .env.production.
 
 Them:
-- netlify.toml: khai bao lenh dung, thu muc publish, co dinh Node 20.
+- netlify.toml: lenh dung, thu muc publish, co dinh Node 20.
+
+Giu nguyen 3 chuc nang da co: Ma QR dinh vi, bieu do khung gio/thu, gop su kien.
 
 Kiem thu: 285/285 dat. TypeScript: 0 loi."
 git push
 
 
 ============================================================
-TRUOC KHI CHAY — KIEM TRA 2 DIEU
+VI SAO TRUOC DAY "VAN LA BAN CU"
 ============================================================
 
-1. Dang dung dung thu muc du an (thu muc co .git):
-       git status
-   Bao 'not a git repository' -> sai thu muc.
+Ban dist V9 va ma nguon trong repo la HAI NHANH KHAC NHAU, moi ben co thu
+ben kia khong co:
 
-2. Nhin danh sach trong git status, KHONG DUOC thay:
-       server/.env      hoac      .env
-   (Thay .env.production va .env.example thi binh thuong.)
-   Neu thay -> DUNG LAI, do la khoa that bi lo.
+   Ban V9 co        : khoi huong dan 4 dieu, tran an an danh, 2 cau goi y chat,
+                      lien ket bo qua dieu huong, nhan chat trung tinh
+   Ma nguon repo co : Ma QR dinh vi, bieu do khung gio/thu, gop su kien,
+                      Turnstile bao loi ro
+
+Toi khong co ma nguon sinh ra V9 (chi co ban da nen, khong dung nguoc lai
+duoc). Nen toi TRICH cac khoi giao dien tu V9 roi dung lai vao ma nguon.
+Ban dist lan nay co DU CA HAI BEN.
 
 
 ============================================================
-SAU KHI PUSH — 4 VIEC
+SAU KHI PUSH — 3 VIEC
 ============================================================
 
-1. KHAI BAO TEN MIEN TRONG CLOUDFLARE   <- Turnstile van loi neu thieu
-   dash.cloudflare.com -> Turnstile -> chon widget -> Settings -> Domains
-   Them:   diem-cham-binh-yen.netlify.app
-   Khong co https://, khong co dau / o cuoi.
-
-2. CHAY 2 FILE SQL (neu chua chay)
+1. CHAY 2 FILE SQL (neu chua chay)
        database/nang_cap_v10.sql   (bang qr_points)
        database/nang_cap_v11.sql   (bang incident_groups)
 
-3. DUA GIAO DIEN LEN NETLIFY
-   Keo tha thu muc dist trong dist-HOAN-CHINH.zip vao tab Deploys.
+2. KEO dist LEN NETLIFY
+       Giai nen dist-HOAN-CHINH.zip -> keo tha thu muc dist vao tab Deploys
 
-4. KIEM TRA - LAN DAU PHAI LAM DUNG CACH
-   Vi may ban dang ket o ban cu, mo cua so an danh la CHUA DU.
-   Lam theo thu tu:
-       F12 -> tab Application -> Service Workers -> bam Unregister
-       F12 -> tab Application -> Storage -> Clear site data
+3. KIEM TRA — LAN DAU PHAI XOA THU CONG MOT LAN
+   May ban dang ket o service worker cu, mo cua so an danh CHUA DU:
+       F12 -> Application -> Service Workers -> Unregister
+       F12 -> Application -> Storage -> Clear site data
        Dong het tab cua trang -> mo lai
-   Tu lan sau tro di khong can lam nua, ban va Cache-Control da lo phan do.
+   Tu lan sau khong can lam nua.
 
-   Sau khi mo lai, kiem tra:
-   - Trang Gui y kien: o "Toi khong phai la nguoi may" hien va DUNG YEN
-     (khong xoay an hien lien tuc nua)
-   - Quan tri -> Bao cao: 2 bieu do moi (Theo khung gio, Theo thu)
+   Sau do kiem tra:
+   - Trang Gui y kien: thay khoi xanh "Ba con nen neu ro 4 dieu sau"
+     va khung vang "Ba con so bi lo danh tinh?"
+   - O "Toi khong phai la nguoi may" hien va DUNG YEN (khong xoay an hien)
+   - Quan tri -> Bao cao: 2 bieu do moi
    - Quan tri -> Ma QR: trang mo duoc

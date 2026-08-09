@@ -11,7 +11,7 @@ import { Bot, Clock3, Mail, QrCode, Search, ShieldCheck, Zap } from 'lucide-reac
 /** 4 thẻ tính năng nổi bật */
 const STATS = [
   { Icon: Clock3, title: '24/7', sub: 'Tiếp nhận trực tuyến', color: 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300' },
-  { Icon: Bot, title: 'AI phân loại', sub: 'Tự động, chính xác', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
+  { Icon: Bot, title: 'Tự động phân loại', sub: 'Nhanh, giải thích rõ', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
   { Icon: Zap, title: '1 phút', sub: 'Gửi ý kiến nhanh gọn', color: 'bg-accent-100 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500' },
   { Icon: ShieldCheck, title: 'Bảo mật', sub: 'Thông tin được bảo vệ', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
 ];

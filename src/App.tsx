@@ -56,10 +56,21 @@ function AppShell() {
     <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100">
       <ScrollProgress />
       <ScrollToTop />
+      {/* Liên kết "nhảy thẳng vào nội dung" — ẩn bình thường, hiện khi bấm Tab.
+          Giúp người dùng bàn phím và trình đọc màn hình bỏ qua cả thanh điều
+          hướng thay vì phải Tab qua từng mục ở mọi trang. Yêu cầu trợ năng cơ
+          bản của một trang dịch vụ công. */}
+      <a
+        href="#noi-dung-chinh"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-primary-700 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg"
+      >
+        Bỏ qua điều hướng, vào thẳng nội dung
+      </a>
+
       <Header />
       {/* relative z-10: nội dung + footer phải nổi TRÊN lớp nền ảnh
           (PageBackground dùng fixed inset-0 -z-10 phủ toàn màn hình) */}
-      <main className="relative z-10 flex-1">
+      <main id="noi-dung-chinh" tabIndex={-1} className="relative z-10 flex-1">
         {/* ⚠️ KHÔNG dùng transform (translateY/scale) để chuyển trang!
             Phần tử có transform trở thành KHUNG THAM CHIẾU MỚI cho position:fixed
             -> PageBackground (nền ảnh An Giang, dùng fixed inset-0) sẽ MẤT HẾT.

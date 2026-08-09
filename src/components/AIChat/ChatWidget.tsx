@@ -12,7 +12,10 @@ import { useChat } from '../../hooks/useChat';
 import { AI_ENGINE_LABEL } from '../../services/aiService';
 import { UNIT } from '../../utils/constants';
 
-// Câu hỏi gợi ý — ưu tiên câu về CÁCH DÙNG WEB (bot đã được nạp kiến thức hệ thống)
+/* Câu hỏi gợi ý — ưu tiên câu về CÁCH DÙNG WEB (bot đã được nạp kiến thức hệ thống)
+   Gộp danh sách từ hai nhánh: giữ các câu về thao tác, bổ sung hai câu về
+   QUYỀN của bà con (xoá dữ liệu cá nhân theo Nghị định 13/2023) và cảnh giác
+   lừa đảo — đúng hai nhóm bà con hay hỏi nhất khi gọi lên trực ban. */
 const SUGGESTIONS = [
   'Cách gửi ý kiến?',
   'Gửi ẩn danh thế nào?',
@@ -20,6 +23,8 @@ const SUGGESTIONS = [
   'Quên mã tra cứu phải làm sao?',
   'Bao lâu thì được giải quyết?',
   'Thông tin của tôi có bị lộ không?',
+  'Tôi muốn xoá thông tin cá nhân',
+  'Cảnh giác lừa đảo qua điện thoại',
 ];
 
 export default function ChatWidget() {
@@ -60,7 +65,10 @@ export default function ChatWidget() {
                     {AI_ENGINE_LABEL && (
                       <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-1.5 py-px font-semibold">
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" aria-hidden />
-                        {AI_ENGINE_LABEL}
+                        {/* Chỉ báo trợ lý đang sẵn sàng, KHÔNG hiện tên nhà cung cấp.
+                            Bà con không cần biết hệ thống dùng dịch vụ hãng nào —
+                            thông tin đó chỉ gây phân tâm. */}
+                        Đang hoạt động
                       </span>
                     )}
                   </p>
