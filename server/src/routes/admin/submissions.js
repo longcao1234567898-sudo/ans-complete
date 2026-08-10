@@ -409,13 +409,13 @@ router.post('/:id/mark-spam', async (req, res) => {
               deleted_at = NOW(), deleted_by = ?,
               rejection_reason = ?
         WHERE id = ?`,
-      [req.user?.sub || null, lyDo || 'Cán bộ đánh dấu tin rác', id]
+      [req.staff?.id || null, lyDo || 'Cán bộ đánh dấu tin rác', id]
     );
 
     await pool.query(
       `INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by)
        VALUES (?, ?, 'spam', ?, ?)`,
-      [id, don.status, lyDo || 'Đánh dấu tin rác', req.user?.sub || null]
+      [id, don.status, lyDo || 'Đánh dấu tin rác', req.staff?.id || null]
     ).catch(() => {});
 
     /* Khoá thiết bị. Bọc riêng vì lỗi ở đây không được làm hỏng việc đánh dấu
@@ -425,7 +425,7 @@ router.post('/:id/mark-spam', async (req, res) => {
     if (don.device_id) {
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
-        staffId: req.user?.sub || null,
+        staffId: req.staff?.id || null,
         lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
       });
       if (daKhoa) kieuKhoa = 'thiết bị';
@@ -436,7 +436,7 @@ router.post('/:id/mark-spam', async (req, res) => {
          Không có đường lui này thì cán bộ bấm "Tin rác" mà chẳng chặn được gì. */
       daKhoa = await khoaIpThuCong(pool, {
         ip: don.ip_address,
-        staffId: req.user?.sub || null,
+        staffId: req.staff?.id || null,
         lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
       });
       if (daKhoa) kieuKhoa = 'địa chỉ mạng';
@@ -445,7 +445,7 @@ router.post('/:id/mark-spam', async (req, res) => {
     await pool.query(
       `INSERT INTO staff_activity_logs (staff_id, action, target_id, ip_address)
        VALUES (?, 'mark_spam', ?, ?)`,
-      [req.user?.sub || null, id, layIpThat(req)]
+      [req.staff?.id || null, id, layIpThat(req)]
     ).catch(() => {});
 
     res.json({

@@ -101,7 +101,7 @@ router.post('/:id/messages', async (req, res) => {
     await pool.query(
       `INSERT INTO report_messages (submission_id, sender_type, staff_id, message, read_by_staff)
        VALUES (?, 'staff', ?, ?, 1)`,
-      [id, req.user?.sub || null, noiDung]
+      [id, req.staff?.id || null, noiDung]
     );
 
     /* Ghi nhật ký: cán bộ nào hỏi thêm gì, lúc nào. Cần cho việc kiểm tra
@@ -109,7 +109,7 @@ router.post('/:id/messages', async (req, res) => {
     await pool.query(
       `INSERT INTO staff_activity_logs (staff_id, action, target_id, ip_address)
        VALUES (?, 'chat_message', ?, ?)`,
-      [req.user?.sub || null, id, layIpThat(req)]
+      [req.staff?.id || null, id, layIpThat(req)]
     ).catch(() => {});
 
     res.status(201).json({ ok: true });
@@ -147,7 +147,7 @@ router.delete('/blacklist/:id', authorize('admin', 'manager'), async (req, res) 
     await pool.query(
       `INSERT INTO staff_activity_logs (staff_id, action, target_id, ip_address)
        VALUES (?, 'unblock_device', ?, ?)`,
-      [req.user?.sub || null, id, layIpThat(req)]
+      [req.staff?.id || null, id, layIpThat(req)]
     ).catch(() => {});
 
     res.json({ ok: true });

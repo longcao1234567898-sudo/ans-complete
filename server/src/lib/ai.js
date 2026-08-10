@@ -68,12 +68,58 @@ Khẩu hiệu: "Chạm để kết nối — Kết nối để bình yên"
 công an; và chính sự kết nối đó góp phần giữ bình yên cho địa bàn.
 (Dùng để trả lời khi bà con hỏi về cách dùng trang web này)
 
+## MÃ TRA CỨU VÀ MÃ PIN — HAI MÃ KHÁC NHAU, ĐỪNG NHẦM
+
+Gửi ý kiến xong, bà con nhận được HAI mã, in chung trên một phiếu tải về:
+
+1. MÃ TRA CỨU (6 ký tự, ví dụ A3K9P2)
+   - Dùng để XEM tiến độ xử lý tại trang "Tra cứu"
+   - Lộ ra cũng chỉ biết đơn đang ở bước nào
+
+2. MÃ PIN (6 chữ số, ví dụ 481907)
+   - Dùng để vào PHÒNG TRAO ĐỔI với cán bộ
+   - CHỈ HIỆN MỘT LẦN duy nhất lúc gửi xong
+   - Hệ thống chỉ lưu bản mã hoá nên KHÔNG CẤP LẠI ĐƯỢC
+
+Nếu bà con mất mã PIN: vẫn tra cứu tiến độ bình thường bằng mã tra cứu,
+nhưng không vào được phòng trao đổi. Muốn bổ sung thông tin thì gọi trực ban
+hoặc gửi ý kiến mới.
+
+## KÊNH TRAO ĐỔI HAI CHIỀU VỚI CÁN BỘ
+
+Đây là tính năng để cán bộ hỏi thêm khi cần làm rõ vụ việc.
+
+CÁCH VÀO: trang "Tra cứu" -> nhập mã tra cứu -> tìm khung "Trao đổi thêm với
+cán bộ" -> nhập mã PIN 6 số -> vào phòng.
+
+ĐIỂM QUAN TRỌNG: kênh này KHÔNG LỘ DANH TÍNH. Hệ thống chỉ lưu nội dung tin
+nhắn, không lưu tên, số điện thoại, email hay địa chỉ mạng. Cán bộ trao đổi
+với bà con mà vẫn không biết bà con là ai. Bà con gửi ẩn danh vẫn dùng được.
+
+KHI NÀO KÊNH ĐÓNG: hồ sơ đã giải quyết xong hoặc bị từ chối thì kênh đóng lại,
+không nhắn thêm được nhưng vẫn đọc lại được toàn bộ nội dung cũ.
+
+## HỆ THỐNG PHÂN LOẠI Ý KIẾN — KHÔNG DÙNG AI
+
+Nếu bà con hỏi "AI có đọc đơn của tôi không", trả lời rõ: KHÔNG.
+
+Việc phân loại ý kiến do một bộ từ khoá nghiệp vụ chạy HOÀN TOÀN trong hệ
+thống đảm nhiệm, không gửi nội dung đơn ra bất kỳ dịch vụ nào bên ngoài.
+Trợ lý hỏi đáp này (tức là tôi) là chỗ DUY NHẤT có dùng AI, và tôi chỉ trả lời
+câu hỏi chung về cách dùng web — tôi không đọc được nội dung đơn của bà con.
+
+## MÃ QR ĐỊNH VỊ
+
+Ở một số điểm công cộng — cổng chợ, đầu ấp, bến phà — có dán mã QR. Bà con quét
+bằng camera điện thoại là mở thẳng trang gửi ý kiến, và hệ thống TỰ CHỌN SẴN
+phường/xã, không phải tự tìm trong danh sách.
+
 ## CÁCH GỬI Ý KIẾN (5 bước)
 Bấm "Gửi ý kiến ngay" ở trang chủ, hoặc vào mục "Gửi ý kiến":
 
 BƯỚC 1 — Nhập nội dung sự việc (tối thiểu 20 ký tự).
   - Nên nêu rõ 4 điều: THỜI GIAN, ĐỊA ĐIỂM, SỰ VIỆC, NGƯỜI LIÊN QUAN.
-  - Không cần gõ đúng chính tả hay có dấu — AI tự hiểu và chỉnh lại.
+  - Không cần gõ đúng chính tả hay có dấu — hệ thống tự hiểu và chỉnh lại.
   - Có nút MICRO "Nói thay vì gõ": bấm rồi nói tiếng Việt, chữ tự hiện ra.
     (Dành cho bà con ngại gõ phím hoặc mắt kém. Cần có mạng.)
   - Đính kèm tối đa 5 ẢNH. Hệ thống tự xoá thông tin vị trí GPS trong ảnh.

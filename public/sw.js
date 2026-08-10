@@ -7,7 +7,7 @@
  *
  * Chỉ ảnh/font mới cache-first (chúng không đổi nội dung, lại nặng).
  */
-const CACHE = 'htans-v41'; // đổi tên -> xoá sạch cache cũ
+const CACHE = 'htans-v42'; // đổi tên -> xoá sạch cache cũ
 
 /**
  * Chỉ lưu vào cache khi phản hồi ĐÚNG chuẩn 200 đầy đủ.
@@ -26,10 +26,23 @@ self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()) // chiếm quyền ngay, không chờ tab đóng
+    (async () => {
+      /* ----------------------------------------------------------------
+         XOÁ SẠCH MỌI BỘ NHỚ ĐỆM CŨ, KHÔNG CHỪA CÁI NÀO
+
+         Trước đây chỉ xoá cache khác tên. Nhưng người dùng đã từng cài
+         service worker đời cũ (chạy kiểu cache-first) thì bản cũ đó còn
+         giữ nguyên tệp index.html và bundle cũ. Hậu quả: mở web ra thấy
+         giao diện đời trước loé lên vài giây rồi mới nhảy sang bản mới —
+         trông như lỗi, mà nội dung cũ có khi còn sai lệch.
+
+         Nay xoá TẤT CẢ khi kích hoạt. Cache sẽ tự dựng lại từ mạng, mất
+         thêm chút dung lượng lần đầu nhưng chắc chắn không còn sót bản cũ.
+         ---------------------------------------------------------------- */
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+      await self.clients.claim(); // chiếm quyền ngay, không chờ tab đóng
+    })()
   );
 });
 

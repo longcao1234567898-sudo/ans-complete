@@ -76,8 +76,29 @@ router.get('/', async (_req, res) => {
       autoDeleted,
     });
   } catch (err) {
-    console.error('Lỗi thùng rác:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy nang_cap_v7.sql chưa?' });
+    /* ---------------------------------------------------------------------
+       BÁO RÕ LỖI GÌ, KHÔNG CHỈ "Lỗi máy chủ"
+
+       Câu "Lỗi máy chủ" chung chung khiến không ai lần ra được nguyên nhân —
+       cán bộ chỉ biết hỏng, quản trị viên cũng không biết sửa từ đâu.
+
+       Hai nguyên nhân hay gặp nhất đều đoán được từ nội dung lỗi:
+         · Thiếu bảng/cột  -> chưa chạy tệp nâng cấp SQL
+         · Ràng buộc khoá ngoại -> có bảng con trỏ tới submissions mà không
+           đặt ON DELETE CASCADE, nên lệnh dọn rác quá hạn bị chặn
+       --------------------------------------------------------------------- */
+    const m = String(err.message || '');
+    let goiY = 'Lỗi máy chủ.';
+    if (/Unknown column|doesn't exist|Table .* doesn't exist/i.test(m)) {
+      goiY = `Database thiếu bảng hoặc cột. Cần chạy các tệp nâng cấp SQL còn thiếu. (${m})`;
+    } else if (/foreign key|constraint/i.test(m)) {
+      goiY = `Vướng ràng buộc khoá ngoại khi dọn thùng rác — có bảng con trỏ tới `
+           + `submissions mà chưa đặt ON DELETE CASCADE. (${m})`;
+    } else if (m) {
+      goiY = `Lỗi máy chủ: ${m}`;
+    }
+    console.error('Lỗi thùng rác:', m);
+    res.status(500).json({ error: goiY });
   }
 });
 

@@ -17,7 +17,7 @@ export default function EmergencyButton() {
 
   return (
     <div
-      className="fixed left-5 z-50 transition-[bottom] duration-300"
+      className="fixed left-5 z-50"
       /* ĐẨY LÊN KHI THANH CHỨC NĂNG HIỆN RA.
          MobileTabBar đặt biến --tab-bar-h = 4.25rem lúc thanh trượt lên, và
          về 0rem lúc thanh ẩn đi. Không đọc biến này thì nút SOS nằm ĐÈ lên
@@ -26,13 +26,15 @@ export default function EmergencyButton() {
       /* ------------------------------------------------------------------
          CÂN NGANG VỚI NÚT TRỢ LÝ
 
-         Nút SOS có nhãn chữ "SOS" đặt ở -bottom-4, tức nhô xuống dưới nút
-         thêm 16px. Nếu để cùng giá trị bottom với nút trợ lý thì phần nhãn
-         đó chiếm chỗ, đẩy NÚT lên cao hơn — nhìn hai nút lệch nhau rõ rệt.
+         Dùng ĐÚNG cùng công thức bottom với nút trợ lý (ChatBubble). Hai nút
+         cùng kích thước h-14 w-14, cùng gốc 1.25rem, cùng đẩy theo biến
+         --tab-bar-h -> đáy hai nút thẳng hàng tuyệt đối.
 
-         Cộng thêm 1rem để bù đúng phần nhãn nhô ra, hai nút thẳng hàng.
+         ⚠️ ĐỪNG bù trừ thêm gì ở đây. Lần trước tôi trừ 1rem để "bù nhãn SOS",
+         nhưng nhãn đó dùng position absolute nên KHÔNG chiếm chỗ trong bố cục
+         — trừ đi chỉ làm lệch thêm. Nhãn nay đã đưa vào trong nút.
          ------------------------------------------------------------------ */
-      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem) - 1rem)' }}
+      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem))', transition: 'bottom .3s' }}
     >
       {open && (
         <div className="mb-3 w-72 overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl dark:border-red-900/50 dark:bg-slate-900">
@@ -98,9 +100,15 @@ export default function EmergencyButton() {
           aria-label="Gọi khẩn cấp"
           className="animate-ripple relative flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-white shadow-xl shadow-red-600/30 transition-colors hover:bg-red-700"
         >
-          <Siren className="h-6 w-6" />
+          {/* Biểu tượng + chữ SOS đặt CHUNG TRONG NÚT.
+              Trước đây chữ SOS nằm ngoài nút (absolute -bottom-4), nhô xuống
+              dưới nên nhìn nút SOS thấp hơn nút trợ lý dù đáy hai nút bằng
+              nhau. Gom vào trong thì nút là một khối gọn, cân đúng. */}
+          <span className="flex flex-col items-center leading-none">
+            <Siren className="h-5 w-5" />
+            <span className="mt-0.5 text-[9px] font-extrabold tracking-wider">SOS</span>
+          </span>
         </button>
-        <p className="pointer-events-none absolute -bottom-4 left-0 right-0 select-none text-center text-[10px] font-bold tracking-wide text-red-600 dark:text-red-400">SOS</p>
       </div>
     </div>
   );
