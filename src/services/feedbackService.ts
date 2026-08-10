@@ -7,6 +7,7 @@
  */
 import type { FeedbackDraft, FeedbackSubmission } from '../types/feedback';
 import { ANTI_SPAM, STORAGE_KEYS } from '../utils/constants';
+import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
@@ -153,6 +154,10 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
            Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
         anonId: draft.contact.anonId ?? '',
+        /* MÃ THIẾT BỊ — để cán bộ khoá đúng máy phá hoại khi đánh dấu tin rác.
+           Không gửi thì nút "Tin rác" chỉ đánh dấu được hồ sơ, báo "hồ sơ này
+           không có mã thiết bị nên không khoá được" — kẻ phá hoại gửi tiếp ngay. */
+        deviceId: layMaThietBi(),
         isAnonymous: draft.contact.isAnonymous === true,
         urgency: draft.urgency || 'normal',
       }),

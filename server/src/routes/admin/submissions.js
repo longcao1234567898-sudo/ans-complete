@@ -1,7 +1,7 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
 import { layIpThat } from '../../lib/helpers.js';
-import { khoaThietBi } from '../../lib/chan-spam.js';
+import { khoaThietBi, khoaIpThuCong } from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
@@ -55,6 +55,21 @@ router.get('/', async (req, res) => {
   if (category) { where.push('c.code = ?'); params.push(category); }
   if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
   if (sla === 'overdue') where.push("s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW()");
+  /* ---------------------------------------------------------------------
+     ẨN VIỆC QUÁ HẠN KHỎI CÁC MỤC KHÁC
+
+     Việc quá hạn đã có mục riêng "⏰ Quá hạn". Để nó xuất hiện thêm trong mọi
+     mục khác thì cán bộ đọc trùng, mà danh sách chung cũng bị việc trễ chiếm
+     chỗ của việc đang trong hạn.
+
+     ⚠️ CHỈ ẨN, KHÔNG XOÁ. Giao diện luôn hiện dải báo "Đang ẩn N việc quá hạn"
+     kèm nút mở sang mục riêng — nguyên tắc không giấu việc mà không nói.
+     --------------------------------------------------------------------- */
+  if (sla === 'an_qua_han') {
+    where.push(
+      "NOT (s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW())"
+    );
+  }
   if (sla === 'near') where.push("s.status IN ('received','processing') AND s.deadline_at >= NOW() AND s.deadline_at < NOW() + INTERVAL 3 DAY");
   // Lọc theo MỨC KHẨN CẤP: urgent | important | normal
   if (urgency && ['urgent', 'important', 'normal'].includes(urgency)) {
@@ -119,6 +134,13 @@ router.get('/:id', async (req, res) => {
               s.rejection_reason, s.resolution_note, s.ward_id,
               s.identity_erased, s.identity_erased_at, s.deleted_at,
               s.incident_group_id,
+              /* Mã thiết bị: chuỗi NGẪU NHIÊN do trình duyệt tự sinh, KHÔNG
+                 suy ra được ai. Cần ở đây để giao diện biết hồ sơ có khoá được
+                 máy gửi không.
+                 (Chú thích cố ý KHÔNG nhắc tên các cột nhạy cảm — bài kiểm thử
+                  admin-detail-columns quét nguyên văn chuỗi SQL này, nhắc tên
+                  chúng ở đây sẽ làm test báo đỏ oan.) */
+              s.device_id,
               c.code AS category_code, c.name AS category_name, c.sla_days,
               st.full_name AS assigned_name, rb.full_name AS resolved_by_name,
               w.name AS ward_name
@@ -364,6 +386,8 @@ router.post('/:id/review', async (req, res) => {
 router.post('/:id/mark-spam', async (req, res) => {
   const id = Number(req.params.id);
   const lyDo = String(req.body?.reason || '').trim().slice(0, 200);
+  /* Cán bộ chủ động chọn khoá IP khi hồ sơ không có mã thiết bị */
+  const khoaIp = req.body?.khoaIp === true;
 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
@@ -371,7 +395,7 @@ router.post('/:id/mark-spam', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT status, device_id, tracking_code FROM submissions WHERE id = ? AND deleted_at IS NULL',
+      'SELECT status, device_id, ip_address, tracking_code FROM submissions WHERE id = ? AND deleted_at IS NULL',
       [id]
     );
     if (rows.length === 0) {
@@ -397,12 +421,25 @@ router.post('/:id/mark-spam', async (req, res) => {
     /* Khoá thiết bị. Bọc riêng vì lỗi ở đây không được làm hỏng việc đánh dấu
        đã thành công — thà không khoá được còn hơn để hồ sơ nửa vời. */
     let daKhoa = false;
+    let kieuKhoa = '';
     if (don.device_id) {
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
         staffId: req.user?.sub || null,
         lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
       });
+      if (daKhoa) kieuKhoa = 'thiết bị';
+    } else if (don.ip_address) {
+      /* ĐƯỜNG LUI: hồ sơ gửi trước khi có tính năng mã thiết bị, hoặc người
+         gửi tắt localStorage. Khoá theo IP với thời hạn ngắn hơn (2 giờ) vì
+         có thể chặn oan người dùng chung IP nhà mạng.
+         Không có đường lui này thì cán bộ bấm "Tin rác" mà chẳng chặn được gì. */
+      daKhoa = await khoaIpThuCong(pool, {
+        ip: don.ip_address,
+        staffId: req.user?.sub || null,
+        lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
+      });
+      if (daKhoa) kieuKhoa = 'địa chỉ mạng';
     }
 
     await pool.query(
@@ -416,9 +453,13 @@ router.post('/:id/mark-spam', async (req, res) => {
       daKhoaThietBi: daKhoa,
       /* Báo rõ cho cán bộ biết có khoá được thiết bị không. Đơn gửi trước khi
          có tính năng này thì không có mã thiết bị -> chỉ đánh dấu được thôi. */
-      ghiChu: daKhoa
-        ? 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.'
-        : 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị nên không khoá được.',
+      kieuKhoa,
+      ghiChu: !daKhoa
+        ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị lẫn địa chỉ mạng nên không khoá được.'
+        : kieuKhoa === 'thiết bị'
+          ? 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.'
+          : 'Đã đánh dấu tin rác. Hồ sơ không có mã thiết bị nên khoá theo địa chỉ mạng '
+            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.',
     });
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);

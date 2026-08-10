@@ -9,12 +9,25 @@ import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissions } from '../../services/adminService';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
+/* ============================================================================
+   THẺ LỌC — thêm mục "Quá hạn" đứng riêng
+
+   Vì sao tách riêng: việc quá hạn trộn lẫn trong danh sách chung thì chìm giữa
+   hàng chục việc khác, cán bộ phải tự dò từng dòng xem cái nào trễ. Tách thành
+   một mục riêng là mở ra thấy ngay đúng những việc phải giải trình.
+
+   ⚠️ "Quá hạn" KHÔNG phải một trạng thái trong database — nó là phép tính giữa
+   hạn xử lý và thời điểm hiện tại. Nên dùng tham số lọc riêng (sla) chứ không
+   phải status. Máy chủ đã hỗ trợ sẵn tham số này.
+   ============================================================================ */
 const STATUS_TABS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'received', label: 'Chờ tiếp nhận' },
-  { value: 'processing', label: 'Đang xử lý' },
-  { value: 'resolved', label: 'Đã giải quyết' },
-  { value: 'rejected', label: 'Từ chối' },
+  { value: '', label: 'Tất cả', sla: '' },
+  { value: 'received', label: 'Chờ tiếp nhận', sla: '' },
+  { value: 'processing', label: 'Đang xử lý', sla: '' },
+  { value: 'resolved', label: 'Đã giải quyết', sla: '' },
+  { value: 'rejected', label: 'Từ chối', sla: '' },
+  /* Mục riêng: lọc theo HẠN XỬ LÝ, không phải theo trạng thái */
+  { value: '', label: '⏰ Quá hạn', sla: 'overdue' },
 ];
 
 export default function AdminSubmissionsPage() {
@@ -47,7 +60,12 @@ export default function AdminSubmissionsPage() {
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['admin-submissions', status, category, urgency, sla, assigned, q, page],
-    queryFn: () => fetchSubmissions({ status, category, urgency, sla, assigned, q, page, limit: 15 }),
+    queryFn: () => fetchSubmissions({
+      status, category, urgency, assigned, q, page, limit: 15,
+      /* Không ở mục "Quá hạn" thì ẨN việc quá hạn khỏi danh sách — chúng đã
+         có mục riêng, để lẫn vào đây là đọc trùng và chiếm chỗ việc trong hạn. */
+      sla: sla || 'an_qua_han',
+    }),
     placeholderData: keepPreviousData,
   });
 
@@ -66,9 +84,9 @@ export default function AdminSubmissionsPage() {
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
-            onClick={() => { setStatus(t.value); setPage(1); }}
+            onClick={() => { setStatus(t.value); setSla(t.sla); setPage(1); }}
             className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              status === t.value
+              status === t.value && sla === t.sla
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300'
             }`}
@@ -77,6 +95,31 @@ export default function AdminSubmissionsPage() {
           </button>
         ))}
       </div>
+
+      {/* ====================================================================
+          DẢI BÁO ĐANG ẨN VIỆC QUÁ HẠN
+
+          ⚠️ BẮT BUỘC PHẢI CÓ. Danh sách đang ẩn việc quá hạn để chúng không
+          chiếm chỗ việc trong hạn — nhưng ẩn mà không nói là giấu việc. Cán bộ
+          mở ra thấy danh sách ngắn hơn thường ngày sẽ tưởng hệ thống mất dữ
+          liệu, hoặc tệ hơn là tưởng đã xử lý hết.
+
+          Dải này luôn hiện kèm nút mở thẳng sang mục "Quá hạn".
+          ==================================================================== */}
+      {!sla && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
+          <span className="text-xs text-slate-600 dark:text-slate-300">
+            Danh sách này <b>không hiện việc đã quá hạn</b> — chúng nằm ở mục riêng.
+          </span>
+          <button
+            type="button"
+            onClick={() => { setStatus(''); setSla('overdue'); setPage(1); }}
+            className="ml-auto rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-rose-700"
+          >
+            ⏰ Xem việc quá hạn
+          </button>
+        </div>
+      )}
 
       {/* ====================================================================
           DẢI BÁO ĐANG LỌC

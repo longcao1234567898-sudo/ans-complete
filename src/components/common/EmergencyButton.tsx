@@ -17,13 +17,22 @@ export default function EmergencyButton() {
 
   return (
     <div
-      className="fixed left-4 z-50 transition-[bottom] duration-300 sm:left-6"
+      className="fixed left-5 z-50 transition-[bottom] duration-300"
       /* ĐẨY LÊN KHI THANH CHỨC NĂNG HIỆN RA.
          MobileTabBar đặt biến --tab-bar-h = 4.25rem lúc thanh trượt lên, và
          về 0rem lúc thanh ẩn đi. Không đọc biến này thì nút SOS nằm ĐÈ lên
          thanh, che mất một mục điều hướng — mà SOS lại là nút quan trọng
          nhất, không được để nó che thứ khác hay bị thứ khác che. */
-      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem))' }}
+      /* ------------------------------------------------------------------
+         CÂN NGANG VỚI NÚT TRỢ LÝ
+
+         Nút SOS có nhãn chữ "SOS" đặt ở -bottom-4, tức nhô xuống dưới nút
+         thêm 16px. Nếu để cùng giá trị bottom với nút trợ lý thì phần nhãn
+         đó chiếm chỗ, đẩy NÚT lên cao hơn — nhìn hai nút lệch nhau rõ rệt.
+
+         Cộng thêm 1rem để bù đúng phần nhãn nhô ra, hai nút thẳng hàng.
+         ------------------------------------------------------------------ */
+      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem) - 1rem)' }}
     >
       {open && (
         <div className="mb-3 w-72 overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl dark:border-red-900/50 dark:bg-slate-900">
@@ -73,7 +82,17 @@ export default function EmergencyButton() {
         </div>
       )}
 
-      <div className="flex flex-col items-center">
+      {/* ------------------------------------------------------------------
+          ĐỂ NÚT SOS NGANG HÀNG VỚI NÚT TRỢ LÝ
+
+          Trước đây khối này là flex-col chứa NÚT + dòng chữ "SOS" bên dưới.
+          Dòng chữ chiếm chỗ nên đẩy nút lên cao hơn nút trợ lý bên phải —
+          hai nút cùng cỡ, cùng công thức bottom mà nhìn vẫn lệch nhau.
+
+          Nay dòng chữ đặt tuyệt đối (absolute) nên KHÔNG chiếm chỗ trong
+          luồng, nút về đúng đáy khối, ngang hàng với nút trợ lý.
+          ------------------------------------------------------------------ */}
+      <div className="relative flex flex-col items-center">
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Gọi khẩn cấp"
@@ -81,7 +100,7 @@ export default function EmergencyButton() {
         >
           <Siren className="h-6 w-6" />
         </button>
-        <p className="mt-1 select-none text-center text-[10px] font-bold tracking-wide text-red-600 dark:text-red-400">SOS</p>
+        <p className="pointer-events-none absolute -bottom-4 left-0 right-0 select-none text-center text-[10px] font-bold tracking-wide text-red-600 dark:text-red-400">SOS</p>
       </div>
     </div>
   );

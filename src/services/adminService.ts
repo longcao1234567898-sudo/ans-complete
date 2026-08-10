@@ -232,6 +232,8 @@ export function fetchSubmissions(params: {
 }
 
 export interface SubmissionDetail extends SubmissionRow {
+  /** Mã thiết bị đã gửi đơn — rỗng với đơn gửi trước khi có tính năng chặn spam */
+  device_id?: string | null;
   sender_phone: string;
   sender_email: string | null;
   rejection_reason: string | null;
@@ -545,9 +547,9 @@ export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
   adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
 
 /** Đánh dấu tin rác + khoá thiết bị đã gửi (24 giờ) */
-export const markSpam = (id: number, reason?: string): Promise<{
-  ok: boolean; daKhoaThietBi: boolean; ghiChu: string;
+export const markSpam = (id: number, reason?: string, khoaIp?: boolean): Promise<{
+  ok: boolean; coMaThietBi: boolean; cachKhoa: string; ghiChu: string;
 }> => adminFetch(`/api/admin/submissions/${id}/mark-spam`, {
   method: 'POST',
-  body: JSON.stringify({ reason: reason || '' }),
+  body: JSON.stringify({ reason: reason || '', khoaIp: khoaIp === true }),
 });

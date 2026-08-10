@@ -11,9 +11,26 @@ export const hasBackend = Boolean(API_URL);
 
 /** Gọi API backend; ném Error với thông báo từ server nếu có */
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  /* ------------------------------------------------------------------------
+     ⚠️ PHẢI GỘP headers, KHÔNG ĐƯỢC để ...options ghi đè.
+
+     Bản trước viết:
+         headers: { 'Content-Type': 'application/json' },
+         ...options,
+
+     Toán tử ...options nằm SAU nên nếu nơi gọi có truyền headers riêng (ví dụ
+     Authorization cho phòng chat) thì cả object headers bị THAY THẾ, mất luôn
+     Content-Type. Máy chủ không biết thân yêu cầu là JSON nên không đọc ra
+     nội dung -> báo "Bà con chưa nhập nội dung" dù đã gõ đầy đủ.
+
+     Lỗi này im lặng và rất khó lần: gõ có chữ, gửi đi vẫn báo chưa nhập.
+     ------------------------------------------------------------------------ */
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers || {}),
+    },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Lỗi máy chủ (${res.status})`);

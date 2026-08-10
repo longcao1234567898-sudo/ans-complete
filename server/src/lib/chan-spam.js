@@ -117,6 +117,39 @@ export async function khoaThietBi(pool, { deviceId, staffId, lyDo }) {
   }
 }
 
+/**
+ * Khoá theo ĐỊA CHỈ IP — chỉ dùng khi hồ sơ không có mã thiết bị.
+ *
+ * ⚠️ ĐÂY LÀ ĐƯỜNG LUI, KHÔNG PHẢI CÁCH CHÍNH.
+ * Nhà mạng di động dùng CGNAT nên khoá IP có thể chặn oan người khác. Vì vậy:
+ *   · Thời hạn NGẮN HƠN nhiều so với khoá thiết bị (2 giờ thay vì 24 giờ)
+ *   · Ghi rõ lý do để cán bộ biết đây là khoá diện rộng mà cân nhắc gỡ sớm
+ *
+ * Dùng khi nào: hồ sơ gửi TRƯỚC khi hệ thống có tính năng mã thiết bị, hoặc
+ * người gửi tắt localStorage. Không có đường lui này thì cán bộ bấm "Tin rác"
+ * mà chẳng chặn được gì — kẻ phá hoại gửi tiếp ngay.
+ */
+export async function khoaIpThuCong(pool, { ip, staffId, lyDo }) {
+  if (!ip) return false;
+  try {
+    await pool.query(
+      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
+       VALUES (?, 'ip', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+       ON DUPLICATE KEY UPDATE
+         reason     = VALUES(reason),
+         created_by = VALUES(created_by),
+         expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
+      [ip, (lyDo || 'Cán bộ đánh dấu tin rác') + ' (hồ sơ không có mã thiết bị)',
+       staffId || null, KHOA_IP_GIO, KHOA_IP_GIO]
+    );
+    console.warn(`[chặn spam] khoá IP ${ip} trong ${KHOA_IP_GIO} giờ — hồ sơ không có mã thiết bị`);
+    return true;
+  } catch (err) {
+    console.error('[chặn spam] khoá IP lỗi:', err.message);
+    return false;
+  }
+}
+
 /** Gỡ khoá — cán bộ dùng khi biết chặn oan */
 export async function goKhoa(pool, id) {
   const [kq] = await pool.query('DELETE FROM blacklists WHERE id = ?', [id]);
