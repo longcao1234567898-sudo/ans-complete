@@ -127,6 +127,38 @@ export default function AIAnalysis({ isLoading, result, onReanalyze, onNext, onB
               </div>
             </div>
 
+            {/* ================================================================
+                TỪ KHOÁ QUYẾT ĐỊNH MỨC KHẨN CẤP
+
+                Đây là điểm bộ luật từ khoá hơn hẳn AI: nói được VÌ SAO. Hiện
+                đúng cụm đã bắt được thì bà con biết hệ thống đọc ra cái gì, và
+                cán bộ cũng kiểm chứng được thay vì phải tin một con số.
+                ================================================================ */}
+            {result.tuKhoaKhan && result.tuKhoaKhan.length > 0 && (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-2.5 dark:border-amber-800 dark:bg-amber-900/20">
+                <p className="mb-1.5 text-xs font-medium text-amber-900 dark:text-amber-300">
+                  Cụm từ khiến hệ thống nâng mức ưu tiên
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.tuKhoaKhan.map((kw) => (
+                    <span key={kw} className="rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300 dark:bg-slate-900 dark:text-amber-300 dark:ring-amber-700">
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Chủ đề chi tiết nhận ra được */}
+            {result.topicLabel && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Chủ đề:</span>
+                <span className="rounded-lg bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-800 dark:bg-primary-900/40 dark:text-primary-200">
+                  {result.topicLabel}
+                </span>
+              </div>
+            )}
+
             {/* Từ khoá nhận diện */}
             {result.keywords.length > 0 && (
               <div className="mt-4">

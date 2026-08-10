@@ -4,7 +4,7 @@
 import { Check } from 'lucide-react';
 import { cn } from '../../utils/helpers';
 
-const STEPS = ['Nội dung', 'AI phân tích', 'Chọn nhóm', 'Liên hệ', 'Xác nhận'];
+const STEPS = ['Nội dung', 'Phân tích', 'Chọn nhóm', 'Liên hệ', 'Xác nhận'];
 
 export default function StepIndicator({ current }: { current: number }) {
   return (

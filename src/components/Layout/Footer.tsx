@@ -23,7 +23,14 @@ export default function Footer() {
           />
         </svg>
       </div>
-      <footer className="relative z-10 border-t border-slate-200 bg-secondary-500 text-slate-200 dark:border-slate-800">
+      <footer
+      /* CHỪA CHỖ CHO THANH CHỨC NĂNG DƯỚI CHÂN MÀN HÌNH ĐIỆN THOẠI.
+         Thanh nằm đè lên trang (fixed), nên không chừa thì nó che mất dòng
+         cuối của chân trang — thường là dòng bản quyền và đường dây nóng.
+         Biến --tab-bar-h bằng 0 khi thanh ẩn hoặc trên máy tính, nên không
+         thừa khoảng trắng ở những chỗ đó. */
+      style={{ paddingBottom: 'var(--tab-bar-h, 0rem)' }}
+      className="relative z-10 border-t border-slate-200 bg-secondary-500 text-slate-200 dark:border-slate-800">
       <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
         {/* Đơn vị */}
         <div>

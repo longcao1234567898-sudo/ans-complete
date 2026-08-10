@@ -2,7 +2,7 @@
  * Widget trợ lý AI: nút nổi góc phải màn hình + bảng chat cá thể hoá theo địa phương.
  * Trả lời thủ tục hành chính / an ninh / pháp luật (mock RAG tại services/aiService.ts).
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SendHorizonal, Trash2 } from 'lucide-react';
 import PoliceAvatar from '../common/PoliceAvatar';
@@ -29,6 +29,34 @@ const SUGGESTIONS = [
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
+
+  /* ------------------------------------------------------------------------
+     HOÃN HIỆN NÚT TRỢ LÝ CHO TỚI KHI TRANG ĐÃ ỔN ĐỊNH
+
+     Vấn đề đã gặp: nút trợ lý nhảy ra TRƯỚC cả khi trang chủ kịp hiện. Lý do
+     là nút này rất nhẹ nên vẽ xong ngay, còn trang chủ phải chờ tải nền video
+     và ảnh. Kết quả: người dùng thấy một nút tròn xanh lơ lửng trên nền trắng
+     vài giây rồi trang mới hiện ra — trông như lỗi.
+
+     Chờ tới khi trình duyệt báo tải xong ('load'), rồi thêm 600ms cho phần
+     hoạt ảnh mở đầu chạy hết. Nếu trang đã tải xong từ trước (chuyển trang
+     bằng React Router) thì chỉ chờ 600ms.
+     ------------------------------------------------------------------------ */
+  const [hienNut, setHienNut] = useState(false);
+  useEffect(() => {
+    let t: number | undefined;
+    const batDauDem = () => { t = window.setTimeout(() => setHienNut(true), 600); };
+
+    if (document.readyState === 'complete') {
+      batDauDem();
+    } else {
+      window.addEventListener('load', batDauDem, { once: true });
+    }
+    return () => {
+      if (t) window.clearTimeout(t);
+      window.removeEventListener('load', batDauDem);
+    };
+  }, []);
   const [input, setInput] = useState('');
   const { messages, isTyping, sendMessage, clearChat } = useChat();
 
@@ -38,6 +66,8 @@ export default function ChatWidget() {
     sendMessage(value);
     setInput('');
   };
+
+  if (!hienNut) return null;
 
   return (
     <>

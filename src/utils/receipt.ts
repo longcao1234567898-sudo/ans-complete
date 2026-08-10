@@ -11,6 +11,8 @@ import { UNIT } from './constants';
 
 interface ReceiptData {
   trackingCode: string;
+  /** Mã PIN 6 số vào phòng trao đổi — chỉ có khi máy chủ cấp lúc gửi ý kiến */
+  chatPin?: string;
   category: string;
   createdAt?: Date;
   deadlineDays?: number;
@@ -72,6 +74,30 @@ export function buildReceiptImage(data: ReceiptData): string {
   ctx.font = 'bold 62px "Be Vietnam Pro", Arial, monospace';
   ctx.fillText(data.trackingCode, W / 2, 312);
 
+  /* ------------------------------------------------------------------------
+     Ô MÃ PIN TRAO ĐỔI — đặt NGAY DƯỚI mã tra cứu
+
+     Vì sao phải in vào phiếu: máy chủ chỉ trả mã PIN đúng MỘT LẦN, database
+     giữ bản băm nên không cấp lại được. Bà con đóng trình duyệt là mất luôn
+     kênh trao đổi với cán bộ. In chung một phiếu thì chụp màn hình hoặc lưu
+     ảnh là giữ được cả hai.
+     ------------------------------------------------------------------------ */
+  if (data.chatPin) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFF8E1';
+    ctx.fillRect(60, 368, W - 120, 86);
+    ctx.strokeStyle = '#B45309';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(60, 368, W - 120, 86);
+
+    ctx.fillStyle = '#92400E';
+    ctx.font = 'bold 17px "Be Vietnam Pro", Arial, sans-serif';
+    ctx.fillText('MÃ PIN TRAO ĐỔI VỚI CÁN BỘ', W / 2, 393);
+
+    ctx.font = 'bold 38px "Be Vietnam Pro", Arial, monospace';
+    ctx.fillText(data.chatPin, W / 2, 435);
+  }
+
   // Thông tin chi tiết
   ctx.textAlign = 'left';
   ctx.font = '19px "Be Vietnam Pro", Arial, sans-serif';
@@ -80,7 +106,7 @@ export function buildReceiptImage(data: ReceiptData): string {
     ['Ngày gửi:', now.toLocaleString('vi-VN')],
     ['Hạn xử lý:', `${deadline.toLocaleDateString('vi-VN')} (${slaDays} ngày)`],
   ];
-  let y = 415;
+  let y = data.chatPin ? 500 : 415;
   for (const [k, v] of rows) {
     ctx.fillStyle = '#64748B';
     ctx.fillText(k, 70, y);
@@ -113,6 +139,9 @@ export function buildReceiptImage(data: ReceiptData): string {
     `1. Vào trang: ${window.location.host}`,
     '2. Bấm mục "Tra cứu kết quả"',
     `3. Nhập mã ${data.trackingCode}`,
+    ...(data.chatPin
+      ? [`4. Muốn trao đổi thêm: nhập mã PIN ${data.chatPin}`]
+      : []),
   ];
   y += 38;
   for (const st of steps) {

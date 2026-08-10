@@ -14,8 +14,8 @@ const PROCESS_STEPS = [
     desc: 'Công dân gửi ý kiến qua form trực tuyến, hệ thống cấp ngay mã tra cứu 6 ký tự.',
   },
   {
-    title: 'AI phân tích & phân loại',
-    desc: 'AI đọc hiểu nội dung, chuẩn hoá câu chữ và tự động phân vào 1 trong 4 nhóm xử lý.',
+    title: 'Tự động phân tích & phân loại',
+    desc: 'Hệ thống đọc nội dung theo bộ từ khoá nghiệp vụ, chuẩn hoá câu chữ và tự động phân vào 1 trong 4 nhóm xử lý.',
   },
   {
     title: 'Xử lý',

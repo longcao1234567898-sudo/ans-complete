@@ -590,8 +590,12 @@ function doanMucKhan(t, cd = null) {
   const coTreEm = CO_TRE_EM.some((k) => t.includes(k));
 
   // 1. Từ khoá nguy cấp trong câu -> khẩn ngay, không cần xét gì thêm
-  if (TU_KHOA_KHAN.some((k) => t.includes(k))) {
-    return { suggestedUrgency: 'urgent', urgencyReason: 'Nội dung có dấu hiệu đang xảy ra hoặc nguy hiểm tính mạng — cần xử lý ngay.' };
+  /* Giữ lại ĐÚNG từ khoá đã bắt được, không chỉ trả về true/false.
+     Mục đích: màn hình phân tích chỉ ra được "vì sao hệ thống cho là khẩn cấp"
+     — đây là điểm bộ luật từ khoá hơn hẳn AI, phải tận dụng. */
+  const khopKhan = TU_KHOA_KHAN.filter((k) => t.includes(k));
+  if (khopKhan.length > 0) {
+    return { suggestedUrgency: 'urgent', tuKhoaKhan: khopKhan.slice(0, 4), urgencyReason: 'Nội dung có dấu hiệu đang xảy ra hoặc nguy hiểm tính mạng — cần xử lý ngay.' };
   }
 
   // 2. Bản thân loại vụ việc đã thuộc diện khẩn (giết người, bắt cóc, xâm hại...)
@@ -605,8 +609,9 @@ function doanMucKhan(t, cd = null) {
   }
 
   // 4. Từ khoá cho thấy việc kéo dài, ảnh hưởng nhiều người
-  if (TU_KHOA_QUAN_TRONG.some((k) => t.includes(k))) {
-    return { suggestedUrgency: 'important', urgencyReason: 'Vụ việc kéo dài hoặc ảnh hưởng nhiều người — cần sớm quan tâm.' };
+  const khopQuanTrong = TU_KHOA_QUAN_TRONG.filter((k) => t.includes(k));
+  if (khopQuanTrong.length > 0) {
+    return { suggestedUrgency: 'important', tuKhoaKhan: khopQuanTrong.slice(0, 4), urgencyReason: 'Vụ việc kéo dài hoặc ảnh hưởng nhiều người — cần sớm quan tâm.' };
   }
 
   // 5. Loại vụ việc thuộc diện nghiêm trọng

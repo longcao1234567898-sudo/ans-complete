@@ -7,7 +7,7 @@
  * Chỉ quản trị viên (admin) mới được xoá vĩnh viễn trước hạn —
  * tránh cán bộ thường xoá mất chứng cứ.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, RotateCcw, Loader2, AlertTriangle, Clock, ShieldOff } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -43,26 +43,83 @@ export default function AdminTrashPage() {
     staleTime: 0,
   });
 
+  /* ---------------------------------------------------------------------
+     CHỐT CHỐNG BẤM HAI LẦN
+
+     setBusyId là hàm ĐẶT TRẠNG THÁI — chỉ có hiệu lực ở lần vẽ lại tiếp theo.
+     Bấm nhanh hai cái là cả hai lọt qua trước khi nút kịp mờ. Lần thứ hai gặp
+     tin đã rời thùng rác -> máy chủ báo lỗi, cán bộ tưởng hỏng.
+
+     useRef đổi giá trị NGAY, không chờ vẽ lại.
+     --------------------------------------------------------------------- */
+  const dangGui = useRef<Set<number>>(new Set());
+
+  /* Bỏ một tin khỏi danh sách NGAY trên màn hình, không chờ máy chủ trả lời.
+     Đây là thứ tạo cảm giác "mượt": bấm là thấy phản hồi tức thì. Trước đây
+     phải chờ gọi máy chủ rồi tải lại cả danh sách nên nhìn như trang bị nạp
+     lại từ đầu. */
+  function boKhoiDanhSach(id: number) {
+    qc.setQueryData(['admin-trash'], (cu: unknown) => {
+      const d = cu as { items?: { id: number }[] } | undefined;
+      if (!d?.items) return cu;
+      return { ...d, items: d.items.filter((x) => x.id !== id) };
+    });
+  }
+
   const restore = useMutation({
     mutationFn: (id: number) => adminFetch(`/api/admin/trash/${id}/restore`, { method: 'POST' }),
+    onMutate: (id: number) => {
+      const truoc = qc.getQueryData(['admin-trash']);
+      boKhoiDanhSach(id);            // bỏ NGAY, không chờ máy chủ
+      return { truoc };
+    },
     onSuccess: () => {
       toast.success('Đã khôi phục tin báo');
       qc.invalidateQueries({ queryKey: ['admin-trash'] });
       qc.invalidateQueries({ queryKey: ['admin-review'] });
       qc.invalidateQueries({ queryKey: ['admin-submissions'] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Khôi phục thất bại'),
-    onSettled: () => setBusyId(null),
+    onError: (e, _id, ctx) => {
+      const msg = e instanceof Error ? e.message : '';
+      /* Tin đã rời thùng rác = việc ĐÃ XONG (cán bộ khác vừa xử lý, hoặc mình
+         bấm hai lần). Giữ nguyên việc đã bỏ, chỉ báo nhẹ. */
+      if (/không tìm thấy|không nằm trong|đã được/i.test(msg)) {
+        toast('Tin này đã được xử lý trước đó.', { icon: 'ℹ️' });
+        return;
+      }
+      if (ctx?.truoc !== undefined) qc.setQueryData(['admin-trash'], ctx.truoc);
+      toast.error(msg || 'Khôi phục thất bại');
+    },
+    onSettled: (_kq, _loi, id) => {
+      dangGui.current.delete(id as number);
+      setBusyId(null);
+    },
   });
 
   const purge = useMutation({
     mutationFn: (id: number) => adminFetch(`/api/admin/trash/${id}`, { method: 'DELETE' }),
+    onMutate: (id: number) => {
+      const truoc = qc.getQueryData(['admin-trash']);
+      boKhoiDanhSach(id);            // bỏ NGAY, không chờ máy chủ
+      return { truoc };
+    },
     onSuccess: () => {
       toast.success('Đã xoá vĩnh viễn');
       qc.invalidateQueries({ queryKey: ['admin-trash'] });
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Xoá thất bại'),
-    onSettled: () => setBusyId(null),
+    onError: (e, _id, ctx) => {
+      const msg = e instanceof Error ? e.message : '';
+      if (/không tìm thấy|không nằm trong|đã được/i.test(msg)) {
+        toast('Tin này đã được xoá trước đó.', { icon: 'ℹ️' });
+        return;
+      }
+      if (ctx?.truoc !== undefined) qc.setQueryData(['admin-trash'], ctx.truoc);
+      toast.error(msg || 'Xoá thất bại');
+    },
+    onSettled: (_kq, _loi, id) => {
+      dangGui.current.delete(id as number);
+      setBusyId(null);
+    },
   });
 
   const items = data?.items ?? [];
@@ -149,7 +206,12 @@ export default function AdminTrashPage() {
 
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => { setBusyId(it.id); restore.mutate(it.id); }}
+                  onClick={() => {
+                    if (dangGui.current.has(it.id)) return;   // chặn NGAY, không chờ vẽ lại
+                    dangGui.current.add(it.id);
+                    setBusyId(it.id);
+                    restore.mutate(it.id);
+                  }}
                   disabled={busyId === it.id}
                   className="flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-primary-700 disabled:opacity-50"
                 >
@@ -164,6 +226,8 @@ export default function AdminTrashPage() {
                 <button
                   onClick={() => {
                     if (!confirm(`Xoá VĨNH VIỄN tin ${it.tracking_code}?\n\nKhông thể lấy lại được nữa.`)) return;
+                    if (dangGui.current.has(it.id)) return;   // chặn NGAY
+                    dangGui.current.add(it.id);
                     setBusyId(it.id);
                     purge.mutate(it.id);
                   }}

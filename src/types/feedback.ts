@@ -40,6 +40,12 @@ export interface AIAnalysisResult {
   lyDo?: string;
   /** Những thông tin còn thiếu, gợi ý bà con bổ sung */
   goiY?: string[];
+  /** Từ khoá đã quyết định MỨC KHẨN CẤP — để màn hình giải thích được vì sao */
+  tuKhoaKhan?: string[];
+  /** Chủ đề chi tiết nhận ra được, ví dụ "Cờ bạc, cá độ" (1 trong 29 chủ đề) */
+  topicLabel?: string;
+  /** Mã chủ đề, dùng cho thống kê */
+  detectedTopic?: string;
 }
 
 /** Thông tin liên hệ (tất cả đều không bắt buộc) */

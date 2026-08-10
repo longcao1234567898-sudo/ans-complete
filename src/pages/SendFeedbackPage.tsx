@@ -70,7 +70,7 @@ export default function SendFeedbackPage() {
         }
         setDraft((d) => ({ ...d, analysis: result, category: result.suggestedCategory }));
       },
-      onError: () => toast.error('AI phân tích thất bại, vui lòng thử lại.'),
+      onError: () => toast.error('Hệ thống phân tích thất bại, vui lòng thử lại.'),
     });
   };
 

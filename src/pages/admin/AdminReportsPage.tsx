@@ -235,7 +235,7 @@ export default function AdminReportsPage() {
           className="btn-shine flex min-h-[44px] items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-soft transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Download className={`h-4 w-4 ${exporting ? 'animate-bounce' : ''}`} />
-          {exporting ? 'Đang tạo file...' : 'Xuất Excel (7 sheet)'}
+          {exporting ? 'Đang tạo file...' : 'Xuất Excel'}
         </button>
       </div>
 

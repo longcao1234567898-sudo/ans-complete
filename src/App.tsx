@@ -9,6 +9,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import AppToaster from './components/common/Toast';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
+import MobileTabBar from './components/Layout/MobileTabBar';
 import ScrollProgress from './components/common/ScrollProgress';
 import ChatWidget from './components/AIChat/ChatWidget';
 import EmergencyButton from './components/common/EmergencyButton';
@@ -28,6 +29,7 @@ import AdminReviewPage from './pages/admin/AdminReviewPage';
 import AdminKioskPage from './pages/admin/AdminKioskPage';
 import AdminTrashPage from './pages/admin/AdminTrashPage';
 import AdminQrPage from './pages/admin/AdminQrPage';
+import AdminBlacklistPage from './pages/admin/AdminBlacklistPage';
 import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
 
@@ -96,10 +98,16 @@ function AppShell() {
             <Route path="/quan-tri/ki-ot" element={<AdminKioskPage />} />
             <Route path="/quan-tri/thung-rac" element={<AdminTrashPage />} />
             <Route path="/quan-tri/ma-qr" element={<AdminQrPage />} />
+            <Route path="/quan-tri/danh-sach-khoa" element={<AdminBlacklistPage />} />
           </Routes>
         </div>
       </main>
       <Footer />
+      {/* Thanh chức năng dưới chân màn hình điện thoại.
+          Cuộn LÊN thì hiện, cuộn XUỐNG thì thu lại nhường chỗ đọc nội dung.
+          Khi hiện, nó đặt biến --tab-bar-h để nút SOS và nút trợ lý tự đẩy
+          lên, không đè lên nhau. */}
+      {!isAdminArea && <MobileTabBar />}
       {!isAdminArea && <ChatWidget />}
       {!isAdminArea && <EmergencyButton />}
       <AppToaster />

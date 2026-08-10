@@ -288,7 +288,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
 
       <div className="mt-6 flex justify-end">
         <Button onClick={onNext} disabled={value.trim().length < MIN_LENGTH || processing}>
-          Tiếp tục — AI phân tích
+          Tiếp tục — Hệ thống phân tích
         </Button>
       </div>
     </div>

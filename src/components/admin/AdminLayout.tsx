@@ -18,8 +18,7 @@ import { Navigate, Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText,
-  ShieldQuestion, QrCode, MonitorSmartphone, Trash2,
-} from 'lucide-react';
+  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 interface MucDieuHuong {
@@ -40,6 +39,11 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
       { to: '/quan-tri/y-kien', label: 'Danh sách ý kiến', Icon: Inbox, exact: false },
       { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt', Icon: ShieldQuestion, exact: false },
       { to: '/quan-tri/thung-rac', label: 'Thùng rác', Icon: Trash2, exact: false },
+        /* Danh sách khoá thiết bị — đặt cạnh Thùng rác vì cùng nhóm việc
+           xử lý tin rác. Chỉ admin và manager xem được, khớp với phân quyền
+           ở máy chủ (authorize('admin','manager')). */
+        { to: '/quan-tri/danh-sach-khoa', label: 'Danh sách khoá', Icon: ShieldOff, exact: false,
+          vaiTro: ['admin', 'manager'] },
     ],
   },
   {

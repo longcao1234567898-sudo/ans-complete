@@ -17,7 +17,9 @@ export default function ChatBubble({ open, onClick }: ChatBubbleProps) {
       whileHover={{ scale: 1.06 }}
       whileTap={{ scale: 0.94 }}
       aria-label={open ? 'Đóng trợ lý AI' : 'Mở trợ lý AI'}
-      className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-600 to-secondary-500 text-white shadow-lg shadow-primary-900/20 sm:bottom-6 sm:right-6"
+      className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-600 to-secondary-500 text-white shadow-lg shadow-primary-900/20 sm:bottom-6 sm:right-6"
+      /* Đẩy lên cùng nhịp với nút SOS khi thanh chức năng hiện ra */
+      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem))', transition: 'bottom .3s' }}
     >
       {/* 2 vòng lan so le nhau 1.5s → gợn sóng liên tục, êm dịu như nhịp thở */}
       {!open && (

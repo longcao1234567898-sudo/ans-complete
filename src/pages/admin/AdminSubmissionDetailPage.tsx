@@ -1,12 +1,14 @@
 /** Chi tiết một ý kiến: thông tin đầy đủ, timeline, và bảng điều khiển đổi trạng thái */
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle, Ban } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
-  fetchStaffList, assignSubmission, revealIdentity } from '../../services/adminService';
+  fetchStaffList, assignSubmission, revealIdentity, markSpam } from '../../services/adminService';
+import AdminChatPanel from '../../components/admin/AdminChatPanel';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
 export default function AdminSubmissionDetailPage() {
@@ -27,6 +29,8 @@ export default function AdminSubmissionDetailPage() {
   // --- V2: danh tính đầy đủ (chỉ hiện khi bấm nút, có ghi nhật ký) ---
   const [revealed, setRevealed] = useState<{ sender_name: string; sender_phone: string; sender_email: string | null } | null>(null);
   const [revealing, setRevealing] = useState(false);
+  const [dangDanhDauRac, setDangDanhDauRac] = useState(false);
+  const navigate = useNavigate();
 
   async function handleReveal() {
     setRevealing(true);
@@ -86,6 +90,7 @@ export default function AdminSubmissionDetailPage() {
       {error && <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{(error as Error).message}</div>}
 
       {data && (
+        <>
         <div className="grid gap-5 lg:grid-cols-3">
           {/* Cột trái: nội dung + timeline */}
           <div className="space-y-5 lg:col-span-2">
@@ -245,6 +250,44 @@ export default function AdminSubmissionDetailPage() {
                 <button onClick={() => changeStatus('rejected')} disabled={mutation.isPending} className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50">
                   <XCircle className="h-4 w-4" /> Từ chối
                 </button>
+
+                {/* ================================================================
+                    NÚT TIN RÁC — khác nút "Từ chối"
+
+                    Từ chối  = đơn có thật nhưng không thuộc thẩm quyền, hoặc
+                               không đủ căn cứ. Người gửi vẫn là người dân bình
+                               thường.
+                    Tin rác  = đơn bịa đặt, phá hoại. Ngoài việc bỏ hồ sơ, còn
+                               KHOÁ THIẾT BỊ đã gửi trong 24 giờ.
+
+                    Việc khoá mới là điểm mấu chốt: đánh dấu mà không khoá thì kẻ
+                    phá hoại gửi tiếp ngay, cán bộ đánh dấu mãi không hết.
+                    ================================================================ */}
+                <button
+                  type="button"
+                  disabled={dangDanhDauRac}
+                  onClick={async () => {
+                    const ly = window.prompt(
+                      'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
+                      + 'Hồ sơ vào thùng rác, giữ 7 ngày, khôi phục được nếu bấm nhầm.\n\n'
+                      + 'Lý do (không bắt buộc):'
+                    );
+                    if (ly === null) return;   // bấm Huỷ
+                    setDangDanhDauRac(true);
+                    try {
+                      const kq = await markSpam(submissionId, ly);
+                      toast.success(kq.ghiChu);
+                      navigate('/quan-tri/y-kien');
+                    } catch (e) {
+                      toast.error((e as Error).message || 'Không đánh dấu được.');
+                    } finally {
+                      setDangDanhDauRac(false);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border-2 border-slate-400 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  <Ban className="h-4 w-4" /> Tin rác
+                </button>
               </div>
 
               {mutation.isPending && <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500"><Loader2 className="h-3 w-3 animate-spin" /> Đang cập nhật...</p>}
@@ -252,6 +295,11 @@ export default function AdminSubmissionDetailPage() {
             </div>
           </div>
         </div>
+
+          {/* Kênh trao đổi hai chiều với người gửi — hỏi thêm khi thiếu thông tin.
+              Đặt TRONG nhánh có dữ liệu: hồ sơ chưa tải xong thì chưa có gì để chat. */}
+          <AdminChatPanel submissionId={submissionId} />
+        </>
       )}
     </AdminLayout>
   );

@@ -16,7 +16,15 @@ export default function EmergencyButton() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-5 left-4 z-50 sm:bottom-6 sm:left-6">
+    <div
+      className="fixed left-4 z-50 transition-[bottom] duration-300 sm:left-6"
+      /* ĐẨY LÊN KHI THANH CHỨC NĂNG HIỆN RA.
+         MobileTabBar đặt biến --tab-bar-h = 4.25rem lúc thanh trượt lên, và
+         về 0rem lúc thanh ẩn đi. Không đọc biến này thì nút SOS nằm ĐÈ lên
+         thanh, che mất một mục điều hướng — mà SOS lại là nút quan trọng
+         nhất, không được để nó che thứ khác hay bị thứ khác che. */
+      style={{ bottom: 'calc(1.25rem + var(--tab-bar-h, 0rem))' }}
+    >
       {open && (
         <div className="mb-3 w-72 overflow-hidden rounded-2xl border border-red-200 bg-white shadow-2xl dark:border-red-900/50 dark:bg-slate-900">
           <div className="flex items-center justify-between bg-red-600 px-4 py-3">

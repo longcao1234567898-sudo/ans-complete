@@ -1,5 +1,6 @@
 /** Danh sách ý kiến: lọc theo trạng thái/nhóm, tìm kiếm, phân trang */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
@@ -20,13 +21,33 @@ export default function AdminSubmissionsPage() {
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
   const [urgency, setUrgency] = useState('');
+  const [sla, setSla] = useState('');
+  const [assigned, setAssigned] = useState('');
+
+  /* ------------------------------------------------------------------------
+     NHẬN BỘ LỌC TỪ ĐƯỜNG DẪN
+
+     Ba thẻ "Đã quá hạn / Sắp hết hạn / Chưa phân công" trên trang Tổng quan
+     dẫn sang đây kèm tham số. Không đọc tham số thì bấm vào chỉ mở danh sách
+     đầy đủ — cán bộ lại phải tự tìm, mất luôn ý nghĩa của việc bấm.
+     ------------------------------------------------------------------------ */
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const s2 = searchParams.get('sla') || '';
+    const a2 = searchParams.get('assigned') || '';
+    const u2 = searchParams.get('urgency') || '';
+    if (s2) setSla(s2);
+    if (a2) setAssigned(a2);
+    if (u2) setUrgency(u2);
+    if (s2 || a2 || u2) setPage(1);
+  }, [searchParams]);
   const [q, setQ] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['admin-submissions', status, category, urgency, q, page],
-    queryFn: () => fetchSubmissions({ status, category, urgency, q, page, limit: 15 }),
+    queryKey: ['admin-submissions', status, category, urgency, sla, assigned, q, page],
+    queryFn: () => fetchSubmissions({ status, category, urgency, sla, assigned, q, page, limit: 15 }),
     placeholderData: keepPreviousData,
   });
 
@@ -56,6 +77,35 @@ export default function AdminSubmissionsPage() {
           </button>
         ))}
       </div>
+
+      {/* ====================================================================
+          DẢI BÁO ĐANG LỌC
+
+          ⚠️ Vì sao PHẢI có dải này: bộ lọc đến từ đường dẫn (bấm thẻ ở trang
+          Tổng quan) nên cán bộ không tự tay bật — mở ra thấy danh sách ngắn
+          hơn thường ngày là dễ tưởng hệ thống mất dữ liệu.
+
+          Nguyên tắc: KHÔNG BAO GIỜ giấu việc mà không nói. Lọc thì phải hiện
+          rõ đang lọc gì và bỏ lọc ở đâu.
+          ==================================================================== */}
+      {(sla || assigned) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border-2 border-primary-300 bg-primary-50 px-3 py-2 dark:border-primary-700 dark:bg-primary-900/20">
+          <span className="text-xs font-bold text-primary-800 dark:text-primary-200">
+            Đang lọc:
+          </span>
+          {sla === 'overdue' && <span className="rounded-lg bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">Đã quá hạn</span>}
+          {sla === 'near' && <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">Sắp hết hạn</span>}
+          {sla === 'soon' && <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">Sắp hết hạn</span>}
+          {assigned === 'none' && <span className="rounded-lg bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">Chưa phân công</span>}
+          <button
+            type="button"
+            onClick={() => { setSla(''); setAssigned(''); setPage(1); }}
+            className="ml-auto rounded-lg border border-primary-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-100 dark:border-primary-700 dark:bg-slate-900 dark:text-primary-300"
+          >
+            Bỏ lọc, xem tất cả
+          </button>
+        </div>
+      )}
 
       {/* ====================================================================
           LỌC THEO 3 MỨC KHẨN CẤP

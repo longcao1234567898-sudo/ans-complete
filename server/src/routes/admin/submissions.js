@@ -1,6 +1,7 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
 import { layIpThat } from '../../lib/helpers.js';
+import { khoaThietBi } from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
@@ -342,6 +343,86 @@ router.post('/:id/review', async (req, res) => {
   } catch (err) {
     console.error('Lỗi kiểm duyệt:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });
+  }
+});
+
+/* ==========================================================================
+   ĐÁNH DẤU TIN RÁC — dùng được ở BẤT KỲ trạng thái nào
+
+   Khác /review (chỉ dùng cho tin đang chờ duyệt): đường dẫn này để cán bộ
+   đang xử lý một hồ sơ, đọc ra là tin bịa đặt, thì đánh dấu ngay tại chỗ.
+
+   Hai việc xảy ra cùng lúc:
+     1. Hồ sơ chuyển sang 'spam' và vào thùng rác (giữ 7 ngày, khôi phục được)
+     2. KHOÁ THIẾT BỊ đã gửi trong 24 giờ
+
+   Việc thứ hai mới là điểm mấu chốt. Đánh dấu tin rác mà không khoá thì kẻ
+   phá hoại gửi tiếp ngay, cán bộ đánh dấu mãi không hết. Khoá thiết bị rồi
+   thì lần sau họ gửi vẫn thấy "thành công" nhưng đơn không vào hàng chờ —
+   họ không biết mà đổi cách phá.
+   ========================================================================== */
+router.post('/:id/mark-spam', async (req, res) => {
+  const id = Number(req.params.id);
+  const lyDo = String(req.body?.reason || '').trim().slice(0, 200);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT status, device_id, tracking_code FROM submissions WHERE id = ? AND deleted_at IS NULL',
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy hồ sơ, hoặc hồ sơ đã ở trong thùng rác.' });
+    }
+    const don = rows[0];
+
+    await pool.query(
+      `UPDATE submissions
+          SET status = 'spam', is_spam = 1,
+              deleted_at = NOW(), deleted_by = ?,
+              rejection_reason = ?
+        WHERE id = ?`,
+      [req.user?.sub || null, lyDo || 'Cán bộ đánh dấu tin rác', id]
+    );
+
+    await pool.query(
+      `INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by)
+       VALUES (?, ?, 'spam', ?, ?)`,
+      [id, don.status, lyDo || 'Đánh dấu tin rác', req.user?.sub || null]
+    ).catch(() => {});
+
+    /* Khoá thiết bị. Bọc riêng vì lỗi ở đây không được làm hỏng việc đánh dấu
+       đã thành công — thà không khoá được còn hơn để hồ sơ nửa vời. */
+    let daKhoa = false;
+    if (don.device_id) {
+      daKhoa = await khoaThietBi(pool, {
+        deviceId: don.device_id,
+        staffId: req.user?.sub || null,
+        lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
+      });
+    }
+
+    await pool.query(
+      `INSERT INTO staff_activity_logs (staff_id, action, target_id, ip_address)
+       VALUES (?, 'mark_spam', ?, ?)`,
+      [req.user?.sub || null, id, layIpThat(req)]
+    ).catch(() => {});
+
+    res.json({
+      ok: true,
+      daKhoaThietBi: daKhoa,
+      /* Báo rõ cho cán bộ biết có khoá được thiết bị không. Đơn gửi trước khi
+         có tính năng này thì không có mã thiết bị -> chỉ đánh dấu được thôi. */
+      ghiChu: daKhoa
+        ? 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.'
+        : 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị nên không khoá được.',
+    });
+  } catch (err) {
+    console.error('Đánh dấu tin rác lỗi:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ. Đã chạy nang_cap_v12.sql chưa?' });
   }
 });
 

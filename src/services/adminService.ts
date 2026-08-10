@@ -497,3 +497,57 @@ export const fetchIncidentGroupDetail = (id: number) =>
 
 export const ackIncidentGroup = (id: number) =>
   adminFetch<{ ok: boolean }>(`/api/admin/incident-groups/${id}/ack`, { method: 'POST' });
+
+/* ==========================================================================
+   CHAT VỚI NGƯỜI GỬI Ý KIẾN — phía cán bộ
+   ========================================================================== */
+
+export interface AdminChatMessage {
+  id: number;
+  sender_type: 'staff' | 'reporter';
+  message: string;
+  created_at: string;
+  staff_name: string | null;
+}
+
+export const fetchChatMessages = (id: number): Promise<{
+  messages: AdminChatMessage[];
+  status: string;
+  daDong: boolean;
+  isAnonymous: boolean;
+}> => adminFetch(`/api/admin/chat/${id}/messages`);
+
+export const sendChatMessage = (id: number, message: string): Promise<{ ok: boolean }> =>
+  adminFetch(`/api/admin/chat/${id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+
+/* ==========================================================================
+   DANH SÁCH KHOÁ THIẾT BỊ / IP
+   ========================================================================== */
+
+export interface BlacklistItem {
+  id: number;
+  identifier: string;
+  kind: 'device' | 'ip';
+  reason: string | null;
+  created_at: string;
+  expires_at: string;
+  nguoi_khoa: string | null;
+  con_lai_phut: number;
+}
+
+export const fetchBlacklist = (): Promise<BlacklistItem[]> =>
+  adminFetch('/api/admin/chat/blacklist');
+
+export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
+  adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
+
+/** Đánh dấu tin rác + khoá thiết bị đã gửi (24 giờ) */
+export const markSpam = (id: number, reason?: string): Promise<{
+  ok: boolean; daKhoaThietBi: boolean; ghiChu: string;
+}> => adminFetch(`/api/admin/submissions/${id}/mark-spam`, {
+  method: 'POST',
+  body: JSON.stringify({ reason: reason || '' }),
+});

@@ -36,7 +36,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
     autoSaved.current = true;
     const t = setTimeout(() => {
       // Trả về false = trình duyệt chặn tải tự động -> bà con bấm nút thủ công
-      if (downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
+      if (downloadReceipt({ trackingCode: submission.trackingCode, chatPin: submission.chatPin, category: submission.category })) {
         setSavedReceipt(true);
       }
     }, 900); // chờ chút cho màn hình hiện xong rồi mới tải
@@ -146,7 +146,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             </button>
             <button
               onClick={() => {
-                if (downloadReceipt({ trackingCode: submission.trackingCode, category: submission.category })) {
+                if (downloadReceipt({ trackingCode: submission.trackingCode, chatPin: submission.chatPin, category: submission.category })) {
                   setSavedReceipt(true);
                 }
               }}
