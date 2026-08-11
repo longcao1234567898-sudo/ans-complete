@@ -41,7 +41,7 @@ export default function Footer() {
             <span className="block py-0.5 text-[17px] font-bold leading-[1.5] text-white">Hộp Thư An Ninh Số</span>
           </div>
           <p className="text-sm leading-relaxed text-slate-300">
-            Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân bằng AI của {UNIT.name}.
+            Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân của {UNIT.name}.
           </p>
         </div>
 

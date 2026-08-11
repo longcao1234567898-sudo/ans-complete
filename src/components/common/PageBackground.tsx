@@ -29,17 +29,38 @@ export default function PageBackground({ anh }: Props) {
         loading="eager"
         decoding="async"
       />
-      {/*
-        LỚP PHỦ TRẮNG — nâng từ 88-95% lên 94-97%.
+      {/* ====================================================================
+          LỚP PHỦ LÀM MỜ ẢNH NỀN
 
-        Vì sao nâng: ở mức cũ, ảnh phong cảnh còn hiện rõ đường nét, mắt bị hút
-        vào nền thay vì vào nội dung. Nâng lên thì ảnh chỉ còn là sắc nền rất
-        nhạt, hoà vào giao diện — nhìn như một tấm nền thiết kế sẵn chứ không
-        phải ảnh chụp dán vào.
+          ⚠️ DÙNG KIỂU NỘI TUYẾN, KHÔNG DÙNG LỚP TIỆN ÍCH.
 
-        Cũng giúp chữ đọc rõ trên MỌI vùng của ảnh, kể cả chỗ sáng nhất.
-      */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/94 to-white/97 dark:from-slate-950/94 dark:via-slate-950/92 dark:to-slate-950/96" />
+          Trước đây viết from-white/94 ... to-white/97. Nhưng bảng độ mờ mặc
+          định của Tailwind chỉ có tới /95 rồi nhảy thẳng lên /100 — các mức
+          94, 96, 97 KHÔNG được sinh ra. Kết quả: gradient thiếu điểm dừng, lớp
+          phủ gần như mất tác dụng, ảnh phong cảnh hiện nguyên bản đè lên chữ.
+
+          Lỗi này không báo gì cả: mã dịch được, dựng được, chỉ có điều lớp CSS
+          không tồn tại. Đã dựng thử bằng trình duyệt thật mới phát hiện ra.
+
+          Viết thẳng rgba thì không phụ thuộc bảng giá trị nào, muốn bao nhiêu
+          phần trăm cũng được.
+          ==================================================================== */}
+      <div
+        className="absolute inset-0 dark:hidden"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(255,255,255,.96) 0%, '
+            + 'rgba(255,255,255,.955) 50%, rgba(255,255,255,.975) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(2,6,23,.95) 0%, '
+            + 'rgba(2,6,23,.93) 50%, rgba(2,6,23,.965) 100%)',
+        }}
+      />
     </div>
   );
 }

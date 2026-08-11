@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   HIỆN LẠI THÂN TRANG SAU KHI ĐỊNH DẠNG ĐÃ ÁP DỤNG
+
+   Cặp với quy tắc ẩn viết thẳng trong index.html. Trình duyệt đọc được dòng
+   này nghĩa là tệp định dạng đã tải xong — lúc đó mới cho hiện, nên không còn
+   cảnh chữ thô tràn màn hình rồi mới nhảy về chỗ.
+   --------------------------------------------------------------------------- */
+#root { visibility: visible; }
+
 /* ---------- Nền tảng ---------- */
 @layer base {
   html {

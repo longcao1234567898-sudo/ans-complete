@@ -11,6 +11,21 @@ import './styles/globals.css';
 createRoot(document.getElementById('root')!).render(<App />);
 
 /* ==========================================================================
+   BÁO CHO index.html BIẾT ỨNG DỤNG ĐÃ VẼ XONG
+
+   index.html ẩn #root cho tới khi có lớp "san-sang". Không có dòng này thì
+   phải chờ hết 3 giây của lối thoát mới hiện — trang trông như bị treo.
+
+   requestAnimationFrame lồng hai lần: lần đầu đợi React vẽ xong DOM, lần hai
+   đợi trình duyệt tính xong bố cục. Gắn sớm hơn thì vẫn kịp thấy nội dung thô.
+   ========================================================================== */
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    document.documentElement.classList.add('san-sang');
+  });
+});
+
+/* ==========================================================================
    ĐĂNG KÝ SERVICE WORKER (PWA) — chỉ ở môi trường production
 
    ⚠️ KÈM CƠ CHẾ THOÁT KHỎI BẢN CŨ.

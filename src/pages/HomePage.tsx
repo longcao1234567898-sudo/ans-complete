@@ -39,7 +39,18 @@ export default function HomePage() {
             Xem tất cả <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-        <NewsGrid articles={news ?? []} isLoading={isLoading} />
+        {/* Trang chủ chỉ giới thiệu, KHÔNG liệt kê hết.
+            Điện thoại: 1 tin nổi bật + 6 tin gọn.
+              Trước để 4 tin vì mỗi thẻ cao 108px. Nay thẻ gọn đã thu còn 84px
+              nên thêm 2 tin vẫn vừa khoảng chỗ cũ — bà con thấy được nhiều tin
+              hơn mà không phải lướt thêm.
+            Máy tính: 1 nổi bật + 6 thẻ dọc (2 hàng 3 cột) cho cân bố cục. */}
+        <div className="sm:hidden">
+          <NewsGrid articles={(news ?? []).slice(0, 7)} isLoading={isLoading} />
+        </div>
+        <div className="hidden sm:block">
+          <NewsGrid articles={(news ?? []).slice(0, 7)} isLoading={isLoading} />
+        </div>
         <div className="mt-6 text-center sm:hidden">
           <Link to="/tin-tuc" className="text-sm font-semibold text-primary-600 dark:text-primary-400">
             Xem tất cả tin tức →
