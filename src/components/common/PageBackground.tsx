@@ -30,7 +30,14 @@ export default function PageBackground({ anh }: Props) {
         decoding="async"
       />
       {/* ====================================================================
-          LỚP PHỦ LÀM MỜ ẢNH NỀN
+          LỚP PHỦ LÀM MỜ ẢNH NỀN — 72-88% (trước 95,5-97,5%)
+
+          Mức cũ quá đục: ảnh phong cảnh Tân Châu gần như biến mất, nền trông
+          như tờ giấy trắng. Nay hạ xuống để thấy rõ hình mà chữ vẫn đọc tốt.
+
+          Đậm nhất ở ĐÁY (88%) vì phần cuối trang thường có chữ nhỏ và chân
+          trang; nhạt nhất ở GIỮA (72%) — chỗ ảnh đẹp nhất, mà nội dung ở đó
+          lại nằm trong các thẻ có nền riêng nên không sợ khó đọc.
 
           ⚠️ DÙNG KIỂU NỘI TUYẾN, KHÔNG DÙNG LỚP TIỆN ÍCH.
 
@@ -49,16 +56,16 @@ export default function PageBackground({ anh }: Props) {
         className="absolute inset-0 dark:hidden"
         style={{
           background:
-            'linear-gradient(to bottom, rgba(255,255,255,.96) 0%, '
-            + 'rgba(255,255,255,.955) 50%, rgba(255,255,255,.975) 100%)',
+            'linear-gradient(to bottom, rgba(255,255,255,.80) 0%, '
+            + 'rgba(255,255,255,.72) 45%, rgba(255,255,255,.88) 100%)',
         }}
       />
       <div
         className="absolute inset-0 hidden dark:block"
         style={{
           background:
-            'linear-gradient(to bottom, rgba(2,6,23,.95) 0%, '
-            + 'rgba(2,6,23,.93) 50%, rgba(2,6,23,.965) 100%)',
+            'linear-gradient(to bottom, rgba(2,6,23,.86) 0%, '
+            + 'rgba(2,6,23,.80) 45%, rgba(2,6,23,.92) 100%)',
         }}
       />
     </div>

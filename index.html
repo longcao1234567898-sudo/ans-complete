@@ -2,6 +2,50 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+<!-- =====================================================================
+       CHẶN NHÁY NỘI DUNG THÔ KHI CHƯA CÓ ĐỊNH DẠNG
+
+       ⚠️ KHỐI NÀY PHẢI NẰM TRONG PHẦN ĐẦU TRANG. Trước đây nó đặt ở khoảng
+       giữa phần đầu và phần thân — vị trí không hợp lệ, trình duyệt tự dời đi
+       nên áp dụng trễ.
+
+       ⚠️ KHÔNG viết tên thẻ HTML kèm dấu ngoặc trong chú thích này. Công cụ
+       dựng quét chuỗi để tìm chỗ chèn thẻ script; gặp một thẻ đóng viết trong
+       chú thích là nó chèn NGAY VÀO ĐÓ — script nằm lọt trong chú thích, không
+       bao giờ chạy, cả trang trắng trơn mà không báo lỗi gì.
+       Hậu quả thấy được: mở web trên điện thoại, nội dung khung trợ lý
+       ("Xin chào! Tôi là trợ lý ảo của Công an thị xã Tân Châu…") hiện ra
+       CHỮ TO, tràn màn hình, đè lên trang chủ vài giây rồi mới biến mất.
+
+       Nguyên nhân gốc: tệp CSS tải sau HTML. Trong khoảng chờ đó, trình duyệt
+       vẽ nội dung bằng định dạng mặc định — chữ to, không màu, không sắp xếp.
+
+       Cách chặn: ẩn #root cho tới khi ứng dụng vẽ xong.
+
+       Có LỐI THOÁT: nếu vì lý do nào đó CSS hoặc JavaScript không tải được,
+       hàm đếm giờ 3 giây vẫn hiện trang ra. Thà xấu một chút còn hơn để bà con
+       nhìn trang trắng vĩnh viễn.
+       ===================================================================== -->
+  <style id="chan-nhap-nhay">
+    /* Phủ nền sẵn màu trang để lúc chờ không loé trắng */
+    html { background: #f8fafc; }
+    html.dark { background: #020617; }
+    /* Ẩn CẢ THÂN TRANG, không chỉ #root.
+       Ẩn mỗi #root là chưa đủ chắc: bất kỳ thứ gì được vẽ ngoài #root (hộp
+       thoại, lớp nổi, thư viện tự chèn thẻ vào cuối trang) vẫn hiện ra thô. */
+    body { visibility: hidden; }
+    html.san-sang body { visibility: visible; }
+    #root { visibility: hidden; }
+    /* Ứng dụng vẽ xong -> main.tsx gắn lớp này -> hiện ra, có chuyển mượt */
+    html.san-sang #root { visibility: visible; animation: hien-muot .25s ease-out; }
+    @keyframes hien-muot { from { opacity: 0 } to { opacity: 1 } }
+  </style>
+  <script>
+    /* Lối thoát: 3 giây không thấy ứng dụng báo sẵn sàng thì cứ hiện */
+    setTimeout(function () {
+      document.documentElement.classList.add('san-sang');
+    }, 3000);
+  </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1B5E20" />
     <!-- SEO -->
@@ -52,42 +96,6 @@
       }
     </script>
     <title>Hộp Thư An Ninh Số | Tiếp nhận ý kiến công dân trực tuyến — gửi trong 1 phút</title>
-  <!-- =====================================================================
-       CHẶN NHÁY NỘI DUNG THÔ KHI CHƯA CÓ ĐỊNH DẠNG
-
-       ⚠️ KHỐI NÀY PHẢI NẰM TRONG PHẦN ĐẦU TRANG. Trước đây nó đặt ở khoảng
-       giữa phần đầu và phần thân — vị trí không hợp lệ, trình duyệt tự dời đi
-       nên áp dụng trễ.
-
-       ⚠️ KHÔNG viết tên thẻ HTML kèm dấu ngoặc trong chú thích này. Công cụ
-       dựng quét chuỗi để tìm chỗ chèn thẻ script; gặp một thẻ đóng viết trong
-       chú thích là nó chèn NGAY VÀO ĐÓ — script nằm lọt trong chú thích, không
-       bao giờ chạy, cả trang trắng trơn mà không báo lỗi gì.
-       Hậu quả thấy được: mở web trên điện thoại, nội dung khung trợ lý
-       ("Xin chào! Tôi là trợ lý ảo của Công an thị xã Tân Châu…") hiện ra
-       CHỮ TO, tràn màn hình, đè lên trang chủ vài giây rồi mới biến mất.
-
-       Nguyên nhân gốc: tệp CSS tải sau HTML. Trong khoảng chờ đó, trình duyệt
-       vẽ nội dung bằng định dạng mặc định — chữ to, không màu, không sắp xếp.
-
-       Cách chặn: ẩn #root cho tới khi ứng dụng vẽ xong.
-
-       Có LỐI THOÁT: nếu vì lý do nào đó CSS hoặc JavaScript không tải được,
-       hàm đếm giờ 3 giây vẫn hiện trang ra. Thà xấu một chút còn hơn để bà con
-       nhìn trang trắng vĩnh viễn.
-       ===================================================================== -->
-  <style id="chan-nhap-nhay">
-    #root { visibility: hidden; }
-    /* Ứng dụng vẽ xong -> main.tsx gắn lớp này -> hiện ra, có chuyển mượt */
-    html.san-sang #root { visibility: visible; animation: hien-muot .25s ease-out; }
-    @keyframes hien-muot { from { opacity: 0 } to { opacity: 1 } }
-  </style>
-  <script>
-    /* Lối thoát: 3 giây không thấy ứng dụng báo sẵn sàng thì cứ hiện */
-    setTimeout(function () {
-      document.documentElement.classList.add('san-sang');
-    }, 3000);
-  </script>
   </head>
   <body>
     <div id="root"></div>
