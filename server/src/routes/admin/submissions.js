@@ -83,6 +83,20 @@ router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
+              /* ------------------------------------------------------------
+                 SỐ TIN NHẮN NGƯỜI DÂN GỬI MÀ CÁN BỘ CHƯA ĐỌC
+
+                 Dùng để hiện chấm đỏ ngay trên danh sách. Không có nó thì cán
+                 bộ phải mở từng hồ sơ mới biết có ai nhắn — bà con bổ sung
+                 thông tin quan trọng cũng nằm im không ai hay.
+
+                 Bọc COALESCE để bảng report_messages chưa tạo (chưa chạy
+                 nang_cap_v12.sql) thì trả 0 chứ không làm hỏng cả danh sách.
+                 ------------------------------------------------------------ */
+              COALESCE((SELECT COUNT(*) FROM report_messages m
+                         WHERE m.submission_id = s.id
+                           AND m.sender_type = 'reporter'
+                           AND m.read_by_staff = 0), 0) AS tin_chua_doc,
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
               s.deadline_at, s.assigned_to,

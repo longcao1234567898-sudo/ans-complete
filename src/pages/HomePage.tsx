@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { MascotWave } from '../components/common/PoliceMascot';
+import PoliceAvatar from '../components/common/PoliceAvatar';
 import HeroSection from '../components/Hero/HeroSection';
 import FeaturesSection from '../components/Features/FeaturesSection';
 import Reveal from '../components/common/Reveal';
@@ -64,7 +65,14 @@ export default function HomePage() {
       <section className="container-page pb-16">
         <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 px-6 py-8 text-center text-white sm:flex-row sm:text-left">
           <div className="flex items-center gap-3">
-            <MascotWave className="hidden h-24 w-auto shrink-0 sm:block" aria-hidden />
+            {/* Dùng CHUNG hình công an với nút trợ lý ở góc màn hình.
+                Trước đây dải này dùng một hình khác (MascotWave) — bà con thấy
+                hai nhân vật khác nhau cùng nói về một trợ lý, dễ tưởng là hai
+                thứ riêng biệt. Dùng chung một hình thì nhìn là biết ngay dải
+                này đang trỏ tới nút tròn ở góc. */}
+            <span className="hidden h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 ring-2 ring-white/30 sm:flex">
+              <PoliceAvatar className="h-16 w-16" />
+            </span>
             <div>
               <p className="font-bold">Có thắc mắc cần giải đáp ngay?</p>
               <p className="text-sm text-white/85">Trợ lý AI ở góc phải màn hình luôn sẵn sàng hỗ trợ bà con.</p>

@@ -229,7 +229,9 @@ describe('A04 — tham số phân trang luôn có chặn trên', () => {
     const nguon = await doc('../src/routes/news.js');
     assert.match(nguon, /MAX_LIMIT = 100|Math\.min\(100/, 'limit phải có chặn trên');
     assert.match(nguon, /Math\.min\(/, 'chặn trên phải được ÁP DỤNG, không chỉ khai báo');
-    assert.match(nguon, /ORDER BY published_at DESC LIMIT \?/, 'phải LUÔN có LIMIT');
+    /* Khớp phần LIMIT chứ không khớp cả mệnh đề ORDER BY — thứ tự sắp xếp
+       có thể đổi (v13 thêm is_featured lên trước), nhưng LIMIT thì luôn phải có */
+    assert.match(nguon, /ORDER BY[^`']*LIMIT \?/, 'phải LUÔN có LIMIT');
   });
 
   test('danh sách ý kiến quản trị đã có chặn trên sẵn (giữ nguyên)', async () => {

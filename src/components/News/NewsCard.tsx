@@ -20,7 +20,34 @@
  * Tóm tắt chỉ hữu ích khi đã quan tâm — mà lúc đó họ mở bài rồi.
  */
 import { useState } from 'react';
-import { ExternalLink, Newspaper, Star } from 'lucide-react';
+import { ExternalLink, Newspaper, Star, ShieldAlert, AlertTriangle, FileText, Scale } from 'lucide-react';
+
+/* --------------------------------------------------------------------------
+   KHỐI THAY ẢNH THEO CHỦ ĐỀ
+
+   Bài không có ảnh thì vẽ một khối nền màu theo đúng loại tin, kèm biểu tượng
+   tương ứng. Nhìn là biết ngay đây là tin cảnh giác hay hướng dẫn thủ tục.
+
+   Trước đây máy chủ lấy một tấm ảnh ngẫu nhiên từ dịch vụ ảnh mẫu — tin
+   "Cảnh giác chiêu trò việc nhẹ lương cao" hiện ảnh ngọn núi tuyết, tin
+   "Hướng dẫn đăng ký cư trú" hiện ảnh cầu Brooklyn ban đêm. Ảnh chẳng liên
+   quan gì, mà bà con lại tưởng đó là ảnh của vụ việc.
+   -------------------------------------------------------------------------- */
+const NEN_THEO_CHU_DE: Record<string, { nen: string; Icon: typeof Newspaper }> = {
+  an_ninh:   { nen: 'from-primary-500 to-primary-700',     Icon: ShieldAlert },
+  canh_giac: { nen: 'from-rose-500 to-rose-700',           Icon: AlertTriangle },
+  thu_tuc:   { nen: 'from-secondary-500 to-secondary-700', Icon: FileText },
+  van_ban:   { nen: 'from-amber-500 to-amber-700',         Icon: Scale },
+};
+
+function KhoiThayAnh({ tag, to }: { tag: string; to?: boolean }) {
+  const m = NEN_THEO_CHU_DE[tag] ?? { nen: 'from-slate-400 to-slate-600', Icon: Newspaper };
+  return (
+    <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${m.nen}`}>
+      <m.Icon className={to ? 'h-12 w-12 text-white/70' : 'h-7 w-7 text-white/75'} />
+    </div>
+  );
+}
 import type { NewsArticle } from '../../types/news';
 import { NEWS_TAGS } from '../../utils/constants';
 import { formatDate } from '../../utils/helpers';
@@ -84,11 +111,8 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
                 }`}
               />
             ) : (
-              /* Không có ảnh thì hiện biểu tượng, KHÔNG để ô trắng —
-                 ô trắng nhìn như ảnh hỏng */
-              <div className="flex h-full w-full items-center justify-center text-slate-300 dark:text-slate-600">
-                <Newspaper className="h-6 w-6" />
-              </div>
+              /* Không có ảnh thì vẽ khối nền theo chủ đề, KHÔNG để ô trắng */
+              <KhoiThayAnh tag={article.tag} />
             )}
           </div>
 
@@ -210,9 +234,7 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
               }`}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300 dark:text-slate-600">
-              <Newspaper className="h-10 w-10" />
-            </div>
+            <KhoiThayAnh tag={article.tag} to />
           )}
           <Badge colorClass={tag.colorClass} className="absolute left-3 top-3 shadow-sm">
             {tag.label}

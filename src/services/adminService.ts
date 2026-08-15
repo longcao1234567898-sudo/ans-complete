@@ -189,6 +189,8 @@ export interface DashboardStats {
 export const fetchDashboardStats = () => adminFetch<DashboardStats>('/api/admin/dashboard/stats');
 
 export interface SubmissionRow {
+  /** Số tin nhắn người dân gửi mà cán bộ chưa đọc — dùng hiện chấm đỏ */
+  tin_chua_doc?: number;
   id: number;
   tracking_code: string;
   urgency?: 'normal' | 'important' | 'urgent';

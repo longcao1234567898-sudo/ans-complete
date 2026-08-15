@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Search, Loader2, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { Search, Loader2, ChevronLeft, ChevronRight, Flag, MessageSquare } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissions } from '../../services/adminService';
@@ -229,7 +229,20 @@ export default function AdminSubmissionsPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-primary-600 dark:text-primary-300">{s.tracking_code}</span>
+                      <span className="font-mono text-sm font-bold text-primary-600 dark:text-primary-300">{s.tracking_code}
+                      {/* CHẤM ĐỎ BÁO TIN NHẮN CHƯA ĐỌC.
+                          Đặt ngay cạnh mã tra cứu — chỗ mắt cán bộ nhìn đầu
+                          tiên khi lướt danh sách. Có số cụ thể để biết nhiều
+                          hay ít, không chỉ là một dấu chấm mơ hồ. */}
+                      {(s.tin_chua_doc ?? 0) > 0 && (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 py-0.5 align-middle text-[10px] font-bold text-white"
+                          title={`${s.tin_chua_doc} tin nhắn mới từ người gửi`}
+                        >
+                          <MessageSquare className="h-2.5 w-2.5" />
+                          {s.tin_chua_doc}
+                        </span>
+                      )}</span>
                       {s.urgency === 'urgent' && (
                         <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">
                           🔴 KHẨN CẤP

@@ -11,7 +11,11 @@ router.get('/', async (req, res) => {
   const { tag, limit } = req.query;
   try {
     let sql =
-      `SELECT id, title, summary, category, image_url, source_name, source_url, published_at
+      `SELECT id, title, summary, category, image_url, source_name, source_url, published_at,
+              /* Cột do nang_cap_v13.sql thêm. COALESCE để database chưa nâng
+                 cấp thì coi như không có bài nào được chọn — trang vẫn chạy,
+                 chỉ là quay về cách cũ (bài mới nhất làm tin nổi bật). */
+              COALESCE(is_featured, 0) AS is_featured
        FROM news WHERE is_published = TRUE`;
     const params = [];
     if (tag && tag !== 'all' && TAG_TO_CAT[tag]) {
@@ -28,7 +32,9 @@ router.get('/', async (req, res) => {
     const soLay = Number.isFinite(soYeuCau) && soYeuCau > 0
       ? Math.min(Math.floor(soYeuCau), MAX_LIMIT)
       : MAX_LIMIT;
-    sql += ' ORDER BY published_at DESC LIMIT ?';
+    /* Tin nổi bật lên ĐẦU, rồi mới tới bài mới nhất.
+       Chưa chọn bài nào thì mọi bài đều is_featured = 0, thứ tự y như cũ. */
+    sql += ' ORDER BY COALESCE(is_featured, 0) DESC, published_at DESC LIMIT ?';
     params.push(soLay);
     const [rows] = await pool.query(sql, params);
 
@@ -37,7 +43,22 @@ router.get('/', async (req, res) => {
         id: String(n.id),
         title: n.title,
         summary: n.summary,
-        thumbnail: n.image_url || `https://picsum.photos/seed/htans${n.id}/640/400`,
+        /* ------------------------------------------------------------------
+           BÀI KHÔNG CÓ ẢNH -> TRẢ VỀ RỖNG, KHÔNG LẤY ẢNH NGẪU NHIÊN
+
+           Trước đây thiếu ảnh thì lấy một tấm ngẫu nhiên từ dịch vụ ảnh mẫu.
+           Kết quả trên trang thật: tin "Cảnh giác chiêu trò việc nhẹ lương
+           cao" hiện ảnh ngọn núi tuyết, tin "Hướng dẫn đăng ký cư trú" hiện
+           ảnh cầu Brooklyn ban đêm. Ảnh chẳng liên quan gì tới nội dung, mà
+           bà con lại tưởng đó là ảnh của vụ việc.
+
+           Trả rỗng thì giao diện tự vẽ khối nền theo đúng CHỦ ĐỀ của bài
+           (an ninh, cảnh giác, thủ tục, văn bản) — nhìn ra ngay loại tin, và
+           không bịa ra hình ảnh không có thật.
+
+           Muốn có ảnh thật: đặt đường dẫn vào cột image_url của bảng news.
+           ------------------------------------------------------------------ */
+        thumbnail: n.image_url || '',
         publishedAt: n.published_at,
         tag: CAT_TO_TAG[n.category] || 'an_ninh',
         externalUrl: n.source_url || '#',
