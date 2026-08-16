@@ -7,7 +7,45 @@
  *
  * Vẽ bằng canvas ngay trên máy người dùng, không gửi gì lên máy chủ.
  */
+import QRCode from 'qrcode';
 import { UNIT } from './constants';
+
+/* --------------------------------------------------------------------------
+   VẼ MÃ QR TRỰC TIẾP LÊN PHIẾU
+
+   Dùng QRCode.create() — hàm này trả kết quả NGAY, không phải chờ.
+   Các hàm toDataURL/toCanvas của cùng thư viện đều trả về lời hứa, dùng chúng
+   thì phải đổi cả buildReceiptImage và mọi nơi gọi nó sang bất đồng bộ, kéo
+   theo sửa ở bốn chỗ khác. Tự vẽ từng ô vuông vừa gọn vừa không đụng gì.
+   -------------------------------------------------------------------------- */
+function veMaQR(ctx: CanvasRenderingContext2D, noiDung: string,
+                x: number, y: number, canh: number) {
+  try {
+    const qr = QRCode.create(noiDung, { errorCorrectionLevel: 'M' });
+    const soO = qr.modules.size;
+    const oVuong = canh / soO;
+
+    /* Nền trắng lấn ra 8px mỗi bên: máy quét cần vùng trắng quanh mã mới đọc
+       được. Dán mã sát viền là nhiều điện thoại quét mãi không ra. */
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x - 8, y - 8, canh + 16, canh + 16);
+
+    ctx.fillStyle = '#1E293B';
+    for (let h = 0; h < soO; h += 1) {
+      for (let c = 0; c < soO; c += 1) {
+        if (qr.modules.get(h, c)) {
+          /* +1 để các ô liền nhau, tránh khe hở làm máy quét đọc sai */
+          ctx.fillRect(x + c * oVuong, y + h * oVuong, oVuong + 1, oVuong + 1);
+        }
+      }
+    }
+    return true;
+  } catch {
+    /* Không vẽ được mã QR thì phiếu vẫn còn mã tra cứu và mã PIN — bà con
+       nhập tay được. Thà thiếu mã QR còn hơn hỏng cả phiếu. */
+    return false;
+  }
+}
 
 interface ReceiptData {
   trackingCode: string;
@@ -31,7 +69,10 @@ const SLA_DAYS: Record<string, number> = {
 
 /** Vẽ phiếu ra canvas rồi trả về dataURL PNG */
 export function buildReceiptImage(data: ReceiptData): string {
-  const W = 720, H = 1000;
+  /* Cao 1000 -> 1040: bố cục hai cột đẩy phần hướng dẫn xuống, dòng
+     "Máy của bà con đã tự nhớ mã này..." bị dải chân trang che mất một nửa.
+     Đã dựng ảnh thật ra xem mới thấy. */
+  const W = 720, H = 1040;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -59,43 +100,69 @@ export function buildReceiptImage(data: ReceiptData): string {
   ctx.font = '20px "Be Vietnam Pro", Arial, sans-serif';
   ctx.fillText(UNIT.name, W / 2, 100);
 
-  // Nhãn mã tra cứu
-  ctx.fillStyle = '#475569';
-  ctx.font = '19px "Be Vietnam Pro", Arial, sans-serif';
-  ctx.fillText('MÃ TRA CỨU CỦA BÀ CON', W / 2, 200);
+  /* ========================================================================
+     BỐ CỤC MỚI — HAI CỘT
 
-  // Ô mã tra cứu cỡ lớn
+       Cột TRÁI  : mã tra cứu (to) + mã PIN, hai thứ bà con phải gõ tay
+       Cột PHẢI  : mã QR quét thẳng vào trang tra cứu
+
+     Trước đây xếp dọc: mã tra cứu, rồi PIN, rồi mới tới thông tin — phiếu dài
+     mà nửa bên phải bỏ trống. Xếp hai cột thì vừa gọn hơn, vừa có chỗ đặt mã
+     QR ngay cạnh mã tra cứu, nhìn là hiểu hai thứ này cùng dùng để tra cứu.
+     ======================================================================== */
+  const X_TRAI = 60;
+  const R_TRAI = 420;                       // cột trái rộng tới đây
+  const QR_CANH = 200;
+  const QR_X = 470;
+  const QR_Y = 200;
+
+  // ── Cột trái: nhãn + ô mã tra cứu ──────────────────────────────────────
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#475569';
+  ctx.font = '17px "Be Vietnam Pro", Arial, sans-serif';
+  ctx.fillText('MÃ TRA CỨU CỦA BÀ CON', X_TRAI, 185);
+
   ctx.fillStyle = '#F1F8E9';
-  ctx.fillRect(60, 225, W - 120, 130);
+  ctx.fillRect(X_TRAI, 200, R_TRAI - X_TRAI, 104);
   ctx.strokeStyle = '#1B5E20';
   ctx.lineWidth = 3;
-  ctx.strokeRect(60, 225, W - 120, 130);
+  ctx.strokeRect(X_TRAI, 200, R_TRAI - X_TRAI, 104);
+
   ctx.fillStyle = '#1B5E20';
-  ctx.font = 'bold 62px "Be Vietnam Pro", Arial, monospace';
-  ctx.fillText(data.trackingCode, W / 2, 312);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 54px "Be Vietnam Pro", Arial, monospace';
+  ctx.fillText(data.trackingCode, (X_TRAI + R_TRAI) / 2, 272);
 
-  /* ------------------------------------------------------------------------
-     Ô MÃ PIN TRAO ĐỔI — đặt NGAY DƯỚI mã tra cứu
-
+  /* ── Ô mã PIN — ngay dưới mã tra cứu, cùng cột ─────────────────────────
      Vì sao phải in vào phiếu: máy chủ chỉ trả mã PIN đúng MỘT LẦN, database
      giữ bản băm nên không cấp lại được. Bà con đóng trình duyệt là mất luôn
-     kênh trao đổi với cán bộ. In chung một phiếu thì chụp màn hình hoặc lưu
-     ảnh là giữ được cả hai.
-     ------------------------------------------------------------------------ */
+     kênh trao đổi với cán bộ. */
   if (data.chatPin) {
-    ctx.textAlign = 'center';
     ctx.fillStyle = '#FFF8E1';
-    ctx.fillRect(60, 368, W - 120, 86);
+    ctx.fillRect(X_TRAI, 318, R_TRAI - X_TRAI, 82);
     ctx.strokeStyle = '#B45309';
     ctx.lineWidth = 2;
-    ctx.strokeRect(60, 368, W - 120, 86);
+    ctx.strokeRect(X_TRAI, 318, R_TRAI - X_TRAI, 82);
 
     ctx.fillStyle = '#92400E';
-    ctx.font = 'bold 17px "Be Vietnam Pro", Arial, sans-serif';
-    ctx.fillText('MÃ PIN TRAO ĐỔI VỚI CÁN BỘ', W / 2, 393);
+    ctx.font = 'bold 15px "Be Vietnam Pro", Arial, sans-serif';
+    ctx.fillText('MÃ PIN TRAO ĐỔI VỚI CÁN BỘ', (X_TRAI + R_TRAI) / 2, 342);
+    ctx.font = 'bold 34px "Be Vietnam Pro", Arial, monospace';
+    ctx.fillText(data.chatPin, (X_TRAI + R_TRAI) / 2, 384);
+  }
 
-    ctx.font = 'bold 38px "Be Vietnam Pro", Arial, monospace';
-    ctx.fillText(data.chatPin, W / 2, 435);
+  // ── Cột phải: mã QR ────────────────────────────────────────────────────
+  const linkTraCuu = `${window.location.origin}/tra-cuu?ma=${data.trackingCode}`;
+  const veDuoc = veMaQR(ctx, linkTraCuu, QR_X, QR_Y, QR_CANH);
+
+  if (veDuoc) {
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px "Be Vietnam Pro", Arial, sans-serif';
+    ctx.fillText('QUÉT ĐỂ TRA CỨU', QR_X + QR_CANH / 2, QR_Y + QR_CANH + 32);
+    ctx.font = '14px "Be Vietnam Pro", Arial, sans-serif';
+    ctx.fillText('Mở camera điện thoại', QR_X + QR_CANH / 2, QR_Y + QR_CANH + 54);
+    ctx.fillText('rồi hướng vào mã này', QR_X + QR_CANH / 2, QR_Y + QR_CANH + 74);
   }
 
   // Thông tin chi tiết
@@ -106,7 +173,9 @@ export function buildReceiptImage(data: ReceiptData): string {
     ['Ngày gửi:', now.toLocaleString('vi-VN')],
     ['Hạn xử lý:', `${deadline.toLocaleDateString('vi-VN')} (${slaDays} ngày)`],
   ];
-  let y = data.chatPin ? 500 : 415;
+  /* Bắt đầu dưới cả hai cột. Cột phải (mã QR + chú thích) luôn cao hơn cột
+     trái, nên lấy theo cột phải để không đè lên nhau. */
+  let y = 500;
   for (const [k, v] of rows) {
     ctx.fillStyle = '#64748B';
     ctx.fillText(k, 70, y);

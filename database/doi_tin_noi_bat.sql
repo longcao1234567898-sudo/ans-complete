@@ -95,3 +95,56 @@ SELECT category AS loai, COUNT(*) AS so_bai_noi_bat,
 --
 -- ⚠️ KHÔNG cần khởi động lại máy chủ. Mở lại trang Tin tức là thấy ngay.
 -- ============================================================================
+
+-- ============================================================================
+-- CHỌN RIÊNG TIN NỔI BẬT CHO MỤC "TẤT CẢ"
+-- ============================================================================
+--
+-- VẤN ĐỀ: đánh dấu bốn bài cho bốn loại rồi, nhưng vào mục "Tất cả" thì bài
+-- nào lên đầu? Hệ thống lấy bài MỚI NHẤT trong bốn bài đó — có khi không phải
+-- bài đơn vị muốn đưa lên trang chủ.
+--
+-- CÁCH GIẢI: cột is_featured nhận HAI mức, không chỉ 0 và 1.
+--
+--     0 = bài thường
+--     1 = nổi bật TRONG LOẠI của nó
+--     2 = nổi bật ở mục "TẤT CẢ"  (mức cao nhất)
+--
+-- Máy chủ sắp xếp giảm dần nên 2 luôn đứng trước 1, 1 đứng trước 0.
+-- Không phải sửa mã nguồn, không phải thêm cột.
+--
+-- HOẠT ĐỘNG THẾ NÀO:
+--   · Mục "Tất cả"  -> bài mức 2 lên đầu
+--   · Lọc một loại  -> chỉ còn bài của loại đó; bài mức 1 của loại ấy lên đầu
+--                      (nếu bài mức 2 cũng thuộc loại đó thì nó lên đầu)
+-- ============================================================================
+
+
+-- ── Đặt tin nổi bật cho mục "Tất cả" (thay 99 bằng id thật) ────────────────
+--
+-- ⚠️ Chạy CẢ HAI dòng. Bỏ dòng đầu thì có hai bài cùng mức 2, hệ thống lấy
+--    bài mới hơn — không như ý.
+
+UPDATE news SET is_featured = 1 WHERE is_featured = 2;   -- hạ bài cũ xuống mức loại
+UPDATE news SET is_featured = 2 WHERE id = 99;           -- nâng bài mới lên
+
+
+-- ── Xem toàn cảnh: bài nào đang ở mức nào ─────────────────────────────────
+SELECT CASE is_featured
+         WHEN 2 THEN '★★ Tất cả'
+         WHEN 1 THEN '★  Trong loại'
+         ELSE        '   Bài thường'
+       END                        AS muc_do,
+       category                   AS loai,
+       id,
+       LEFT(title, 50)            AS tieu_de
+  FROM news
+ WHERE is_featured > 0
+ ORDER BY is_featured DESC, category;
+
+
+-- ── Bỏ tin nổi bật ở mục "Tất cả", giữ nguyên nổi bật theo loại ────────────
+--     UPDATE news SET is_featured = 1 WHERE is_featured = 2;
+--
+-- ── Bỏ sạch mọi đánh dấu, cả trang quay về lấy bài mới nhất ────────────────
+--     UPDATE news SET is_featured = 0;
