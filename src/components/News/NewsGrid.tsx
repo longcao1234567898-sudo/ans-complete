@@ -89,9 +89,31 @@ export default function NewsGrid({ articles, isLoading, coTinNoiBat = true }: Ne
 
   /* Chỉ tách tin nổi bật khi có từ 2 bài trở lên — một bài mà tách ra thì
      phần danh sách bên dưới trống trơn, nhìn như thiếu nội dung. */
-  const tachNoiBat = coTinNoiBat && articles.length >= 2;
-  const noiBat = tachNoiBat ? articles[0] : null;
-  const conLai = tachNoiBat ? articles.slice(1) : articles;
+  /* ------------------------------------------------------------------------
+     LỌC BÀI TRÙNG TRƯỚC KHI HIỆN
+
+     Đã gặp thật: bảng news có hai dòng cùng tiêu đề, khác ảnh. Giao diện lấy
+     bài đầu làm tin nổi bật rồi hiện phần còn lại — nên bản sao lộ ra ngay
+     dưới bản gốc, cùng một tin mà hai ảnh khác nhau, nhìn như lỗi hiển thị.
+
+     Gốc rễ nằm ở dữ liệu (xem database/don_tin_trung.sql). Nhưng chặn thêm ở
+     đây để lỡ có nạp trùng lần nữa thì trang vẫn hiện đúng, không chờ ai dọn.
+
+     Giữ bản CÓ ẢNH; nếu cả hai cùng có hoặc cùng không thì giữ bản gặp trước.
+     ------------------------------------------------------------------------ */
+  const daLoc = (() => {
+    const theoTieuDe = new Map<string, NewsArticle>();
+    for (const a of articles) {
+      const khoa = a.title.trim().toLowerCase();
+      const cu = theoTieuDe.get(khoa);
+      if (!cu || (!cu.thumbnail && a.thumbnail)) theoTieuDe.set(khoa, a);
+    }
+    return [...theoTieuDe.values()];
+  })();
+
+  const tachNoiBat = coTinNoiBat && daLoc.length >= 2;
+  const noiBat = tachNoiBat ? daLoc[0] : null;
+  const conLai = tachNoiBat ? daLoc.slice(1) : daLoc;
 
   return (
     <div className="space-y-5">
