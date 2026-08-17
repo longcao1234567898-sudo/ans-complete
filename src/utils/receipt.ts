@@ -53,6 +53,8 @@ interface ReceiptData {
   chatPin?: string;
   category: string;
   createdAt?: Date;
+  /* Không còn dùng — phiếu đã bỏ dòng hạn xử lý. Giữ lại trường này để nơi
+     gọi cũ truyền vào cũng không báo lỗi kiểu dữ liệu. */
   deadlineDays?: number;
 }
 
@@ -63,16 +65,14 @@ const CATEGORY_LABEL: Record<string, string> = {
   de_xuat: 'Đề xuất, kiến nghị',
 };
 
-const SLA_DAYS: Record<string, number> = {
-  to_giac: 20, khieu_nai: 30, phan_anh: 15, de_xuat: 10,
-};
 
 /** Vẽ phiếu ra canvas rồi trả về dataURL PNG */
 export function buildReceiptImage(data: ReceiptData): string {
-  /* Cao 1000 -> 1040: bố cục hai cột đẩy phần hướng dẫn xuống, dòng
-     "Máy của bà con đã tự nhớ mã này..." bị dải chân trang che mất một nửa.
-     Đã dựng ảnh thật ra xem mới thấy. */
-  const W = 720, H = 1040;
+  /* Chiều cao 1000: bố cục hai cột từng cần 1040, nhưng sau khi bỏ dòng
+     "Hạn xử lý" thì rút lại được 40px mà không ai bị che.
+     Đổi số này phải dựng ảnh thật ra xem — dải chân trang nằm cố định ở đáy,
+     tính nhầm là nó đè lên dòng cuối. */
+  const W = 720, H = 1000;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -80,8 +80,8 @@ export function buildReceiptImage(data: ReceiptData): string {
   if (!ctx) return '';
 
   const now = data.createdAt ?? new Date();
-  const slaDays = data.deadlineDays ?? SLA_DAYS[data.category] ?? 15;
-  const deadline = new Date(now.getTime() + slaDays * 86400000);
+  /* Đã bỏ hai biến tính hạn xử lý — phiếu không in hạn nữa.
+     Hạn vẫn do máy chủ tính và lưu vào cột deadline_at khi nhận đơn. */
 
   // Nền + viền xanh công an
   ctx.fillStyle = '#ffffff';
@@ -168,10 +168,14 @@ export function buildReceiptImage(data: ReceiptData): string {
   // Thông tin chi tiết
   ctx.textAlign = 'left';
   ctx.font = '19px "Be Vietnam Pro", Arial, sans-serif';
+  /* ĐÃ BỎ DÒNG "Hạn xử lý" khỏi phiếu.
+
+     Hạn vẫn được hệ thống theo dõi đầy đủ ở phía cán bộ (cột deadline_at,
+     cảnh báo quá hạn, ba con số điều hành trên trang Tổng quan) — chỉ là
+     không in lên phiếu của bà con nữa. */
   const rows: [string, string][] = [
     ['Nhóm xử lý:', CATEGORY_LABEL[data.category] ?? data.category],
     ['Ngày gửi:', now.toLocaleString('vi-VN')],
-    ['Hạn xử lý:', `${deadline.toLocaleDateString('vi-VN')} (${slaDays} ngày)`],
   ];
   /* Bắt đầu dưới cả hai cột. Cột phải (mã QR + chú thích) luôn cao hơn cột
      trái, nên lấy theo cột phải để không đè lên nhau. */
