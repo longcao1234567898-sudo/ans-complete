@@ -17,15 +17,15 @@ interface ContactInfoProps {
   onChange: (v: ContactInfoType) => void;
   onNext: () => void;
   onBack: () => void;
-  /** Cho bà con làm lại từ đầu ngay tại chỗ báo lỗi */
-  onReset?: () => void;
+  /** Nhảy về bước 1 (nhập nội dung) — GIỮ NGUYÊN dữ liệu đã nhập */
+  onVeBuocDau?: () => void;
   /** Nhóm xử lý đã chọn — ẩn danh CHỈ áp dụng cho Tố giác tội phạm */
   category?: string | null;
   /** V10: tên điểm QR đã quét (nếu có) — hiện chú thích cạnh ô chọn địa bàn */
   qrPointName?: string | null;
 }
 
-export default function ContactInfo({ value, onChange, onNext, onBack, onReset, category, qrPointName }: ContactInfoProps) {
+export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocDau, category, qrPointName }: ContactInfoProps) {
   // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
   const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
 
@@ -546,18 +546,23 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onReset, 
               </li>
             ))}
           </ul>
-          {onReset && (
+          {/* NÚT VỀ BƯỚC NHẬP NỘI DUNG — KHÔNG xoá gì cả.
+
+              Bản trước là "Làm lại từ đầu" có xoá dữ liệu. Sai hướng: bà con
+              kẹt ở đây thường chỉ muốn xem lại hoặc sửa nội dung đã viết, chứ
+              không phải bỏ hết gõ lại. Bấm "Quay lại" bốn lần thì lâu, mà nút
+              xoá sạch thì không ai dám bấm.
+
+              Nay nhảy thẳng về bước 1, giữ nguyên mọi thứ đã nhập. Bà con sửa
+              xong bấm tiếp là về lại đây, không mất gì. */}
+          {onVeBuocDau && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm(
-                  'Làm lại từ đầu sẽ XOÁ nội dung bà con đã nhập.\n\nBà con có chắc không?'
-                )) onReset();
-              }}
+              onClick={onVeBuocDau}
               className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-slate-900 dark:text-amber-300"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Làm lại từ đầu
+              Về bước nhập nội dung
             </button>
           )}
         </div>

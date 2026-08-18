@@ -35,6 +35,7 @@ export default function AdminSubmissionsPage() {
   const [category, setCategory] = useState('');
   const [urgency, setUrgency] = useState('');
   const [sla, setSla] = useState('');
+  const [sort, setSort] = useState('mac_dinh');
   const [assigned, setAssigned] = useState('');
 
   /* ------------------------------------------------------------------------
@@ -59,7 +60,7 @@ export default function AdminSubmissionsPage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['admin-submissions', status, category, urgency, sla, assigned, q, page],
+    queryKey: ['admin-submissions', status, category, urgency, sla, assigned, sort, q, page],
     queryFn: () => fetchSubmissions({
       status, category, urgency, assigned, q, page, limit: 15,
       /* Không ở mục "Quá hạn" thì ẨN việc quá hạn khỏi danh sách — chúng đã
@@ -149,6 +150,41 @@ export default function AdminSubmissionsPage() {
           </button>
         </div>
       )}
+
+      {/* ====================================================================
+          SẮP XẾP
+
+          Mặc định là thứ tự nghiệp vụ (khẩn cấp -> quá hạn -> mới nhất) — thứ
+          tự đúng cho việc xử lý hằng ngày. Nhưng có lúc cán bộ cần rà lại đơn
+          cũ tồn đọng, hoặc xem riêng nhóm ít khẩn cấp hay bị bỏ quên.
+          ==================================================================== */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Sắp xếp:
+        </span>
+        <select
+          value={sort}
+          onChange={(e) => { setSort(e.target.value); setPage(1); }}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-primary-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <option value="mac_dinh">Ưu tiên xử lý (mặc định)</option>
+          <option value="moi_nhat">Mới nhất trước</option>
+          <option value="cu_nhat">Cũ nhất trước</option>
+          <option value="muc_cao">Mức khẩn cấp: cao đến thấp</option>
+          <option value="muc_thap">Mức khẩn cấp: thấp đến cao</option>
+        </select>
+        {sort !== 'mac_dinh' && (
+          /* Nhắc rõ đang không ở thứ tự mặc định — cán bộ hay quên rồi tưởng
+             hệ thống sắp sai */
+          <button
+            type="button"
+            onClick={() => { setSort('mac_dinh'); setPage(1); }}
+            className="rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            Về mặc định
+          </button>
+        )}
+      </div>
 
       {/* ====================================================================
           LỌC THEO 3 MỨC KHẨN CẤP

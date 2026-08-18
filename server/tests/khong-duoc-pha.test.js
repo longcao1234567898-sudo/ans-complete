@@ -203,6 +203,11 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
           for (const khop of chuoi.matchAll(/\$\{([^}]+)\}/g)) {
             const bieuThuc = khop[1].trim();
             const hopLe = bieuThuc === 'whereSql'
+              /* submissions.js — chọn một trong NĂM mệnh đề ORDER BY viết sẵn
+                 trong hằng CACH_SAP_XEP. Tham số ?sort= của người dùng chỉ dùng
+                 để TRA KHOÁ trong bảng đó; khoá lạ thì rơi về mac_dinh. Không
+                 một ký tự nào từ người dùng lọt vào câu SQL. */
+              || bieuThuc === 'sapXepSql'
               || /^action === 'spam' \? '(NOW\(\)|\?)' : 'NULL'$/.test(bieuThuc)
               /* reports.js — bật/tắt mệnh đề lọc theo số ngày. Bản thân SỐ NGÀY
                  vẫn đi qua dấu ? ở mảng params, chuỗi này chỉ là hằng SQL. */

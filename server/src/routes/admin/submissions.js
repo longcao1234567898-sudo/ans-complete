@@ -24,6 +24,32 @@ function slaOf(row) {
 /** GET /api/admin/submissions — danh sách + lọc + phân trang */
 router.get('/', async (req, res) => {
   const { status, category, q, sla, assigned, urgency } = req.query;
+
+  /* ------------------------------------------------------------------------
+     SẮP XẾP THEO Ý CÁN BỘ
+
+     Mặc định vẫn là thứ tự nghiệp vụ: khẩn cấp trước, rồi quá hạn, rồi mới
+     nhất. Đó là thứ tự đúng cho việc xử lý hằng ngày.
+
+     Nhưng có lúc cán bộ cần thứ tự khác — rà lại đơn cũ tồn đọng, hay xem
+     riêng nhóm ít khẩn cấp. Nên cho chọn.
+
+     ⚠️ Danh sách CỐ ĐỊNH, không ghép chuỗi từ dữ liệu người dùng. Cho phép
+     truyền thẳng tên cột vào ORDER BY là mở đường cho tấn công SQL.
+     ------------------------------------------------------------------------ */
+  const CACH_SAP_XEP = {
+    /* Mặc định — thứ tự nghiệp vụ */
+    mac_dinh: `ORDER BY FIELD(s.urgency,'urgent','important','normal'),
+                        (s.status IN ('received','processing') AND s.deadline_at < NOW()) DESC,
+                        s.created_at DESC`,
+    moi_nhat:  'ORDER BY s.created_at DESC',
+    cu_nhat:   'ORDER BY s.created_at ASC',
+    /* Mức cao trước: khẩn cấp -> quan trọng -> bình thường */
+    muc_cao:   `ORDER BY FIELD(s.urgency,'urgent','important','normal'), s.created_at DESC`,
+    /* Mức thấp trước — để rà nhóm ít gấp mà hay bị bỏ quên */
+    muc_thap:  `ORDER BY FIELD(s.urgency,'normal','important','urgent'), s.created_at DESC`,
+  };
+  const sapXepSql = CACH_SAP_XEP[String(req.query.sort || '')] || CACH_SAP_XEP.mac_dinh;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20));
   const offset = (page - 1) * limit;
@@ -106,9 +132,7 @@ router.get('/', async (req, res) => {
        LEFT JOIN staff st ON s.assigned_to = st.id
        LEFT JOIN wards w ON s.ward_id = w.id
        ${whereSql}
-       ORDER BY FIELD(s.urgency,'urgent','important','normal'),
-                (s.status IN ('received','processing') AND s.deadline_at < NOW()) DESC,
-                s.created_at DESC
+       ${sapXepSql}
        LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );

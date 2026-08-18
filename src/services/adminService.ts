@@ -223,6 +223,8 @@ export interface SubmissionListResult {
 
 export function fetchSubmissions(params: {
   status?: string; category?: string; urgency?: string; sla?: string; assigned?: string;
+  /** mac_dinh | moi_nhat | cu_nhat | muc_cao | muc_thap */
+  sort?: string;
   q?: string; page?: number; limit?: number;
 }): Promise<SubmissionListResult> {
   const qs = new URLSearchParams();
