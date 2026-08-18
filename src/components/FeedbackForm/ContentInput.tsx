@@ -169,13 +169,13 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         maxLength={CONTENT_MAX_LENGTH}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Bà con cứ chia sẻ tự nhiên, không cần đúng chính tả hay dấu câu — AI sẽ tự hiểu. Ví dụ: co nguoi danh nhau gan ben pha tan chau..."
+        placeholder="Bà con cứ chia sẻ tự nhiên, không cần đúng chính tả hay dấu câu — hệ thống sẽ tự hiểu. Ví dụ: co nguoi danh nhau gan ben pha tan chau..."
         className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
       />
       <div className="mt-1.5 flex items-center justify-between text-xs">
         {tooShort ? (
           <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-            <AlertCircle className="h-3.5 w-3.5" /> Bà con mô tả rõ hơn một chút để AI hiểu đúng nhé
+            <AlertCircle className="h-3.5 w-3.5" /> Bà con mô tả rõ hơn một chút để hệ thống hiểu đúng nhé
           </span>
         ) : (
           <span className="text-slate-400">Không bắt buộc đúng chính tả, dấu câu</span>

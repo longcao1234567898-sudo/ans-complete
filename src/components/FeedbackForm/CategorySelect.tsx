@@ -20,7 +20,7 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
     <div>
       <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Chọn nhóm xử lý phù hợp</h3>
       <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-        AI đã gợi ý sẵn nhóm phù hợp nhất, bà con có thể thay đổi nếu thấy chưa chính xác.
+        Hệ thống đã gợi ý sẵn nhóm phù hợp nhất, bà con có thể thay đổi nếu thấy chưa chính xác.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -44,7 +44,7 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
               </span>
               {cat.id === suggested && (
                 <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">
-                  AI gợi ý
+                  Gợi ý
                 </span>
               )}
               <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{cat.description}</p>

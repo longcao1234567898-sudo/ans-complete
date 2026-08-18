@@ -88,7 +88,7 @@ export default function FeaturesSection() {
     <section className="container-page py-16" aria-labelledby="features-title">
       <div className="mx-auto mb-10 max-w-2xl text-center">
         <h2 id="features-title" className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">
-          Sức mạnh AI đồng hành cùng bà con
+          Công nghệ đồng hành cùng bà con
         </h2>
         <p className="mt-2 text-slate-500 dark:text-slate-400">
           Ba tính năng thông minh giúp ý kiến của bà con được tiếp nhận nhanh chóng, chính xác và minh bạch.
