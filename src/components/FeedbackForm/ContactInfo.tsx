@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck, MailCheck, Send, Loader2, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, MailCheck, Send, Loader2, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import type { ContactInfo as ContactInfoType } from '../../types/feedback';
 import Input from '../common/Input';
 import Button from '../common/Button';
@@ -17,13 +17,15 @@ interface ContactInfoProps {
   onChange: (v: ContactInfoType) => void;
   onNext: () => void;
   onBack: () => void;
+  /** Cho bà con làm lại từ đầu ngay tại chỗ báo lỗi */
+  onReset?: () => void;
   /** Nhóm xử lý đã chọn — ẩn danh CHỈ áp dụng cho Tố giác tội phạm */
   category?: string | null;
   /** V10: tên điểm QR đã quét (nếu có) — hiện chú thích cạnh ô chọn địa bàn */
   qrPointName?: string | null;
 }
 
-export default function ContactInfo({ value, onChange, onNext, onBack, category, qrPointName }: ContactInfoProps) {
+export default function ContactInfo({ value, onChange, onNext, onBack, onReset, category, qrPointName }: ContactInfoProps) {
   // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
   const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
 
@@ -168,8 +170,25 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category,
     }
   }
 
+  /* ------------------------------------------------------------------------
+     LIỆT KÊ ĐÍCH DANH THỨ CÒN THIẾU
+
+     Trước đây bấm gửi mà thiếu thì chỉ bật cờ "đã thử", các ô lỗi hiện chữ đỏ
+     rải rác. Bà con gửi ẩn danh chỉ thấy báo chưa đủ thông tin mà không rõ
+     thiếu ở đâu — phải cuộn lên dò từng ô, rất phiền.
+     ------------------------------------------------------------------------ */
+  const conThieu: string[] = [];
+  if (anon) {
+    if (!anonVerified) conThieu.push('Chưa lấy và xác nhận mã ẩn danh 6 số');
+  } else {
+    if (!nameValid) conThieu.push('Họ và tên chưa hợp lệ');
+    if (!phoneValid) conThieu.push('Số điện thoại chưa hợp lệ');
+    if (!emailValid) conThieu.push('Email chưa hợp lệ');
+  }
+  if (!captchaOk) conThieu.push('Chưa qua bước xác minh "Tôi không phải là người máy"');
+
   const handleNext = () => {
-    if (anon ? (captchaOk && anonVerified) : (nameValid && phoneValid && emailValid && captchaOk && otpVerified)) {
+    if (conThieu.length === 0) {
       onNext();
     } else {
       setAttempted(true);
@@ -503,6 +522,46 @@ export default function ContactInfo({ value, onChange, onNext, onBack, category,
         Họ tên và số điện thoại của bà con được MÃ HOÁ trong hệ thống. Cán bộ chỉ thấy dạng che bớt;
         mọi lượt xem danh tính đầy đủ đều bị ghi vào nhật ký.
       </div>
+
+      {/* ==================================================================
+          BẢNG NÊU RÕ CÒN THIẾU GÌ + LỐI THOÁT
+
+          Chỉ hiện sau khi bà con đã bấm gửi một lần — không doạ người mới vào.
+
+          Có nút "Làm lại từ đầu" ngay tại đây: bà con gửi ẩn danh mà kẹt ở
+          bước này thì lối ra gần nhất là bắt đầu lại, chứ bấm "Quay lại" bốn
+          lần vừa lâu vừa dễ nản. Đặt sát chỗ báo lỗi, không bắt đi tìm.
+          ================================================================== */}
+      {attempted && conThieu.length > 0 && (
+        <div className="mt-5 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-900 dark:text-amber-200">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Còn thiếu {conThieu.length} mục
+          </p>
+          <ul className="mb-3 space-y-1">
+            {conThieu.map((t) => (
+              <li key={t} className="flex items-start gap-1.5 text-xs text-amber-900 dark:text-amber-300">
+                <span className="font-bold">•</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+          {onReset && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(
+                  'Làm lại từ đầu sẽ XOÁ nội dung bà con đã nhập.\n\nBà con có chắc không?'
+                )) onReset();
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-slate-900 dark:text-amber-300"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Làm lại từ đầu
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 flex justify-between">
         <Button variant="ghost" onClick={onBack}>

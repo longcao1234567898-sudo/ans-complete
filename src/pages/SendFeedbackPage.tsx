@@ -195,6 +195,7 @@ export default function SendFeedbackPage() {
             onChange={handleContactChange}
             onNext={() => setStep(5)}
             onBack={() => setStep(3)}
+            onReset={handleReset}
             category={draft.category}
             qrPointName={qrPointName}
           />
