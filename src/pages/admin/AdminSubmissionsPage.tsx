@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Search, Loader2, ChevronLeft, ChevronRight, Flag, MessageSquare } from 'lucide-react';
+import { Search, Loader2, ChevronLeft, ChevronRight, Flag, MessageSquare, UserRound } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
-import { fetchSubmissions } from '../../services/adminService';
+import { fetchSubmissions, fetchStaffList } from '../../services/adminService';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
 /* ============================================================================
@@ -21,7 +21,14 @@ import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/ad
    phải status. Máy chủ đã hỗ trợ sẵn tham số này.
    ============================================================================ */
 const STATUS_TABS = [
-  { value: '', label: 'Tất cả', sla: '' },
+  /* ⚠️ Thẻ này gửi status rỗng, mà máy chủ hiểu rỗng là "CHỈ VIỆC CHƯA XONG"
+     (received + processing). Trước đây nó mang nhãn "Tất cả" — sai hẳn nghĩa:
+     đơn vị có 70 ý kiến, mở ra đếm được ba chục rồi tưởng mất dữ liệu, đúng
+     kiểu nhầm lẫn mà cả trang này đang cố tránh. Nhãn nay nói đúng việc nó làm. */
+  { value: '', label: 'Việc chưa xong', sla: '' },
+  /* Muốn xem ĐỦ cả 70 — kể cả đã giải quyết, từ chối, chờ kiểm duyệt — thì
+     phải gửi status='all'. Máy chủ hỗ trợ sẵn, trước nay giao diện không gọi. */
+  { value: 'all', label: 'Tất cả', sla: '' },
   { value: 'received', label: 'Chờ tiếp nhận', sla: '' },
   { value: 'processing', label: 'Đang xử lý', sla: '' },
   { value: 'resolved', label: 'Đã giải quyết', sla: '' },
@@ -59,9 +66,21 @@ export default function AdminSubmissionsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
 
+  /* Danh sách cán bộ cho ô lọc theo tên. Ít thay đổi nên giữ lâu trong bộ nhớ
+     đệm — mỗi lần đổi bộ lọc mà gọi lại là thừa. */
+  const { data: danhSachCanBo } = useQuery({
+    queryKey: ['admin-staff-options'],
+    queryFn: fetchStaffList,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['admin-submissions', status, category, urgency, sla, assigned, sort, q, page],
     queryFn: () => fetchSubmissions({
+      /* ⚠️ PHẢI truyền `sort`. Trước đây sort nằm trong queryKey nhưng không
+         nằm trong lời gọi — đổi ô sắp xếp thì react-query nạp lại đúng một
+         lần rồi trả về y hệt thứ tự cũ, ô chọn nhìn như bị hỏng. */
+      sort,
       status, category, urgency, assigned, q, page, limit: 15,
       /* Không ở mục "Quá hạn" thì ẨN việc quá hạn khỏi danh sách — chúng đã
          có mục riêng, để lẫn vào đây là đọc trùng và chiếm chỗ việc trong hạn. */
@@ -105,30 +124,17 @@ export default function AdminSubmissionsPage() {
         ))}
       </div>
 
-      {/* ====================================================================
-          DẢI BÁO ĐANG ẨN VIỆC QUÁ HẠN
+      {/* ⚠️ ĐÃ XOÁ DẢI BÁO "danh sách này không hiện việc đã quá hạn".
 
-          ⚠️ BẮT BUỘC PHẢI CÓ. Danh sách đang ẩn việc quá hạn để chúng không
-          chiếm chỗ việc trong hạn — nhưng ẩn mà không nói là giấu việc. Cán bộ
-          mở ra thấy danh sách ngắn hơn thường ngày sẽ tưởng hệ thống mất dữ
-          liệu, hoặc tệ hơn là tưởng đã xử lý hết.
+          Dải đó ra đời cùng cách lọc sla=an_qua_han. Bản vá 64 việc bị giấu đã
+          bỏ hẳn cách lọc ấy, nhưng dải chữ ở lại — thành ra danh sách hiện đủ
+          việc quá hạn mà vẫn khẳng định là đang giấu chúng. Cán bộ đọc dải này
+          rồi bấm sang mục riêng để tìm việc vốn đã nằm ngay trước mắt.
 
-          Dải này luôn hiện kèm nút mở thẳng sang mục "Quá hạn".
-          ==================================================================== */}
-      {!sla && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
-          <span className="text-xs text-slate-600 dark:text-slate-300">
-            Danh sách này <b>không hiện việc đã quá hạn</b> — chúng nằm ở mục riêng.
-          </span>
-          <button
-            type="button"
-            onClick={() => { setStatus(''); setSla('overdue'); setPage(1); }}
-            className="ml-auto rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-rose-700"
-          >
-            ⏰ Xem việc quá hạn
-          </button>
-        </div>
-      )}
+          Một dòng thông báo sai còn tai hại hơn không có dòng nào: nó dạy người
+          dùng ngờ vực đúng cái danh sách vừa được sửa cho đáng tin.
+
+          Nút tắt sang mục "⏰ Quá hạn" vẫn còn nguyên trên hàng thẻ phía trên. */}
 
       {/* ====================================================================
           DẢI BÁO ĐANG LỌC
@@ -149,6 +155,16 @@ export default function AdminSubmissionsPage() {
           {sla === 'near' && <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">Sắp hết hạn</span>}
           {sla === 'soon' && <span className="rounded-lg bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">Sắp hết hạn</span>}
           {assigned === 'none' && <span className="rounded-lg bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">Chưa phân công</span>}
+          {assigned === 'me' && <span className="rounded-lg bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">Việc của tôi</span>}
+          {/* Lọc theo một cán bộ cụ thể: hiện TÊN chứ không hiện mã số. Mã số
+              chẳng nói lên điều gì, mà dải này sinh ra chính là để nói rõ đang
+              lọc gì. Chưa tải xong danh sách thì lùi về chữ chung, không để
+              trống — trống thì dải hiện ra mà không giải thích được gì. */}
+          {/^[0-9]+$/.test(assigned) && (
+            <span className="rounded-lg bg-slate-600 px-2 py-0.5 text-xs font-bold text-white">
+              Phụ trách: {(danhSachCanBo ?? []).find((cb) => String(cb.id) === assigned)?.full_name ?? 'một cán bộ'}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => { setSla(''); setAssigned(''); setPage(1); }}
@@ -180,7 +196,39 @@ export default function AdminSubmissionsPage() {
           <option value="cu_nhat">Cũ nhất trước</option>
           <option value="muc_cao">Mức khẩn cấp: cao đến thấp</option>
           <option value="muc_thap">Mức khẩn cấp: thấp đến cao</option>
+          {/* Máy chủ hỗ trợ sẵn kiểu này, trước nay ô chọn không liệt kê ra */}
+          <option value="theo_can_bo">Gom theo cán bộ phụ trách</option>
         </select>
+
+        {/* ================================================================
+            LỌC THEO CÁN BỘ PHỤ TRÁCH
+
+            Đặt ngay cạnh ô sắp xếp vì hai thứ hay dùng chung một lượt: trưởng
+            phòng gom theo cán bộ để nhìn tổng thể, rồi chọn đúng một người để
+            xem kỹ. Tách xa nhau thì mắt phải nhảy qua lại giữa hai đầu trang.
+
+            Số trong ngoặc là số việc CHƯA XONG của cán bộ đó — chọn ai để giao
+            thêm thì nhìn ngay ra, không phải mở từng người ra đếm.
+            ================================================================ */}
+        <span className="ml-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <UserRound className="h-3.5 w-3.5" />
+          Cán bộ:
+        </span>
+        <select
+          value={assigned}
+          onChange={(e) => { setAssigned(e.target.value); setPage(1); }}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-primary-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          <option value="">Tất cả cán bộ</option>
+          <option value="me">Việc của tôi</option>
+          <option value="none">Chưa phân công</option>
+          {(danhSachCanBo ?? []).map((cb) => (
+            <option key={cb.id} value={String(cb.id)}>
+              {cb.full_name} ({cb.open_count})
+            </option>
+          ))}
+        </select>
+
         {sort !== 'mac_dinh' && (
           /* Nhắc rõ đang không ở thứ tự mặc định — cán bộ hay quên rồi tưởng
              hệ thống sắp sai */

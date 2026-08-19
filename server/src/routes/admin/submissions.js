@@ -63,15 +63,21 @@ router.get('/', async (req, res) => {
                            st.full_name ASC,
                            FIELD(s.urgency,'urgent','important','normal'),
                            s.created_at DESC`,
-    /* Gom theo CÁN BỘ PHỤ TRÁCH — để trưởng phòng xem ai đang ôm việc gì.
-       Đơn CHƯA PHÂN CÔNG xếp lên đầu: đó là nhóm dễ rơi vào khoảng trống nhất,
-       không ai thấy mình có trách nhiệm nên cứ nằm tới lúc quá hạn. */
-    theo_can_bo: `ORDER BY (s.assigned_to IS NULL) DESC,
-                           st.full_name ASC,
-                           FIELD(s.urgency,'urgent','important','normal'),
-                           s.created_at DESC`,
   };
-  const sapXepSql = CACH_SAP_XEP[String(req.query.sort || '')] || CACH_SAP_XEP.mac_dinh;
+  /* ⚠️ PHẢI dùng Object.hasOwn, KHÔNG tra thẳng CACH_SAP_XEP[khoa].
+
+     Tra thẳng thì mọi khoá kế thừa từ prototype đều "có thật": gọi
+     ?sort=constructor trả về hàm Object, ?sort=toString trả về một hàm khác —
+     đều là giá trị truthy nên lọt qua phép `||` bên dưới, rồi bị nhét nguyên
+     văn vào chuỗi SQL ở chỗ ${sapXepSql}. Kết quả là câu lệnh hỏng và máy chủ
+     trả 500 cho một tham số mà ai gõ vào thanh địa chỉ cũng tạo được.
+
+     Bảng sắp xếp vẫn CỐ ĐỊNH, không ghép chuỗi từ dữ liệu người dùng — chỗ này
+     chỉ bịt nốt đường vòng qua prototype. */
+  const khoaSapXep = String(req.query.sort || '');
+  const sapXepSql = Object.hasOwn(CACH_SAP_XEP, khoaSapXep)
+    ? CACH_SAP_XEP[khoaSapXep]
+    : CACH_SAP_XEP.mac_dinh;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 20));
   const offset = (page - 1) * limit;
@@ -124,8 +130,31 @@ router.get('/', async (req, res) => {
     where.push('s.urgency = ?');
     params.push(urgency);
   }
-  if (assigned === 'me') { where.push('s.assigned_to = ?'); params.push(req.staff.id); }
-  if (assigned === 'none') where.push('s.assigned_to IS NULL');
+  /* ---------------------------------------------------------------------
+     LỌC THEO CÁN BỘ PHỤ TRÁCH — ba dạng giá trị
+
+       'me'   : việc của chính người đang đăng nhập
+       'none' : chưa phân công cho ai
+       số      : mã cán bộ cụ thể (ô chọn tên cán bộ trên danh sách)
+
+     ⚠️ Dạng SỐ phải kiểm tra bằng biểu thức chính quy rồi mới ép kiểu. Đẩy
+     thẳng req.query vào tham số truy vấn thì mysql2 vẫn thoát chuỗi an toàn,
+     nhưng một chuỗi rác lọt vào sẽ so sánh với cột số và MySQL âm thầm ép
+     kiểu -> trả về danh sách sai chứ không báo lỗi. Chặn ngay ở đây rõ hơn.
+
+     Dùng else if: ba dạng loại trừ nhau, để rời từng câu if thì một giá trị
+     lạ có thể rơi vào nhiều nhánh cùng lúc.
+     --------------------------------------------------------------------- */
+  const canBo = String(assigned ?? '').trim();
+  if (canBo === 'me') {
+    where.push('s.assigned_to = ?');
+    params.push(req.staff.id);
+  } else if (canBo === 'none') {
+    where.push('s.assigned_to IS NULL');
+  } else if (/^[0-9]{1,10}$/.test(canBo)) {
+    where.push('s.assigned_to = ?');
+    params.push(Number(canBo));
+  }
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   try {

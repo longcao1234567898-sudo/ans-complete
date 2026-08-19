@@ -3,27 +3,67 @@
  */
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import type { NewsTag } from '../types/news';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import type { NewsArticle, NewsTag } from '../types/news';
 import { fetchNews } from '../services/newsService';
 import NewsFilter from '../components/News/NewsFilter';
 import NewsGrid from '../components/News/NewsGrid';
 import PageBackground from '../components/common/PageBackground';
 
-/* Mỗi lần hiện tối đa 21 tin: 1 tin nổi bật + 20 tin thường, chia hết cho
-   lưới 2 cột (máy tính bảng) và 4 cột (máy tính) nên không lẻ hàng cuối. */
+/* ============================================================================
+   MỖI LẦN HIỆN 21 TIN: 1 tin nổi bật (ảnh lớn) + 20 tin thường.
+
+   ⚠️ Chú thích cũ ghi "chia hết cho lưới 2 cột và 4 cột" — lưới thật ở
+   NewsGrid là `sm:grid-cols-2 lg:grid-cols-3`, KHÔNG có mốc 4 cột nào. 20 tin
+   chia 3 cột dư 2, nên hàng cuối trên màn hình rộng đứng lẻ 2 thẻ.
+
+   Đó là chuyện thẩm mỹ nhỏ, không phải lỗi, nên giữ nguyên con số 21. Muốn
+   hàng cuối luôn đầy ở CẢ 2 và 3 cột thì phần còn lại phải chia hết cho 6:
+   đổi thành 19 (1 + 18) hoặc 25 (1 + 24).
+   ============================================================================ */
 const MOI_LAN = 21;
 
 export default function NewsPage() {
   const [tag, setTag] = useState<NewsTag | 'all'>('all');
   const [soHien, setSoHien] = useState(MOI_LAN);
 
+  /* --------------------------------------------------------------------------
+     CHỈ TẢI ĐÚNG SỐ TIN ĐANG CẦN, CỘNG THÊM MỘT LƯỢT DỰ TRỮ
+
+     ⚠️ Trước đây gọi fetchNews(tag) trần, không kèm limit. Máy chủ hiểu đó là
+     "lấy tối đa" nên trả về tới 100 bài ngay từ lần mở trang đầu tiên. Hai hệ
+     quả đều đi ngược ý định của nút "Xem thêm":
+       1. Bà con dùng 3G tải trọn 100 bài rồi chỉ xem 21 — đúng thứ nút này
+          sinh ra để tránh.
+       2. Mục nào có hơn 100 bài thì bấm "Xem thêm" mãi cũng dừng ở 100, không
+          báo gì cả, cứ như tin cũ biến mất.
+
+     Lấy dư đúng MỘT lượt là vừa đủ: nút chỉ cần biết lượt kế tiếp còn bao
+     nhiêu tin để ghi lên nhãn, không cần biết tổng kho có bao nhiêu.
+     -------------------------------------------------------------------------- */
   const { data, isLoading } = useQuery({
-    queryKey: ['news', tag],
-    queryFn: () => fetchNews(tag),
+    queryKey: ['news', tag, soHien],
+    queryFn: () => fetchNews(tag, soHien + MOI_LAN),
+    placeholderData: keepPreviousData,
   });
 
-  const tatCa = data ?? [];
+  /* ⚠️ LỌC TRÙNG TRƯỚC KHI CẮT.
+
+     NewsGrid có bước lọc bài trùng tiêu đề, nhưng nó chạy SAU khi trang này đã
+     cắt lấy 21 bài. Nên hai bài trùng lọt vào trong 21 thì lưới bỏ một, màn
+     hình còn 20 — mà nhãn nút vẫn đếm theo danh sách chưa lọc. Lọc ở đây thì
+     luôn hiện đủ 21 bài KHÁC NHAU và số trên nút mới khớp. */
+  const tatCa = (() => {
+    const list: NewsArticle[] = data ?? [];
+    const theoTieuDe = new Map<string, NewsArticle>();
+    for (const a of list) {
+      const khoa = a.title.trim().toLowerCase();
+      const cu = theoTieuDe.get(khoa);
+      if (!cu || (!cu.thumbnail && a.thumbnail)) theoTieuDe.set(khoa, a);
+    }
+    return [...theoTieuDe.values()];
+  })();
+
   const dangHien = tatCa.slice(0, soHien);
   const conLai = tatCa.length - dangHien.length;
 

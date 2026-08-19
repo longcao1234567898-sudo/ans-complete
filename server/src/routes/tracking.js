@@ -14,7 +14,9 @@ router.get('/:code', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT s.tracking_code, s.original_content, s.ai_processed_content,
-              c.code AS category_code, s.status, s.rejection_reason, s.created_at
+              c.code AS category_code, s.status, s.rejection_reason, s.created_at,
+              /* Hạn xử lý — cần để nói thật với bà con khi hồ sơ đã trễ hẹn */
+              s.deadline_at
        FROM submissions s LEFT JOIN categories c ON s.category_id = c.id
        WHERE s.tracking_code = ?`,
       [code]
@@ -65,6 +67,21 @@ router.get('/:code', async (req, res) => {
       }
     }
 
+    /* ========================================================================
+       HỒ SƠ QUÁ HẠN MÀ CHƯA XỬ LÝ XONG -> NÓI THẲNG RA
+
+       "Quá hạn" không phải một trạng thái trong database, mà là phép so hạn
+       xử lý với thời điểm hiện tại — giống hệt cách trang quản trị tính.
+
+       ⚠️ CHỈ tính với hồ sơ CHƯA ĐÓNG. Hồ sơ đã giải quyết hoặc đã từ chối thì
+       xong việc rồi, có trễ cũng không còn gì để bà con chờ nữa; dán thêm nhãn
+       đỏ vào đó chỉ gây hoang mang chứ không giúp được gì.
+       ======================================================================== */
+    const chuaXong = ['pending_review', 'received', 'processing'].includes(s.status);
+    const quaHan = Boolean(
+      chuaXong && s.deadline_at && new Date(s.deadline_at).getTime() < Date.now()
+    );
+
     res.json({
       code: s.tracking_code,
       status: s.status,
@@ -73,6 +90,8 @@ router.get('/:code', async (req, res) => {
       createdAt: s.created_at,
       steps,
       rejectionReason: s.rejection_reason || undefined,
+      overdue: quaHan,
+      deadlineAt: s.deadline_at || undefined,
     });
   } catch (err) {
     console.error('Lỗi tra cứu:', err);

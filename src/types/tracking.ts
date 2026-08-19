@@ -34,4 +34,8 @@ export interface TrackingResult {
   steps: TrackingStep[];
   /** Lý do từ chối (chỉ có khi status = rejected) */
   rejectionReason?: string;
+  /** Đã quá hạn xử lý mà hồ sơ chưa đóng. Máy chủ tính, không lưu trong DB. */
+  overdue?: boolean;
+  /** Hạn xử lý theo nhóm (ISO string); rỗng nếu nhóm không đặt hạn */
+  deadlineAt?: string;
 }

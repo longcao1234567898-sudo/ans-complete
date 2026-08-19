@@ -1,90 +1,100 @@
-============================================================
-LỆNH GIT — dán thẳng vào Terminal
-============================================================
+fix: loc theo can bo, sap xep hoat dong, chan trang Zalo, tra cuu don qua han
 
-git add .
-git commit -m "Them chat an danh 2 chieu + chan spam theo thiet bi, bo nen video, loc 3 muc khan cap" -m "TINH NANG MOI (backend da xong, giao dien lam o buoc sau):
+DANH SACH Y KIEN (quan tri)
 
-1. CHAT AN DANH HAI CHIEU
-   - Bang report_messages: chi luu noi dung + ben gui (can bo/nguoi dan) +
-     thoi diem. KHONG luu ten, so dien thoai, email hay IP.
-   - Cot chat_pin_hash: ma PIN 6 so cap MOT LAN luc gui don, database chi giu
-     ban bam bcrypt. Vao phong chat can ma tra cuu + PIN.
-     Ly do can them PIN: ma tra cuu chi de XEM tien do, lo ra khong sao. Phong
-     chat co cau hoi nghiep vu cua can bo, lo ra la lo huong xac minh.
-   - API cong khai: POST /api/chat/open, GET|POST /api/chat/messages
-   - API can bo:   GET|POST /api/admin/chat/:id/messages
-   - LUAT DONG CHAT o CA HAI LOP: ho so o trang thai resolved/rejected/spam thi
-     may chu tra 403 va giao dien khoa o nhap. Chan o may chu moi la lop that
-     su — nguoi dung cong cu goi API van di thang vao duoc.
-   - Chong do PIN: 5 lan thu sai / 15 phut moi IP. Sai ma tra cuu va sai PIN
-     tra ve CUNG MOT thong bao de khong lo ma nao co that.
+- Them o loc theo can bo phu trach, dat canh o sap xep. Danh sach lay tu
+  fetchStaffList, kem so viec chua xong cua tung nguoi. May chu truoc chi
+  hieu 'me' va 'none' nen chon ten ai cung ra nguyen danh sach; nay nhan
+  them ma so can bo, co chan gia tri la.
 
-2. CHAN SPAM THEO THIET BI (shadow ban)
-   - Bang blacklists + cot device_id, is_spam trong submissions
-   - Khoa theo MA THIET BI (UUID trinh duyet tu sinh), KHONG khoa theo IP:
-     nha mang di dong dung CGNAT, hang tram thue bao chung mot IP -> khoa IP
-     la khoa oan ca vung thue bao, dung nhom ba con dung 4G o que.
-   - CHAN NGAM: van nhan don, van cap ma tra cuu, man hinh van bao thanh cong,
-     nhung danh dau is_spam=1 nen khong vao hang cho can bo. Bao thang la mach
-     nuoc cho ke pha hoai xoa bo nho trinh duyet doi may.
-   - Luat du phong theo IP: chi khoa khi cung 1 IP co >=3 don rac tu >=3 thiet
-     bi khac nhau trong 1 gio (dau hieu xoa cache doi ma thiet bi). Khoa 2 gio.
-   - Khoa LUON CO HAN (thiet bi 24h, IP 2h), khong bao gio vinh vien: may o
-     tiem net, dien thoai muon nguoi than co the doi chu.
-   - Can bo go khoa duoc bat cu luc nao.
+- Sua o SAP XEP khong hoat dong. Tham so `sort` nam trong queryKey cua
+  react-query nhung khong nam trong loi goi fetchSubmissions, nen doi o
+  chon thi nap lai dung cau truy van cu. Nay truyen day du. Bo sung kieu
+  "Gom theo can bo phu trach" — may chu ho tro san, giao dien chua liet ke.
 
-GIAO DIEN:
-- Bo HET nen video (hero-bg, nui-cam, nui-sam, ho-tinh-tam, lang-noi),
-  dung anh .webp da co san. Video chay lap lam nong may, ton pin va dung luong
-  3G/4G trong khi bi phu trang toi muc khong thay chuyen dong.
-  Xoa 5 tep .mp4 -> dist giam tu 5.0M xuong 4.0M.
-- Nang lop phu trang tu 70-90% len 92-97%: anh chi con la sac nen rat nhat
-  hoa vao giao dien, mat tap trung vao noi dung.
-- Danh sach y kien: them thanh loc 3 MUC KHAN CAP (Khan cap / Quan trong /
-  Binh thuong), mau trung voi nhan tren tung the. Hien ro dang loc muc nao.
-- Go huy hieu 'AI' canh ten he thong va cau 'thong minh voi AI' (AI khong con
-  tham gia phan loai).
+- Bo khoa `theo_can_bo` bi khai hai lan trong bang sap xep cua may chu.
 
-Kiem thu: 286/286 dat (them 1 bai canh router chat phai co chan xac thuc).
-TypeScript: 0 loi."
-git push
+- Tra bang sap xep bang Object.hasOwn thay vi tra khoa truc tiep.
+  ?sort=constructor tra ve ham Object, la gia tri truthy nen lot qua phep
+  `||` roi bi nhet nguyen van vao chuoi SQL — may chu tra 500 cho mot tham
+  so ai go thanh dia chi cung tao duoc.
 
+- Xoa dai chu "danh sach nay khong hien viec da qua han". Ban va 64 viec bi
+  giau da bo han cach an do, nhung dai chu o lai — danh sach hien du viec
+  qua han ma van khang dinh dang giau chung.
 
-============================================================
-SAU KHI PUSH — 3 VIEC
-============================================================
+- The "Tat ca" truoc day gui status rong, ma may chu hieu rong la CHI VIEC
+  CHUA XONG. Doi nhan thanh "Viec chua xong" va them the "Tat ca" that su
+  (status=all) de xem du ca 70 ho so.
 
-1. CHAY SQL — BAT BUOC, khong chay thi chat va chan spam khong hoat dong
-       database/nang_cap_v12.sql
+CHAN TRANG ZALO
 
-   (Da sua loi 3780 "Referencing column ... are incompatible": cot
-    submission_id truoc khai BIGINT UNSIGNED nhung submissions.id la BIGINT
-    khong dau. MySQL doi hai ben khoa ngoai khop kieu TUYET DOI, ke ca khac
-    nhau o cho co dau hay khong. Da doi ve BIGINT.)
-   (neu chua chay v10, v11 thi chay truoc)
-   Kiem tra cuoi file phai ra: bang_chat=1 · bang_khoa=1 · cot_moi=3 · view_moi=2
+- Them logo Zalo va ten don vi vao khoi con lai sau lan xoa khoi nhan doi.
+  Truoc do khoi chi co mot o vuong den trang khong ro cua ai.
 
-2. KEO dist LEN NETLIFY (giai nen dist-HOAN-CHINH.zip)
+- Gop hai bo hang so Zalo song song (zaloQrImage/zaloGroupName da dung va
+  zaloQrUrl/zaloName/zaloJoinUrl khong noi nao dung) ve mot bo duy nhat.
+  Hai bo tro ve hai duong dan anh KHAC NHAU — sua nham bo khong dung thi
+  trang van hien anh cu ma khong hieu vi sao.
 
-3. KIEM TRA
-   - Trang chu: khong con nen video, anh nen rat nhat, khong con chu 'AI'
-     canh ten he thong
-   - Quan tri -> Danh sach y kien: co 4 nut loc muc khan cap o tren
-   - Gui thu mot y kien -> man hinh xac nhan phai hien MA PIN 6 so
-     (giao dien hien PIN se lam o buoc sau, hien tai PIN da co trong du lieu
-      tra ve cua API)
+- CANH BAO: duong dan anh QR cu (i.ibb.co/LhQPys0h) KHONG tra ve ma QR ma
+  tra ve mot tam anh chan dung nguoi la 83x83. Da thay bang anh giu cho
+  trong public/media/. PHAI thay bang ma QR that truoc khi ban giao.
 
+- Anh QR doi tu object-cover sang object-contain. Ma QR bi cat xen la hong
+  han: mat mot o vuong dinh vi thi camera khong do ra ma nua.
 
-============================================================
-CON LAI (buoc sau)
-============================================================
+- Bo truncate o dong ten don vi — cot chan trang hep nen bi cat thanh
+  "Do Cong an thi xa Tan Chau qua...".
 
-Backend hai tinh nang da xong va da kiem thu. Con phan GIAO DIEN:
-  - Khung chat tren trang Tra cuu (nhap ma tra cuu + PIN de vao)
-  - Khung chat tren trang chi tiet ho so cua can bo
-  - Man hinh xac nhan hien ma PIN kem nhac luu lai
-  - Trang quan ly danh sach khoa thiet bi
-  - Trinh duyet sinh va gui deviceId khi gui y kien
+BUOC 5 GUI Y KIEN
 
-Nhan "tiep tuc" la toi lam tiep phan giao dien.
+- Them nut "Ve trang chu" ben canh "Xem tien do" va "Gui y kien khac". Hai
+  loi ra cu deu dan nguoc vao chinh quy trinh vua xong.
+
+BA THE "CONG NGHE DONG HANH"
+
+- Ca ba the nay bam theo dung mot tin nhan mau, ke lien mach: doc hieu ->
+  phan loai -> theo doi tien do.
+
+- Hieu ung chi chay khi da cuon toi (useInView). Truoc day chay ngay luc
+  dung component, ma khu vuc nam tit duoi trang chu — den luc nguoi xem
+  cuon toi thi chu da go xong tu lau.
+
+- Thanh tien do chay that qua ba buoc. Ban cu ghi cung idx === 0 nen the
+  ten "Theo doi tien do" lai minh hoa mot tien do dung im.
+
+- Ton trong cai dat giam chuyen dong cua he dieu hanh.
+
+TRA CUU (routes/tracking.js)
+
+- Ho so qua han ma chua xu ly xong nay tra ve co `overdue` va `deadlineAt`.
+  Trang tra cuu hien dai noi thang: dang tre, chua bi bo sot, xin loi, kem
+  so truc ban va ma ho so.
+
+- LUU Y: yeu cau ban dau la CHAN tra cuu voi don qua han. Da khong lam vay:
+  don cang tre thi nguoi gui cang can theo doi, chan lai la bien cham tre
+  cua don vi thanh buc tuong truoc mat nguoi dang cho — cung co che da gay
+  ra loi 64 viec bi giau, chi doi huong tu can bo sang nguoi dan.
+
+TIN TUC
+
+- Trang goi fetchNews(tag) tran, khong kem limit, nen may chu tra ve toi
+  100 bai ngay lan mo dau tien roi chi hien 21 — dung thu nut "Xem them"
+  sinh ra de tranh. Muc nao hon 100 bai thi bam mai cung dung o 100. Nay
+  lay dung so dang can cong mot luot du tru.
+
+- Loc bai trung chay TRUOC khi cat 21 bai. Truoc day NewsGrid loc sau khi
+  trang da cat, nen hai bai trung lot vao trong 21 thi man hinh con 20 ma
+  nhan nut van dem theo danh sach chua loc.
+
+- Sua chu thich ghi sai luoi 4 cot; luoi that la sm:grid-cols-2
+  lg:grid-cols-3.
+
+KIEM THU
+
+- Them tests/sap-xep-va-loc-can-bo.test.js: khoa lai o sap xep, o loc can
+  bo, the "Tat ca", va chot chan khoa prototype. Kieu hong "may chu dung,
+  giao dien dung, cho noi giua sai" khong lo ra o test chi kiem mot phia.
+
+- npx tsc --noEmit: sach. node --test tests/*.test.js: 298/298 dat.

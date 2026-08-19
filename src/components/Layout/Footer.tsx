@@ -114,16 +114,46 @@ export default function Footer() {
                 điện thoại quét mãi không ra.
                 ============================================================== */}
             {UNIT.zaloQrImage && (
-              <div className="mb-4 rounded-2xl bg-white/10 p-3">
-                <p className="mb-2 text-sm font-bold text-white">
-                  {UNIT.zaloGroupName}
-                </p>
+              <div className="mb-4 rounded-2xl border border-white/15 bg-white/[0.07] p-3">
+                {/* Hàng nhận diện: LOGO + TÊN NHÓM + TÊN ĐƠN VỊ CHỦ QUẢN.
+
+                    Thiếu logo thì khối chỉ là một ô vuông đen trắng lạ mắt —
+                    bà con không biết quét vào đâu, mà mã QR thì trông giống
+                    hệt nhau cả. Dấu hiệu màu quen thuộc nói ngay "đây là Zalo"
+                    trước khi đọc tới chữ.
+
+                    Tên đơn vị đặt ngay dưới tên nhóm để thấy rõ nhóm này do
+                    Công an lập, không phải nhóm tự phát ai đó mạo danh — đúng
+                    thứ cần khẳng định khi bảo bà con quét một mã QR. */}
+                <div className="mb-2.5 flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0068FF] shadow-md">
+                    <MessageCircle className="h-5 w-5 text-white" aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold leading-tight text-white">
+                      {UNIT.zaloGroupName}
+                    </span>
+                    {/* KHÔNG dùng truncate: cột chân trang hẹp, tên đơn vị dài
+                        nên bị cắt thành "Do Công an thị xã Tân Châu quả..." —
+                        đúng chỗ cần khẳng định nhóm này của ai thì lại đọc
+                        không ra. Cho xuống dòng, tốn một dòng nhưng đọc đủ. */}
+                    <span className="block text-[11px] leading-snug text-slate-400">
+                      Do {UNIT.name} quản lý
+                    </span>
+                  </span>
+                </div>
+
                 <div className="flex items-center gap-3">
                   <span className="shrink-0 rounded-xl bg-white p-1.5">
                     <img
                       src={UNIT.zaloQrImage}
-                      alt={`Mã QR ${UNIT.zaloGroupName}`}
-                      className="h-24 w-24 rounded-lg object-cover"
+                      alt={`Mã QR ${UNIT.zaloGroupName} — ${UNIT.name}`}
+                      /* object-CONTAIN, không phải object-cover.
+
+                         Ảnh mã QR mà bị cắt xén là hỏng hẳn: ba ô vuông định
+                         vị ở góc mất một cái thì camera không dò ra mã nữa.
+                         Ảnh không vuông thì thà chừa viền trắng còn hơn cắt. */
+                      className="h-24 w-24 rounded-lg object-contain"
                       loading="lazy"
                     />
                   </span>
@@ -134,6 +164,19 @@ export default function Footer() {
                     nhắc bà con cảnh giác thủ đoạn lừa đảo mới.
                   </p>
                 </div>
+
+                {/* Người xem trên MÁY TÍNH không quét được mã trên chính màn
+                    hình của mình. Có đường dẫn mời thì cho bấm thẳng. */}
+                {UNIT.zaloJoinUrl && (
+                  <a
+                    href={UNIT.zaloJoinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2.5 flex items-center justify-center rounded-xl bg-[#0068FF] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0055D4]"
+                  >
+                    Mở nhóm trên Zalo
+                  </a>
+                )}
               </div>
             )}
 

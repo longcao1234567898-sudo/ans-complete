@@ -33,39 +33,53 @@ export const UNIT = {
   email: 'congan.tanchau@angiang.gov.vn',
   facebookUrl: 'https://www.facebook.com/conganthixatanchauangiang',
   websiteUrl: 'https://congan.angiang.gov.vn',
-  /* Ảnh mã QR nhóm Zalo của địa bàn. Đổi đơn vị thì thay đường dẫn ảnh này.
-     Để rỗng thì khối Zalo ở chân trang tự ẩn đi. */
-  zaloQrImage: 'https://i.ibb.co/LhQPys0h/zalo-qr.jpg',
-  zaloGroupName: 'Nhóm Zalo An ninh trật tự',
+  /* ==========================================================================
+     NHÓM ZALO CỦA ĐỊA BÀN — ba trường, một nguồn duy nhất
 
-  /* ------------------------------------------------------------------------
-     NHÓM ZALO CỦA ĐỊA BÀN
+       zaloQrImage — ảnh mã QR để bà con quét vào nhóm
+       zaloGroupName — tên nhóm, hiện phía trên mã
+       zaloJoinUrl — đường dẫn mời; có thì khối thành nút bấm được, tiện cho
+                     người xem trên máy tính vì không giơ camera lên màn hình
+                     của chính mình được. Để rỗng thì khối chỉ hiện mã QR.
 
-     zaloQrUrl  — ảnh mã QR để bà con quét vào nhóm
-     zaloName   — tên nhóm, hiện dưới mã
-     zaloJoinUrl— đường dẫn mời, cho người xem trên máy tính bấm thẳng
+     ⚠️ TRƯỚC ĐÂY CÓ HAI BỘ TRƯỜNG SONG SONG cho cùng một nhóm Zalo:
+     zaloQrImage/zaloGroupName (chân trang dùng) và zaloQrUrl/zaloName/
+     zaloJoinUrl (không nơi nào dùng) — di chứng của khối Zalo bị nhân đôi.
+     Hai bộ trỏ về HAI đường dẫn ảnh KHÁC NHAU, nên ai sửa nhầm bộ không dùng
+     thì trang vẫn hiện mã cũ mà không hiểu vì sao. Nay gộp còn một bộ.
+
+     ⚠️⚠️ ĐANG DÙNG ẢNH GIỮ CHỖ — PHẢI THAY TRƯỚC KHI BÀN GIAO.
+
+     Đường dẫn cũ là 'https://i.ibb.co/LhQPys0h/zalo-qr.jpg'. Kiểm tra thực tế
+     ngày đóng gói: nó KHÔNG trả về mã QR mà trả về một tấm ảnh chân dung
+     người lạ 83x83. Cả hai đường dẫn cũ (zalo-qr.jpg và zalo-nhom.jpg) đều ra
+     đúng tấm ảnh đó, vì ibb.co bỏ qua phần tên tệp và chỉ đọc mã LhQPys0h.
+
+     Nghĩa là chân trang một trang web của Công an đang hiện ảnh mặt một người
+     lạ ở đúng chỗ ghi "quét mã để vào nhóm". Đây chính là rủi ro mà chú thích
+     bên dưới cảnh báo, và nó đã xảy ra thật.
+
+     CÁCH THAY:
+       1. Mở nhóm Zalo -> Tuỳ chọn -> Mã QR nhóm -> lưu ảnh về máy.
+       2. Đặt ảnh vào public/media/ (ví dụ: zalo-qr.png).
+       3. Đổi dòng zaloQrImage bên dưới thành '/media/zalo-qr.png'.
+
+     ⚠️ PHẢI LÀ ĐƯỜNG DẪN ẢNH TRỰC TIẾP nếu vẫn muốn dùng link ngoài.
+       Đúng : https://i.ibb.co/xxxxxxx/ten-anh.jpg   (mở ra thấy MỖI ảnh)
+       Sai  : https://ibb.co/LhQPys0h                (trang có nút tải, quảng cáo)
 
      ⚠️ Mã QR nhóm Zalo THƯỜNG CÓ HẠN (khoảng 30 ngày). Hết hạn thì quét ra
      trang báo lỗi — bà con tưởng nhóm giải tán. Đơn vị nên đặt lịch xem lại
      hằng tháng, tạo mã mới rồi thay ảnh ở đây.
 
-     Để rỗng chuỗi zaloQrUrl thì cả khối tự ẩn, không hiện ô trống.
-     ------------------------------------------------------------------------ */
-  /* ⚠️ PHẢI LÀ ĐƯỜNG DẪN ẢNH TRỰC TIẾP, không phải trang xem ảnh.
+     ⚠️ Ảnh đặt trong public/media/ an toàn hơn hẳn link ngoài: trang chia sẻ
+     ảnh miễn phí có thể đổi nội dung hoặc xoá ảnh bất cứ lúc nào mà không ai
+     hay biết — đúng như trường hợp vừa gặp.
 
-     Đúng  : https://i.ibb.co/xxxxxxx/ten-anh.jpg     (mở ra thấy MỖI ảnh)
-     Sai   : https://ibb.co/LhQPys0h                  (trang có nút tải, quảng cáo)
-
-     Cách lấy: mở trang chia sẻ -> bấm chuột phải vào ảnh -> "Sao chép địa chỉ
-     hình ảnh". Dán vào thanh địa chỉ thử, phải hiện ra đúng một tấm ảnh trên
-     nền trơn thì mới đúng.
-
-     ⚠️ Đường dẫn ibb.co là TẠM. Trang chia sẻ ảnh miễn phí có thể xoá ảnh bất
-     cứ lúc nào, hoặc chèn quảng cáo. Nên tải ảnh về đặt vào public/media/ rồi
-     đổi thành '/media/zalo-nhom.jpg' — như vậy ảnh nằm cùng hệ thống, không
-     phụ thuộc bên thứ ba. */
-  zaloQrUrl: 'https://i.ibb.co/LhQPys0h/zalo-nhom.jpg',
-  zaloName: 'Nhóm Zalo An ninh trật tự địa bàn',
+     Để rỗng zaloQrImage thì cả khối tự ẩn, không hiện ô trống.
+     ========================================================================== */
+  zaloQrImage: '/media/zalo-qr-chua-cap-nhat.svg',
+  zaloGroupName: 'Nhóm Zalo An ninh trật tự',
   zaloJoinUrl: '',
 };
 

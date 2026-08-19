@@ -4,7 +4,7 @@
  */
 import { AlertOctagon, Check, Circle, Clock } from 'lucide-react';
 import type { TrackingResult } from '../../types/tracking';
-import { CATEGORY_MAP, STATUS_MAP } from '../../utils/constants';
+import { CATEGORY_MAP, STATUS_MAP, UNIT } from '../../utils/constants';
 import { cn, formatDate } from '../../utils/helpers';
 import Badge from '../common/Badge';
 import Card from '../common/Card';
@@ -28,6 +28,41 @@ export default function StatusTimeline({ result }: { result: TrackingResult }) {
           <Badge colorClass={category.colorClass}>{category.label}</Badge>
         </div>
       </div>
+
+      {/* ====================================================================
+          HỒ SƠ ĐÃ TRỄ HẸN — BÁO THẲNG, KHÔNG ĐỂ BÀ CON TỰ ĐOÁN
+
+          Bà con vào tra cứu lần thứ ba thứ tư mà vẫn thấy "Đang xử lý" thì
+          câu hỏi trong đầu luôn là: hệ thống quên đơn của mình rồi à, hay
+          bình thường nó lâu vậy? Không trả lời câu đó thì niềm tin rơi nhanh
+          hơn nhiều so với việc thừa nhận đơn vị đang trễ.
+
+          Nói rõ ĐANG TRỄ, kèm số điện thoại để hỏi cho ra người chịu trách
+          nhiệm — đó là cách giữ được lòng tin, chứ không phải im lặng.
+
+          ⚠️ Tuyệt đối KHÔNG chặn tra cứu đơn quá hạn. Đơn trễ chính là đơn bà
+          con cần theo dõi sát nhất; khoá lại là biến chậm trễ của đơn vị thành
+          bức tường chắn ngay trước mặt người đang chờ.
+          ==================================================================== */}
+      {result.overdue && (
+        <div className="mb-5 flex gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-semibold">Hồ sơ đang trễ so với hạn xử lý</p>
+            <p className="mt-0.5 leading-relaxed">
+              {result.deadlineAt && (
+                <>Hạn xử lý là ngày {formatDate(result.deadlineAt)}. </>
+              )}
+              Ý kiến của bà con vẫn đang được thụ lý, chưa bị bỏ sót. Đơn vị xin lỗi vì
+              chậm trễ. Bà con cần biết thêm tiến độ, xin gọi trực ban{' '}
+              <a href={`tel:${UNIT.hotline.replace(/\s/g, '')}`} className="font-bold underline">
+                {UNIT.hotline}
+              </a>{' '}
+              kèm mã <span className="font-mono font-bold">{result.code}</span>.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Lý do từ chối (nếu có) */}
       {result.status === 'rejected' && result.rejectionReason && (

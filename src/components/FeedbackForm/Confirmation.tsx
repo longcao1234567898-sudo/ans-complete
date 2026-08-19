@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Check, Copy, Download, Search } from 'lucide-react';
+import { Check, Copy, Download, Home, Search } from 'lucide-react';
 import { MascotCheer } from '../common/PoliceMascot';
 import toast from 'react-hot-toast';
 import type { FeedbackDraft, FeedbackSubmission } from '../../types/feedback';
@@ -179,12 +179,30 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
           </p>
         </div>
 
+        {/* ==================================================================
+            BA LỐI RA SAU KHI GỬI XONG
+
+            Trước đây chỉ có "Xem tiến độ" và "Gửi ý kiến khác" — hai lối đều
+            dẫn ngược vào chính quy trình vừa xong. Bà con gửi xong rồi muốn
+            rời đi thì mắc kẹt ở màn hình này, phải tự tìm menu hoặc bấm nút
+            lùi của trình duyệt (mà bấm lùi từ đây là quay về bước nhập, nhìn
+            như đơn chưa gửi được — càng hoang mang).
+
+            Thứ tự đặt theo việc bà con hay làm nhất: xem tiến độ trước, về
+            trang chủ sau, gửi thêm ý kiến là ít gặp nhất nên để cuối.
+            ================================================================== */}
         <div className="mt-6 flex flex-col items-center justify-center gap-2.5 sm:flex-row">
           <Link
             to={`/tra-cuu?ma=${submission.trackingCode}`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-secondary-600 sm:w-auto"
           >
             <Search className="h-4 w-4" /> Xem tiến độ ngay
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
+          >
+            <Home className="h-4 w-4" /> Về trang chủ
           </Link>
           <Button variant="outline" onClick={onReset}>
             Gửi ý kiến khác
