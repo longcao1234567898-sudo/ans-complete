@@ -65,7 +65,15 @@ export default function AdminSubmissionsPage() {
       status, category, urgency, assigned, q, page, limit: 15,
       /* Không ở mục "Quá hạn" thì ẨN việc quá hạn khỏi danh sách — chúng đã
          có mục riêng, để lẫn vào đây là đọc trùng và chiếm chỗ việc trong hạn. */
-      sla: sla || 'an_qua_han',
+      /* ⚠️ ĐÃ BỎ 'an_qua_han' MẶC ĐỊNH.
+
+         Trước đây mọi mục đều tự gửi sla=an_qua_han để ẩn việc quá hạn. Hậu
+         quả thật: đơn vị có 70 ý kiến mà danh sách chỉ hiện 6 — 64 việc quá
+         hạn bị giấu sạch, cán bộ tưởng mất dữ liệu.
+
+         Giấu việc quá hạn là sai hướng ngay từ đầu: đó đúng là những việc cần
+         thấy nhất. Mục "⏰ Quá hạn" vẫn còn để xem riêng khi cần. */
+      sla,
     }),
     placeholderData: keepPreviousData,
   });
@@ -172,8 +180,6 @@ export default function AdminSubmissionsPage() {
           <option value="cu_nhat">Cũ nhất trước</option>
           <option value="muc_cao">Mức khẩn cấp: cao đến thấp</option>
           <option value="muc_thap">Mức khẩn cấp: thấp đến cao</option>
-          <option value="theo_can_bo">Theo cán bộ phụ trách</option>
-          <option value="theo_can_bo">Theo cán bộ phụ trách</option>
         </select>
         {sort !== 'mac_dinh' && (
           /* Nhắc rõ đang không ở thứ tự mặc định — cán bộ hay quên rồi tưởng

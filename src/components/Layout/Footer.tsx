@@ -98,59 +98,7 @@ export default function Footer() {
               {UNIT.email}
             </li>
           </ul>
-          {/* ==============================================================
-              MÃ QR NHÓM ZALO ĐỊA BÀN
-
-              Đặt TRƯỚC các kênh khác vì đây là kênh gần bà con nhất — nhóm
-              của chính xóm ấp mình, khác với fanpage chung của cả thị xã.
-
-              Nền TRẮNG quanh mã: máy quét cần vùng sáng tương phản mới đọc
-              được. Dán mã lên nền tối là nhiều điện thoại quét mãi không ra.
-              ============================================================== */}
-          {UNIT.zaloQrUrl && (
-            <div className="mt-5 rounded-2xl border border-white/15 bg-white/5 p-4">
-              <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
-                <MessageCircle className="h-4 w-4 shrink-0" />
-                Tham gia nhóm Zalo địa bàn
-              </p>
-              <div className="flex items-center gap-4">
-                <span className="shrink-0 rounded-xl bg-white p-2">
-                  <img
-                    src={UNIT.zaloQrUrl}
-                    alt={`Mã QR ${UNIT.zaloName}`}
-                    className="h-28 w-28 object-contain"
-                    loading="lazy"
-                    /* Ảnh hỏng thì ẨN cả khung trắng, không để ô vỡ nằm chình
-                       ình ở chân trang. Hay xảy ra khi ảnh đặt trên trang chia
-                       sẻ miễn phí — họ xoá ảnh mà mình không hay. */
-                    onError={(e) => {
-                      const o = e.currentTarget.closest('span');
-                      if (o) (o as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold leading-snug text-white">
-                    {UNIT.zaloName}
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    Mở camera điện thoại hoặc Zalo rồi quét mã bên cạnh để nhận
-                    thông báo an ninh trật tự ngay tại xóm ấp mình.
-                  </p>
-                  {UNIT.zaloJoinUrl && (
-                    <a
-                      href={UNIT.zaloJoinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-block text-xs font-bold text-primary-300 underline hover:text-primary-200"
-                    >
-                      Hoặc bấm vào đây để tham gia
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          
 
           {/* Kênh chính thức — thẻ lớn, có chữ, dễ bấm trên điện thoại */}
           <div className="mt-5 space-y-2.5">
