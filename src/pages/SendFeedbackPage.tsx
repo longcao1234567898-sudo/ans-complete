@@ -10,13 +10,14 @@ import type { ContactInfo as ContactInfoType, FeedbackCategory, FeedbackDraft, F
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { readDraft, clearDraft, useDraftAutosave } from '../hooks/useDraftAutosave';
 import { saveTrackingCode } from '../hooks/useTrackingHistory';
-import { submitFeedback, fetchQrPointInfo } from '../services/feedbackService';
+import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
 import ContentInput from '../components/FeedbackForm/ContentInput';
 import AIAnalysis from '../components/FeedbackForm/AIAnalysis';
 import CategorySelect from '../components/FeedbackForm/CategorySelect';
 import ContactInfo from '../components/FeedbackForm/ContactInfo';
+import ManHinhBiKhoa from '../components/FeedbackForm/ManHinhBiKhoa';
 import Confirmation from '../components/FeedbackForm/Confirmation';
 import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -27,6 +28,15 @@ const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
 export default function SendFeedbackPage() {
   const [step, setStep] = useState(1);
+
+  /* Kiểm tra thiết bị có bị tạm khoá không NGAY KHI mở trang — không để bà con
+     điền hết năm bước rồi mới báo. */
+  const [biKhoa, setBiKhoa] = useState<{ biKhoa: boolean; conLaiPhut?: number } | null>(null);
+  useEffect(() => {
+    let con = true;
+    kiemTraBiKhoa().then((kq) => { if (con) setBiKhoa(kq); });
+    return () => { con = false; };
+  }, []);
   const [draft, setDraft] = useState<FeedbackDraft>(() => {
     const saved = readDraft();
     return {
@@ -143,6 +153,17 @@ export default function SendFeedbackPage() {
       <Card className="overflow-hidden p-5 sm:p-7">
         {/* Chuyển bước TRƯỢT NGANG như ứng dụng điện thoại:
             đi tới -> trượt từ phải sang; quay lại -> trượt từ trái sang */}
+      {/* ==================================================================
+          THIẾT BỊ ĐANG BỊ TẠM KHOÁ -> hiện thông báo THAY CHO biểu mẫu
+
+          Chặn ngay từ đầu, không để bà con điền hết năm bước rồi mới báo —
+          vừa mất công vừa bực. Máy chủ vẫn chặn lần nữa lúc nhận đơn, nên
+          người dùng công cụ gọi thẳng API cũng không lọt.
+          ================================================================== */}
+      {biKhoa?.biKhoa ? (
+        <ManHinhBiKhoa conLaiPhut={biKhoa.conLaiPhut ?? 60} />
+      ) : (
+      <>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={step}
@@ -213,6 +234,8 @@ export default function SendFeedbackPage() {
         )}
           </motion.div>
         </AnimatePresence>
+      </>
+      )}
       </Card>
     </div>
     </>

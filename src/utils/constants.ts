@@ -7,6 +7,20 @@ import type { StatusInfo, TrackingStatus } from '../types/tracking';
 import type { NewsTag } from '../types/news';
 
 /** Thông tin đơn vị vận hành hệ thống */
+/* --------------------------------------------------------------------------
+   BẬT/TẮT XÁC THỰC EMAIL
+
+   Đặt false: bà con gửi ý kiến có danh tính KHÔNG phải chờ mã gửi về email.
+   Toàn bộ mã xử lý OTP vẫn còn nguyên trong hệ thống — cả giao diện lẫn máy
+   chủ — chỉ là không chạy tới. Muốn bật lại sau này thì đổi thành true, không
+   phải viết lại gì.
+
+   Vì sao tắt: khâu này thêm một bước chờ đợi, mà nhiều bà con lớn tuổi không
+   quen mở hộp thư trên điện thoại. Chống người máy đã có Turnstile lo, chống
+   spam đã có chặn theo thiết bị.
+   -------------------------------------------------------------------------- */
+export const BAT_XAC_THUC_EMAIL = false;
+
 export const UNIT = {
   name: 'Công an thị xã Tân Châu',
   /** Tên rút gọn — dùng ở chỗ hẹp: nút gọi khẩn cấp, chân phiếu mã tra cứu */
@@ -19,6 +33,40 @@ export const UNIT = {
   email: 'congan.tanchau@angiang.gov.vn',
   facebookUrl: 'https://www.facebook.com/conganthixatanchauangiang',
   websiteUrl: 'https://congan.angiang.gov.vn',
+  /* Ảnh mã QR nhóm Zalo của địa bàn. Đổi đơn vị thì thay đường dẫn ảnh này.
+     Để rỗng thì khối Zalo ở chân trang tự ẩn đi. */
+  zaloQrImage: 'https://i.ibb.co/LhQPys0h/zalo-qr.jpg',
+  zaloGroupName: 'Nhóm Zalo An ninh trật tự',
+
+  /* ------------------------------------------------------------------------
+     NHÓM ZALO CỦA ĐỊA BÀN
+
+     zaloQrUrl  — ảnh mã QR để bà con quét vào nhóm
+     zaloName   — tên nhóm, hiện dưới mã
+     zaloJoinUrl— đường dẫn mời, cho người xem trên máy tính bấm thẳng
+
+     ⚠️ Mã QR nhóm Zalo THƯỜNG CÓ HẠN (khoảng 30 ngày). Hết hạn thì quét ra
+     trang báo lỗi — bà con tưởng nhóm giải tán. Đơn vị nên đặt lịch xem lại
+     hằng tháng, tạo mã mới rồi thay ảnh ở đây.
+
+     Để rỗng chuỗi zaloQrUrl thì cả khối tự ẩn, không hiện ô trống.
+     ------------------------------------------------------------------------ */
+  /* ⚠️ PHẢI LÀ ĐƯỜNG DẪN ẢNH TRỰC TIẾP, không phải trang xem ảnh.
+
+     Đúng  : https://i.ibb.co/xxxxxxx/ten-anh.jpg     (mở ra thấy MỖI ảnh)
+     Sai   : https://ibb.co/LhQPys0h                  (trang có nút tải, quảng cáo)
+
+     Cách lấy: mở trang chia sẻ -> bấm chuột phải vào ảnh -> "Sao chép địa chỉ
+     hình ảnh". Dán vào thanh địa chỉ thử, phải hiện ra đúng một tấm ảnh trên
+     nền trơn thì mới đúng.
+
+     ⚠️ Đường dẫn ibb.co là TẠM. Trang chia sẻ ảnh miễn phí có thể xoá ảnh bất
+     cứ lúc nào, hoặc chèn quảng cáo. Nên tải ảnh về đặt vào public/media/ rồi
+     đổi thành '/media/zalo-nhom.jpg' — như vậy ảnh nằm cùng hệ thống, không
+     phụ thuộc bên thứ ba. */
+  zaloQrUrl: 'https://i.ibb.co/LhQPys0h/zalo-nhom.jpg',
+  zaloName: 'Nhóm Zalo An ninh trật tự địa bàn',
+  zaloJoinUrl: '',
 };
 
 /** Menu điều hướng chính */

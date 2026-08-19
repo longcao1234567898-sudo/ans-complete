@@ -7,7 +7,7 @@ import {
 } from '../lib/security.js';
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
-import { xetTruocKhiNhan, xetKhoaIp } from '../lib/chan-spam.js';
+import { xetTruocKhiNhan, xetKhoaIp, layMaThietBi } from '../lib/chan-spam.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -150,10 +150,27 @@ router.post('/', async (req, res) => {
       }
 
       if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
-      if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
 
-      const otpCheck = verifyOtpToken(body.otpToken, email);
-      if (!otpCheck.ok) return res.status(401).json({ error: otpCheck.error });
+      /* --------------------------------------------------------------------
+         XÁC THỰC EMAIL — TẠM TẮT
+
+         Đặt BAT_XAC_THUC_EMAIL=true trong biến môi trường để bật lại. Toàn bộ
+         mã xử lý OTP vẫn còn nguyên (routes/otp.js, lib/mailer.js) — chỉ là
+         không chạy tới.
+
+         Vì sao tắt: thêm một bước chờ đợi, mà nhiều bà con lớn tuổi không
+         quen mở hộp thư trên điện thoại. Chống người máy đã có Turnstile lo,
+         chống spam đã có chặn theo thiết bị.
+
+         ⚠️ Phải khớp với cờ BAT_XAC_THUC_EMAIL bên giao diện. Lệch nhau thì
+         giao diện cho qua mà máy chủ chặn — bà con điền xong bấm gửi lại báo
+         lỗi, không hiểu vì sao.
+         -------------------------------------------------------------------- */
+      if (String(process.env.BAT_XAC_THUC_EMAIL || 'false') === 'true') {
+        if (!email) return res.status(400).json({ error: 'Vui lòng nhập email để nhận mã xác thực.' });
+        const otpCheck = verifyOtpToken(body.otpToken, email);
+        if (!otpCheck.ok) return res.status(401).json({ error: otpCheck.error });
+      }
     }
 
     // 2) Lá chắn văn bản
@@ -435,6 +452,50 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('Lỗi gửi ý kiến:', err);
     res.status(500).json({ error: 'Lỗi máy chủ khi gửi ý kiến.' });
+  }
+});
+
+/* ==========================================================================
+   KIỂM TRA THIẾT BỊ CÓ ĐANG BỊ KHOÁ KHÔNG
+
+   Giao diện gọi khi bà con mở trang Gửi ý kiến. Bị khoá thì hiện màn hình
+   thông báo ngay, không để bà con điền hết năm bước rồi mới báo.
+
+   ⚠️ CHỈ trả về CÓ/KHÔNG và thời gian còn lại. Không nói khoá theo thiết bị
+   hay theo địa chỉ mạng, không nói vì hồ sơ nào — nói ra là chỉ đường cho kẻ
+   phá hoại biết cách né.
+   ========================================================================== */
+router.post('/kiem-tra-khoa', async (req, res) => {
+  try {
+    const deviceId = layMaThietBi(req);
+    const ip = layIpThat(req);
+    if (!deviceId && !ip) return res.json({ biKhoa: false });
+
+    const [rows] = await pool.query(
+      `SELECT expires_at,
+              TIMESTAMPDIFF(MINUTE, NOW(), expires_at) AS con_lai_phut
+         FROM blacklists
+        WHERE expires_at > NOW()
+          AND (   (kind = 'device' AND identifier = ?)
+               OR (kind = 'ip'     AND identifier = ?) )
+        ORDER BY expires_at DESC
+        LIMIT 1`,
+      [deviceId || null, ip || null]
+    );
+    if (rows.length === 0) return res.json({ biKhoa: false });
+
+    const phut = Math.max(1, Number(rows[0].con_lai_phut) || 1);
+    res.json({
+      biKhoa: true,
+      conLaiPhut: phut,
+      gio: Math.floor(phut / 60),
+      phut: phut % 60,
+    });
+  } catch (err) {
+    /* Bảng chưa tạo hoặc lỗi database -> KHÔNG chặn ai.
+       Thà để lọt còn hơn chặn oan toàn bộ bà con vì một lỗi kỹ thuật. */
+    console.warn('[kiểm tra khoá]', err.message);
+    res.json({ biKhoa: false });
   }
 });
 

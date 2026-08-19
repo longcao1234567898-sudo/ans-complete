@@ -293,3 +293,17 @@ export async function verifyAnonCode(code: string, anonId: string): Promise<OtpV
     body: JSON.stringify({ code, anonId }),
   });
 }
+
+/** Kiểm tra thiết bị có đang bị tạm khoá không (gọi khi mở trang Gửi ý kiến) */
+export async function kiemTraBiKhoa(): Promise<{ biKhoa: boolean; conLaiPhut?: number }> {
+  if (!hasBackend) return { biKhoa: false };
+  try {
+    return await apiFetch('/api/submissions/kiem-tra-khoa', {
+      method: 'POST',
+      body: JSON.stringify({ deviceId: layMaThietBi() }),
+    });
+  } catch {
+    /* Gọi hỏng thì KHÔNG chặn — thà để lọt còn hơn chặn oan vì lỗi mạng */
+    return { biKhoa: false };
+  }
+}

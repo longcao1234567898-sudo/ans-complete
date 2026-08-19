@@ -48,6 +48,28 @@ router.get('/', async (req, res) => {
     muc_cao:   `ORDER BY FIELD(s.urgency,'urgent','important','normal'), s.created_at DESC`,
     /* Mức thấp trước — để rà nhóm ít gấp mà hay bị bỏ quên */
     muc_thap:  `ORDER BY FIELD(s.urgency,'normal','important','urgent'), s.created_at DESC`,
+
+    /* ------------------------------------------------------------------
+       THEO CÁN BỘ PHỤ TRÁCH
+
+       Gom ý kiến của cùng một cán bộ vào liền nhau. Dùng khi trưởng phòng
+       rà xem ai đang ôm bao nhiêu việc, hay khi một cán bộ muốn lọc ra
+       phần của mình mà không nhớ mã.
+
+       Đơn CHƯA PHÂN CÔNG xếp lên ĐẦU — đó mới là thứ cần giải quyết trước,
+       vì không ai thấy mình có trách nhiệm nên hay nằm im tới lúc quá hạn.
+       ------------------------------------------------------------------ */
+    theo_can_bo: `ORDER BY (s.assigned_to IS NULL) DESC,
+                           st.full_name ASC,
+                           FIELD(s.urgency,'urgent','important','normal'),
+                           s.created_at DESC`,
+    /* Gom theo CÁN BỘ PHỤ TRÁCH — để trưởng phòng xem ai đang ôm việc gì.
+       Đơn CHƯA PHÂN CÔNG xếp lên đầu: đó là nhóm dễ rơi vào khoảng trống nhất,
+       không ai thấy mình có trách nhiệm nên cứ nằm tới lúc quá hạn. */
+    theo_can_bo: `ORDER BY (s.assigned_to IS NULL) DESC,
+                           st.full_name ASC,
+                           FIELD(s.urgency,'urgent','important','normal'),
+                           s.created_at DESC`,
   };
   const sapXepSql = CACH_SAP_XEP[String(req.query.sort || '')] || CACH_SAP_XEP.mac_dinh;
   const page = Math.max(1, Number(req.query.page) || 1);

@@ -172,6 +172,8 @@ export default function AdminSubmissionsPage() {
           <option value="cu_nhat">Cũ nhất trước</option>
           <option value="muc_cao">Mức khẩn cấp: cao đến thấp</option>
           <option value="muc_thap">Mức khẩn cấp: thấp đến cao</option>
+          <option value="theo_can_bo">Theo cán bộ phụ trách</option>
+          <option value="theo_can_bo">Theo cán bộ phụ trách</option>
         </select>
         {sort !== 'mac_dinh' && (
           /* Nhắc rõ đang không ở thứ tự mặc định — cán bộ hay quên rồi tưởng
