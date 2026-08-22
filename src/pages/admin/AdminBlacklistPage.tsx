@@ -21,7 +21,7 @@
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldOff, Smartphone, Globe, Unlock, Loader2, Info } from 'lucide-react';
+import { ShieldOff, Smartphone, Globe, Unlock, Loader2 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { fetchBlacklist, removeBlacklist, type BlacklistItem } from '../../services/adminService';
 
@@ -150,18 +150,6 @@ export default function AdminBlacklistPage() {
         không bao giờ vĩnh viễn — máy ở tiệm net hay điện thoại mượn của người thân
         có thể đổi chủ.
       </p>
-
-      {/* Giải thích cơ chế chặn ngầm — cán bộ cần hiểu để không hoang mang khi
-          thấy đơn rác vẫn được "gửi thành công" */}
-      <div className="mb-5 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-800 dark:bg-sky-900/20">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-        <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-          Thiết bị bị khoá <b>vẫn gửi được ý kiến và vẫn thấy màn hình báo thành công</b>,
-          nhưng đơn không vào hàng chờ của cán bộ. Làm vậy để kẻ phá hoại không biết
-          mình bị chặn mà xoá bộ nhớ trình duyệt đổi máy — họ gửi mãi chẳng ai xử lý
-          rồi tự mất hứng.
-        </p>
-      </div>
 
       {msg && (
         <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-300">
