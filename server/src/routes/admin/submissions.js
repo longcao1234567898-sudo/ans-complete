@@ -1,7 +1,7 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
 import { layIpThat } from '../../lib/helpers.js';
-import { khoaThietBi, khoaIpThuCong } from '../../lib/chan-spam.js';
+import { khoaThietBi, khoaIpThuCong, xetKhoaTaiPham, donDonCungThietBi } from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
@@ -409,7 +409,7 @@ router.post('/:id/review', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT status, is_anonymous FROM submissions WHERE id = ?', [req.params.id]
+      'SELECT status, is_anonymous, device_id FROM submissions WHERE id = ?', [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (rows[0].status !== 'pending_review') {
@@ -472,11 +472,47 @@ router.post('/:id/review', async (req, res) => {
       console.error('[review] KHÔNG ghi được staff_activity_logs:', e.message);
     }
 
+    /* ======================================================================
+       ĐÁNH DẤU TIN RÁC Ở HÀNG CHỜ CŨNG PHẢI DỌN VÀ KHOÁ
+
+       Trước đây chỉ đường /:id/spam mới dọn và khoá, còn nút "Đánh dấu tin
+       rác" ngay tại màn hình kiểm duyệt thì chỉ đổi trạng thái một đơn. Hai
+       nút mang cùng một cái tên mà làm hai việc khác nhau — cán bộ dùng nút ở
+       hàng chờ (nút hay dùng nhất) lại là nút yếu nhất.
+       ====================================================================== */
+    let soDonDaDon = 0;
+    let taiPham = false;
+    if (action === 'spam' && rows[0].device_id) {
+      soDonDaDon = await donDonCungThietBi(pool, {
+        deviceId: rows[0].device_id,
+        boQuaId: req.params.id,
+        staffId: req.staff.id,
+        lyDo: 'Dọn theo lô cùng thiết bị với một tin bị đánh dấu rác ở hàng chờ',
+      });
+      await khoaThietBi(pool, {
+        deviceId: rows[0].device_id,
+        staffId: req.staff.id,
+        lyDo: 'Tin rác — đánh dấu tại hàng chờ kiểm duyệt',
+      });
+      const kq = await xetKhoaTaiPham(pool, {
+        deviceId: rows[0].device_id,
+        staffId: req.staff.id,
+      });
+      taiPham = kq.taiPham;
+    }
+
     res.json({
       ok: true,
-      message: action === 'approve'
+      taiPham,
+      soDonDaDon,
+      message: (action === 'approve'
         ? 'Đã duyệt — ý kiến được đưa vào quy trình xử lý.'
-        : 'Đã đánh dấu là tin rác.',
+        : taiPham
+          ? 'Đã đánh dấu là tin rác. Thiết bị bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
+          : 'Đã đánh dấu là tin rác.')
+        + (soDonDaDon > 0
+            ? ` Đã đưa thêm ${soDonDaDon} tin cùng thiết bị (gửi trong 24 giờ trước) vào Thùng rác.`
+            : ''),
     });
   } catch (err) {
     console.error('Lỗi kiểm duyệt:', err.message);
@@ -538,13 +574,34 @@ router.post('/:id/mark-spam', async (req, res) => {
        đã thành công — thà không khoá được còn hơn để hồ sơ nửa vời. */
     let daKhoa = false;
     let kieuKhoa = '';
+    let soDonDaDon = 0;
+    let taiPham = false;
     if (don.device_id) {
+      /* Dọn cả loạt đơn cùng thiết bị trong 24 giờ trước — kẻ rải tin rác
+         hiếm khi gửi đúng một đơn. Chỉ đưa vào thùng rác (giữ 7 ngày) và
+         không đụng đơn cán bộ đã xử lý; xem chú thích trong chan-spam.js. */
+      soDonDaDon = await donDonCungThietBi(pool, {
+        deviceId: don.device_id,
+        boQuaId: id,
+        staffId: req.staff?.id || null,
+        lyDo: `Dọn theo lô cùng thiết bị với hồ sơ ${don.tracking_code}`,
+      });
+
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
         lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
       });
       if (daKhoa) kieuKhoa = 'thiết bị';
+
+      /* Xét tái phạm SAU khi đã khoá 24 giờ: ba lần liên tiếp trong 30 ngày
+         thì nâng lên khoá 30 ngày (ghi đè bản ghi vừa tạo). */
+      const kqTaiPham = await xetKhoaTaiPham(pool, {
+        deviceId: don.device_id,
+        staffId: req.staff?.id || null,
+      });
+      taiPham = kqTaiPham.taiPham;
+      if (taiPham) { daKhoa = true; kieuKhoa = 'thiết bị'; }
     } else if (don.ip_address) {
       /* ĐƯỜNG LUI: hồ sơ gửi trước khi có tính năng mã thiết bị, hoặc người
          gửi tắt localStorage. Khoá theo IP với thời hạn ngắn hơn (2 giờ) vì
@@ -570,12 +627,23 @@ router.post('/:id/mark-spam', async (req, res) => {
       /* Báo rõ cho cán bộ biết có khoá được thiết bị không. Đơn gửi trước khi
          có tính năng này thì không có mã thiết bị -> chỉ đánh dấu được thôi. */
       kieuKhoa,
-      ghiChu: !daKhoa
+      taiPham,
+      soDonDaDon,
+      /* Nói rõ ĐÃ DỌN BAO NHIÊU ĐƠN. Quét theo lô mà im lặng là kiểu giấu
+         việc: cán bộ bấm một nút, năm hồ sơ biến mất khỏi hàng chờ, không ai
+         hiểu vì sao. Nói ra thì cán bộ còn biết đường vào Thùng rác kiểm lại
+         nếu thấy con số lạ. */
+      ghiChu: (!daKhoa
         ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị lẫn địa chỉ mạng nên không khoá được.'
         : kieuKhoa === 'thiết bị'
-          ? 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.'
+          ? (taiPham
+              ? 'Đã đánh dấu tin rác. Thiết bị này bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
+              : 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.')
           : 'Đã đánh dấu tin rác. Hồ sơ không có mã thiết bị nên khoá theo địa chỉ mạng '
-            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.',
+            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.')
+        + (soDonDaDon > 0
+            ? ` Đã đưa thêm ${soDonDaDon} hồ sơ cùng thiết bị (gửi trong 24 giờ trước) vào Thùng rác — khôi phục được trong 7 ngày.`
+            : ''),
     });
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);

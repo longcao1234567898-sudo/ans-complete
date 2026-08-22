@@ -117,6 +117,145 @@ export async function khoaThietBi(pool, { deviceId, staffId, lyDo }) {
   }
 }
 
+/* ============================================================================
+   TÁI PHẠM: BA LẦN TIN RÁC LIÊN TIẾP TRONG MỘT THÁNG -> KHOÁ MỘT THÁNG
+
+   Khoá thường chỉ 24 giờ, cố ý ngắn để không chặn oan. Nhưng thiết bị nào bị
+   cán bộ đánh dấu tin rác BA LẦN LIÊN TIẾP thì không còn là nhầm lẫn nữa —
+   khoá dài để cán bộ khỏi phải dọn đi dọn lại một địa chỉ.
+
+   ⚠️ "LIÊN TIẾP" CHỨ KHÔNG PHẢI "CỘNG DỒN".
+   Đếm cộng dồn thì một người gửi năm mươi tin báo thật và lỡ ba tin bị đánh
+   nhầm trong cả tháng cũng bị khoá — mất hẳn một người báo tin tích cực. Nên
+   chỉ xét BA QUYẾT ĐỊNH GẦN NHẤT của cán bộ với thiết bị đó: cả ba đều là tin
+   rác mới khoá. Xen giữa có một đơn được duyệt là chuỗi đứt, đếm lại từ đầu.
+
+   ⚠️ KHOÁ VẪN CÓ HẠN. Một tháng, không vĩnh viễn. Mã thiết bị đổi chủ được:
+   máy tiệm net, điện thoại mượn, máy để ở trụ sở cho bà con dùng chung. Khoá
+   vĩnh viễn là chặn oan người vô can về sau, và không ai nhớ ra mà gỡ.
+   ============================================================================ */
+
+/** Ba lần liên tiếp thì khoá */
+const NGUONG_TAI_PHAM = 3;
+/** Cửa sổ xét: chỉ tính các quyết định trong vòng 30 ngày gần đây */
+const CUA_SO_TAI_PHAM_NGAY = 30;
+/** Khoá tái phạm: 30 ngày */
+const KHOA_TAI_PHAM_GIO = 30 * 24;
+
+/**
+ * Xét xem thiết bị có tái phạm không; nếu có thì khoá dài hạn.
+ *
+ * Trả về { taiPham, soLan } để route báo lại cho cán bộ biết.
+ */
+export async function xetKhoaTaiPham(pool, { deviceId, staffId }) {
+  if (!deviceId) return { taiPham: false, soLan: 0 };
+  try {
+    /* Lấy BA quyết định gần nhất của cán bộ với thiết bị này.
+
+       Chỉ tính đơn ĐÃ CÓ QUYẾT ĐỊNH: bị đánh tin rác, hoặc đã được duyệt/xử
+       lý. Đơn còn nằm chờ chưa ai đụng tới thì chưa nói lên điều gì, đưa vào
+       đếm sẽ làm chuỗi sai lệch.
+
+       ⚠️ Không đếm đơn bị chặn ngầm (is_spam = 1 do máy tự gắn khi thiết bị
+       đang bị khoá). Đó là máy tự gắn chứ không phải cán bộ xem rồi kết luận;
+       gộp vào thì một lần khoá 24 giờ tự đẻ ra chuỗi ba lần, khoá tiếp một
+       tháng — thiết bị bị khoá oan leo thang mà không ai bấm nút nào cả. */
+    const [rows] = await pool.query(
+      `SELECT status
+         FROM submissions
+        WHERE device_id = ?
+          AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+          AND (
+                (status = 'spam' AND deleted_by IS NOT NULL)
+             OR  status IN ('received','processing','resolved','rejected')
+              )
+        ORDER BY COALESCE(reviewed_at, updated_at, created_at) DESC
+        LIMIT ?`,
+      [deviceId, CUA_SO_TAI_PHAM_NGAY, NGUONG_TAI_PHAM]
+    );
+
+    const đủSốLần = rows.length >= NGUONG_TAI_PHAM;
+    const toànTinRác = rows.every((r) => r.status === 'spam');
+    if (!đủSốLần || !toànTinRác) {
+      return { taiPham: false, soLan: rows.filter((r) => r.status === 'spam').length };
+    }
+
+    await pool.query(
+      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
+       VALUES (?, 'device', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+       ON DUPLICATE KEY UPDATE
+         reason     = VALUES(reason),
+         created_by = VALUES(created_by),
+         expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
+      [deviceId,
+       `Tái phạm: ${NGUONG_TAI_PHAM} lần tin rác liên tiếp trong ${CUA_SO_TAI_PHAM_NGAY} ngày`,
+       staffId || null, KHOA_TAI_PHAM_GIO, KHOA_TAI_PHAM_GIO]
+    );
+    console.warn(`[chặn spam] TÁI PHẠM — khoá thiết bị ${deviceId.slice(0, 8)}… trong 30 ngày`);
+    return { taiPham: true, soLan: NGUONG_TAI_PHAM };
+  } catch (err) {
+    console.error('[chặn spam] xét tái phạm lỗi:', err.message);
+    return { taiPham: false, soLan: 0 };
+  }
+}
+
+/* ============================================================================
+   DỌN ĐƠN CÙNG THIẾT BỊ TRONG 24 GIỜ TRƯỚC ĐÓ
+
+   Kẻ rải tin rác hiếm khi gửi đúng một đơn. Cán bộ bắt được một đơn thì thường
+   còn cả loạt nằm trong hàng chờ. Quét luôn 24 giờ trước đó đỡ cho cán bộ phải
+   mở từng đơn mà bấm.
+
+   ⚠️ ĐƯA VÀO THÙNG RÁC, KHÔNG XOÁ HẲN.
+   Thùng rác giữ 7 ngày, khôi phục được. Quét theo lô kiểu này chắc chắn sẽ có
+   lúc quét nhầm — máy dùng chung, hoặc một đơn thật gửi xen giữa loạt rác. Xoá
+   hẳn thì mất luôn tin báo thật mà không ai biết đường lấy lại.
+
+   ⚠️ KHÔNG ĐỤNG ĐƠN CÁN BỘ ĐÃ XỬ LÝ.
+   Đơn đang xử lý, đã giải quyết, hoặc đã phân công cho ai đó là đơn đã có
+   người ĐỌC VÀ QUYẾT ĐỊNH. Máy quét đè lên quyết định của người là sai — có
+   thể xoá mất một vụ việc đang điều tra dở. Chỉ quét đơn CÒN NGUYÊN trong
+   hàng chờ: mới nhận hoặc chờ kiểm duyệt, chưa ai đụng tới.
+   ============================================================================ */
+
+/** Cửa sổ dọn: 24 giờ trước thời điểm đơn bị đánh dấu */
+const CUA_SO_DON_DEP_GIO = 24;
+
+/**
+ * Đưa vào thùng rác các đơn khác cùng thiết bị gửi trong 24 giờ trước đó.
+ *
+ * @returns số đơn đã dọn
+ */
+export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo }) {
+  if (!deviceId) return 0;
+  try {
+    const [kq] = await pool.query(
+      `UPDATE submissions
+          SET status = 'spam', is_spam = 1,
+              deleted_at = NOW(), deleted_by = ?,
+              rejection_reason = ?
+        WHERE device_id = ?
+          AND id <> ?
+          AND deleted_at IS NULL
+          AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+          /* CHỈ đơn chưa ai đụng tới — xem phần chú thích ở trên */
+          AND status IN ('pending_review','received')
+          AND assigned_to IS NULL`,
+      [staffId || null,
+       lyDo || `Dọn theo lô: cùng thiết bị với một đơn bị đánh dấu tin rác`,
+       deviceId, boQuaId || 0, CUA_SO_DON_DEP_GIO]
+    );
+    const soDon = kq?.affectedRows || 0;
+    if (soDon > 0) {
+      console.warn(`[chặn spam] dọn ${soDon} đơn cùng thiết bị ${deviceId.slice(0, 8)}… trong ${CUA_SO_DON_DEP_GIO} giờ`);
+    }
+    return soDon;
+  } catch (err) {
+    console.error('[chặn spam] dọn đơn cùng thiết bị lỗi:', err.message);
+    return 0;
+  }
+}
+
 /**
  * Khoá theo ĐỊA CHỈ IP — chỉ dùng khi hồ sơ không có mã thiết bị.
  *
