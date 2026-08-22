@@ -229,6 +229,7 @@ export default function SendFeedbackPage() {
             isSubmitting={submitMutation.isPending}
             onSubmit={handleSubmit}
             onBack={() => setStep(4)}
+            onVeBuocDau={() => setStep(1)}
             onReset={handleReset}
           />
         )}

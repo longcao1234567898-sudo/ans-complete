@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Check, Copy, Download, Home, Search } from 'lucide-react';
+import { Check, Copy, Download, Home, RotateCcw, Search } from 'lucide-react';
 import { MascotCheer } from '../common/PoliceMascot';
 import toast from 'react-hot-toast';
 import type { FeedbackDraft, FeedbackSubmission } from '../../types/feedback';
@@ -21,9 +21,12 @@ interface ConfirmationProps {
   onSubmit: () => void;
   onBack: () => void;
   onReset: () => void;
+  /* Nhảy thẳng về bước nhập nội dung, GIỮ NGUYÊN mọi thứ đã nhập. Khác hẳn
+     onReset (xoá sạch làm lại). */
+  onVeBuocDau?: () => void;
 }
 
-export default function Confirmation({ draft, submission, isSubmitting, onSubmit, onBack, onReset }: ConfirmationProps) {
+export default function Confirmation({ draft, submission, isSubmitting, onSubmit, onBack, onReset, onVeBuocDau }: ConfirmationProps) {
   const [agreed, setAgreed] = useState(false);
   const [savedReceipt, setSavedReceipt] = useState(false);
   const autoSaved = useRef(false);
@@ -283,10 +286,37 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
         </span>
       </label>
 
-      <div className="mt-4 flex justify-between">
-        <Button variant="ghost" onClick={onBack} disabled={isSubmitting}>
-          Quay lại
-        </Button>
+      {/* ==================================================================
+          HÀNG NÚT CUỐI
+
+          Thêm "Về bước nhập nội dung" bên cạnh "Quay lại".
+
+          Đây là bước đọc lại toàn bộ trước khi gửi, nên cũng chính là lúc bà
+          con hay phát hiện phần NỘI DUNG viết chưa rõ — nhất là khi hệ thống
+          báo "nội dung có vẻ chưa được viết rõ ràng". Mà nội dung nằm tận
+          bước 1: chỉ có "Quay lại" thì phải bấm ba lần mới tới nơi, mỗi lần
+          một màn hình, dễ nản giữa chừng rồi bỏ luôn ý kiến.
+
+          KHÔNG xoá gì: nhảy về bước 1, giữ nguyên mọi thứ đã nhập, sửa xong
+          bấm tiếp là quay lại đúng đây.
+          ================================================================== */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={onBack} disabled={isSubmitting}>
+            Quay lại
+          </Button>
+          {onVeBuocDau && (
+            <button
+              type="button"
+              onClick={onVeBuocDau}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Về bước nhập nội dung
+            </button>
+          )}
+        </div>
         <Button onClick={onSubmit} loading={isSubmitting} disabled={!agreed}>
           Gửi ý kiến
         </Button>

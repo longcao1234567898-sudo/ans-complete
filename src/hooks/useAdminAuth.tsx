@@ -8,7 +8,13 @@ interface AuthCtx {
   staff: StaffInfo | null;
   /** true khi đang thử khôi phục phiên từ cookie — CHƯA biết đăng nhập hay chưa */
   loading: boolean;
-  login: (u: string, p: string) => Promise<void>;
+  /* ⚠️ PHẢI có tham số captchaToken.
+
+     adminService.login đã nhận sẵn tham số này và máy chủ đã bắt CAPTCHA sau
+     3 lần sai, nhưng hook lại khai chỉ hai tham số nên mã xác minh bị rơi mất
+     ngay tại đây. Hệ quả: máy chủ đòi CAPTCHA, giao diện gửi lên chuỗi rỗng,
+     cán bộ nhập đúng mật khẩu vẫn bị từ chối mãi mãi. */
+  login: (u: string, p: string, captchaToken?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -29,8 +35,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     return () => { huy = true; };
   }, []);
 
-  const login = useCallback(async (u: string, p: string) => {
-    const s = await apiLogin(u, p);
+  const login = useCallback(async (u: string, p: string, captchaToken?: string) => {
+    const s = await apiLogin(u, p, captchaToken);
     setStaff(s);
   }, []);
 
