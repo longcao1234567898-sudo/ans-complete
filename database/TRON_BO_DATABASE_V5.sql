@@ -742,6 +742,21 @@ ALTER TABLE submissions
     MODIFY status ENUM('pending_review','received','processing','resolved','rejected','spam')
     NOT NULL DEFAULT 'received';
 
+-- ⚠️ PHẢI NỚI CẢ status_history, KHÔNG CHỈ submissions.
+--    Bản gộp này trước đây bỏ sót hai cột dưới đây, nên ai dựng cơ sở dữ liệu
+--    từ tệp trọn bộ sẽ gặp lỗi: bấm "Duyệt" hoặc "Đánh dấu tin rác" thì ý kiến
+--    đổi trạng thái thành công nhưng lệnh ghi lịch sử ngay sau đó ném lỗi 1265
+--    (old_status = 'pending_review' không có trong ENUM 4 giá trị cũ). Giao
+--    diện hiện "lỗi máy chủ" trong khi việc đã chạy xong — cán bộ không biết
+--    nên tin cái nào.
+ALTER TABLE status_history
+    MODIFY COLUMN old_status
+    ENUM('pending_review','received','processing','resolved','rejected','spam') NULL;
+
+ALTER TABLE status_history
+    MODIFY COLUMN new_status
+    ENUM('pending_review','received','processing','resolved','rejected','spam') NOT NULL;
+
 -- ---------------------------------------------------------------
 -- 2) Ghi lại ai duyệt / lúc nào
 -- ---------------------------------------------------------------

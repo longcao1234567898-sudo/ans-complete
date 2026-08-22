@@ -431,19 +431,46 @@ router.post('/:id/review', async (req, res) => {
         : [newStatus, req.staff.id, req.params.id]
     );
 
-    // Ghi lịch sử + nhật ký
-    await pool.query(
-      'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
-      [req.params.id, 'pending_review', newStatus,
-       action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
-       req.staff.id]
-    );
-    await pool.query(
-      'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
-      [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
-       'submission', req.params.id,
-       layIpThat(req)]
-    );
+    /* ======================================================================
+       GHI LỊCH SỬ + NHẬT KÝ — HỎNG THÌ CŨNG KHÔNG ĐƯỢC LÀM HỎNG VIỆC CHÍNH
+
+       ⚠️ Trước đây hai lệnh INSERT này nằm thẳng trong khối try chung. Lệnh
+       UPDATE ở trên đã chạy xong và KHÔNG nằm trong giao dịch, nên chỉ cần
+       một lệnh ghi nhật ký ném lỗi là cán bộ thấy "lỗi máy chủ" trong khi ý
+       kiến đã đổi trạng thái thật. Bấm lại thì gặp "không nằm trong hàng chờ".
+       Không biết tin màn hình hay tin dữ liệu.
+
+       Lỗi thật đã gặp: bảng status_history khai ENUM thiếu 'pending_review'
+       và 'spam' (xem database/va_loi_duyet_tin_an_danh.sql). MySQL chế độ
+       nghiêm ngặt báo 1265 chứ không âm thầm bỏ qua.
+
+       Nay bọc riêng: ghi được thì tốt, không ghi được thì log ra máy chủ cho
+       quản trị viên biết mà vá, còn cán bộ vẫn nhận đúng kết quả. Mất một
+       dòng lịch sử nhẹ hơn nhiều so với việc cán bộ mất lòng tin vào cả màn
+       hình kiểm duyệt.
+       ====================================================================== */
+    try {
+      await pool.query(
+        'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
+        [req.params.id, 'pending_review', newStatus,
+         action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
+         req.staff.id]
+      );
+    } catch (e) {
+      console.error('[review] KHÔNG ghi được status_history:', e.message,
+        '— kiểm tra ENUM old_status/new_status đã có pending_review và spam chưa');
+    }
+
+    try {
+      await pool.query(
+        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, ip_address) VALUES (?,?,?,?,?)',
+        [req.staff.id, action === 'approve' ? 'review_approve' : 'review_spam',
+         'submission', req.params.id,
+         layIpThat(req)]
+      );
+    } catch (e) {
+      console.error('[review] KHÔNG ghi được staff_activity_logs:', e.message);
+    }
 
     res.json({
       ok: true,

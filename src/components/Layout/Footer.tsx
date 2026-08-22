@@ -3,8 +3,94 @@
  */
 import { Link } from 'react-router-dom';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
-import { Facebook, Globe, Mail, MapPin, Phone, Shield, ShieldCheck, LayoutDashboard, MessageCircle } from 'lucide-react';
+import { Facebook, Globe, Mail, MapPin, Phone, Shield, ShieldCheck, LayoutDashboard, MessageCircle, ExternalLink } from 'lucide-react';
 import { NAV_LINKS, UNIT } from '../../utils/constants';
+
+/* ============================================================================
+   KHỐI NHÓM ZALO Ở CHÂN TRANG
+
+   Tách thành component riêng cho gọn: khối này có ba lớp thông tin (nhận diện,
+   mã QR, lối bấm) nên nhét thẳng vào Footer sẽ che mất bố cục bốn cột.
+
+   Bọc cả khối trong thẻ <a> khi có đường dẫn mời, lùi về thẻ <div> khi không.
+   KHÔNG lồng <a> trong <a>: nút "Mở nhóm trên Zalo" bên trong nay chỉ là một
+   <span> mang dáng nút, vì cả khối đã bấm được rồi. Lồng hai thẻ liên kết là
+   HTML sai chuẩn, trình duyệt tự tách ra và bố cục vỡ.
+   ============================================================================ */
+function ZaloBlock() {
+  const coLink = Boolean(UNIT.zaloJoinUrl);
+
+  const noiDung = (
+    <>
+      {/* Hàng nhận diện: LOGO + TÊN NHÓM + TÊN ĐƠN VỊ CHỦ QUẢN.
+
+          Thiếu logo thì khối chỉ là một ô vuông đen trắng lạ mắt — bà con
+          không biết quét vào đâu, mà mã QR thì trông giống hệt nhau cả. Dấu
+          hiệu màu quen thuộc nói ngay "đây là Zalo" trước khi đọc tới chữ.
+
+          Tên đơn vị đặt ngay dưới tên nhóm để thấy rõ nhóm này do Công an lập,
+          không phải nhóm tự phát ai đó mạo danh — đúng thứ cần khẳng định khi
+          bảo bà con quét một mã QR. */}
+      <div className="mb-2.5 flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0068FF] shadow-md">
+          <MessageCircle className="h-5 w-5 text-white" aria-hidden />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-bold leading-tight text-white">
+            {UNIT.zaloGroupName}
+          </span>
+          {/* KHÔNG dùng truncate: tên đơn vị dài, cắt mất chữ đúng ngay chỗ
+              cần khẳng định nhóm này của ai. Cho xuống dòng. */}
+          <span className="block text-[11px] leading-snug text-slate-400">
+            Do {UNIT.name} quản lý
+          </span>
+        </span>
+      </div>
+
+      {/* Cột chân trang chỉ rộng chừng 250px. Xếp mã QR nằm cạnh đoạn chữ thì
+          chữ bị vắt thành từng dòng hai ba chữ, đọc rất mệt. Xếp dọc: mã ở
+          giữa cho cân, chữ chạy hết bề ngang bên dưới. */}
+      <span className="mt-1 flex justify-center rounded-xl bg-white p-2">
+        <img
+          src={UNIT.zaloQrImage}
+          alt={`Mã QR ${UNIT.zaloGroupName} — ${UNIT.name}`}
+          /* object-CONTAIN, không phải object-cover. Ảnh mã QR bị cắt xén là
+             hỏng hẳn: mất một ô vuông định vị ở góc thì camera không dò ra
+             mã nữa. Thà chừa viền trắng còn hơn cắt. */
+          className="h-32 w-32 rounded-lg object-contain"
+          loading="lazy"
+        />
+      </span>
+
+      <p className="mt-2.5 text-xs leading-relaxed text-white/80">
+        Quét mã bằng camera điện thoại để vào nhóm — nơi {UNIT.name} thông báo
+        tình hình an ninh trật tự và nhắc bà con cảnh giác thủ đoạn lừa đảo mới.
+      </p>
+
+      {coLink && (
+        <span className="mt-2.5 flex items-center justify-center gap-1.5 rounded-xl bg-[#0068FF] px-3 py-2 text-xs font-bold text-white transition group-hover:bg-[#0055D4]">
+          Mở nhóm trên Zalo
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </span>
+      )}
+    </>
+  );
+
+  const lop = 'group mt-5 block rounded-2xl border border-white/15 bg-white/[0.07] p-3';
+
+  if (!coLink) return <div className={lop}>{noiDung}</div>;
+
+  return (
+    <a
+      href={UNIT.zaloJoinUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${lop} transition hover:border-[#0068FF] hover:bg-white/[0.12]`}
+    >
+      {noiDung}
+    </a>
+  );
+}
 
 export default function Footer() {
   const { staff } = useAdminAuth();
@@ -43,6 +129,24 @@ export default function Footer() {
           <p className="text-sm leading-relaxed text-slate-300">
             Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân của {UNIT.name}.
           </p>
+
+          {/* ==================================================================
+              NHÓM ZALO ĐỊA BÀN
+
+              Chuyển từ cột "Liên hệ" sang đây. Cột đó vốn đã dài (địa chỉ, hai
+              số điện thoại, email, rồi ba thẻ kênh chính thức) nên nhồi thêm mã
+              QR là tràn hẳn xuống, trong khi cột này chỉ có một đoạn giới thiệu
+              ngắn rồi bỏ trống gần hết chiều cao. Đặt vào chỗ trống đó thì hai
+              cột cân nhau, mắt không phải nhảy.
+
+              CẢ KHỐI LÀ MỘT ĐƯỜNG DẪN, không riêng cái nút bên dưới. Người xem
+              trên máy tính không quét được mã hiện trên chính màn hình mình,
+              nên phản xạ tự nhiên là bấm thẳng vào mã — bấm mà không có gì xảy
+              ra thì tưởng trang hỏng.
+              ================================================================== */}
+          {UNIT.zaloQrImage && (
+            <ZaloBlock />
+          )}
         </div>
 
         {/* Liên kết nhanh */}
@@ -113,73 +217,6 @@ export default function Footer() {
                 Nền trắng quanh mã là bắt buộc — dán mã sát viền tối thì nhiều
                 điện thoại quét mãi không ra.
                 ============================================================== */}
-            {UNIT.zaloQrImage && (
-              <div className="mb-4 rounded-2xl border border-white/15 bg-white/[0.07] p-3">
-                {/* Hàng nhận diện: LOGO + TÊN NHÓM + TÊN ĐƠN VỊ CHỦ QUẢN.
-
-                    Thiếu logo thì khối chỉ là một ô vuông đen trắng lạ mắt —
-                    bà con không biết quét vào đâu, mà mã QR thì trông giống
-                    hệt nhau cả. Dấu hiệu màu quen thuộc nói ngay "đây là Zalo"
-                    trước khi đọc tới chữ.
-
-                    Tên đơn vị đặt ngay dưới tên nhóm để thấy rõ nhóm này do
-                    Công an lập, không phải nhóm tự phát ai đó mạo danh — đúng
-                    thứ cần khẳng định khi bảo bà con quét một mã QR. */}
-                <div className="mb-2.5 flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0068FF] shadow-md">
-                    <MessageCircle className="h-5 w-5 text-white" aria-hidden />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold leading-tight text-white">
-                      {UNIT.zaloGroupName}
-                    </span>
-                    {/* KHÔNG dùng truncate: cột chân trang hẹp, tên đơn vị dài
-                        nên bị cắt thành "Do Công an thị xã Tân Châu quả..." —
-                        đúng chỗ cần khẳng định nhóm này của ai thì lại đọc
-                        không ra. Cho xuống dòng, tốn một dòng nhưng đọc đủ. */}
-                    <span className="block text-[11px] leading-snug text-slate-400">
-                      Do {UNIT.name} quản lý
-                    </span>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className="shrink-0 rounded-xl bg-white p-1.5">
-                    <img
-                      src={UNIT.zaloQrImage}
-                      alt={`Mã QR ${UNIT.zaloGroupName} — ${UNIT.name}`}
-                      /* object-CONTAIN, không phải object-cover.
-
-                         Ảnh mã QR mà bị cắt xén là hỏng hẳn: ba ô vuông định
-                         vị ở góc mất một cái thì camera không dò ra mã nữa.
-                         Ảnh không vuông thì thà chừa viền trắng còn hơn cắt. */
-                      className="h-24 w-24 rounded-lg object-contain"
-                      loading="lazy"
-                    />
-                  </span>
-                  <p className="text-xs leading-relaxed text-white/80">
-                    Quét mã bằng camera điện thoại để vào nhóm.
-                    <br />
-                    Nơi {UNIT.name} thông báo tình hình an ninh trật tự và
-                    nhắc bà con cảnh giác thủ đoạn lừa đảo mới.
-                  </p>
-                </div>
-
-                {/* Người xem trên MÁY TÍNH không quét được mã trên chính màn
-                    hình của mình. Có đường dẫn mời thì cho bấm thẳng. */}
-                {UNIT.zaloJoinUrl && (
-                  <a
-                    href={UNIT.zaloJoinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2.5 flex items-center justify-center rounded-xl bg-[#0068FF] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0055D4]"
-                  >
-                    Mở nhóm trên Zalo
-                  </a>
-                )}
-              </div>
-            )}
-
             <a
               href={UNIT.facebookUrl}
               target="_blank"

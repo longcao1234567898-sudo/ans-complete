@@ -48,39 +48,29 @@ export const UNIT = {
      Hai bộ trỏ về HAI đường dẫn ảnh KHÁC NHAU, nên ai sửa nhầm bộ không dùng
      thì trang vẫn hiện mã cũ mà không hiểu vì sao. Nay gộp còn một bộ.
 
-     ⚠️⚠️ ĐANG DÙNG ẢNH GIỮ CHỖ — PHẢI THAY TRƯỚC KHI BÀN GIAO.
+     Ảnh mã QR đặt tại public/media/zalo-qr.png — nằm cùng hệ thống, không phụ
+     thuộc trang chia sẻ ảnh bên thứ ba.
 
-     Đường dẫn cũ là 'https://i.ibb.co/LhQPys0h/zalo-qr.jpg'. Kiểm tra thực tế
-     ngày đóng gói: nó KHÔNG trả về mã QR mà trả về một tấm ảnh chân dung
-     người lạ 83x83. Cả hai đường dẫn cũ (zalo-qr.jpg và zalo-nhom.jpg) đều ra
-     đúng tấm ảnh đó, vì ibb.co bỏ qua phần tên tệp và chỉ đọc mã LhQPys0h.
+     ⚠️ Đường dẫn cũ 'https://i.ibb.co/LhQPys0h/zalo-qr.jpg' đã bị gỡ. Kiểm tra
+     thực tế cho thấy nó KHÔNG trả về mã QR mà trả về một tấm ảnh chân dung
+     người lạ 83x83 — cả hai đường dẫn cũ đều ra đúng tấm đó vì ibb.co bỏ qua
+     phần tên tệp và chỉ đọc mã LhQPys0h. Trang web của Công an từng hiện mặt
+     một người lạ ngay chỗ ghi "quét mã để vào nhóm". Đừng dùng lại link ngoài.
 
-     Nghĩa là chân trang một trang web của Công an đang hiện ảnh mặt một người
-     lạ ở đúng chỗ ghi "quét mã để vào nhóm". Đây chính là rủi ro mà chú thích
-     bên dưới cảnh báo, và nó đã xảy ra thật.
-
-     CÁCH THAY:
-       1. Mở nhóm Zalo -> Tuỳ chọn -> Mã QR nhóm -> lưu ảnh về máy.
-       2. Đặt ảnh vào public/media/ (ví dụ: zalo-qr.png).
-       3. Đổi dòng zaloQrImage bên dưới thành '/media/zalo-qr.png'.
-
-     ⚠️ PHẢI LÀ ĐƯỜNG DẪN ẢNH TRỰC TIẾP nếu vẫn muốn dùng link ngoài.
-       Đúng : https://i.ibb.co/xxxxxxx/ten-anh.jpg   (mở ra thấy MỖI ảnh)
-       Sai  : https://ibb.co/LhQPys0h                (trang có nút tải, quảng cáo)
+     zaloJoinUrl lấy bằng cách GIẢI MÃ chính ảnh QR ở trên, nên hai thứ luôn
+     trỏ về cùng một nơi. Thay ảnh QR mới thì phải giải mã lại và cập nhật
+     đường dẫn này, không thì bấm một đằng quét một nẻo.
 
      ⚠️ Mã QR nhóm Zalo THƯỜNG CÓ HẠN (khoảng 30 ngày). Hết hạn thì quét ra
      trang báo lỗi — bà con tưởng nhóm giải tán. Đơn vị nên đặt lịch xem lại
-     hằng tháng, tạo mã mới rồi thay ảnh ở đây.
+     hằng tháng, tạo mã mới rồi thay cả ảnh lẫn đường dẫn.
 
-     ⚠️ Ảnh đặt trong public/media/ an toàn hơn hẳn link ngoài: trang chia sẻ
-     ảnh miễn phí có thể đổi nội dung hoặc xoá ảnh bất cứ lúc nào mà không ai
-     hay biết — đúng như trường hợp vừa gặp.
-
-     Để rỗng zaloQrImage thì cả khối tự ẩn, không hiện ô trống.
+     Để rỗng zaloQrImage thì cả khối tự ẩn. Để rỗng zaloJoinUrl thì khối vẫn
+     hiện nhưng không bấm được, chỉ quét.
      ========================================================================== */
-  zaloQrImage: '/media/zalo-qr-chua-cap-nhat.svg',
+  zaloQrImage: '/media/zalo-qr.png',
   zaloGroupName: 'Nhóm Zalo An ninh trật tự',
-  zaloJoinUrl: '',
+  zaloJoinUrl: 'https://zaloapp.com/qr/p/61u8420l88fk',
 };
 
 /** Menu điều hướng chính */
