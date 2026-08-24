@@ -67,3 +67,36 @@ export function layIpThat(req) {
 
   return (daBoc ? daBoc[1] : tho).slice(0, 45);
 }
+
+/* ============================================================================
+   GHI NHẬT KÝ THAO TÁC CÁN BỘ — GOM VỀ MỘT HÀM (nhật ký gia cố)
+
+   Trước đây mỗi route tự viết câu INSERT vào staff_activity_logs, mỗi nơi một
+   kiểu: chỗ có ip, chỗ không; chỗ ghi details, chỗ bỏ. Rải rác nên dễ sót —
+   thêm hành động mới mà quên ghi log là mất dấu vết, đúng thứ không được phép
+   mất với dữ liệu nhà nước.
+
+   Gom về một hàm: mọi thao tác nhạy cảm (xem danh tính, xuất dữ liệu, xem bản
+   đồ, đổi trạng thái) đều gọi cùng một chỗ, ghi đủ AI-KHI NÀO-TỪ ĐÂU-VIỆC GÌ.
+   Không bao giờ ném lỗi ra ngoài: ghi log hỏng thì cảnh báo rồi cho việc chính
+   chạy tiếp, vì chặn cả thao tác chỉ vì không ghi được log là hại nhiều hơn lợi.
+   ============================================================================ */
+export async function ghiNhatKy(pool, req, { hanhDong, loaiDoiTuong = null, doiTuongId = null, chiTiet = null }) {
+  try {
+    await pool.query(
+      `INSERT INTO staff_activity_logs
+         (staff_id, action, target_type, target_id, details, ip_address)
+       VALUES (?,?,?,?,?,?)`,
+      [
+        req?.staff?.id ?? null,
+        String(hanhDong).slice(0, 64),
+        loaiDoiTuong,
+        doiTuongId,
+        chiTiet ? JSON.stringify(chiTiet).slice(0, 2000) : null,
+        layIpThat(req),
+      ]
+    );
+  } catch (e) {
+    console.warn('[nhật ký] không ghi được:', e.message);
+  }
+}

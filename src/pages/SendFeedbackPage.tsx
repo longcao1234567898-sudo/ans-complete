@@ -224,6 +224,7 @@ export default function SendFeedbackPage() {
             onVeBuocDau={() => setStep(1)}
             category={draft.category}
             qrPointName={qrPointName}
+            noiDung={draft.content}
           />
         )}
 

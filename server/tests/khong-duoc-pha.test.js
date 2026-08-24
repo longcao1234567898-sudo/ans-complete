@@ -215,7 +215,12 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
               /* incident-groups.js — chọn giữa HAI hằng SQL viết sẵn, dựa trên
                  một biến boolean (req.query.chuaXem === '1'). Không có dữ liệu
                  người dùng nào lọt vào câu lệnh. */
-              || /^chiChuaXem \? 'AND g\.acknowledged = FALSE' : ''$/.test(bieuThuc);
+              || /^chiChuaXem \? 'AND g\.acknowledged = FALSE' : ''$/.test(bieuThuc)
+              /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
+                 security_level có tồn tại chưa (coCotCapDoMat, đọc từ
+                 information_schema, không phải dữ liệu người dùng). Cột chưa có
+                 thì thay bằng hằng 'thuong'. Không ký tự người dùng nào lọt vào. */
+              || /^\(await coCotCapDoMat\(\)\) \? "?'s\.security_level,'"? : /.test(bieuThuc);
             if (!hopLe) loi.push(`${muc.name}: \${${bieuThuc}}`);
           }
         }

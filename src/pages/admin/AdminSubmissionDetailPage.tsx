@@ -7,7 +7,8 @@ import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Cl
 import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
-  fetchStaffList, assignSubmission, revealIdentity, markSpam } from '../../services/adminService';
+  fetchStaffList, assignSubmission, revealIdentity, markSpam, setSecurityLevel } from '../../services/adminService';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
 import AdminChatPanel from '../../components/admin/AdminChatPanel';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
@@ -47,11 +48,24 @@ export default function AdminSubmissionDetailPage() {
 
   // --- V2: phân công cán bộ ---
   const { data: staffList } = useQuery({ queryKey: ['admin-staff'], queryFn: fetchStaffList });
+  const { staff } = useAdminAuth();
+  const laLanhDao = staff?.role === 'admin' || staff?.role === 'manager';
 
   const assignMutation = useMutation({
     mutationFn: (staffId: number | null) => assignSubmission(submissionId, staffId),
     onSuccess: (r) => {
       setFeedback(r.message || 'Đã phân công.');
+      qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
+      qc.invalidateQueries({ queryKey: ['admin-submissions'] });
+    },
+    onError: (e: Error) => setFeedback(e.message),
+  });
+
+  /* Đổi cấp độ bảo mật — chỉ lãnh đạo (admin/manager) thấy nút này. */
+  const capDoMutation = useMutation({
+    mutationFn: (level: 'thuong' | 'can_bao_ve' | 'mat') => setSecurityLevel(submissionId, level),
+    onSuccess: (r) => {
+      setFeedback(r.message || 'Đã cập nhật cấp độ bảo mật.');
       qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
       qc.invalidateQueries({ queryKey: ['admin-submissions'] });
     },
@@ -104,6 +118,12 @@ export default function AdminSubmissionDetailPage() {
                 )}
                 {data.urgency === 'important' && (
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">🟡 Quan trọng</span>
+                )}
+                {data.security_level === 'mat' && (
+                  <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">🔒 MẬT</span>
+                )}
+                {data.security_level === 'can_bao_ve' && (
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">🛡️ Cần bảo vệ</span>
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-500">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
@@ -215,6 +235,46 @@ export default function AdminSubmissionDetailPage() {
                 </p>
               )}
             </div>
+
+            {/* CẤP ĐỘ BẢO MẬT — chỉ lãnh đạo (admin/manager) được đổi.
+                Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký. */}
+            {laLanhDao && (
+              <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
+                <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
+                  <Ban className="h-4 w-4 text-rose-600" /> Cấp độ bảo mật
+                </h3>
+                <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                  Tin nhạy cảm đặt mức cao hơn để hạn chế người xem. Mỗi lần đổi đều được ghi nhật ký.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {([
+                    ['thuong', 'Thường', 'Mọi cán bộ được phân công đều xem'],
+                    ['can_bao_ve', 'Cần bảo vệ', 'Chỉ người phụ trách và lãnh đạo'],
+                    ['mat', 'Mật', 'Chỉ lãnh đạo'],
+                  ] as const).map(([giaTri, ten, moTa]) => {
+                    const dangChon = (data.security_level || 'thuong') === giaTri;
+                    return (
+                      <button
+                        key={giaTri}
+                        type="button"
+                        onClick={() => !dangChon && capDoMutation.mutate(giaTri)}
+                        disabled={capDoMutation.isPending || dangChon}
+                        className={`rounded-xl border-2 p-3 text-left transition ${
+                          dangChon
+                            ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
+                            : 'border-slate-200 hover:border-rose-300 dark:border-slate-700'
+                        }`}
+                      >
+                        <span className="block text-sm font-bold text-slate-700 dark:text-slate-200">
+                          {ten} {dangChon && '· đang áp dụng'}
+                        </span>
+                        <span className="block text-xs text-slate-500 dark:text-slate-400">{moTa}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Bảng điều khiển xử lý */}
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">

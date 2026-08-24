@@ -8,6 +8,7 @@ import { MascotWave } from '../components/common/PoliceMascot';
 import PoliceAvatar from '../components/common/PoliceAvatar';
 import HeroSection from '../components/Hero/HeroSection';
 import FeaturesSection from '../components/Features/FeaturesSection';
+import CanhGiacLuaDao from '../components/Hero/CanhGiacLuaDao';
 import Reveal from '../components/common/Reveal';
 import NewsGrid from '../components/News/NewsGrid';
 import { fetchNews } from '../services/newsService';
@@ -21,6 +22,7 @@ export default function HomePage() {
   return (
     <div>
       <HeroSection />
+      <CanhGiacLuaDao />
       <Reveal><FeaturesSection /></Reveal>
 
       {/* Xem trước tin tức */}

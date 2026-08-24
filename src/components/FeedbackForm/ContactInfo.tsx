@@ -24,9 +24,11 @@ interface ContactInfoProps {
   category?: string | null;
   /** V10: tên điểm QR đã quét (nếu có) — hiện chú thích cạnh ô chọn địa bàn */
   qrPointName?: string | null;
+  /** Nội dung ý kiến (từ bước 1) — để cảnh báo nếu ẩn danh mà tự ghi tên/SĐT */
+  noiDung?: string;
 }
 
-export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocDau, category, qrPointName }: ContactInfoProps) {
+export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocDau, category, qrPointName, noiDung }: ContactInfoProps) {
   // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
   const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
 
@@ -111,6 +113,25 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
   // Các nhóm khác (khiếu nại, phản ánh, đề xuất) cần danh tính để cán bộ phản hồi.
   const canBeAnonymous = category === 'to_giac';
   const anon = canBeAnonymous && value.isAnonymous === true;
+
+  /* CẢNH BÁO TỰ LỘ DANH TÍNH.
+     Bà con chưa rành hay chọn ẩn danh nhưng lại viết thẳng tên, số điện thoại
+     vào lời kể ("Tôi là Nguyễn Văn Ba, số 09..."). Làm vậy là vô hiệu hoá luôn
+     việc ẩn danh mà không biết — người xử lý vẫn đọc được tên trong nội dung.
+     Chỉ NHẮC, không chặn: bà con có quyền tự quyết, ta chỉ giúp họ khỏi sai
+     lầm vô ý. */
+  const dauHieuLoDanhTinh = (() => {
+    if (!anon || !noiDung) return null;
+    const text = noiDung;
+    const canhBao: string[] = [];
+    /* Số điện thoại: chuỗi 9-11 chữ số, có thể có dấu cách/chấm giữa. */
+    if (/(0|\+84)[\s.]?\d[\d\s.]{7,11}\d/.test(text)) canhBao.push('số điện thoại');
+    /* Tự xưng tên: "tôi tên", "tôi là", "tên tôi", "họ tên" theo sau là chữ hoa. */
+    if (/\b(tôi (tên|là)|tên (tôi|là)|họ (và )?tên)\b/iu.test(text)) canhBao.push('tên của mình');
+    /* Địa chỉ nhà cụ thể: "số nhà", "địa chỉ", "nhà tôi ở". */
+    if (/\b(số nhà|địa chỉ (nhà|của tôi)|nhà tôi ở)\b/iu.test(text)) canhBao.push('địa chỉ nhà');
+    return canhBao.length ? canhBao : null;
+  })();
 
   // Người dùng quay lại đổi sang nhóm khác -> tự TẮT ẩn danh (chỉ tố giác mới được ẩn danh)
   useEffect(() => {
@@ -240,6 +261,30 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
           </span>
         </span>
       </button>
+      )}
+
+      {/* CẢNH BÁO TỰ LỘ DANH TÍNH — chỉ hiện khi chọn ẩn danh mà nội dung có
+          vẻ chứa tên/SĐT/địa chỉ. Nhắc, không chặn. */}
+      {dauHieuLoDanhTinh && (
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border-2 border-red-300 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/15">
+          <svg className="mt-0.5 h-6 w-6 shrink-0 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <div className="min-w-0">
+            <p className="text-sm font-extrabold text-red-800 dark:text-red-300">
+              Bà con có muốn ẩn danh thật không?
+            </p>
+            <p className="mt-1 text-sm leading-snug text-red-700 dark:text-red-200">
+              Trong lời kể của bà con đang có {dauHieuLoDanhTinh.join(', ')}. Bà con chọn
+              gửi kín, nhưng cán bộ đọc lời kể vẫn thấy được những thông tin này —
+              như vậy là không còn kín nữa.
+            </p>
+            <p className="mt-1.5 text-sm leading-snug text-red-700 dark:text-red-200">
+              Nếu muốn kín thật, bà con bấm <b>Quay lại</b> rồi xoá những chỗ đó
+              trong lời kể. Còn nếu không ngại thì cứ gửi tiếp bình thường.
+            </p>
+          </div>
+        </div>
       )}
 
       {anon && (

@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
 import { authorize } from '../../middleware/authorize.js';
+import { ghiNhatKy } from '../../lib/helpers.js';
 
 const router = Router();
 
@@ -166,6 +167,12 @@ router.get('/map', async (req, res) => {
       gan_nhat: r.gan_nhat || null,
       ky_truoc: Number(r.ky_truoc || 0),
     })));
+    /* Nhật ký: xem bản đồ điểm nóng lộ toàn cảnh phân bố vụ việc theo địa bàn
+       — thao tác nhạy cảm, ghi lại ai xem, khoảng thời gian nào. */
+    ghiNhatKy(pool, req, {
+      hanhDong: 'view_map',
+      chiTiet: { tuNgay: req.query.from || null, denNgay: req.query.to || null },
+    });
   } catch (err) {
     console.error('Lỗi bản đồ:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v2.sql chưa?' });
@@ -220,6 +227,13 @@ router.get('/details', async (req, res) => {
           ? new Date(r.deadline_at) < new Date() : false,
       }))
     );
+    /* Nhật ký: đây là điểm rò rỉ lớn nhất — một lần tải mang gần như toàn bộ
+       dữ liệu nghiệp vụ ra ngoài. Ghi lại ai xuất, khoảng thời gian nào, bao
+       nhiêu dòng. Với dữ liệu nhà nước, "ai đã mang gì ra ngoài" là bắt buộc. */
+    ghiNhatKy(pool, req, {
+      hanhDong: 'export_data',
+      chiTiet: { tuNgay: req.query.from || null, denNgay: req.query.to || null, soDong: rows.length },
+    });
   } catch (err) {
     console.error('Lỗi báo cáo chi tiết:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ khi tải danh sách chi tiết.' });

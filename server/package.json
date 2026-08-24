@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "start:cong-khai": "node src/may-chu-cong-khai.js",
+    "start:can-bo": "node src/may-chu-can-bo.js",
     "test": "node --test tests/*.test.js"
   },
   "engines": {

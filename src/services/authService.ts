@@ -3,7 +3,14 @@
  * và gọi API admin có đính kèm token. Token lưu trong bộ nhớ (biến),
  * refresh token nằm trong httpOnly cookie do server quản lý.
  */
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '');
+/* Đăng nhập cán bộ đi vào MÁY CHỦ CÁN BỘ. Khi bàn giao tách hai máy chủ, phần
+   này phải trỏ máy chủ cán bộ (nội bộ), nên ưu tiên VITE_ADMIN_API_URL, lùi về
+   VITE_API_URL chung lúc demo. */
+const API_URL = (
+  (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.trim() ||
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
+  ''
+).replace(/\/$/, '');
 
 export interface Staff {
   id: number;

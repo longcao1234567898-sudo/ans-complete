@@ -4,7 +4,11 @@
  */
 import { hasBackend } from './api';
 
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '');
+const API_URL = (
+  (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.trim() ||
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
+  ''
+).replace(/\/$/, '');
 
 export interface StaffInfo {
   id: number;
@@ -195,6 +199,8 @@ export interface SubmissionRow {
   id: number;
   tracking_code: string;
   urgency?: 'normal' | 'important' | 'urgent';
+  /** Cấp độ bảo mật (v14): thuong/can_bao_ve/mat. Mặc định 'thuong' nếu chưa nâng cấp DB */
+  security_level?: 'thuong' | 'can_bao_ve' | 'mat';
   original_content: string;
   ai_processed_content: string | null;
   category_code: string | null;
@@ -279,6 +285,13 @@ export const assignSubmission = (id: number, staffId: number | null) =>
   adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/assign`, {
     method: 'PATCH',
     body: JSON.stringify({ staffId }),
+  });
+
+/** Đổi cấp độ bảo mật của một ý kiến (chỉ admin/manager). */
+export const setSecurityLevel = (id: number, level: 'thuong' | 'can_bao_ve' | 'mat') =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/security-level`, {
+    method: 'PATCH',
+    body: JSON.stringify({ level }),
   });
 
 /** Xem danh tính đầy đủ — LƯU Ý: mỗi lần xem đều bị ghi nhật ký */

@@ -1,6 +1,6 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
-import { layIpThat } from '../../lib/helpers.js';
+import { layIpThat, ghiNhatKy } from '../../lib/helpers.js';
 import { khoaThietBi, khoaIpThuCong, xetKhoaTaiPham, donDonCungThietBi } from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
@@ -9,6 +9,26 @@ import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
 
 const router = Router();
 router.use(requireAuth);
+
+/* Cột security_level chỉ có sau khi chạy nang_cap_v14.sql. Kiểm tra MỘT lần rồi
+   nhớ kết quả, để truy vấn danh sách/chi tiết không sập nếu database chưa nâng
+   cấp — cột chưa có thì coi mọi tin là 'thuong'. Thà thiếu tính năng phân loại
+   còn hơn cả danh sách ý kiến trắng trơn vì thiếu một cột. */
+let _coCotMat = null;
+async function coCotCapDoMat() {
+  if (_coCotMat !== null) return _coCotMat;
+  try {
+    const [r] = await pool.query(
+      `SELECT 1 FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'submissions'
+          AND column_name = 'security_level' LIMIT 1`
+    );
+    _coCotMat = r.length > 0;
+  } catch {
+    _coCotMat = false;
+  }
+  return _coCotMat;
+}
 
 /** Tính tình trạng hạn xử lý (SLA) */
 function slaOf(row) {
@@ -176,6 +196,7 @@ router.get('/', async (req, res) => {
                            AND m.read_by_staff = 0), 0) AS tin_chua_doc,
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
+              ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"}
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
@@ -215,7 +236,7 @@ router.get('/:id', async (req, res) => {
          giác — đường lộ danh tính thật, không cần chờ lộ database.
          Thêm cột mới vào bảng thì phải cân nhắc rồi mới thêm vào đây. */
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
-              s.category_id, s.status, s.urgency, s.is_anonymous,
+              s.category_id, s.status, s.urgency, ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"} s.is_anonymous,
               s.is_flagged, s.flag_reason,
               s.sender_name, s.sender_phone, s.sender_email,
               s.created_at, s.updated_at, s.deadline_at, s.resolved_at,
@@ -393,6 +414,34 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
   } catch (err) {
     console.error('Lỗi phân công:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });
+  }
+});
+
+/** PATCH /api/admin/submissions/:id/security-level — đặt cấp độ bảo mật (admin/manager)
+ *
+ * Ba mức: thuong / can_bao_ve / mat. Chỉ lãnh đạo được đổi, vì đây là quyết
+ * định nghiệp vụ ảnh hưởng tới việc ai được xem tin. Ghi nhật ký đầy đủ. */
+router.patch('/:id/security-level', authorize('admin', 'manager'), async (req, res) => {
+  const { level } = req.body || {};
+  const hopLe = ['thuong', 'can_bao_ve', 'mat'];
+  if (!hopLe.includes(level)) return res.status(400).json({ error: 'Cấp độ không hợp lệ.' });
+  try {
+    const [kq] = await pool.query(
+      'UPDATE submissions SET security_level = ? WHERE id = ?',
+      [level, req.params.id]
+    );
+    if (!kq.affectedRows) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'set_security_level',
+      loaiDoiTuong: 'submission',
+      doiTuongId: req.params.id,
+      chiTiet: { level },
+    });
+    res.json({ ok: true, message: 'Đã cập nhật cấp độ bảo mật.' });
+  } catch (err) {
+    /* Cột chưa có (chưa chạy nang_cap_v14.sql) -> báo rõ để biết đường sửa. */
+    console.error('Lỗi đặt cấp độ mật:', err.message);
+    res.status(500).json({ error: 'Không đổi được. Đã chạy nang_cap_v14.sql chưa?' });
   }
 });
 
