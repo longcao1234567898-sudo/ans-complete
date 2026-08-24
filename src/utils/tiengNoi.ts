@@ -171,6 +171,26 @@ function docBangAudio(text: string, onXong?: () => void, onLoi?: () => void): Di
   };
 }
 
+/* ============================================================================
+   CHỈ MỘT LUỒNG ĐỌC TẠI MỘT THỜI ĐIỂM
+
+   Mỗi nút đọc (đọc từng bài, nghe toàn bộ tin, hướng dẫn bước) trước đây tự
+   quản luồng của mình, không biết nút khác. Bấm nghe bài B trong khi bài A
+   đang đọc thì cả hai đọc chồng lên nhau, chói tai.
+
+   Giữ tham chiếu tới luồng đang chạy ở cấp module. Mỗi lần bắt đầu đọc mới thì
+   dừng luồng cũ trước. Nút nào bị dừng sẽ nhận onXong (qua dung()) nên tự cập
+   nhật lại nhãn về "Nghe". */
+let dangChay: DieuKhienDoc | null = null;
+
+function dungLuongCu() {
+  if (dangChay) {
+    const cu = dangChay;
+    dangChay = null;
+    cu.dung();
+  }
+}
+
 /**
  * Đọc to một đoạn văn bản bằng tiếng Việt.
  *
@@ -183,9 +203,15 @@ function docBangAudio(text: string, onXong?: () => void, onLoi?: () => void): Di
  * @returns        đối tượng có hàm dung() để dừng giữa chừng
  */
 export function docTiengViet(text: string, onXong?: () => void): DieuKhienDoc {
+  /* Dừng luồng đọc đang chạy (nếu có) trước khi bắt đầu luồng mới — để bấm
+     nghe bài khác thì bài đang nghe tắt ngay, không đọc chồng. */
+  dungLuongCu();
+
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
-      return docBangAudio(text, onXong);
+      const dkAudio = docBangAudio(text, onXong);
+      dangChay = dkAudio;
+      return dkAudio;
     }
     onXong?.();
     return { dung: () => {} };
@@ -252,5 +278,14 @@ export function docTiengViet(text: string, onXong?: () => void): DieuKhienDoc {
 
   /* dk có thể được gán lại khi lùi về Web Speech, nên dung() phải gọi vào dk
      hiện tại tại thời điểm người dùng bấm dừng. */
-  return { dung: () => dk.dung() };
+  const dieuKhien: DieuKhienDoc = {
+    dung: () => {
+      if (dangChay === dieuKhien) dangChay = null;
+      dk.dung();
+    },
+  };
+  /* Đăng ký làm luồng đang chạy — lần docTiengViet sau sẽ gọi dung() vào đây
+     trước khi bắt đầu, nên bài đang nghe tự tắt. */
+  dangChay = dieuKhien;
+  return dieuKhien;
 }
