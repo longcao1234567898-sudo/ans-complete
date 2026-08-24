@@ -38,9 +38,16 @@ const gioiHan = rateLimit({
   message: { error: 'Bạn nghe quá nhanh, thử lại sau một phút.' },
 });
 
-/* Host đọc CỐ ĐỊNH — người dùng không đổi được đích gọi, chỉ nối thêm nội dung
-   cần đọc vào cuối (đã mã hoá). Tách ra hằng số để rõ đây không phải SSRF. */
-const TTS_HOST = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=';
+/* Nhiều nguồn đọc, thử lần lượt. Lý do: một số nguồn chặn IP trung tâm dữ liệu
+   (Render, Railway...) dù chạy tốt từ máy thường. Nguồn này chặn thì thử nguồn
+   kia. Tất cả đều là điểm cuối đọc tiếng Việt công khai, không cần khoá API.
+
+   AN TOÀN SSRF: các host CỐ ĐỊNH, người dùng chỉ chi phối phần q (đã
+   encodeURIComponent + giới hạn độ dài). Không đổi được đích gọi. */
+const TTS_NGUON = [
+  (q) => `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(q)}`,
+  (q) => `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=vi&client=gtx&q=${encodeURIComponent(q)}`,
+];
 
 /* Độ dài tối đa mỗi lần đọc. Dịch vụ đọc của Google giới hạn ~200 ký tự/lần,
    nên phía trình duyệt đã cắt nhỏ rồi mới gọi. Ở đây chặn cứng phòng lạm dụng. */
@@ -54,27 +61,39 @@ router.get('/', gioiHan, async (req, res) => {
   }
 
   try {
-    /* Điểm cuối đọc của Google Dịch: trả về tệp mp3 đọc tiếng Việt. Gọi TỪ MÁY
-       CHỦ nên không vướng CORS. Gửi kèm User-Agent và Referer để không bị chặn
-       — đây là lý do gọi thẳng từ trình duyệt thất bại. tl=vi là tiếng Việt.
+    /* Thử lần lượt từng nguồn đọc. Nguồn nào trả về mp3 hợp lệ thì dùng luôn.
+       Gọi TỪ MÁY CHỦ nên không vướng CORS. Gửi kèm User-Agent và Referer để
+       nguồn không chặn — đây là lý do gọi thẳng từ trình duyệt thất bại.
 
-       AN TOÀN SSRF: host cố định TTS_HOST, người dùng CHỈ chi phối phần query q
-       và đã qua encodeURIComponent + giới hạn độ dài. Không thể đổi đích gọi
-       sang máy chủ nội bộ hay địa chỉ khác. */
-    const duongDan = TTS_HOST + encodeURIComponent(q);
-    const r = await fetch(duongDan, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://translate.google.com/',
-      },
-    });
+       AN TOÀN SSRF: host cố định trong TTS_NGUON, người dùng chỉ chi phối q đã
+       qua encodeURIComponent + giới hạn độ dài. */
+    let buf = null;
+    let loiCuoi = '';
+    for (const taoUrl of TTS_NGUON) {
+      try {
+        const r = await fetch(taoUrl(q), {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://translate.google.com/',
+          },
+        });
+        if (!r.ok) { loiCuoi = `HTTP ${r.status}`; continue; }
+        const b = Buffer.from(await r.arrayBuffer());
+        /* Nguồn bị chặn đôi khi trả về trang HTML lỗi 200 rất nhỏ thay vì mp3.
+           Chặn cứng: mp3 đọc được luôn lớn hơn 1KB. */
+        if (b.length < 1024) { loiCuoi = `tệp quá nhỏ (${b.length} byte)`; continue; }
+        buf = b;
+        break;
+      } catch (e) {
+        loiCuoi = e.message;
+      }
+    }
 
-    if (!r.ok) {
-      console.warn('[tts] nguồn đọc trả lỗi', r.status);
+    if (!buf) {
+      console.warn('[tts] mọi nguồn đọc đều lỗi:', loiCuoi);
       return res.status(502).json({ error: 'Không lấy được âm thanh.' });
     }
 
-    const buf = Buffer.from(await r.arrayBuffer());
     /* Cho phép trình duyệt lưu tạm 1 ngày — cùng một câu (tiêu đề tin, hướng
        dẫn bước) đọc lại nhiều lần thì không phải tải lại. */
     res.set('Content-Type', 'audio/mpeg');

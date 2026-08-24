@@ -132,28 +132,42 @@ function docBangAudio(text: string, onXong?: () => void, onLoi?: () => void): Di
   let i = 0;
   let daDung = false;
   let daPhatDuocMauNao = false;
+  /* CỜ CHỐNG GỌI HAI LẦN.
+
+     Một lần phát lỗi có thể kích hoạt CẢ audio.onerror LẪN .catch() của
+     audio.play() — trình duyệt bắn cả hai. Nếu mỗi cái đều gọi onLoi thì lùi
+     về Web Speech HAI lần, sinh hai luồng đọc song song, mỗi câu đọc hai lần.
+     Đây đúng là lỗi "mỗi câu lặp lại 2 lần". Cờ này bảo đảm onLoi/onXong chỉ
+     chạy một lần duy nhất. */
+  let daKetThuc = false;
   const audio = new Audio();
 
+  const bao = (cb?: () => void) => {
+    if (daKetThuc) return;
+    daKetThuc = true;
+    cb?.();
+  };
+
   const phatTiep = () => {
-    if (daDung || i >= cac.length) { onXong?.(); return; }
+    if (daDung || i >= cac.length) { bao(onXong); return; }
     /* Gọi route đọc của MÁY CHỦ, không gọi thẳng dịch vụ ngoài. Máy chủ lo phần
        lấy âm thanh tiếng Việt và trả về, nên đây luôn cùng tên miền backend. */
     audio.src = `${API_URL}/api/tts?q=${encodeURIComponent(cac[i])}`;
     audio.onplaying = () => { daPhatDuocMauNao = true; };
-    audio.onended = () => { i += 1; phatTiep(); };
+    audio.onended = () => { i += 1; daKetThuc = false; phatTiep(); };
     audio.onerror = () => {
-      if (!daPhatDuocMauNao && i === 0 && onLoi) { onLoi(); return; }
-      i += 1; phatTiep();
+      if (!daPhatDuocMauNao && i === 0) { bao(onLoi); return; }
+      i += 1; daKetThuc = false; phatTiep();
     };
     audio.play().catch(() => {
-      if (!daPhatDuocMauNao && i === 0 && onLoi) { onLoi(); return; }
-      onXong?.();
+      if (!daPhatDuocMauNao && i === 0) { bao(onLoi); return; }
+      bao(onXong);
     });
   };
   phatTiep();
 
   return {
-    dung: () => { daDung = true; audio.pause(); audio.src = ''; onXong?.(); },
+    dung: () => { daDung = true; audio.pause(); audio.src = ''; bao(onXong); },
   };
 }
 
@@ -213,7 +227,21 @@ export function docTiengViet(text: string, onXong?: () => void): DieuKhienDoc {
        đọc chặn) mới lùi về Web Speech với giọng tốt nhất tìm được — đọc bằng
        giọng sẵn có còn hơn im lặng. */
     dk = docBangAudio(text, onXong, () => {
+      /* Tới đây nghĩa là máy chủ đọc KHÔNG được — ghi log rõ để chẩn đoán.
+         Mở DevTools (F12) -> Console sẽ thấy dòng này khi nút đọc ra tiếng
+         Anh. Nguyên nhân thường gặp: VITE_API_URL trống hoặc sai, /api/tts
+         trên máy chủ lỗi (nguồn đọc chặn IP máy chủ), hoặc mất mạng. */
+      console.warn(
+        '[đọc tiếng Việt] Máy chủ /api/tts không phản hồi — lùi về giọng trên máy. ' +
+        'API_URL hiện tại:', API_URL || '(TRỐNG — chưa cấu hình VITE_API_URL)'
+      );
       const giongViet = chonGiongViet();
+      if (!giongViet) {
+        console.warn(
+          '[đọc tiếng Việt] Máy này KHÔNG có giọng tiếng Việt nào -> sẽ đọc bằng ' +
+          'giọng mặc định (thường là tiếng Anh). Cần /api/tts hoạt động để đọc đúng.'
+        );
+      }
       dk = chayWebSpeech(giongViet);   // giongViet có thể undefined -> giọng mặc định
     });
   };

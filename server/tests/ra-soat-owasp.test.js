@@ -263,7 +263,8 @@ describe('A10 — không có SSRF: mọi URL gọi ra ngoài đều là hằng s
           const anToan = /^['"`]https:\/\//.test(doiSo)     // URL hằng, ghi thẳng
             || doiSo === 'VERIFY_URL'                        // hằng Turnstile
             || doiSo === 'urlOf(model)'                      // model từ biến MÔI TRƯỜNG, không phải người dùng
-            || doiSo === 'duongDan';                         // tts.js: host cố định TTS_HOST + query đã encodeURIComponent
+            || doiSo === 'duongDan'                          // tts.js cũ: host cố định + query đã encodeURIComponent
+            || doiSo === 'taoUrl(q)';                        // tts.js: host cố định trong TTS_NGUON, q đã encodeURIComponent
           if (!anToan) loi.push(`${muc.name}: fetch(${doiSo})`);
         }
       }
