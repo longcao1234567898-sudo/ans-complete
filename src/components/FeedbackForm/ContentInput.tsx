@@ -3,7 +3,7 @@
  * Ảnh được nén ngay trên trình duyệt trước khi lưu.
  */
 import { ChangeEvent, useRef, useState } from 'react';
-import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion } from 'lucide-react';
+import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
 import { MAX_FEEDBACK_IMAGES } from '../../utils/constants';
@@ -30,6 +30,7 @@ const MAX_FILE_MB = 8;
 export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, onNext }: ContentInputProps) {
   const tooShort = value.trim().length > 0 && value.trim().length < MIN_LENGTH;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
 
   const handlePickImages = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -222,11 +223,39 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               <span className="text-[10px] font-medium">{processing ? 'Đang kiểm tra...' : 'Thêm ảnh'}</span>
             </button>
           )}
+          {/* NÚT CHỤP ẢNH TẠI CHỖ — mở thẳng camera trên điện thoại.
+
+              Vì sao tách riêng: người lớn tuổi không quen khái niệm "chọn tệp
+              từ thư viện". Nút này ghi thẳng "Chụp ảnh" và thuộc tính capture
+              mở luôn camera sau, bỏ qua bước chọn từ thư viện. Nút "Thêm ảnh"
+              bên cạnh vẫn giữ cho ai muốn chọn ảnh đã có.
+
+              Trên máy tính không có camera thì capture bị bỏ qua, nút hoạt động
+              như chọn tệp bình thường — không hỏng. */}
+          {!processing && (
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary-300 text-primary-500 transition hover:border-primary-500 hover:bg-primary-50 dark:border-primary-700 dark:hover:bg-primary-900/20"
+            >
+              <Camera className="h-5 w-5" />
+              <span className="text-[10px] font-semibold">Chụp ảnh</span>
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             multiple
+            onChange={handlePickImages}
+            className="hidden"
+            aria-hidden
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
             onChange={handlePickImages}
             className="hidden"
             aria-hidden

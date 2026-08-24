@@ -177,7 +177,7 @@ router.post('/verify', async (req, res) => {
 export function verifyOtpToken(otpToken, email) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực email. Vui lòng bấm "Gửi mã xác thực".' };
   try {
-    const payload = jwt.verify(otpToken, JWT_SECRET);
+    const payload = jwt.verify(otpToken, JWT_SECRET, { algorithms: ['HS256'] });
     if (payload.purpose !== 'submit') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
     if (payload.emailHash !== hashEmail(email)) {
       return { ok: false, error: 'Email không khớp với email đã xác thực.' };
@@ -395,7 +395,7 @@ router.post('/anon-verify', async (req, res) => {
 export function verifyAnonToken(otpToken, anonId) {
   if (!otpToken) return { ok: false, error: 'Bà con chưa xác thực. Vui lòng bấm "Lấy mã xác thực".' };
   try {
-    const payload = jwt.verify(otpToken, JWT_SECRET);
+    const payload = jwt.verify(otpToken, JWT_SECRET, { algorithms: ['HS256'] });
     if (payload.purpose !== 'submit_anon') return { ok: false, error: 'Vé xác thực không hợp lệ.' };
     const anonHash = crypto.createHash('sha256').update('anon:' + String(anonId || '')).digest('hex');
     if (payload.emailHash !== anonHash) {

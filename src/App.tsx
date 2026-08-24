@@ -10,6 +10,11 @@ import AppToaster from './components/common/Toast';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import MobileTabBar from './components/Layout/MobileTabBar';
+import { STORAGE_KEYS } from './utils/constants';
+/* Chỉ cần import tệp này là nó tự lắng nghe sự kiện giọng sẵn sàng và nạp danh
+   sách giọng vào cache từ khi trang tải — để lần bấm loa đầu tiên đã có giọng
+   tiếng Việt, không đọc bằng giọng ngoại. */
+import './utils/tiengNoi';
 import ScrollProgress from './components/common/ScrollProgress';
 import ChatWidget from './components/AIChat/ChatWidget';
 import EmergencyButton from './components/common/EmergencyButton';
@@ -50,6 +55,33 @@ function ScrollToTop() {
 
 function AppShell() {
   const location = useLocation();
+
+  /* ĐỒNG BỘ CLASS CHỮ LỚN Ở MỘT CHỖ DUY NHẤT.
+
+     Nút bật chữ lớn có ở cả Header và menu mobile. Nếu mỗi nơi tự áp class lên
+     <html> thì bật ở nơi này, nơi kia không biết, class bị ghi đè lộn xộn. Đặt
+     ở AppShell — nơi cha chung — đọc thẳng localStorage và áp một lần. Các nút
+     chỉ việc ghi localStorage rồi lắng nghe cùng khoá đó.
+
+     Nghe sự kiện 'storage' để khi đổi ở tab khác cũng cập nhật, và một sự kiện
+     tự phát khi bấm nút trong cùng tab (storage chỉ bắn cho tab khác). */
+  useEffect(() => {
+    const apDung = () => {
+      try {
+        document.documentElement.classList.toggle(
+          'chu-lon',
+          localStorage.getItem(STORAGE_KEYS.chuLon) === 'true'
+        );
+      } catch { /* localStorage bị chặn -> bỏ qua */ }
+    };
+    apDung();
+    window.addEventListener('storage', apDung);
+    window.addEventListener('htans-tro-nang', apDung);
+    return () => {
+      window.removeEventListener('storage', apDung);
+      window.removeEventListener('htans-tro-nang', apDung);
+    };
+  }, []);
 
   // Ẩn chatbox AI ở khu vực cán bộ (chỉ dành cho công dân)
   const isAdminArea = location.pathname === '/dang-nhap' || location.pathname.startsWith('/quan-tri');

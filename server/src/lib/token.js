@@ -87,9 +87,17 @@ export function signAccessToken(staff) {
   );
 }
 
-/** Xác minh access token — ném lỗi nếu sai/hết hạn */
+/** Xác minh access token — ném lỗi nếu sai/hết hạn.
+ *
+ * ⚠️ GHIM CỨNG algorithms: ['HS256'].
+ * Không ghim thì jwt.verify chấp nhận mọi thuật toán token tự khai trong phần
+ * header "alg". Thư viện v9 đã chặn alg:none mặc định, nhưng để trống vẫn là
+ * đường mở: nếu sau này ai đổi sang khoá bất đối xứng (RS256) mà quên ghim,
+ * kẻ tấn công ép token về HS256 rồi ký bằng chính public key (vốn công khai) —
+ * chiếm quyền quản trị mà không cần biết khoá bí mật. Ghim ngay từ đầu để cửa
+ * đó không bao giờ mở, kể cả khi đổi loại khoá về sau. */
 export function verifyAccessToken(token) {
-  return jwt.verify(token, JWT_SECRET);
+  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 }
 
 /** Sinh refresh token ngẫu nhiên (lưu hash vào DB) */

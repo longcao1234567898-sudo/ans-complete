@@ -16,6 +16,20 @@
   html {
     scroll-behavior: smooth;
   }
+
+  /* ==========================================================================
+     CHẾ ĐỘ CHỮ LỚN — cho người lớn tuổi, người mắt kém
+
+     Phóng cỡ chữ gốc lên 125%. Vì gần như toàn bộ giao diện dùng đơn vị rem
+     (Tailwind: text-sm, text-base, p-4...), đổi một dòng font-size ở <html> là
+     mọi thứ to lên theo tỉ lệ — chữ, khoảng cách, nút bấm — mà không phải sửa
+     từng thành phần. Đây là lý do dùng rem thay vì px ngay từ đầu.
+
+     Không đụng tới các cỡ px cố định (viền, bóng) nên bố cục không vỡ. */
+  html.chu-lon {
+    font-size: 125%;
+  }
+
   body {
     @apply antialiased;
   }

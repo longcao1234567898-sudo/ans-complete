@@ -169,6 +169,9 @@ export const STORAGE_KEYS = {
   theme: 'htans_theme',
   chat: 'htans_chat_history',
   submitTimes: 'htans_submit_times',
+  /* Chế độ chữ lớn cho người lớn tuổi, người mắt kém. Lưu lại để lần sau vào
+     vẫn giữ — người cần nó thì luôn cần, không phải bật lại mỗi lần. */
+  chuLon: 'htans_chu_lon',
 };
 
 /** Độ dài mã tra cứu */

@@ -158,6 +158,7 @@ export interface DashboardStats {
     qua_han: number;
     sap_han: number;
     chua_phan_cong: number;
+    khan_cap?: number;
   };
   overview: {
     total_submissions: number;

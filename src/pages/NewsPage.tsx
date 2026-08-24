@@ -8,6 +8,7 @@ import type { NewsArticle, NewsTag } from '../types/news';
 import { fetchNews } from '../services/newsService';
 import NewsFilter from '../components/News/NewsFilter';
 import NewsGrid from '../components/News/NewsGrid';
+import NgheTinMoi from '../components/News/NgheTinMoi';
 import PageBackground from '../components/common/PageBackground';
 
 /* ============================================================================
@@ -85,8 +86,12 @@ export default function NewsPage() {
         </p>
       </div>
 
-      <div className="mb-6 flex justify-center">
+      <div className="mb-6 flex flex-col items-center gap-3">
         <NewsFilter value={tag} onChange={doiChuDe} />
+        {/* Nút NGHE TOÀN BỘ TIN — cho người mắt kém, người không quen đọc chữ.
+            Đọc lần lượt tiêu đề các tin đang hiện. Đặt ngay dưới bộ lọc để bà
+            con thấy ngay khi vào trang, không phải cuộn tìm. */}
+        <NgheTinMoi tieuDe={dangHien.map((a) => a.title)} />
       </div>
 
       <NewsGrid articles={dangHien} isLoading={isLoading} />

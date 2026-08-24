@@ -66,6 +66,24 @@ export async function kiemTraBiKhoa(pool, { deviceId, ip }) {
   if (!deviceId && !ip) return { biKhoa: false, ly_do: '' };
 
   try {
+    /* THIẾT BỊ TIN CẬY được miễn trừ trước mọi thứ.
+
+       Máy kiosk ở trụ sở, máy tính bảng ở nhà văn hoá, máy dùng chung tại điểm
+       hỗ trợ — nhiều người gửi qua cùng một thiết bị nên chung một device_id.
+       Không có miễn trừ thì một người gửi tin rác là khoá cả máy, mọi người
+       sau đó không gửi được. Mà đây đúng là thiết bị phục vụ người yếu thế
+       nhất — người không có điện thoại riêng.
+
+       Cán bộ ngồi cạnh máy kiosk đã là lớp kiểm soát, nên miễn khoá tự động là
+       an toàn. Đánh dấu tin cậy qua trang quản trị (danh sách chặn). */
+    const [tc] = await pool.query(
+      `SELECT 1 FROM blacklists
+        WHERE kind = 'trusted_device' AND identifier = ?
+        LIMIT 1`,
+      [deviceId || null]
+    );
+    if (tc.length > 0) return { biKhoa: false, ly_do: '', tinCay: true };
+
     /* Câu truy vấn CỐ ĐỊNH, không ghép chuỗi.
        Trước đây tôi ghép động mệnh đề WHERE cho gọn — tuy các mảnh ghép đều
        là hằng do mình viết chứ không phải dữ liệu người dùng, nhưng ghép chuỗi
@@ -91,6 +109,24 @@ export async function kiemTraBiKhoa(pool, { deviceId, ip }) {
 }
 
 /**
+ * Thiết bị này có được đánh dấu tin cậy không?
+ * Dùng để chặn khoá tự động NGAY TỪ ĐẦU — thiết bị tin cậy không bao giờ bị
+ * khoá dù bị đánh dấu tin rác bao nhiêu lần.
+ */
+export async function laThietBiTinCay(pool, deviceId) {
+  if (!deviceId) return false;
+  try {
+    const [rows] = await pool.query(
+      `SELECT 1 FROM blacklists WHERE kind = 'trusted_device' AND identifier = ? LIMIT 1`,
+      [deviceId]
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Khoá một thiết bị. Gọi khi cán bộ đánh dấu đơn là tin giả.
  *
  * Dùng ON DUPLICATE KEY để gia hạn nếu đã khoá trước đó — kẻ phá hoại bị bắt
@@ -98,6 +134,12 @@ export async function kiemTraBiKhoa(pool, { deviceId, ip }) {
  */
 export async function khoaThietBi(pool, { deviceId, staffId, lyDo }) {
   if (!deviceId) return false;
+  /* Thiết bị tin cậy (kiosk, máy dùng chung) KHÔNG bao giờ bị khoá tự động.
+     Xem chú thích trong kiemTraBiKhoa. */
+  if (await laThietBiTinCay(pool, deviceId)) {
+    console.warn(`[chặn spam] bỏ qua khoá — thiết bị ${deviceId.slice(0, 8)}… được đánh dấu tin cậy`);
+    return false;
+  }
   try {
     await pool.query(
       `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
@@ -149,6 +191,8 @@ const KHOA_TAI_PHAM_GIO = 30 * 24;
  */
 export async function xetKhoaTaiPham(pool, { deviceId, staffId }) {
   if (!deviceId) return { taiPham: false, soLan: 0 };
+  /* Thiết bị tin cậy không bao giờ bị khoá, kể cả tái phạm. */
+  if (await laThietBiTinCay(pool, deviceId)) return { taiPham: false, soLan: 0 };
   try {
     /* Lấy BA quyết định gần nhất của cán bộ với thiết bị này.
 

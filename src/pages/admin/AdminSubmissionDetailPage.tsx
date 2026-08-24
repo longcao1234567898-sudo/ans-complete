@@ -221,6 +221,30 @@ export default function AdminSubmissionDetailPage() {
               <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Xử lý ý kiến</h3>
 
               <label className="mb-1 block text-xs font-semibold text-slate-500">Ghi chú (tuỳ chọn)</label>
+
+              {/* MẪU CÂU BẤM NHANH — nhiều tình huống lặp lại, soạn sẵn để cán
+                  bộ chọn rồi chỉnh, thay vì gõ lại từ đầu mỗi lần. Rút ngắn
+                  thời gian phản hồi cho dân. Bấm là ĐIỀN vào ô, vẫn sửa tiếp
+                  được — không phải câu chốt cứng. */}
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {[
+                  'Đã tiếp nhận, đang xác minh thông tin.',
+                  'Đã cử lực lượng xuống hiện trường kiểm tra.',
+                  'Vụ việc đã chuyển đơn vị chức năng xử lý theo thẩm quyền.',
+                  'Đã liên hệ người phản ánh để làm rõ thêm.',
+                  'Đã xử lý xong, thông báo kết quả tới người dân.',
+                ].map((mau) => (
+                  <button
+                    key={mau}
+                    type="button"
+                    onClick={() => setNote((cu) => (cu.trim() ? cu.trimEnd() + ' ' + mau : mau))}
+                    className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-600 transition hover:bg-primary-100 hover:text-primary-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-primary-900/30"
+                  >
+                    + {mau.length > 32 ? mau.slice(0, 30) + '…' : mau}
+                  </button>
+                ))}
+              </div>
+
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}

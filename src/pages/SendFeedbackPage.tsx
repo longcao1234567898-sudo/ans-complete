@@ -13,6 +13,7 @@ import { saveTrackingCode } from '../hooks/useTrackingHistory';
 import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
+import HuongDanBuoc from '../components/FeedbackForm/HuongDanBuoc';
 import ContentInput from '../components/FeedbackForm/ContentInput';
 import AIAnalysis from '../components/FeedbackForm/AIAnalysis';
 import CategorySelect from '../components/FeedbackForm/CategorySelect';
@@ -149,6 +150,10 @@ export default function SendFeedbackPage() {
       </div>
 
       {!submission && <StepIndicator current={step} />}
+      {/* Hướng dẫn từng bước bằng lời, có nút đọc to — cho người lớn tuổi và
+          người không đọc được chữ. Chỉ hiện khi chưa gửi xong và thiết bị
+          không bị khoá (khỏi lẫn với màn hình báo khoá). */}
+      {!submission && !biKhoa?.biKhoa && <HuongDanBuoc buoc={step} />}
 
       <Card className="overflow-hidden p-5 sm:p-7">
         {/* Chuyển bước TRƯỢT NGANG như ứng dụng điện thoại:

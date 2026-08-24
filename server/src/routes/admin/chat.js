@@ -157,4 +157,66 @@ router.delete('/blacklist/:id', authorize('admin', 'manager'), async (req, res) 
   }
 });
 
+/* ============================================================================
+   THIẾT BỊ TIN CẬY — miễn khoá tự động cho máy dùng chung
+
+   Máy kiosk, máy tính bảng ở nhà văn hoá, máy tại điểm hỗ trợ lưu động: nhiều
+   người dùng chung một device_id. Đánh dấu tin cậy để một người gửi tin rác
+   không khoá cả máy, chặn oan mọi người sau đó. Chỉ admin/manager thao tác. */
+router.get('/trusted-devices', authorize('admin', 'manager'), async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, identifier, reason, created_at
+         FROM blacklists WHERE kind = 'trusted_device'
+        ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Đọc thiết bị tin cậy lỗi:', err.message);
+    res.status(500).json({ error: 'Không tải được danh sách. Đã chạy nang_cap_v12.sql chưa?' });
+  }
+});
+
+router.post('/trusted-devices', authorize('admin', 'manager'), async (req, res) => {
+  const deviceId = String(req.body?.deviceId || '').trim().toLowerCase();
+  const ghiChu = String(req.body?.ghiChu || '').trim().slice(0, 200);
+  if (deviceId.length < 8) {
+    return res.status(400).json({ error: 'Mã thiết bị không hợp lệ (quá ngắn).' });
+  }
+  try {
+    /* Dùng expires_at rất xa (100 năm) vì cột NOT NULL, nhưng bản chất là
+       không hết hạn. kiemTraBiKhoa lọc theo kind nên không cần xét hạn ở đây. */
+    await pool.query(
+      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
+       VALUES (?, 'trusted_device', ?, ?, DATE_ADD(NOW(), INTERVAL 100 YEAR))
+       ON DUPLICATE KEY UPDATE reason = VALUES(reason), created_by = VALUES(created_by)`,
+      [deviceId, ghiChu || 'Máy dùng chung tại trụ sở/điểm hỗ trợ', req.staff?.id || null]
+    );
+    await pool.query(
+      `INSERT INTO staff_activity_logs (staff_id, action, details, ip_address)
+       VALUES (?, 'trust_device', ?, ?)`,
+      [req.staff?.id || null, `Đánh dấu tin cậy thiết bị ${deviceId.slice(0, 12)}…`, layIpThat(req)]
+    ).catch(() => {});
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('Thêm thiết bị tin cậy lỗi:', err.message);
+    res.status(500).json({ error: 'Không thêm được. Đã chạy nang_cap_v12.sql chưa?' });
+  }
+});
+
+router.delete('/trusted-devices/:id', authorize('admin', 'manager'), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });
+  try {
+    const [kq] = await pool.query(
+      `DELETE FROM blacklists WHERE id = ? AND kind = 'trusted_device'`, [id]
+    );
+    if (!kq.affectedRows) return res.status(404).json({ error: 'Không tìm thấy.' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Bỏ thiết bị tin cậy lỗi:', err.message);
+    res.status(500).json({ error: 'Không bỏ được.' });
+  }
+});
+
 export default router;

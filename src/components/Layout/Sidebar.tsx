@@ -3,8 +3,9 @@
  */
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
-import { Shield, X } from 'lucide-react';
-import { NAV_LINKS, UNIT } from '../../utils/constants';
+import { Shield, X, Type } from 'lucide-react';
+import { NAV_LINKS, STORAGE_KEYS, UNIT } from '../../utils/constants';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { cn } from '../../utils/helpers';
 
 interface SidebarProps {
@@ -13,6 +14,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
+  /* Công tắc chữ lớn dùng chung khoá lưu trữ với nút trên Header — bật ở đâu
+     cũng đồng bộ, vì cùng đọc/ghi một chỗ trong localStorage. */
+  const [chuLon, setChuLon] = useLocalStorage<boolean>(STORAGE_KEYS.chuLon, false);
   return (
     <AnimatePresence>
       {open && (
@@ -70,7 +74,42 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               ))}
             </nav>
 
-            <div className="mt-8 rounded-xl bg-primary-50 p-4 text-xs leading-relaxed text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {/* ================================================================
+                TRỢ NĂNG — công tắc chữ lớn và ít dữ liệu, đặt trong menu mobile
+
+                Header đã có nút chữ lớn, nhưng trên điện thoại Header hẹp không
+                đủ chỗ giải thích. Ở đây có chỗ ghi rõ công tắc làm gì bằng lời,
+                cho người lớn tuổi hiểu trước khi bật. Ít dữ liệu chỉ đặt ở đây
+                vì ít dùng hơn, không cần chiếm chỗ trên Header.
+                ================================================================ */}
+            <div className="mt-6 space-y-2">
+              <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                Dễ đọc hơn
+              </p>
+              <button
+                type="button"
+                onClick={() => { setChuLon((v) => !v); setTimeout(() => window.dispatchEvent(new Event('htans-tro-nang')), 0); }}
+                aria-pressed={chuLon}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition',
+                  chuLon
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/25'
+                    : 'border-slate-200 dark:border-slate-700'
+                )}
+              >
+                <Type className="h-5 w-5 shrink-0 text-primary-600 dark:text-primary-300" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Chữ lớn {chuLon ? '· đang bật' : ''}
+                  </span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    Phóng to toàn bộ chữ cho dễ đọc
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-xl bg-primary-50 p-4 text-xs leading-relaxed text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               <p className="font-semibold text-primary-700 dark:text-primary-300">Khẩn cấp gọi {UNIT.emergency}</p>
               <p className="mt-1">Hotline: {UNIT.hotline}</p>
             </div>

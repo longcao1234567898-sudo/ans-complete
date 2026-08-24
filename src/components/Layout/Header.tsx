@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Menu, Moon, Shield, Sun, ShieldCheck } from 'lucide-react';
+import { Menu, Moon, Shield, Sun, ShieldCheck, Type } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { NAV_LINKS, STORAGE_KEYS, UNIT } from '../../utils/constants';
@@ -23,12 +23,24 @@ export default function Header() {
 
   const { staff } = useAdminAuth();
   const [theme, setTheme] = useLocalStorage<'light' | 'dark'>(STORAGE_KEYS.theme, 'light');
+  /* Chế độ chữ lớn — bật một chạm, nhớ lại cho lần sau. Việc ÁP class lên
+     <html> do AppShell lo (một chỗ duy nhất, vì nút này còn có bản sao trong
+     menu mobile). Ở đây chỉ ghi localStorage rồi bắn sự kiện để AppShell cập
+     nhật ngay trong cùng tab. */
+  const [chuLon, setChuLon] = useLocalStorage<boolean>(STORAGE_KEYS.chuLon, false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Đồng bộ class `dark` trên thẻ <html>
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  function toggleChuLon() {
+    setChuLon((v) => !v);
+    /* Bắn sau khi state đã lên hàng đợi — dùng setTimeout 0 để localStorage kịp
+       ghi trước khi AppShell đọc lại. */
+    setTimeout(() => window.dispatchEvent(new Event('htans-tro-nang')), 0);
+  }
 
   return (
     <>
@@ -88,6 +100,24 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-1.5">
+            {/* Nút CHỮ LỚN — đặt cạnh nút sáng/tối, luôn thấy trên mọi trang.
+                Người lớn tuổi không phải đi tìm trong phần cài đặt. Nền đổi màu
+                khi bật để thấy rõ đang ở chế độ nào. */}
+            <button
+              onClick={toggleChuLon}
+              aria-label={chuLon ? 'Tắt chế độ chữ lớn' : 'Bật chế độ chữ lớn'}
+              aria-pressed={chuLon}
+              title={chuLon ? 'Tắt chữ lớn' : 'Chữ lớn'}
+              className={cn(
+                'rounded-xl p-2.5 transition',
+                chuLon
+                  ? 'bg-primary-600 text-white hover:bg-primary-700'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              )}
+            >
+              <Type className="h-5 w-5" />
+            </button>
+
             {/* Nút chuyển dark mode */}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

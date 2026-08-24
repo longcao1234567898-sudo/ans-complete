@@ -38,7 +38,9 @@ router.get('/stats', async (_req, res) => {
                AND s.deadline_at >= NOW()
                AND s.deadline_at <= DATE_ADD(NOW(), INTERVAL 3 DAY)) AS sap_han,
            SUM(s.status IN ('received','processing')
-               AND s.assigned_to IS NULL)                        AS chua_phan_cong
+               AND s.assigned_to IS NULL)                        AS chua_phan_cong,
+           SUM(s.status IN ('received','processing')
+               AND s.urgency = 'urgent')                         AS khan_cap
          FROM submissions s
          WHERE s.deleted_at IS NULL
            AND (s.is_spam IS NULL OR s.is_spam = 0)`
@@ -47,6 +49,7 @@ router.get('/stats', async (_req, res) => {
         qua_han: Number(dh?.qua_han || 0),
         sap_han: Number(dh?.sap_han || 0),
         chua_phan_cong: Number(dh?.chua_phan_cong || 0),
+        khan_cap: Number(dh?.khan_cap || 0),
       };
     } catch (e) {
       /* Cột is_spam chưa có (chưa chạy nang_cap_v12.sql) -> thử lại không lọc.
@@ -57,13 +60,15 @@ router.get('/stats', async (_req, res) => {
              SUM(status IN ('received','processing') AND deadline_at < NOW())     AS qua_han,
              SUM(status IN ('received','processing') AND deadline_at >= NOW()
                  AND deadline_at <= DATE_ADD(NOW(), INTERVAL 3 DAY))              AS sap_han,
-             SUM(status IN ('received','processing') AND assigned_to IS NULL)     AS chua_phan_cong
+             SUM(status IN ('received','processing') AND assigned_to IS NULL)     AS chua_phan_cong,
+             SUM(status IN ('received','processing') AND urgency = 'urgent')      AS khan_cap
            FROM submissions WHERE deleted_at IS NULL`
         );
         dieuHanh = {
           qua_han: Number(dh2?.qua_han || 0),
           sap_han: Number(dh2?.sap_han || 0),
           chua_phan_cong: Number(dh2?.chua_phan_cong || 0),
+          khan_cap: Number(dh2?.khan_cap || 0),
         };
       } catch { /* để mặc định 0 */ }
     }

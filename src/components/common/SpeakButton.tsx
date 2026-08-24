@@ -4,11 +4,12 @@
  * VÌ SAO CẦN: người khiếm thị, người lớn tuổi mắt kém, người không quen đọc
  * chữ trên màn hình. Bấm loa -> nghe nội dung.
  *
- * Kỹ thuật: Web Speech API (speechSynthesis) — CÓ SẴN mọi trình duyệt hiện đại,
- * MIỄN PHÍ. Ưu tiên giọng vi-VN nếu máy có.
+ * Việc đọc giao cho tiện ích chung utils/tiengNoi.ts — nơi xử lý giọng Việt
+ * tải trễ, cắt câu dài để không bị ngắt, và chọn giọng Việt tốt nhất.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Volume2, Square } from 'lucide-react';
+import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
 
 interface SpeakButtonProps {
   text: string;
@@ -19,15 +20,11 @@ interface SpeakButtonProps {
 export default function SpeakButton({ text, className, label = 'Nghe đọc' }: SpeakButtonProps) {
   const [supported, setSupported] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const dkRef = useRef<DieuKhienDoc | null>(null);
 
   useEffect(() => {
     setSupported(typeof window !== 'undefined' && 'speechSynthesis' in window);
-    return () => {
-      // Rời trang -> dừng đọc
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    return () => { dkRef.current?.dung(); };
   }, []);
 
   if (!supported) return null;
@@ -35,27 +32,13 @@ export default function SpeakButton({ text, className, label = 'Nghe đọc' }: 
   function toggle(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const synth = window.speechSynthesis;
-
     if (speaking) {
-      synth.cancel();
+      dkRef.current?.dung();
       setSpeaking(false);
       return;
     }
-
-    synth.cancel(); // dừng đoạn đang đọc (nếu có)
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'vi-VN';
-    u.rate = 0.95; // chậm hơn chút cho dễ nghe
-
-    // Ưu tiên giọng tiếng Việt nếu máy có
-    const viVoice = synth.getVoices().find((v) => v.lang.startsWith('vi'));
-    if (viVoice) u.voice = viVoice;
-
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
-    synth.speak(u);
     setSpeaking(true);
+    dkRef.current = docTiengViet(text, () => setSpeaking(false));
   }
 
   return (

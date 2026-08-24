@@ -1,11 +1,34 @@
 /** GET /api/tracking/:code — tra cứu tiến độ theo mã, trả về đúng cấu trúc frontend cần */
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { STATUS_LABEL, layIpThat } from '../lib/helpers.js';
 
 const router = Router();
 
-router.get('/:code', async (req, res) => {
+/* ============================================================================
+   GIỚI HẠN TẦN SUẤT RIÊNG CHO TRA CỨU — CHỐNG DÒ MÃ
+
+   Mã tra cứu 6 ký tự cho khoảng 2 tỷ tổ hợp, nên dò mù toàn bộ là không thực
+   tế. Nhưng giới hạn chung 300 lượt/15 phút của cả hệ thống vẫn cho một máy
+   thử tới 28.800 lần/ngày — đủ để dò có mục tiêu. Đọc trộm được tiến độ hồ sơ
+   của người khác là rò rỉ quyền riêng tư, dù không lộ danh tính.
+
+   30 lượt/phút: người dân thật tra cứu vài lần là cùng, còn máy dò thì đây là
+   bức tường. Đặt riêng cho route này vì các route nhạy cảm khác (đăng nhập,
+   chat, trợ lý) đều đã có giới hạn riêng — chỉ tra cứu trước đây còn sót.
+
+   Khoá theo IP đã chuẩn hoá (layIpThat), không theo header người dùng tự đặt. */
+const gioiHanTraCuu = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => layIpThat(req),
+  message: { error: 'Bạn tra cứu quá nhanh. Vui lòng thử lại sau một phút.' },
+});
+
+router.get('/:code', gioiHanTraCuu, async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) {
     return res.status(400).json({ error: 'Mã tra cứu phải gồm 6 ký tự.' });

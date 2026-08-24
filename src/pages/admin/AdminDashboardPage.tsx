@@ -145,8 +145,12 @@ export default function AdminDashboardPage() {
               là danh sách việc phải làm — xem xong tổng thể rồi mới tới hành động.
               ================================================================== */}
           {data.dieuHanh && (
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
+                { Icon: AlarmClock, nhan: 'Việc khẩn cấp', so: data.dieuHanh.khan_cap ?? 0,
+                  mo: 'Dân báo cần xử lý ngay', mau: 'bg-red-600',
+                  vien: 'border-red-400 bg-red-50 dark:border-red-700 dark:bg-red-900/25',
+                  to: '/quan-tri/y-kien?urgency=urgent' },
                 { Icon: AlarmClock, nhan: 'Đã quá hạn', so: data.dieuHanh.qua_han,
                   mo: 'Cần giải trình', mau: 'bg-rose-600',
                   vien: 'border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-900/20',
