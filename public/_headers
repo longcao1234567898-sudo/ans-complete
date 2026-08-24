@@ -71,4 +71,11 @@
   ##    duyệt chặn SẠCH mọi lời gọi API, web hiện ra nhưng không đăng nhập / không
   ##    gửi được ý kiến, mà console chỉ báo "Refused to connect" rất khó đoán.
   ##    Đổi backend thì phải sửa 3 nơi: .env.production, file này, và vercel.json.
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; script-src-elem 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://hop-thu-so-v2.onrender.com https://api.cloudinary.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests
+  ##
+  ## media-src: cho phép phát tệp âm thanh đọc tiếng Việt lấy từ Google Dịch.
+  ##   Dùng làm phương án dự phòng khi máy người dùng KHÔNG cài sẵn giọng đọc
+  ##   tiếng Việt — khi đó Web Speech sẽ đọc chữ Việt bằng giọng tiếng Anh nghe
+  ##   sai hẳn, nên chuyển sang phát mp3 đọc tiếng Việt từ miền này. Chỉ là
+  ##   nguồn ÂM THANH (media), không phải script hay kết nối dữ liệu, nên bề mặt
+  ##   rủi ro rất hẹp.
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; script-src-elem 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' https://translate.google.com; connect-src 'self' https://hop-thu-so-v2.onrender.com https://api.cloudinary.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests

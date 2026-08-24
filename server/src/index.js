@@ -16,6 +16,7 @@ import authRouter from './routes/auth.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
+import ttsRouter from './routes/tts.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
 import { mailMode } from './lib/mailer.js';
@@ -167,6 +168,8 @@ app.use('/api/tracking', trackingRouter);
 /* Kênh trao đổi hai chiều với người gửi ý kiến (vào bằng mã tra cứu + PIN) */
 app.use('/api/chat', chatRouter);
 app.use('/api/news', newsRouter);
+/* Đọc tiếng Việt qua máy chủ — cho máy người dùng không cài giọng Việt */
+app.use('/api/tts', ttsRouter);
 app.use('/api/otp', otpRouter);
 app.use('/api/submissions', submissionsRouter);
 app.use('/api/ai', aiRouter);

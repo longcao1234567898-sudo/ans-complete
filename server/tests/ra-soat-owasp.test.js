@@ -262,7 +262,8 @@ describe('A10 — không có SSRF: mọi URL gọi ra ngoài đều là hằng s
           const doiSo = khop[1].trim();
           const anToan = /^['"`]https:\/\//.test(doiSo)     // URL hằng, ghi thẳng
             || doiSo === 'VERIFY_URL'                        // hằng Turnstile
-            || doiSo === 'urlOf(model)';                     // model từ biến MÔI TRƯỜNG, không phải người dùng
+            || doiSo === 'urlOf(model)'                      // model từ biến MÔI TRƯỜNG, không phải người dùng
+            || doiSo === 'duongDan';                         // tts.js: host cố định TTS_HOST + query đã encodeURIComponent
           if (!anToan) loi.push(`${muc.name}: fetch(${doiSo})`);
         }
       }
