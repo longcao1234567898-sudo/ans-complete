@@ -15,7 +15,10 @@ router.get('/', async (req, res) => {
               /* Cột do nang_cap_v13.sql thêm. COALESCE để database chưa nâng
                  cấp thì coi như không có bài nào được chọn — trang vẫn chạy,
                  chỉ là quay về cách cũ (bài mới nhất làm tin nổi bật). */
-              COALESCE(is_featured, 0) AS is_featured
+              COALESCE(is_featured, 0) AS is_featured,
+              /* Cột do nang_cap_v15.sql thêm. Chưa nâng cấp thì coi như 0 lượt
+                 — khu "đang quan tâm" chỉ đơn giản là không có gì nổi bật. */
+              COALESCE(view_count, 0) AS view_count
        FROM news WHERE is_published = TRUE`;
     const params = [];
     if (tag && tag !== 'all' && TAG_TO_CAT[tag]) {
@@ -63,12 +66,32 @@ router.get('/', async (req, res) => {
         tag: CAT_TO_TAG[n.category] || 'an_ninh',
         externalUrl: n.source_url || '#',
         source: n.source_name || '',
+        viewCount: Number(n.view_count || 0),
       }))
     );
   } catch (err) {
     console.error('Lỗi tin tức:', err);
     res.status(500).json({ error: 'Lỗi máy chủ khi tải tin tức.' });
   }
+});
+
+/** POST /api/news/:id/xem — đếm một lượt xem bản tin.
+ *
+ * Dùng cho khu "Bà con đang quan tâm": tin nhiều người đọc được đưa lên để
+ * nhiều người đọc hơn nữa — hiệu ứng lan truyền có lợi cho tuyên truyền.
+ *
+ * Không cần đăng nhập (đây là tin công khai). Không trả về gì ngoài ok, và
+ * KHÔNG bao giờ báo lỗi ra ngoài: đếm lượt xem hỏng thì cũng không được làm
+ * hỏng việc đọc tin của bà con. Chưa chạy nang_cap_v15.sql thì lặng lẽ bỏ qua. */
+router.post('/:id/xem', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.json({ ok: true });
+  try {
+    await pool.query('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [id]);
+  } catch {
+    /* Cột chưa có -> bỏ qua, không ảnh hưởng gì tới người đọc. */
+  }
+  res.json({ ok: true });
 });
 
 export default router;

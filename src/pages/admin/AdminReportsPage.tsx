@@ -285,7 +285,18 @@ export default function AdminReportsPage() {
 
       {data && (
         <>
-          {/* Cảnh báo quá hạn */}
+          {/* Không có ý kiến nào trong khoảng đã chọn -> nói rõ, để không tưởng
+              là lỗi khi xuất file ra thấy trống. */}
+          {Number(data.overview.total) === 0 && (
+            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/15">
+              <AlertTriangle className="h-6 w-6 shrink-0 text-amber-600" />
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Khoảng thời gian từ <b>{range.from}</b> đến <b>{range.to}</b> chưa có ý kiến nào.
+                Xuất Excel lúc này thì file sẽ trống — hãy chọn khoảng thời gian có dữ liệu.
+              </p>
+            </div>
+          )}
+
           {Number(data.overview.overdue) > 0 && (
             <div className="mb-5 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/40 dark:bg-rose-900/10">
               <AlertTriangle className="h-6 w-6 shrink-0 text-rose-600" />

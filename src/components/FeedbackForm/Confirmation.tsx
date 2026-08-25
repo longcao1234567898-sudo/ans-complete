@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Check, Copy, Download, Home, RotateCcw, Search } from 'lucide-react';
-import { MascotCheer } from '../common/PoliceMascot';
 import toast from 'react-hot-toast';
 import type { FeedbackDraft, FeedbackSubmission } from '../../types/feedback';
 import { CATEGORY_MAP } from '../../utils/constants';
@@ -102,7 +101,11 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
     const qrValue = `${window.location.origin}/tra-cuu?ma=${submission.trackingCode}`;
     return (
       <div className="text-center">
-        <MascotCheer className="mx-auto mb-3 h-36 w-auto" />
+        <img
+          src="/media/police-avatar.png"
+          alt="Chú công an"
+          className="mx-auto mb-3 h-36 w-36 rounded-full object-cover"
+        />
         <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Gửi ý kiến thành công!</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Cảm ơn bà con đã đóng góp ý kiến. Vui lòng lưu lại mã tra cứu bên dưới.

@@ -2,7 +2,7 @@
  * Trang "Tin tức": lọc theo chủ đề + lưới bản tin.
  */
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, TrendingUp } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import type { NewsArticle, NewsTag } from '../types/news';
 import { fetchNews } from '../services/newsService';
@@ -27,6 +27,9 @@ const MOI_LAN = 21;
 export default function NewsPage() {
   const [tag, setTag] = useState<NewsTag | 'all'>('all');
   const [soHien, setSoHien] = useState(MOI_LAN);
+  /* Lọc theo mốc thời gian, song song với lọc chủ đề. Giúp bà con nhanh thấy
+     tin mới nhất — nhất là tin cảnh giác lừa đảo cần biết ngay trong ngày. */
+  const [khoangTG, setKhoangTG] = useState<'all' | 'today' | 'week'>('all');
 
   /* --------------------------------------------------------------------------
      CHỈ TẢI ĐÚNG SỐ TIN ĐANG CẦN, CỘNG THÊM MỘT LƯỢT DỰ TRỮ
@@ -65,13 +68,37 @@ export default function NewsPage() {
     return [...theoTieuDe.values()];
   })();
 
-  const dangHien = tatCa.slice(0, soHien);
-  const conLai = tatCa.length - dangHien.length;
+  /* Lọc theo mốc thời gian trên danh sách đã gộp trùng.
+     Hôm nay = từ 0h hôm nay. Trong tuần = 7 ngày gần nhất. */
+  const tatCaTheoTG = (() => {
+    if (khoangTG === 'all') return tatCa;
+    const bayGio = new Date();
+    let moc: number;
+    if (khoangTG === 'today') {
+      const dauNgay = new Date(bayGio.getFullYear(), bayGio.getMonth(), bayGio.getDate());
+      moc = dauNgay.getTime();
+    } else {
+      moc = bayGio.getTime() - 7 * 24 * 60 * 60 * 1000;
+    }
+    return tatCa.filter((a) => {
+      const t = new Date(a.publishedAt).getTime();
+      return !Number.isNaN(t) && t >= moc;
+    });
+  })();
+
+  const dangHien = tatCaTheoTG.slice(0, soHien);
+  const conLai = tatCaTheoTG.length - dangHien.length;
 
   /* Đổi chủ đề thì đếm lại từ đầu — không thì bà con bấm "Xem thêm" ở mục này
      rồi sang mục khác lại thấy hiện sẵn cả trăm tin, khác hẳn mong đợi. */
   function doiChuDe(t: NewsTag | 'all') {
     setTag(t);
+    setSoHien(MOI_LAN);
+  }
+
+  /* Đổi mốc thời gian cũng đếm lại từ đầu, như đổi chủ đề. */
+  function doiThoiGian(k: 'all' | 'today' | 'week') {
+    setKhoangTG(k);
     setSoHien(MOI_LAN);
   }
 
@@ -88,13 +115,95 @@ export default function NewsPage() {
 
       <div className="mb-6 flex flex-col items-center gap-3">
         <NewsFilter value={tag} onChange={doiChuDe} />
+
+        {/* LỌC THEO THỜI GIAN — cho bà con nhanh thấy tin mới nhất. Đặt cạnh lọc
+            chủ đề. Nút "Hôm nay" và "Trong tuần" hiện số tin để biết có tin mới
+            không mà không phải bấm vào. */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {([
+            ['all', 'Tất cả', tatCa.length],
+            ['today', 'Hôm nay', tatCa.filter((a) => {
+              const d = new Date(a.publishedAt); const n = new Date();
+              return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+            }).length],
+            ['week', 'Trong tuần', tatCa.filter((a) => {
+              const t = new Date(a.publishedAt).getTime();
+              return !Number.isNaN(t) && t >= Date.now() - 7 * 864e5;
+            }).length],
+          ] as const).map(([giaTri, ten, so]) => (
+            <button
+              key={giaTri}
+              type="button"
+              onClick={() => doiThoiGian(giaTri)}
+              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold transition ${
+                khoangTG === giaTri
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+              }`}
+            >
+              {ten}
+              <span className={`rounded-full px-1.5 text-xs ${
+                khoangTG === giaTri ? 'bg-white/25' : 'bg-slate-200 dark:bg-slate-700'
+              }`}>{so}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Nút NGHE TOÀN BỘ TIN — cho người mắt kém, người không quen đọc chữ.
             Đọc lần lượt tiêu đề các tin đang hiện. Đặt ngay dưới bộ lọc để bà
             con thấy ngay khi vào trang, không phải cuộn tìm. */}
         <NgheTinMoi tieuDe={dangHien.map((a) => a.title)} />
       </div>
 
-      <NewsGrid articles={dangHien} isLoading={isLoading} />
+      {/* ==================================================================
+          BÀ CON ĐANG QUAN TÂM — ba tin nhiều lượt xem nhất.
+
+          Vì sao có: tin nhiều người đọc thì càng nhiều người đọc — hiệu ứng lan
+          truyền có lợi cho tuyên truyền. Chỉ hiện khi có tin đạt từ 5 lượt trở
+          lên, để lúc mới chạy chưa ai xem thì không hiện khu trống vô nghĩa.
+          ================================================================== */}
+      {!isLoading && khoangTG === 'all' && tag === 'all' && (() => {
+        const nhieuNguoiXem = [...tatCa]
+          .filter((a) => (a.viewCount ?? 0) >= 5)
+          .sort((x, y) => (y.viewCount ?? 0) - (x.viewCount ?? 0))
+          .slice(0, 3);
+        if (nhieuNguoiXem.length === 0) return null;
+        return (
+          <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+            <p className="mb-3 flex items-center gap-1.5 text-sm font-extrabold text-amber-800 dark:text-amber-300">
+              <TrendingUp className="h-4 w-4" /> Bà con đang quan tâm
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {nhieuNguoiXem.map((a) => (
+                <a
+                  key={a.id}
+                  href={a.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl bg-white p-3 text-sm font-semibold text-slate-700 transition hover:shadow-soft dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <span className="line-clamp-2">{a.title}</span>
+                  <span className="mt-1 block text-xs font-normal text-slate-400">
+                    {a.viewCount} lượt xem
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {!isLoading && khoangTG !== 'all' && dangHien.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {khoangTG === 'today'
+              ? 'Hôm nay chưa có tin mới. Bà con xem "Trong tuần" hoặc "Tất cả" nhé.'
+              : 'Tuần này chưa có tin mới. Bà con xem "Tất cả" để đọc các tin trước đó nhé.'}
+          </p>
+        </div>
+      ) : (
+        <NewsGrid articles={dangHien} isLoading={isLoading} />
+      )}
 
       {/* ==================================================================
           NÚT XEM THÊM — góc dưới bên phải

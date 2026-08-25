@@ -20,7 +20,7 @@
  * Tóm tắt chỉ hữu ích khi đã quan tâm — mà lúc đó họ mở bài rồi.
  */
 import { useState } from 'react';
-import { ExternalLink, Newspaper, Star, ShieldAlert, AlertTriangle, FileText, Scale } from 'lucide-react';
+import { ExternalLink, Newspaper, Star, ShieldAlert, AlertTriangle, FileText, Scale, Share2 } from 'lucide-react';
 
 /* --------------------------------------------------------------------------
    KHỐI THAY ẢNH THEO CHỦ ĐỀ
@@ -55,6 +55,7 @@ import Badge from '../common/Badge';
 import Card from '../common/Card';
 import { Skeleton } from '../common/Loading';
 import SpeakButton from '../common/SpeakButton';
+import toast from 'react-hot-toast';
 
 export type KieuThe = 'noi-bat' | 'thuong' | 'gon';
 
@@ -67,6 +68,41 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
   const [loaded, setLoaded] = useState(false);
   const tag = NEWS_TAGS[article.tag];
 
+  /* TIN MỚI trong 48 giờ — gắn nhãn đỏ để bà con lướt qua là biết ngay tin nào
+     vừa đăng, không phải đọc ngày tháng rồi tự tính. Quan trọng với tin cảnh
+     giác lừa đảo: thủ đoạn mới cần biết ngay. */
+  const laTinMoi = (() => {
+    const t = new Date(article.publishedAt).getTime();
+    return !Number.isNaN(t) && Date.now() - t <= 48 * 60 * 60 * 1000;
+  })();
+
+  /* Đếm một lượt xem khi bà con bấm đọc tin. Gọi "bắn rồi quên": không chờ
+     kết quả, không chặn việc mở bài — đếm hỏng cũng không ảnh hưởng người đọc. */
+  function demLuotXem() {
+    const api = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '');
+    if (!api) return;
+    fetch(`${api}/api/news/${article.id}/xem`, { method: 'POST' }).catch(() => {});
+  }
+
+  /* Chia sẻ nhanh bản tin. Điện thoại: mở bảng chia sẻ của máy (có sẵn Zalo,
+     Messenger, tin nhắn). Máy tính không có API đó thì sao chép đường dẫn để
+     bà con tự dán vào Zalo. */
+  async function chiaSeNhanh() {
+    const url = article.externalUrl;
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: article.title, text: article.title, url });
+      } catch { /* người dùng huỷ -> bỏ qua */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Đã chép đường dẫn — bà con dán vào Zalo để gửi cho người thân');
+    } catch {
+      toast.error('Không chép được đường dẫn');
+    }
+  }
+
   const chungLienKet =
     'group block rounded-2xl focus:outline-none focus-visible:ring-2 '
     + 'focus-visible:ring-primary-500 focus-visible:ring-offset-2';
@@ -78,6 +114,7 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
     return (
       <a
         href={article.externalUrl}
+        onClick={demLuotXem}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Đọc bài: ${article.title}`}
@@ -128,6 +165,9 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
                 {tag.label}
               </span>
               <span className="text-[10px] text-slate-400">
+                {laTinMoi && (
+                  <span className="mr-1 rounded bg-red-600 px-1 py-px text-[9px] font-extrabold text-white">MỚI</span>
+                )}
                 {formatDate(article.publishedAt, false)}
               </span>
             </div>
@@ -144,6 +184,7 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
     return (
       <a
         href={article.externalUrl}
+        onClick={demLuotXem}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Đọc bài nổi bật: ${article.title}`}
@@ -214,6 +255,7 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
   return (
     <a
       href={article.externalUrl}
+      onClick={demLuotXem}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Đọc bài: ${article.title}`}
@@ -242,7 +284,10 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
         </div>
 
         <div className="flex flex-1 flex-col p-4">
-          <p className="mb-1.5 text-xs text-slate-400">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+            {laTinMoi && (
+              <span className="rounded bg-red-600 px-1.5 py-px text-[10px] font-extrabold text-white">MỚI</span>
+            )}
             {formatDate(article.publishedAt, false)}
           </p>
 
@@ -258,7 +303,20 @@ export default function NewsCard({ article, kieu = 'thuong' }: Props) {
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 transition group-hover:gap-2.5 dark:text-primary-400">
               Đọc tại {article.source} <ExternalLink className="h-3 w-3" />
             </span>
-            <SpeakButton text={`${article.title}. ${article.summary}`} label="Nghe" />
+            <span className="flex items-center gap-1.5">
+              {/* Nút chia sẻ: chặn sự kiện để bấm vào không mở bài, chỉ mở bảng
+                  chia sẻ. Giúp bà con gửi tin cảnh giác vào nhóm Zalo xóm. */}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); chiaSeNhanh(); }}
+                aria-label="Chia sẻ bản tin này"
+                title="Chia sẻ cho người thân"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+              <SpeakButton text={`${article.title}. ${article.summary}`} label="Nghe" />
+            </span>
           </div>
         </div>
       </Card>

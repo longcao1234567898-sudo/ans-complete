@@ -15,4 +15,6 @@ export interface NewsArticle {
   /** Link ngoài đến trang thông tin pháp luật (vbpl.vn, luatvietnam.vn, ...) */
   externalUrl: string;
   source: string;
+  /** Số lượt xem — phục vụ khu "Bà con đang quan tâm" (v15) */
+  viewCount?: number;
 }
