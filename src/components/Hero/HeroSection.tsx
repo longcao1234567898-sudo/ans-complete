@@ -51,11 +51,31 @@ export default function HeroSection() {
         muted
         loop
         playsInline
-        poster="/media/police-assistant.png"
+        /* ⚠️ Ảnh chờ PHẢI là ảnh phong cảnh, KHÔNG dùng ảnh có chữ.
+           Trước đây dùng police-assistant.png — ảnh minh hoạ hội thoại có sẵn
+           chữ "Xin chào / Tôi là trợ lý ảo...". Vì object-cover phóng to cắt
+           hai bên trên màn hình hẹp, chữ trong ảnh tràn ra mép, hiện dở dang
+           sau tiêu đề, trông như trang bị lỗi.
+           hero-poster.webp cắt từ chính khung hình video nên khớp liền mạch khi
+           video tải xong, KHÔNG có chữ, và đã cắt bỏ watermark của công cụ tạo
+           video ở mép dưới. Các ảnh bg-*.webp khác đều có bia chữ địa danh nên
+           không dùng làm nền cho vùng có tiêu đề. */
+        poster="/media/hero-poster.webp"
         aria-hidden
       />
-      {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/70 to-white/90 dark:from-slate-950/85 dark:via-slate-950/70 dark:to-slate-950/90" aria-hidden />
+      {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video.
+
+          ⚠️ Độ phủ phải ĐỦ ĐẬM: video nền có sẵn chữ trong nội dung ("Xin
+          chào", "Tôi là trợ lý ảo..."). Phủ mỏng thì chữ trong video lọt qua,
+          mà object-cover lại phóng to cắt hai bên trên màn hình hẹp nên chữ đó
+          hiện ra dở dang, đè lẫn chữ chính, trông như trang bị lỗi.
+          Mức 90/80/90: đủ để chữ tiêu đề rõ trên mọi khung hình, vẫn thấy được
+          cảnh nền. Ảnh chờ và video đều không có chữ nên không cần phủ dày hơn.
+
+          ⚠️ CHỈ dùng các mức opacity CHUẨN của Tailwind (5, 10, 20... 90, 95).
+          Mức lạ như /92, /88, /94 KHÔNG được sinh ra trong tệp CSS, lớp phủ sẽ
+          trong suốt hoàn toàn và lỗi còn nặng hơn lúc chưa sửa. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/80 to-white/90 dark:from-slate-950/90 dark:via-slate-950/80 dark:to-slate-950/90" aria-hidden />
 
       {/* Huy hiệu Bảo mật góc trái */}
       <div className="glass absolute left-4 top-4 z-10 hidden items-center gap-2 rounded-2xl px-3 py-2 md:flex" aria-hidden>

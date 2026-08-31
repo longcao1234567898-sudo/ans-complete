@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { pool } from './src/db.js';
+import { inLoiKetNoi } from './goi-y-loi-ket-noi.js';
 
 const password = process.argv[2];
 if (!password || password.length < 6) {
@@ -15,7 +16,12 @@ if (!password || password.length < 6) {
 }
 
 const hash = await bcrypt.hash(password, 12);
-await pool.query('UPDATE staff SET password_hash = ? WHERE username = ?', [hash, 'admin']);
-console.log('✅ Đã đặt mật khẩu cho tài khoản "admin".');
-console.log('   Đăng nhập bằng: username = admin, password = ' + password);
-process.exit(0);
+try {
+  await pool.query('UPDATE staff SET password_hash = ? WHERE username = ?', [hash, 'admin']);
+  console.log('✅ Đã đặt mật khẩu cho tài khoản "admin".');
+  console.log('   Đăng nhập bằng: username = admin, password = ' + password);
+  process.exit(0);
+} catch (err) {
+  inLoiKetNoi(err);
+  process.exit(1);
+}

@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import {
   Loader2, Eye, ShieldAlert, LogIn, LogOut, UserPlus,
   RefreshCw, ScrollText, ChevronLeft, ChevronRight,
+  Download, Map, ShieldCheck,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { fetchLogs } from '../../services/adminService';
@@ -19,6 +20,29 @@ const ACTION_META: Record<string, { label: string; cls: string; Icon: any }> = {
     label: 'XEM DANH TÍNH người gửi',
     cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
     Icon: Eye,
+  },
+  /* Ba hành động dưới đây đều là "mang dữ liệu ra ngoài" hoặc "xem toàn cảnh"
+     — nhạy cảm ngang việc xem danh tính, nên tô màu cảnh báo để cán bộ giám
+     sát lướt qua là thấy ngay. */
+  export_data: {
+    label: 'XUẤT DỮ LIỆU ra ngoài',
+    cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    Icon: Download,
+  },
+  view_map: {
+    label: 'Xem bản đồ điểm nóng',
+    cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+    Icon: Map,
+  },
+  set_security_level: {
+    label: 'Đổi cấp độ bảo mật',
+    cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    Icon: ShieldCheck,
+  },
+  trust_device: {
+    label: 'Đánh dấu thiết bị tin cậy',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+    Icon: ShieldCheck,
   },
   update_status: {
     label: 'Đổi trạng thái xử lý',
@@ -45,6 +69,9 @@ const ACTION_META: Record<string, { label: string; cls: string; Icon: any }> = {
 const FILTERS = [
   { value: '', label: 'Tất cả' },
   { value: 'reveal_identity', label: 'Xem danh tính' },
+  { value: 'export_data', label: 'Xuất dữ liệu' },
+  { value: 'view_map', label: 'Xem bản đồ' },
+  { value: 'set_security_level', label: 'Đổi cấp độ mật' },
   { value: 'update_status', label: 'Đổi trạng thái' },
   { value: 'assign', label: 'Phân công' },
   { value: 'login', label: 'Đăng nhập' },
@@ -139,7 +166,8 @@ export default function AdminLogsPage() {
                   key={log.id}
                   className={`flex flex-wrap items-center gap-3 px-4 py-3 ${
                     i > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''
-                  } ${log.action === 'reveal_identity' ? 'bg-rose-50/40 dark:bg-rose-900/5' : ''}`}
+                  } ${['reveal_identity', 'export_data'].includes(log.action)
+                      ? 'bg-rose-50/40 dark:bg-rose-900/5' : ''}`}
                 >
                   <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.cls}`}>
                     <meta.Icon className="h-3 w-3" /> {meta.label}

@@ -66,12 +66,20 @@ router.get('/', async (_req, res) => {
     );
 
     res.json({
-      items: rows.map((r) => ({
-        ...r,
-        // Nội dung rút gọn, không cần hiện hết trong thùng rác
-        preview: String(r.ai_processed_content || r.original_content || '').slice(0, 200),
-        daysLeft: Math.max(0, Number(r.days_left) || 0),
-      })),
+      items: rows.map((r) => {
+        const toanVan = String(r.ai_processed_content || r.original_content || '');
+        return {
+          ...r,
+          // Nội dung rút gọn để hiện trong danh sách
+          preview: toanVan.slice(0, 200),
+          /* Toàn văn để cán bộ bấm "Xem chi tiết" đọc ngay tại chỗ, khỏi phải
+             khôi phục tin ra mới đọc được. Giới hạn 5000 ký tự cho nhẹ — dài
+             hơn thế thì khôi phục rồi mở trang chi tiết. */
+          noiDungDayDu: toanVan.slice(0, 5000),
+          coBiCat: toanVan.length > 5000,
+          daysLeft: Math.max(0, Number(r.days_left) || 0),
+        };
+      }),
       keepDays: GIU_NGAY,
       autoDeleted,
     });

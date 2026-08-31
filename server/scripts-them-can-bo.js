@@ -33,6 +33,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { pool } from './src/db.js';
+import { inLoiKetNoi } from './goi-y-loi-ket-noi.js';
 
 const ROLES = ['admin', 'manager', 'handler'];
 const CATEGORY_NAMES = {
@@ -145,9 +146,6 @@ try {
 
   process.exit(0);
 } catch (err) {
-  console.error('\n❌ LỖI:', err.message);
-  if (err.message.includes('ECONNREFUSED') || err.message.includes('ENOTFOUND')) {
-    console.error('   👉 Kiểm tra file server/.env có trỏ đúng database không?\n');
-  }
+  inLoiKetNoi(err);
   process.exit(1);
 }
