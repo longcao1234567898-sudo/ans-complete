@@ -80,8 +80,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const navRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLAnchorElement>(null);
 
-  /* Trên điện thoại: cuộn mục đang chọn vào giữa tầm nhìn.
-     Chỉ cuộn khi mục đó đang khuất — tránh giật màn hình vô cớ. */
+  /* Trên điện thoại: đưa mục đang chọn vào giữa tầm nhìn của thanh mục ngang.
+
+     ⚠️ ĐẶT VỊ TRÍ TỨC THÌ, KHÔNG DÙNG HIỆU ỨNG TRƯỢT.
+
+     Lý do: mỗi trang quản trị TỰ BỌC AdminLayout, nên chuyển trang là layout cũ
+     bị huỷ và layout mới được dựng lại từ đầu. Thanh mục là phần tử DOM hoàn
+     toàn mới, vị trí cuộn khởi đầu bằng 0. Nếu dùng 'smooth', người dùng thấy
+     thanh mục trượt từ đầu danh sách rồi mới bò tới mục đang chọn — vừa chậm
+     vừa khó chịu, mỗi lần chuyển mục lại phải xem một lần.
+
+     Đặt tức thì thì mục đang chọn đã nằm sẵn đúng chỗ ngay khi trang hiện ra,
+     người dùng không thấy chuyển động nào cả — đúng như mong đợi.
+
+     Sửa gốc rễ hơn là đưa AdminLayout thành layout dùng chung ở phần khai báo
+     đường dẫn (React Router Outlet) để nó không bị dựng lại. Việc đó đụng vào
+     cả 12 trang nên để dành khi có thời gian rà kỹ; cách hiện tại đã hết hẳn
+     triệu chứng. */
   useEffect(() => {
     const nav = navRef.current;
     const item = activeRef.current;
@@ -92,10 +107,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const bikhuat = khungMuc.left < khungNav.left || khungMuc.right > khungNav.right;
 
     if (bikhuat) {
-      nav.scrollTo({
-        left: item.offsetLeft - nav.clientWidth / 2 + item.clientWidth / 2,
-        behavior: 'smooth',
-      });
+      /* GÁN THẲNG scrollLeft, không dùng scrollTo.
+         scrollTo với behavior:'instant' cũng được, nhưng gán thẳng thì chắc
+         chắn tức thì trên mọi trình duyệt, không phụ thuộc vào việc trình duyệt
+         có hiểu giá trị 'instant' hay không, và không bị CSS scroll-behavior
+         can thiệp. */
+      nav.scrollLeft = item.offsetLeft - nav.clientWidth / 2 + item.clientWidth / 2;
     }
   }, [location.pathname]);
 
@@ -195,7 +212,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           ref={navRef}
           className="scrollbar-thin mb-5 flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-soft dark:bg-slate-900 lg:hidden"
         >
-          {NHOM.flatMap((n) => n.muc).map(({ to, label, Icon, exact }) => {
+          {/* Dùng NHOM_HIEN (đã lọc theo vai trò), KHÔNG dùng NHOM.
+              Trước đây chỗ này dùng NHOM nên trên điện thoại cán bộ thấy đủ mọi
+              mục kể cả mục mình không có quyền — bấm vào nhận lỗi 403 khó hiểu.
+              Bản trên máy tính đã lọc đúng, chỉ bản điện thoại bị sót. */}
+          {NHOM_HIEN.flatMap((n) => n.muc).map(({ to, label, Icon, exact }) => {
             const chon = dangChon(to, exact);
             return (
               <Link

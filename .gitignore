@@ -3,3 +3,7 @@ dist
 *.local
 .DS_Store
 .env
+  DIEN-SAN-*.txt
+    MAU-*env*.txt
+    server/ca.pem
+    server/sao-luu/
