@@ -2,8 +2,25 @@ node_modules
 dist
 *.local
 .DS_Store
+
+# ============================================================
+# TỆP CHỨA KHOÁ BÍ MẬT — KHÔNG BAO GIỜ ĐẨY LÊN GITHUB
+# ============================================================
+# GitHub có cơ chế quét và chặn khi phát hiện khoá thật trong
+# mã đẩy lên. Nếu bị chặn, ĐỪNG bấm đường link "unblock" trong
+# thông báo — bấm vào là cho phép khoá thật nằm công khai vĩnh
+# viễn. Hãy gỡ tệp ra khỏi commit rồi đẩy lại.
 .env
-  DIEN-SAN-*.txt
-    MAU-*env*.txt
-    server/ca.pem
-    server/sao-luu/
+.env.*
+!.env.example
+server/.env
+server/ca.pem
+*ca.pem
+
+# Tệp mẫu/nháp có điền sẵn khoá (đặt ngoài dự án thì tốt hơn)
+DIEN-SAN-*.txt
+MAU-*env*.txt
+
+# Bản sao lưu cơ sở dữ liệu — chứa toàn bộ dữ liệu người dân
+server/sao-luu/
+*.sql.bak

@@ -230,6 +230,8 @@ export interface SubmissionListResult {
 
 export function fetchSubmissions(params: {
   status?: string; category?: string; urgency?: string; sla?: string; assigned?: string;
+  /** '1' = chỉ xem tin đã bị đánh dấu rác, để soát xem có chặn oan ai không */
+  nghiRac?: string;
   /** mac_dinh | moi_nhat | cu_nhat | muc_cao | muc_thap */
   sort?: string;
   q?: string; page?: number; limit?: number;

@@ -25,16 +25,24 @@ const STATUS_TABS = [
      (received + processing). Trước đây nó mang nhãn "Tất cả" — sai hẳn nghĩa:
      đơn vị có 70 ý kiến, mở ra đếm được ba chục rồi tưởng mất dữ liệu, đúng
      kiểu nhầm lẫn mà cả trang này đang cố tránh. Nhãn nay nói đúng việc nó làm. */
-  { value: '', label: 'Việc chưa xong', sla: '' },
+  { value: '', label: 'Việc chưa xong', sla: '', nghiRac: '' },
   /* Muốn xem ĐỦ cả 70 — kể cả đã giải quyết, từ chối, chờ kiểm duyệt — thì
      phải gửi status='all'. Máy chủ hỗ trợ sẵn, trước nay giao diện không gọi. */
-  { value: 'all', label: 'Tất cả', sla: '' },
-  { value: 'received', label: 'Chờ tiếp nhận', sla: '' },
-  { value: 'processing', label: 'Đang xử lý', sla: '' },
-  { value: 'resolved', label: 'Đã giải quyết', sla: '' },
-  { value: 'rejected', label: 'Từ chối', sla: '' },
+  { value: 'all', label: 'Tất cả', sla: '', nghiRac: '' },
+  { value: 'received', label: 'Chờ tiếp nhận', sla: '', nghiRac: '' },
+  { value: 'processing', label: 'Đang xử lý', sla: '', nghiRac: '' },
+  { value: 'resolved', label: 'Đã giải quyết', sla: '', nghiRac: '' },
+  { value: 'rejected', label: 'Từ chối', sla: '', nghiRac: '' },
   /* Mục riêng: lọc theo HẠN XỬ LÝ, không phải theo trạng thái */
-  { value: '', label: '⏰ Quá hạn', sla: 'overdue' },
+  { value: '', label: '⏰ Quá hạn', sla: 'overdue', nghiRac: '' },
+  /* Mục soát tin bị đánh dấu rác.
+
+     ⚠️ VÌ SAO PHẢI CÓ: tin bị đánh dấu rác TỰ ĐỘNG vẫn giữ trạng thái bình
+     thường (cố ý, để người gửi không biết mình bị chặn). Danh sách chính đã ẩn
+     chúng đi cho khớp số với trang Tổng quan — nhưng ẩn mà không có lối xem lại
+     thì cán bộ mất khả năng phát hiện hệ thống chặn oan người dân thật.
+     Mục này chính là lối xem lại đó. */
+  { value: '', label: '🚫 Nghi tin rác', sla: '', nghiRac: '1' },
 ];
 
 export default function AdminSubmissionsPage() {
@@ -44,6 +52,8 @@ export default function AdminSubmissionsPage() {
   const [sla, setSla] = useState('');
   const [sort, setSort] = useState('mac_dinh');
   const [assigned, setAssigned] = useState('');
+  /* Đang soát tin bị đánh dấu rác hay không. Xem chú thích ở mục lọc. */
+  const [nghiRac, setNghiRac] = useState('');
 
   /* ------------------------------------------------------------------------
      NHẬN BỘ LỌC TỪ ĐƯỜNG DẪN
@@ -75,13 +85,13 @@ export default function AdminSubmissionsPage() {
   });
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['admin-submissions', status, category, urgency, sla, assigned, sort, q, page],
+    queryKey: ['admin-submissions', status, category, urgency, sla, assigned, sort, q, page, nghiRac],
     queryFn: () => fetchSubmissions({
       /* ⚠️ PHẢI truyền `sort`. Trước đây sort nằm trong queryKey nhưng không
          nằm trong lời gọi — đổi ô sắp xếp thì react-query nạp lại đúng một
          lần rồi trả về y hệt thứ tự cũ, ô chọn nhìn như bị hỏng. */
       sort,
-      status, category, urgency, assigned, q, page, limit: 15,
+      status, category, urgency, assigned, q, page, limit: 15, nghiRac,
       /* Không ở mục "Quá hạn" thì ẨN việc quá hạn khỏi danh sách — chúng đã
          có mục riêng, để lẫn vào đây là đọc trùng và chiếm chỗ việc trong hạn. */
       /* ⚠️ ĐÃ BỎ 'an_qua_han' MẶC ĐỊNH.
@@ -111,10 +121,15 @@ export default function AdminSubmissionsPage() {
       <div className="mb-4 flex flex-wrap gap-2">
         {STATUS_TABS.map((t) => (
           <button
-            key={t.value}
-            onClick={() => { setStatus(t.value); setSla(t.sla); setPage(1); }}
+            /* Dùng NHÃN làm khoá, không dùng value: ba mục "Việc chưa xong",
+               "Quá hạn" và "Nghi tin rác" đều gửi value rỗng nên lấy value làm
+               khoá sẽ trùng nhau, React cảnh báo và có thể vẽ sai. */
+            key={t.label}
+            onClick={() => {
+              setStatus(t.value); setSla(t.sla); setNghiRac(t.nghiRac); setPage(1);
+            }}
             className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              status === t.value && sla === t.sla
+              status === t.value && sla === t.sla && nghiRac === t.nghiRac
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300'
             }`}
@@ -123,6 +138,22 @@ export default function AdminSubmissionsPage() {
           </button>
         ))}
       </div>
+
+      {/* Đang soát tin nghi rác — nói rõ để cán bộ không hiểu nhầm đây là
+          danh sách việc phải làm. */}
+      {nghiRac === '1' && (
+        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/15">
+          <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+            Đang xem tin bị đánh dấu là tin rác
+          </p>
+          <p className="mt-1 text-sm leading-snug text-amber-700 dark:text-amber-200">
+            Đây KHÔNG phải việc phải xử lý. Hệ thống tự đánh dấu những tin nghi là
+            rác và ẩn khỏi danh sách chính. Mục này để cán bộ soát lại xem có tin
+            nào của bà con thật bị chặn oan không — nếu có, mở tin đó ra và bỏ
+            đánh dấu rác để đưa về danh sách xử lý.
+          </p>
+        </div>
+      )}
 
       {/* ⚠️ ĐÃ XOÁ DẢI BÁO "danh sách này không hiện việc đã quá hạn".
 

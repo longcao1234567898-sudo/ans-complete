@@ -109,6 +109,32 @@ router.get('/', async (req, res) => {
       thì tin đã bỏ thùng rác vẫn hiện ra.) */
   where.push('s.deleted_at IS NULL');
 
+  /* ẨN TIN ĐÃ ĐÁNH DẤU RÁC — phải giống hệt điều kiện của trang tổng quan.
+
+     ⚠️ VÌ SAO QUAN TRỌNG: các thẻ trên trang tổng quan (Việc khẩn cấp, Đã quá
+     hạn, Sắp hết hạn, Chưa phân công) đếm với điều kiện
+     (is_spam IS NULL OR is_spam = 0). Nếu danh sách này KHÔNG lọc như vậy thì
+     bấm vào thẻ sẽ ra số khác với số trên thẻ — cán bộ thấy "20 việc quá hạn"
+     rồi bấm vào lại đếm ra số khác, tưởng hệ thống sai.
+
+     Hai nơi phải dùng CÙNG một điều kiện. Sửa một nơi thì phải sửa nơi kia:
+     xem server/src/routes/admin/dashboard.js.
+
+     Dùng IS NULL OR = 0 chứ không dùng != 1, vì cột có thể NULL với dữ liệu cũ
+     và trong SQL thì NULL != 1 cho kết quả NULL (coi như sai) -> lọc mất tin.
+
+     ⚠️ KHÔNG GIẤU VIỆC MÀ KHÔNG NÓI: tin bị đánh dấu rác TỰ ĐỘNG vẫn giữ trạng
+     thái bình thường (để người gửi không biết mình bị chặn), nên trước đây
+     chúng lẫn trong danh sách. Nay ẩn đi thì phải có lối xem lại, nếu không
+     cán bộ mất hẳn khả năng soát xem hệ thống có chặn oan ai không.
+     Lối xem lại: gọi kèm ?nghiRac=1 */
+  const xemNghiRac = String(req.query.nghiRac || '') === '1';
+  if (xemNghiRac) {
+    where.push('s.is_spam = 1');
+  } else {
+    where.push('(s.is_spam IS NULL OR s.is_spam = 0)');
+  }
+
   /* LỌC THEO TRẠNG THÁI — ba chế độ
      - 'all'          : xem toàn bộ (trừ tin rác) — phải chọn tường minh
      - một trạng thái : chỉ đúng trạng thái đó
@@ -123,7 +149,11 @@ router.get('/', async (req, res) => {
   } else if (status) {
     where.push('s.status = ?');
     params.push(status);
-  } else {
+  } else if (!xemNghiRac) {
+    /* Khi đang xem tin NGHI RÁC thì KHÔNG áp lọc "việc chưa xong" mặc định.
+       Tin bị đánh dấu rác thủ công có trạng thái 'spam', tin bị đánh dấu tự
+       động thì giữ trạng thái bình thường. Áp lọc mặc định vào đây sẽ giấu mất
+       nhóm thủ công, khiến cán bộ soát không đủ. */
     where.push("s.status IN ('received','processing')");
   }
   if (category) { where.push('c.code = ?'); params.push(category); }
