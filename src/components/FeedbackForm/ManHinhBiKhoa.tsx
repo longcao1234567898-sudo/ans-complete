@@ -19,6 +19,7 @@
 import { ShieldAlert, Clock, PhoneCall, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { UNIT } from '../../utils/constants';
+import KhieuNaiMoKhoa from './KhieuNaiMoKhoa';
 
 interface Props {
   /** Số phút còn lại của lệnh khoá */
@@ -120,6 +121,11 @@ export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
               Tra cứu ý kiến đã gửi
             </Link>
           </div>
+
+          {/* KHIẾU NẠI MỞ KHOÁ — đặt cuối, sau khi bà con đã đọc hết phần giải
+              thích vì sao bị tạm dừng. Component tự ẩn nếu máy chủ báo không
+              khiếu nại được (hết lượt, hoặc đơn trước đang chờ). */}
+          <KhieuNaiMoKhoa />
 
           <p className="mt-4 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
             Bà con cho rằng đây là nhầm lẫn cần xử lý gấp thì liên hệ trực tiếp{' '}

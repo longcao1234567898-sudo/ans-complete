@@ -417,6 +417,30 @@ export interface LogsResult {
 }
 
 /** Nhật ký hệ thống (chỉ admin/manager) */
+/* ---------- KHIẾU NẠI MỞ KHOÁ ---------- */
+export interface KhieuNai {
+  id: number;
+  identifier: string;
+  kind: 'device' | 'ip';
+  content: string;
+  status: 'cho_xu_ly' | 'da_go_khoa' | 'tu_choi';
+  created_at: string;
+  handled_at: string | null;
+  handler_note: string | null;
+  handled_by_name: string | null;
+  /** Còn đang bị khoá thật không — khoá có thể đã tự hết hạn trong lúc chờ */
+  con_bi_khoa: boolean;
+}
+
+export const fetchKhieuNai = (tatCa = false): Promise<KhieuNai[]> =>
+  adminFetch<KhieuNai[]>(`/api/admin/chat/khieu-nai${tatCa ? '?tatCa=1' : ''}`);
+
+export const xuLyKhieuNai = (id: number, quyetDinh: 'go_khoa' | 'tu_choi', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/chat/khieu-nai/${id}/xu-ly`, {
+    method: 'POST',
+    body: JSON.stringify({ quyetDinh, ghiChu: ghiChu || '' }),
+  });
+
 export const fetchLogs = (params: { action?: string; page?: number; limit?: number }): Promise<LogsResult> => {
   const p = new URLSearchParams();
   if (params.action) p.set('action', params.action);

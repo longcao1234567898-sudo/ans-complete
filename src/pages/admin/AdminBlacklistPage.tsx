@@ -23,6 +23,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldOff, Smartphone, Globe, Unlock, Loader2 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import KhuKhieuNai from '../../components/admin/KhuKhieuNai';
 import { fetchBlacklist, removeBlacklist, type BlacklistItem } from '../../services/adminService';
 
 function conLai(phut: number): string {
@@ -142,6 +143,10 @@ export default function AdminBlacklistPage() {
 
   return (
     <AdminLayout>
+      {/* KHIẾU NẠI đặt TRÊN danh sách khoá, vì đây là việc cần xử lý — có người
+          đang chờ được mở lại. Danh sách khoá chỉ để tra cứu. */}
+      <KhuKhieuNai />
+
       <h1 className="mb-1 flex items-center gap-2 text-xl font-extrabold text-slate-800 dark:text-slate-100">
         <ShieldOff className="h-5 w-5 text-slate-400" /> Danh sách khoá
       </h1>
