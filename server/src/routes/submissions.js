@@ -141,15 +141,20 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // ẨN DANH: không cần danh tính, nhưng PHẢI có "vé" xác thực (mã 6 số hiện trên màn hình)
-    if (isAnonymous) {
-      /* Khớp theo MÃ PHIÊN do trình duyệt gửi lên, KHÔNG theo IP.
-         Trước đây truyền `ip` vào đây trong khi verifyAnonToken() so với
-         sha256('anon:' + anonId) -> hai vế không bao giờ khớp, nên MỌI tin
-         báo ẩn danh đều bị từ chối 401. Xem giải thích dài ở routes/otp.js. */
-      const anonCheck = verifyAnonToken(body.otpToken, body.anonId);
-      if (!anonCheck.ok) return res.status(401).json({ error: anonCheck.error });
-    }
+    /* ẨN DANH: KHÔNG còn đòi "vé" xác thực 6 số.
+
+       Trước đây bà con gửi ẩn danh phải bấm lấy mã, chờ mã hiện ra rồi gõ lại
+       6 số. Bước đó KHÔNG bảo vệ được gì — mã hiện ngay trên màn hình chính
+       máy đang gửi, ai cũng chép lại được — mà lại là một chỗ để người lớn
+       tuổi và người vùng sâu bỏ cuộc giữa chừng.
+
+       Việc chống người máy đã có Turnstile lo (kiểm ở trên, dòng 117), chống
+       spam đã có khoá thiết bị và khoá địa chỉ mạng lo. Ẩn danh cũng đã bị
+       siết bằng hai điều kiện khác: nội dung phải đủ dài (ANON_MIN_LENGTH) và
+       chỉ áp dụng cho nhóm tố giác tội phạm.
+
+       ⚠️ VẪN NHẬN otpToken nếu trình duyệt cũ còn gửi lên — chỉ là không bắt
+       buộc nữa. Bỏ hẳn việc đọc trường này sẽ làm hỏng các phiên đang mở dở. */
 
     if (!isAnonymous) {
       // 🔒 CHẶN SỚM: ý kiến này có danh tính, mà danh tính thì BẮT BUỘC phải mã hoá.

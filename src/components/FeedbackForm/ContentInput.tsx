@@ -275,13 +275,11 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             Hệ thống vẽ lại ảnh qua canvas rồi xuất tệp mới nên mọi thông tin đó
             bị xoá sạch. Trước đây làm âm thầm; nay nói ra để bà con yên tâm gửi
             ảnh, vì sợ lộ mà không dám gửi thì mất chứng cứ quan trọng. */}
-        <p className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-emerald-700 dark:text-emerald-400">
-          <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" />
-          <span>
-            Ảnh được tự động xoá vị trí GPS, giờ chụp và tên máy trước khi gửi —
-            người xử lý chỉ thấy hình, không biết bà con chụp ở đâu. Ảnh cũng
-            được thu gọn nên gửi được cả khi sóng yếu.
-          </span>
+        {/* Giữ MỘT dòng ngắn: bà con cần biết ảnh được xoá vị trí để yên tâm
+            gửi, nhưng đoạn dài ba dòng trước đây làm rối mắt người lớn tuổi. */}
+        <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+          <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+          Ảnh tự động xoá vị trí GPS trước khi gửi
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {images.map((src, idx) => (
@@ -366,12 +364,11 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               vậy được vì phải giải mã rồi mã hoá lại, quá nặng cho điện thoại.
               Nói ra để bà con tự quyết, thay vì để họ tưởng video cũng được
               xoá dấu vết như ảnh. */}
-          <p className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-amber-700 dark:text-amber-400">
-            <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
-            <span>
-              Khác với ảnh, video giữ nguyên thông tin bên trong tệp (có thể gồm nơi quay).
-              Bà con cân nhắc trước khi gửi video quay tại nhà.
-            </span>
+          {/* Rút còn một dòng. Vẫn phải nói vì video KHÔNG xoá được vị trí như
+              ảnh — bỏ hẳn thì bà con tưởng video cũng an toàn như ảnh. */}
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            Video giữ nguyên vị trí quay, khác với ảnh
           </p>
 
           {video ? (

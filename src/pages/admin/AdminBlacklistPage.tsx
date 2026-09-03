@@ -21,7 +21,7 @@
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldOff, Smartphone, Globe, Unlock, Loader2 } from 'lucide-react';
+import { ShieldOff, Smartphone, Globe, Unlock, Loader2, Search } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import KhuKhieuNai from '../../components/admin/KhuKhieuNai';
 import { fetchBlacklist, removeBlacklist, type BlacklistItem } from '../../services/adminService';
@@ -36,6 +36,7 @@ function conLai(phut: number): string {
 
 export default function AdminBlacklistPage() {
   const qc = useQueryClient();
+  const [tuKhoa, setTuKhoa] = useState('');
   const [dangGo, setDangGo] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
 
@@ -69,7 +70,18 @@ export default function AdminBlacklistPage() {
     onSettled: () => setDangGo(null),
   });
 
-  const tatCa = data ?? [];
+  const tatCaGoc = data ?? [];
+
+  /* TÌM KIẾM trong danh sách khoá. Khi bà con gọi lên nói "tôi không gửi được",
+     cán bộ cần tra nhanh mã thiết bị hoặc địa chỉ mạng đó có trong danh sách
+     không, thay vì cuộn tay qua hàng chục dòng. Tìm cả trong lý do khoá. */
+  const q = tuKhoa.trim().toLowerCase();
+  const tatCa = q
+    ? tatCaGoc.filter((x) =>
+        x.identifier.toLowerCase().includes(q) ||
+        (x.reason || '').toLowerCase().includes(q))
+    : tatCaGoc;
+
   const thietBi = tatCa.filter((x) => x.kind === 'device');
   const ip = tatCa.filter((x) => x.kind === 'ip');
 
@@ -155,6 +167,29 @@ export default function AdminBlacklistPage() {
         không bao giờ vĩnh viễn — máy ở tiệm net hay điện thoại mượn của người thân
         có thể đổi chủ.
       </p>
+
+      {tatCaGoc.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            type="text"
+            value={tuKhoa}
+            onChange={(e) => setTuKhoa(e.target.value)}
+            placeholder="Tìm theo mã thiết bị, địa chỉ IP hoặc lý do khoá..."
+            className="min-h-[36px] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-slate-100"
+          />
+          {tuKhoa && (
+            <button
+              type="button"
+              onClick={() => setTuKhoa('')}
+              className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              Xoá
+            </button>
+          )}
+          <span className="shrink-0 text-xs text-slate-400">{tatCa.length}/{tatCaGoc.length}</span>
+        </div>
+      )}
 
       {msg && (
         <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-300">

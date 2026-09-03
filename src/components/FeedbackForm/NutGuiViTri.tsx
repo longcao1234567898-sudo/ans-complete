@@ -30,24 +30,74 @@ interface Props {
 
 export default function NutGuiViTri({ viTri, onChange }: Props) {
   const [dangLay, setDangLay] = useState(false);
+  /* Sai số đang đo được — hiện cho bà con thấy máy đang dò tốt dần lên. */
+  const [doChinhXac, setDoChinhXac] = useState<number | null>(null);
 
   const coHoTro = typeof navigator !== 'undefined' && 'geolocation' in navigator;
   if (!coHoTro) return null;
 
+  /* LẤY VỊ TRÍ CHÍNH XÁC HƠN — theo dõi liên tục thay vì lấy một lần.
+
+     Vì sao đổi cách: getCurrentPosition trả về ngay mẫu ĐẦU TIÊN máy có được,
+     mà mẫu đầu thường lấy từ trạm phát sóng hoặc wifi — sai số 500m tới vài km.
+     Chip định vị cần khoảng 5 tới 15 giây mới bắt đủ vệ tinh để xuống dưới 20m.
+
+     Nay dùng watchPosition: máy gửi liên tục các mẫu ngày càng chính xác, ta
+     GIỮ MẪU TỐT NHẤT. Dừng sớm khi đạt dưới 15m (đủ để chỉ đúng một căn nhà),
+     hoặc hết 20 giây thì lấy mẫu tốt nhất đang có.
+
+     Với tin tố giác thì sai số vài trăm mét là chỉ nhầm cả một ấp — đáng để
+     chờ thêm mươi giây. */
   function layViTri() {
     setDangLay(true);
-    navigator.geolocation.getCurrentPosition(
-      (v) => {
-        setDangLay(false);
+    setDoChinhXac(null);
+
+    let totNhat: GeolocationPosition | null = null;
+    let watchId: number | null = null;
+    let hetGio: ReturnType<typeof setTimeout> | null = null;
+
+    const ketThuc = (thanhCong: boolean) => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (hetGio) clearTimeout(hetGio);
+      setDangLay(false);
+      setDoChinhXac(null);
+
+      if (thanhCong && totNhat) {
         onChange({
-          lat: Number(v.coords.latitude.toFixed(7)),
-          lng: Number(v.coords.longitude.toFixed(7)),
-          doChinhXacMet: v.coords.accuracy ? Math.round(v.coords.accuracy) : undefined,
+          lat: Number(totNhat.coords.latitude.toFixed(7)),
+          lng: Number(totNhat.coords.longitude.toFixed(7)),
+          doChinhXacMet: totNhat.coords.accuracy ? Math.round(totNhat.coords.accuracy) : undefined,
         });
-        toast.success('Đã ghi nhận vị trí');
+        const ss = Math.round(totNhat.coords.accuracy || 0);
+        toast.success(ss > 50
+          ? `Đã ghi vị trí (sai số khoảng ${ss}m — ra chỗ thoáng sẽ chính xác hơn)`
+          : 'Đã ghi nhận vị trí');
+      }
+    };
+
+    /* Hết 20 giây thì chốt bằng mẫu tốt nhất đang có, còn hơn không có gì. */
+    hetGio = setTimeout(() => {
+      if (totNhat) ketThuc(true);
+      else {
+        ketThuc(false);
+        toast.error('Chưa lấy được vị trí. Bà con ra chỗ thoáng rồi thử lại giúp.', { duration: 5000 });
+      }
+    }, 20000);
+
+    watchId = navigator.geolocation.watchPosition(
+      (v) => {
+        /* Giữ mẫu có sai số nhỏ nhất. */
+        if (!totNhat || v.coords.accuracy < totNhat.coords.accuracy) {
+          totNhat = v;
+          setDoChinhXac(Math.round(v.coords.accuracy));
+        }
+        /* Đủ chính xác để chỉ đúng một căn nhà -> dừng sớm, khỏi bắt chờ. */
+        if (v.coords.accuracy <= 15) ketThuc(true);
       },
       (err) => {
-        setDangLay(false);
+        /* Đã có mẫu nào đó rồi thì dùng luôn, đừng vứt đi vì một lỗi giữa chừng. */
+        if (totNhat) { ketThuc(true); return; }
+        ketThuc(false);
         /* Nói rõ từng loại lỗi để bà con biết đường xử lý, thay vì báo chung
            chung "không lấy được vị trí" rồi để họ loay hoay. */
         if (err.code === err.PERMISSION_DENIED) {
@@ -58,7 +108,10 @@ export default function NutGuiViTri({ viTri, onChange }: Props) {
           toast.error('Lấy vị trí lâu quá. Bà con thử lại giúp.', { duration: 5000 });
         }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      /* enableHighAccuracy bật chip định vị vệ tinh thay vì chỉ dựa trạm phát
+         sóng. maximumAge 0 để KHÔNG dùng lại vị trí cũ đã lưu trong máy — vị
+         trí cũ có thể là chỗ bà con đứng lúc sáng, không phải hiện trường. */
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }
 
@@ -106,7 +159,9 @@ export default function NutGuiViTri({ viTri, onChange }: Props) {
         className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-primary-300 bg-white px-4 py-2.5 text-sm font-bold text-primary-700 transition hover:bg-primary-50 disabled:opacity-60 dark:border-primary-700 dark:bg-slate-800 dark:text-primary-300"
       >
         {dangLay ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-        {dangLay ? 'Đang lấy vị trí...' : 'Gửi vị trí nơi xảy ra vụ việc'}
+        {dangLay
+          ? (doChinhXac ? `Đang dò... sai số ${doChinhXac}m` : 'Đang lấy vị trí...')
+          : 'Gửi vị trí nơi xảy ra vụ việc'}
       </button>
       <p className="mt-1.5 text-xs leading-snug text-slate-500 dark:text-slate-400">
         Không bắt buộc. Giúp cán bộ tìm đúng chỗ, khỏi phải dò hỏi.

@@ -430,6 +430,15 @@ export interface KhieuNai {
   handled_by_name: string | null;
   /** Còn đang bị khoá thật không — khoá có thể đã tự hết hạn trong lúc chờ */
   con_bi_khoa: boolean;
+  /** Các ý kiến bị đánh dấu rác của chính thiết bị/địa chỉ này — để cán bộ
+      xem người này đã gửi gì rồi mới quyết định gỡ hay từ chối. */
+  tinLienQuan?: Array<{
+    id: number;
+    tracking_code: string;
+    status: string;
+    created_at: string;
+    trich: string;
+  }>;
 }
 
 export const fetchKhieuNai = (tatCa = false): Promise<KhieuNai[]> =>

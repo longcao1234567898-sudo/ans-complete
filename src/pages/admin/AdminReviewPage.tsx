@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Loader2, ShieldQuestion, Check, Trash2, Clock, MapPin, Inbox,
+  Search,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { fetchSubmissions, reviewSubmission } from '../../services/adminService';
@@ -27,6 +28,7 @@ export default function AdminReviewPage() {
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
+  const [tuKhoa, setTuKhoa] = useState('');
 
   /* ---------------------------------------------------------------------
      CHỐT CHỐNG BẤM HAI LẦN
@@ -129,6 +131,16 @@ export default function AdminReviewPage() {
 
   const items = data?.data ?? [];
 
+  /* TÌM KIẾM trong hàng chờ. Khi có vài chục tin chờ duyệt, cán bộ cần tìm
+     nhanh một tin cụ thể — nhất là khi bà con gọi lên hỏi "sao tin tôi chưa
+     thấy đâu". Tìm theo cả mã tra cứu lẫn nội dung, không phân biệt hoa thường. */
+  const q = tuKhoa.trim().toLowerCase();
+  const dsHien = q
+    ? items.filter((s) =>
+        (s.tracking_code || '').toLowerCase().includes(q) ||
+        (s.ai_processed_content || s.original_content || '').toLowerCase().includes(q))
+    : items;
+
   return (
     <AdminLayout>
       <h1 className="mb-1 flex items-center gap-2 text-xl font-extrabold text-slate-800 dark:text-slate-100">
@@ -138,6 +150,30 @@ export default function AdminReviewPage() {
         Tin báo <b>ẩn danh</b> được đưa vào đây để sàng lọc trước. Cán bộ đọc qua rồi
         <b> Duyệt</b> (chuyển sang danh sách xử lý) hoặc <b>Tin rác</b> (đưa vào thùng rác). Tin trong thùng rác được giữ <b>7 ngày</b>, lỡ bấm nhầm vẫn khôi phục được.
       </p>
+
+      {/* Ô TÌM KIẾM — chỉ hiện khi có tin, khỏi chiếm chỗ lúc hàng chờ trống. */}
+      {items.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            type="text"
+            value={tuKhoa}
+            onChange={(e) => setTuKhoa(e.target.value)}
+            placeholder="Tìm theo mã tra cứu hoặc nội dung..."
+            className="min-h-[36px] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-slate-100"
+          />
+          {tuKhoa && (
+            <button
+              type="button"
+              onClick={() => setTuKhoa('')}
+              className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              Xoá
+            </button>
+          )}
+          <span className="shrink-0 text-xs text-slate-400">{dsHien.length}/{items.length}</span>
+        </div>
+      )}
 
       {msg && (
         <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
@@ -168,7 +204,7 @@ export default function AdminReviewPage() {
       )}
 
       <div className="space-y-4">
-        {items.map((s) => (
+        {dsHien.map((s) => (
           <div
             key={s.id}
             className="rounded-2xl border-l-4 border-amber-400 bg-white p-5 shadow-soft dark:bg-slate-900"

@@ -20,15 +20,21 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Send, Search, Newspaper, Info } from 'lucide-react';
+import { Home, Send, Search, Newspaper, MapPin } from 'lucide-react';
 import { cn } from '../../utils/helpers';
 
 const TABS = [
+  /* NĂM MỤC LÀ TỐI ĐA cho thanh dưới trên điện thoại. Màn hình hẹp 360px chia
+     sáu mục thì mỗi ô còn 60px — chữ bị cắt, ngón tay bấm nhầm sang ô bên cạnh.
+
+     Thứ tự theo mức độ bà con dùng: gửi ý kiến và tra cứu là việc chính, tin
+     tức và bản đồ là xem tình hình. "Giới thiệu" bỏ khỏi thanh dưới vì ít khi
+     mở — vẫn còn trong menu ba gạch ở đầu trang, không mất đường vào. */
   { to: '/', label: 'Trang chủ', Icon: Home, cuoi: true },
   { to: '/gui-y-kien', label: 'Gửi ý kiến', Icon: Send },
   { to: '/tra-cuu', label: 'Tra cứu', Icon: Search },
   { to: '/tin-tuc', label: 'Tin tức', Icon: Newspaper },
-  { to: '/gioi-thieu', label: 'Giới thiệu', Icon: Info },
+  { to: '/ban-do', label: 'Bản đồ', Icon: MapPin },
 ];
 
 export default function MobileTabBar() {

@@ -254,7 +254,34 @@ router.get('/khieu-nai', async (req, res) => {
         LIMIT 200`,
       [tatCa ? 1 : 0]
     );
-    res.json(rows.map((r) => ({ ...r, con_bi_khoa: Number(r.con_bi_khoa) > 0 })));
+    /* GẮN KÈM CÁC Ý KIẾN BỊ ĐÁNH DẤU RÁC của chính thiết bị/địa chỉ đang khiếu
+       nại. Cán bộ cần thấy NGAY người này đã gửi gì mới quyết định được: nếu
+       toàn tin rác thật thì từ chối, nếu là tin báo nghiêm túc bị đánh nhầm
+       thì gỡ khoá. Không có thông tin này thì cán bộ quyết định mò. */
+    const ketQua = [];
+    for (const r of rows) {
+      let tinLienQuan = [];
+      try {
+        const [tin] = await pool.query(
+          `SELECT s.id, s.tracking_code, s.status, s.created_at,
+                  LEFT(COALESCE(s.ai_processed_content, s.original_content), 200) AS trich
+             FROM submissions s
+            WHERE s.deleted_at IS NULL
+              AND (s.is_spam = 1 OR s.status = 'spam')
+              AND (s.device_id = ? OR s.ip_address = ?)
+            ORDER BY s.created_at DESC
+            LIMIT 5`,
+          [r.kind === 'device' ? r.identifier : null, r.kind === 'ip' ? r.identifier : null]
+        );
+        tinLienQuan = tin;
+      } catch (e) {
+        /* Thiếu cột is_spam (chưa chạy nang_cap_v12.sql) -> bỏ qua phần này,
+           khiếu nại vẫn xem và xử lý được bình thường. */
+        console.warn('[khiếu nại] không lấy được tin liên quan:', e.message);
+      }
+      ketQua.push({ ...r, con_bi_khoa: Number(r.con_bi_khoa) > 0, tinLienQuan });
+    }
+    res.json(ketQua);
   } catch (err) {
     console.error('Đọc khiếu nại lỗi:', err.message);
     res.status(500).json({ error: 'Không tải được. Đã chạy nang_cap_v17.sql chưa?' });

@@ -388,11 +388,19 @@ describe('G11 — luồng tố giác ẨN DANH khớp theo MÃ PHIÊN, không th
 
      Test đọc mã nguồn thay vì gọi thật, để không cần MySQL. */
 
-  test('submissions.js truyền anonId (KHÔNG phải ip) vào verifyAnonToken', async () => {
+  test('nếu CÓ gọi verifyAnonToken thì phải truyền anonId, không phải ip', async () => {
     const nguon = await doc('../src/routes/submissions.js');
     // Chỉ bắt lời gọi THẬT (có tham số) — bỏ qua "verifyAnonToken()" trong chú thích
     const goi = nguon.match(/verifyAnonToken\(\s*([^)]+?)\s*\)/);
-    assert.ok(goi, 'submissions.js phải gọi verifyAnonToken');
+
+    /* Luồng ẩn danh nay KHÔNG còn đòi vé xác thực 6 số: bước đó không bảo vệ
+       được gì (mã hiện ngay trên màn hình chính máy đang gửi) mà lại là chỗ
+       người lớn tuổi bỏ cuộc. Chống người máy đã có Turnstile, chống spam đã
+       có khoá thiết bị và địa chỉ mạng.
+
+       Test vẫn giữ để canh: NẾU sau này ai bật lại việc kiểm vé, thì phải
+       truyền anonId chứ không phải ip — đúng lỗi đã xảy ra thật trước đây. */
+    if (!goi) return;   // không gọi nữa -> không có gì để canh
 
     const thamSo = goi[1].split(',').map((s) => s.trim());
     assert.equal(thamSo.length, 2, 'verifyAnonToken nhận đúng 2 tham số');

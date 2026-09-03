@@ -10,6 +10,7 @@
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { MessageSquareWarning, Loader2, Check, X, Smartphone, Globe } from 'lucide-react';
 import { fetchKhieuNai, xuLyKhieuNai } from '../../services/adminService';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
@@ -132,6 +133,39 @@ export default function KhuKhieuNai() {
             <p className="whitespace-pre-wrap rounded-xl bg-white/70 p-3 text-sm leading-relaxed text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
               {k.content}
             </p>
+
+            {/* Ý KIẾN BỊ ĐÁNH DẤU RÁC của chính thiết bị/địa chỉ này.
+
+                Cán bộ cần thấy người này đã gửi gì mới quyết định được: toàn
+                tin rác thật thì từ chối, tin báo nghiêm túc bị đánh nhầm thì
+                gỡ khoá. Không có phần này thì quyết định mò. */}
+            {k.tinLienQuan && k.tinLienQuan.length > 0 && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+                <p className="mb-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                  {k.tinLienQuan.length} ý kiến bị đánh dấu rác từ {k.kind === 'device' ? 'máy' : 'địa chỉ'} này
+                </p>
+                <div className="space-y-2">
+                  {k.tinLienQuan.map((t) => (
+                    <div key={t.id} className="rounded-lg bg-white p-2 dark:bg-slate-900">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <Link
+                          to={`/quan-tri/y-kien/${t.id}`}
+                          className="font-mono text-xs font-bold text-primary-600 hover:underline dark:text-primary-400"
+                        >
+                          {t.tracking_code}
+                        </Link>
+                        <span className="text-xs text-slate-400">
+                          {new Date(t.created_at).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                      <p className="line-clamp-2 text-xs leading-snug text-slate-600 dark:text-slate-300">
+                        {t.trich}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {k.status !== 'cho_xu_ly' && (
               <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
