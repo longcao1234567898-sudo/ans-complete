@@ -79,6 +79,7 @@ export const NAV_LINKS = [
   { to: '/gui-y-kien', label: 'Gửi ý kiến' },
   { to: '/tra-cuu', label: 'Tra cứu' },
   { to: '/tin-tuc', label: 'Tin tức' },
+  { to: '/ban-do', label: 'Bản đồ an ninh' },
   { to: '/gioi-thieu', label: 'Giới thiệu' },
 ];
 

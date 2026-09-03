@@ -22,6 +22,7 @@ import HomePage from './pages/HomePage';
 import SendFeedbackPage from './pages/SendFeedbackPage';
 import TrackingPage from './pages/TrackingPage';
 import NewsPage from './pages/NewsPage';
+import BanDoAnNinhPage from './pages/BanDoAnNinhPage';
 import AboutPage from './pages/AboutPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
@@ -115,6 +116,7 @@ function AppShell() {
             <Route path="/gui-y-kien" element={<SendFeedbackPage />} />
             <Route path="/tra-cuu" element={<TrackingPage />} />
             <Route path="/tin-tuc" element={<NewsPage />} />
+            <Route path="/ban-do" element={<BanDoAnNinhPage />} />
             <Route path="/gioi-thieu" element={<AboutPage />} />
             <Route path="/chinh-sach-bao-mat" element={<PrivacyPage />} />
 
