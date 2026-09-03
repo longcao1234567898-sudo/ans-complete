@@ -3,7 +3,8 @@
  * Ảnh được nén ngay trên trình duyệt trước khi lưu.
  */
 import { ChangeEvent, useRef, useState } from 'react';
-import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera } from 'lucide-react';
+import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
+import NutGuiViTri from './NutGuiViTri';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
 import { MAX_FEEDBACK_IMAGES } from '../../utils/constants';
@@ -21,17 +22,89 @@ interface ContentInputProps {
   onDismissDraft?: () => void;
   images: string[];
   onImagesChange: (imgs: string[]) => void;
+  /** Video minh chứng — tối đa MỘT tệp vì rất nặng */
+  video?: string | null;
+  onVideoChange?: (v: string | null) => void;
+  /** Toạ độ nơi xảy ra vụ việc, người dân tự nguyện gửi */
+  viTri?: { lat: number; lng: number; doChinhXacMet?: number } | null;
+  onViTriChange?: (v: { lat: number; lng: number; doChinhXacMet?: number } | null) => void;
   onNext: () => void;
 }
 
-const MIN_LENGTH = 10;
-const MAX_FILE_MB = 8;
+/* GIỚI HẠN VIDEO — 50MB, cỡ 3 tới 5 phút quay ở chất lượng vừa.
 
-export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, onNext }: ContentInputProps) {
+   Con số này chọn theo THỜI GIAN TẢI trên sóng yếu, không theo dung lượng lưu
+   trữ. Video đi thẳng lên kho ảnh nên không tốn dung lượng database, nhưng bà
+   con vùng sâu vẫn phải chờ tải:
+
+       50MB  ->  3G yếu: khoảng 22 phút | 3G tốt: 7 phút | 4G: dưới 1 phút
+      100MB  ->  3G yếu: khoảng 44 phút | 3G tốt: 13 phút
+
+   Trên 50MB thì người dùng 3G gần như chắc chắn bỏ cuộc giữa chừng, hoặc mạng
+   rớt làm mất hết công. Nới rộng hơn nữa chỉ có lợi cho người dùng wifi, mà
+   đó không phải nhóm người hệ thống này hướng tới.
+
+   Video KHÔNG nén được phía trình duyệt như ảnh (nén video cần giải mã rồi mã
+   hoá lại, quá nặng cho điện thoại), nên đây là kích thước thật của tệp. */
+const MAX_VIDEO_MB = 50;
+
+const MIN_LENGTH = 10;
+/* GIỚI HẠN KÍCH THƯỚC TỆP TRƯỚC KHI NÉN.
+
+   ⚠️ Trước đây đặt 8MB và chặn NGAY khi chọn tệp — sai, vì điện thoại đời mới
+   chụp ra ảnh 8 tới 15MB là bình thường. Bà con chụp ảnh hiện trường bằng máy
+   tốt lại bị từ chối "vượt quá 8MB", trong khi ảnh đó nén xong chỉ còn khoảng
+   150KB. Đúng nhóm người cần gửi ảnh nhất lại bị chặn.
+
+   Nay nâng lên 25MB. Con số này KHÔNG phải giới hạn chất lượng — nó chỉ để
+   chặn tệp lớn bất thường làm treo trình duyệt. Mọi ảnh qua được đều được nén
+   xuống dưới 300KB ở bước sau. */
+const MAX_FILE_MB = 25;
+
+export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, video, onVideoChange, viTri, onViTriChange, onNext }: ContentInputProps) {
   const tooShort = value.trim().length > 0 && value.trim().length < MIN_LENGTH;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoQuayRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
+  const [dangDocVideo, setDangDocVideo] = useState(false);
+
+  /* NHẬN VIDEO MINH CHỨNG.
+
+     Khác ảnh, video KHÔNG nén được phía trình duyệt và cũng không xoá được
+     thông tin vị trí bên trong tệp. Nên chỉ kiểm tra kích thước rồi đọc thẳng,
+     và giao diện nói rõ điều này để bà con tự quyết. */
+  const handlePickVideo = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !onVideoChange) return;
+
+    if (!file.type.startsWith('video/')) {
+      toast.error('Tệp này không phải video.');
+      return;
+    }
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      const mb = (file.size / 1024 / 1024).toFixed(0);
+      toast.error(`Video ${mb}MB, vượt quá ${MAX_VIDEO_MB}MB. Bà con quay đoạn ngắn hơn giúp.`, { duration: 6000 });
+      return;
+    }
+
+    setDangDocVideo(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Không đọc được tệp video'));
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      onVideoChange(dataUrl);
+      toast.success('Đã đính kèm video');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Không xử lý được video');
+    }
+    setDangDocVideo(false);
+  };
 
   const handlePickImages = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -190,8 +263,25 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
 
       {/* Đính kèm ảnh minh chứng */}
       <div className="mt-5">
-        <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
           Ảnh minh chứng <span className="font-normal text-slate-400">(tối đa {MAX_FEEDBACK_IMAGES} ảnh, không bắt buộc)</span>
+        </p>
+        {/* NÓI RÕ VIỆC XOÁ DẤU VẾT ẢNH.
+
+            Ảnh chụp bằng điện thoại thường kèm sẵn toạ độ GPS nơi chụp, giờ
+            chụp và tên máy. Với ảnh tố giác, toạ độ đó có thể là nhà riêng của
+            chính người báo — lộ ra là nguy hiểm thật.
+
+            Hệ thống vẽ lại ảnh qua canvas rồi xuất tệp mới nên mọi thông tin đó
+            bị xoá sạch. Trước đây làm âm thầm; nay nói ra để bà con yên tâm gửi
+            ảnh, vì sợ lộ mà không dám gửi thì mất chứng cứ quan trọng. */}
+        <p className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-emerald-700 dark:text-emerald-400">
+          <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" />
+          <span>
+            Ảnh được tự động xoá vị trí GPS, giờ chụp và tên máy trước khi gửi —
+            người xử lý chỉ thấy hình, không biết bà con chụp ở đâu. Ảnh cũng
+            được thu gọn nên gửi được cả khi sóng yếu.
+          </span>
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {images.map((src, idx) => (
@@ -263,6 +353,92 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         </div>
         <p className="mt-1.5 text-xs text-slate-400">Hỗ trợ JPG, PNG, WebP... tối đa {MAX_FILE_MB}MB/ảnh. Mỗi ảnh được kiểm tra định dạng thật, tái mã hoá loại bỏ mã độc ẩn và kiểm duyệt nội dung nhạy cảm.</p>
       </div>
+
+      {/* ================= VIDEO MINH CHỨNG ================= */}
+      {onVideoChange && (
+        <div className="mt-5">
+          <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Video minh chứng <span className="font-normal text-slate-400">(1 video, không bắt buộc)</span>
+          </p>
+          {/* Nói thật về việc video giữ nguyên thông tin bên trong tệp.
+
+              Ảnh thì hệ thống vẽ lại nên xoá sạch được vị trí; video KHÔNG làm
+              vậy được vì phải giải mã rồi mã hoá lại, quá nặng cho điện thoại.
+              Nói ra để bà con tự quyết, thay vì để họ tưởng video cũng được
+              xoá dấu vết như ảnh. */}
+          <p className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-amber-700 dark:text-amber-400">
+            <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span>
+              Khác với ảnh, video giữ nguyên thông tin bên trong tệp (có thể gồm nơi quay).
+              Bà con cân nhắc trước khi gửi video quay tại nhà.
+            </span>
+          </p>
+
+          {video ? (
+            <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
+              <video src={video} controls className="h-32 w-auto rounded-lg" />
+              <button
+                type="button"
+                onClick={() => { onVideoChange(null); toast('Đã bỏ video'); }}
+                aria-label="Bỏ video"
+                className="rounded-lg bg-white p-1.5 text-slate-500 shadow-sm transition hover:bg-red-50 hover:text-red-600 dark:bg-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => videoQuayRef.current?.click()}
+                disabled={dangDocVideo}
+                className="flex h-20 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary-300 text-primary-500 transition hover:bg-primary-50 disabled:opacity-60 dark:border-primary-700"
+              >
+                {dangDocVideo ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
+                <span className="text-[10px] font-semibold">Quay video</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => videoInputRef.current?.click()}
+                disabled={dangDocVideo}
+                className="flex h-20 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-primary-400 hover:text-primary-500 disabled:opacity-60 dark:border-slate-600"
+              >
+                <ImagePlus className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Chọn video</span>
+              </button>
+            </div>
+          )}
+
+          <input
+            ref={videoQuayRef}
+            type="file"
+            accept="video/*"
+            capture="environment"
+            onChange={handlePickVideo}
+            className="hidden"
+            aria-hidden
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            onChange={handlePickVideo}
+            className="hidden"
+            aria-hidden
+          />
+          <p className="mt-1.5 text-xs text-slate-400">Tối đa {MAX_VIDEO_MB}MB, cỡ 3 tới 5 phút quay. Sóng yếu thì video dài sẽ lâu gửi — bà con quay vừa đủ nội dung cần thiết.</p>
+        </div>
+      )}
+
+      {/* ================= VỊ TRÍ VỤ VIỆC ================= */}
+      {onViTriChange && (
+        <div className="mt-5">
+          <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Vị trí xảy ra vụ việc <span className="font-normal text-slate-400">(không bắt buộc)</span>
+          </p>
+          <NutGuiViTri viTri={viTri} onChange={onViTriChange} />
+        </div>
+      )}
 
       {/* Mức độ khẩn cấp — người dân tự đánh dấu, cán bộ ưu tiên việc gấp */}
       {onUrgencyChange && (

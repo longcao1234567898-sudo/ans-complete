@@ -11,7 +11,7 @@ import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
-import { prepareImages } from './uploadService';
+import { prepareImages, prepareVideo } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
 export function readSubmissions(): FeedbackSubmission[] {
@@ -148,6 +148,13 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         phone: draft.contact.phone.trim(),
         email: draft.contact.email.trim() || undefined,
         images: await prepareImages(draft.images),
+        /* Video minh chứng — tải lên kho ảnh trước rồi chỉ gửi đường dẫn, để
+           không nhồi hàng chục MB base64 vào database. Chưa cấu hình kho ảnh
+           hoặc tải lỗi thì tự quay về gửi thẳng, không chặn bà con. */
+        video: await prepareVideo(draft.video),
+        /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
+           Không bấm thì trường này rỗng, máy chủ bỏ qua. */
+        viTri: draft.viTri ?? null,
         wardId: draft.contact.wardId ?? null,
         captchaToken: draft.contact.captchaToken ?? '',
         otpToken: draft.contact.otpToken ?? '',

@@ -82,7 +82,9 @@ export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
     })
   );
 
-  app.use(express.json({ limit: '12mb' }));
+  /* 32mb: đủ cho một video 20MB sau khi mã hoá base64 (tăng khoảng 33%) cộng
+   phần nội dung và ảnh. Trước đây 12mb nên video vừa gửi đã bị từ chối. */
+app.use(express.json({ limit: '32mb' }));
   app.use(cookieParser());
   app.use(rateLimit({ windowMs: 15 * 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
 

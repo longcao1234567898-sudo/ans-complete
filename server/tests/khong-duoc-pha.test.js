@@ -220,7 +220,13 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
                  security_level có tồn tại chưa (coCotCapDoMat, đọc từ
                  information_schema, không phải dữ liệu người dùng). Cột chưa có
                  thì thay bằng hằng 'thuong'. Không ký tự người dùng nào lọt vào. */
-              || /^\(await coCotCapDoMat\(\)\) \? "?'s\.security_level,'"? : /.test(bieuThuc);
+              || /^\(await coCotCapDoMat\(\)\) \? "?'s\.security_level,'"? : /.test(bieuThuc)
+              /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
+                 toạ độ vụ việc đã tồn tại chưa (coCotToaDo, đọc từ
+                 information_schema chứ không phải dữ liệu người dùng). Cột chưa
+                 có thì bỏ hẳn hai cột khỏi câu lệnh. Bản thân GIÁ TRỊ toạ độ
+                 vẫn đi qua dấu ? ở mảng params. */
+              || /^coCotToaDo \? '.*' : ''$/.test(bieuThuc);
             if (!hopLe) loi.push(`${muc.name}: \${${bieuThuc}}`);
           }
         }

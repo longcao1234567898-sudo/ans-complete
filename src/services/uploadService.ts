@@ -76,3 +76,64 @@ export async function prepareImages(dataUrls: string[]): Promise<SubmissionImage
 
   return results;
 }
+
+/* ============================================================================
+   TẢI VIDEO LÊN CLOUDINARY
+   ============================================================================
+
+   VÌ SAO PHẢI QUA CLOUDINARY, KHÔNG NHỒI VÀO DATABASE:
+
+   Một video 20MB khi mã hoá base64 phình lên khoảng 27MB. Nhồi thẳng vào MySQL
+   thì vài chục video là đầy gói database — mà đó là nơi chứa TOÀN BỘ ý kiến của
+   bà con, đầy database nghĩa là không ai gửi được tin nữa. Đổi một chỗ chứa
+   video lấy cả hệ thống là không đáng.
+
+   Qua Cloudinary thì database chỉ giữ một đường dẫn vài chục ký tự. Nhờ vậy
+   giới hạn video nâng được lên đáng kể mà không đụng tới dung lượng database.
+
+   Cloudinary dùng điểm cuối /video/upload riêng, khác /image/upload của ảnh. */
+export async function uploadVideoToCloudinary(dataUrl: string): Promise<UploadedImage> {
+  if (!cloudinaryEnabled) {
+    throw new Error('Chưa cấu hình Cloudinary');
+  }
+
+  const form = new FormData();
+  form.append('file', dataUrl);
+  form.append('upload_preset', PRESET);
+  form.append('folder', 'hop-thu-an-ninh-so/video');
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
+    method: 'POST',
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || 'Tải video lên thất bại');
+  }
+
+  const data = await res.json();
+  return { url: data.secure_url, publicId: data.public_id };
+}
+
+/**
+ * Chuẩn bị video để gửi lên máy chủ.
+ *
+ * Có Cloudinary  -> tải lên, trả về đường dẫn (nhẹ, không tốn database)
+ * Chưa cấu hình  -> giữ nguyên base64 và để máy chủ tự giới hạn kích thước
+ * Tải lên lỗi    -> quay về base64, KHÔNG chặn bà con gửi ý kiến
+ *
+ * Nguyên tắc xuyên suốt: hỏng khâu phụ thì bỏ khâu phụ, không làm hỏng việc
+ * chính là nhận tin của bà con.
+ */
+export async function prepareVideo(dataUrl: string | null | undefined): Promise<string | null> {
+  if (!dataUrl) return null;
+  if (!cloudinaryEnabled) return dataUrl;
+  try {
+    const { url } = await uploadVideoToCloudinary(dataUrl);
+    return url;
+  } catch (e) {
+    console.warn('Không tải được video lên kho ảnh, gửi thẳng:', e);
+    return dataUrl;
+  }
+}

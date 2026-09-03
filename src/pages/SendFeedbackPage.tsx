@@ -127,7 +127,7 @@ export default function SendFeedbackPage() {
   };
 
   const handleReset = () => {
-    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [] });
+    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], video: null, viTri: null });
     clearDraft();
     setSubmission(null);
     setStep(1);
@@ -185,12 +185,16 @@ export default function SendFeedbackPage() {
             onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
             draftRestored={draftRestored}
             onDismissDraft={() => {
-              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [] });
+              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], video: null, viTri: null });
               clearDraft();
               setDraftRestored(false);
             }}
             images={draft.images}
             onImagesChange={(images) => setDraft((d) => ({ ...d, images }))}
+            video={draft.video}
+            onVideoChange={(video) => setDraft((d) => ({ ...d, video }))}
+            viTri={draft.viTri}
+            onViTriChange={(viTri) => setDraft((d) => ({ ...d, viTri }))}
             onNext={handleContentNext}
           />
         )}

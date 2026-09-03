@@ -16,6 +16,24 @@ import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 
 const router = Router();
 
+/* Cột toạ độ vụ việc chỉ có sau khi chạy database/nang_cap_v16.sql.
+   Kiểm MỘT lần rồi nhớ kết quả, tránh hỏi database mỗi lần gửi ý kiến. */
+let _coCotToaDo = null;
+async function kiemCotToaDo() {
+  if (_coCotToaDo !== null) return _coCotToaDo;
+  try {
+    const [r] = await pool.query(
+      `SELECT 1 FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'submissions'
+          AND column_name = 'incident_lat' LIMIT 1`
+    );
+    _coCotToaDo = r.length > 0;
+  } catch {
+    _coCotToaDo = false;
+  }
+  return _coCotToaDo;
+}
+
 const COOLDOWN_MS = 2 * 60_000;
 const MAX_PER_HOUR = 5;
 
@@ -302,14 +320,39 @@ router.post('/', async (req, res) => {
     const chatPin = String(Math.floor(100000 + Math.random() * 900000));
     const chatPinHash = await bcrypt.hash(chatPin, 10);
 
+    /* TOẠ ĐỘ VỤ VIỆC — người dân tự nguyện gửi, có thể không có.
+
+       Kiểm chặt: phải là số, phải nằm trong khoảng hợp lệ của toạ độ địa cầu.
+       Sai thì bỏ qua chứ KHÔNG từ chối cả ý kiến — toạ độ chỉ là thông tin
+       thêm, không đáng để làm hỏng việc gửi tin của bà con. */
+    let viTriLat = null;
+    let viTriLng = null;
+    {
+      const v = body.viTri;
+      if (v && typeof v === 'object') {
+        const la = Number(v.lat);
+        const lo = Number(v.lng);
+        if (Number.isFinite(la) && Number.isFinite(lo)
+            && la >= -90 && la <= 90 && lo >= -180 && lo <= 180) {
+          viTriLat = la;
+          viTriLng = lo;
+        }
+      }
+    }
+
+    /* Cột toạ độ chỉ có sau khi chạy nang_cap_v16.sql. Kiểm một lần rồi nhớ,
+       để máy chủ chưa nâng cấp database vẫn nhận được ý kiến bình thường —
+       chỉ là không lưu toạ độ. Thà thiếu toạ độ còn hơn chặn cả việc gửi tin. */
+    const coCotToaDo = await kiemCotToaDo();
+
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
-        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash)
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?)`,
+        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''})`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -341,6 +384,9 @@ router.post('/', async (req, res) => {
         deviceId || null,
         chanNgam ? 1 : 0,
         chatPinHash,
+        /* Toạ độ chỉ thêm vào khi database đã có cột — thứ tự phải khớp với
+           phần dựng câu lệnh ở trên. */
+        ...(coCotToaDo ? [viTriLat, viTriLng] : []),
       ]
     );
 
@@ -433,6 +479,57 @@ router.post('/', async (req, res) => {
         );
       } catch (e) {
         console.warn('Không lưu được ảnh đính kèm:', e.message);
+      }
+    }
+
+    /* 8b) LƯU VIDEO MINH CHỨNG — bỏ qua nếu lỗi, không chặn ý kiến.
+
+       Video đi đường riêng, KHÔNG qua bộ kiểm ảnh vì bộ đó soi chữ ký nhị phân
+       của định dạng ảnh. Ở đây kiểm ba điều tối thiểu:
+         1. Phải là data URL kiểu video (chặn người ta nhét kiểu tệp khác vào)
+         2. Giới hạn kích thước, tránh một video nuốt hết dung lượng database
+         3. Đánh dấu chờ duyệt — cán bộ xem rồi mới hiện, vì máy chủ không tự
+            kiểm duyệt được nội dung video như với ảnh.
+
+       ⚠️ Video KHÔNG được xoá thông tin bên trong tệp (có thể gồm nơi quay).
+       Giao diện đã nói rõ điều này cho người gửi biết trước khi đính kèm. */
+    if (typeof body.video === 'string' && body.video) {
+      try {
+        const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+        /* Video tới theo MỘT trong hai dạng:
+             - Đường dẫn kho ảnh: trình duyệt đã tải lên Cloudinary, chỉ gửi link
+               (đường đi bình thường, nhẹ, không tốn dung lượng database)
+             - data URL base64: chưa cấu hình kho ảnh hoặc tải lên lỗi
+               (đường lui, nặng, nên giới hạn chặt) */
+        const laLinkKho = cloudName
+          && /^https:\/\/res\.cloudinary\.com\//.test(body.video)
+          && body.video.includes(`/${cloudName}/`);
+        const laBase64 = body.video.startsWith('data:video/');
+
+        if (!laLinkKho && !laBase64) {
+          console.warn(`[VIDEO] Bỏ qua video sai định dạng của ${trackingCode}`);
+        } else if (laBase64 && body.video.length > 22 * 1024 * 1024) {
+          /* Đường lui base64 chỉ cho tới ~16MB tệp thật. Lớn hơn thì phải qua
+             kho ảnh, vì nhồi vào database sẽ ăn hết dung lượng chung. */
+          console.warn(`[VIDEO] Bỏ qua video base64 quá lớn của ${trackingCode}`);
+        } else {
+          const kieu = laBase64
+            ? ((body.video.match(/^data:(video\/[a-z0-9.+-]+);/i) || [])[1] || 'video/mp4')
+            : 'video/mp4';
+          await pool.query(
+            `INSERT INTO submission_images
+             (submission_id, image_url, storage, mime_type, is_verified, moderation_status)
+             VALUES (?,?,?,?,?,?)`,
+            [result.insertId, body.video, laLinkKho ? 'cloudinary' : 'base64', kieu, false, 'suspicious']
+          );
+          /* Có video -> đưa ý kiến vào hàng chờ duyệt để cán bộ xem trước. */
+          await pool.query(
+            `UPDATE submissions SET status = 'pending_review' WHERE id = ? AND status = 'received'`,
+            [result.insertId]
+          );
+        }
+      } catch (e) {
+        console.warn('Không lưu được video đính kèm:', e.message);
       }
     }
 

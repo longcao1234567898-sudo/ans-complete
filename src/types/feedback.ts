@@ -79,6 +79,11 @@ export interface FeedbackDraft {
   contact: ContactInfo;
   /** Ảnh minh chứng (data URL đã nén, tối đa MAX_FEEDBACK_IMAGES tấm) */
   images: string[];
+  /** Video minh chứng (data URL). Tối đa MỘT video vì tệp rất nặng. */
+  video?: string | null;
+  /** Toạ độ nơi XẢY RA VỤ VIỆC — do người dân TỰ NGUYỆN bấm nút gửi.
+      Không bấm thì để trống, ý kiến vẫn gửi bình thường. */
+  viTri?: { lat: number; lng: number; doChinhXacMet?: number } | null;
 }
 
 /** Ý kiến đã gửi thành công (được cấp mã tra cứu) */
