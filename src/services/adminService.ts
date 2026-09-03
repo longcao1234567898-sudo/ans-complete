@@ -253,6 +253,9 @@ export interface SubmissionDetail extends SubmissionRow {
   resolution_note: string | null;
   resolved_by_name: string | null;
   images: Array<{ image_url: string; mime_type: string; moderation_status: string }>;
+  /** Toạ độ nơi XẢY RA VỤ VIỆC — do người dân tự nguyện gửi. Rỗng nếu không gửi. */
+  incident_lat?: number | string | null;
+  incident_lng?: number | string | null;
   history: Array<{ old_status: string | null; new_status: string; note: string | null; changed_at: string; changed_by_name: string | null }>;
 }
 

@@ -8,6 +8,7 @@
 
 import { Router } from 'express';
 import { pool } from '../../db.js';
+import { ghiNhatKy } from '../../lib/helpers.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 import { sanitizeText } from '../../lib/security.js';
@@ -122,7 +123,15 @@ router.post('/:id/messages', async (req, res) => {
 /* ==========================================================================
    DANH SÁCH KHOÁ — chỉ admin và manager
    ========================================================================== */
-router.get('/blacklist', authorize('admin', 'manager'), async (_req, res) => {
+/* MỞ CHO MỌI VAI TRÒ CÁN BỘ (bỏ authorize).
+
+   Danh sách khoá chỉ chứa mã thiết bị ngẫu nhiên và địa chỉ mạng — không có
+   danh tính, không có nội dung tin. Cán bộ cơ sở cần xem để biết vì sao bà con
+   gọi lên nói "tôi không gửi được", và để đối chiếu khi có khiếu nại.
+
+   Việc GỠ khoá vẫn giữ chốt admin/manager ở route delete bên dưới — xem thì ai
+   cũng xem được, nhưng quyết định gỡ là của lãnh đạo. */
+router.get('/blacklist', async (_req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM vw_blacklist_active');
     res.json(rows);
@@ -216,6 +225,94 @@ router.delete('/trusted-devices/:id', authorize('admin', 'manager'), async (req,
   } catch (err) {
     console.error('Bỏ thiết bị tin cậy lỗi:', err.message);
     res.status(500).json({ error: 'Không bỏ được.' });
+  }
+});
+
+/* ============================================================================
+   KHIẾU NẠI MỞ KHOÁ — cán bộ xem và quyết định
+
+   MỌI vai trò cán bộ đều XEM được danh sách khiếu nại (để nắm tình hình và trả
+   lời khi bà con gọi hỏi), nhưng chỉ admin/manager mới QUYẾT ĐỊNH gỡ hay từ
+   chối. Xem thì mở, quyết thì siết. */
+
+/** GET /api/admin/chat/khieu-nai — danh sách khiếu nại, mặc định chỉ tin chờ xử lý */
+router.get('/khieu-nai', async (req, res) => {
+  const tatCa = String(req.query.tatCa || '') === '1';
+  try {
+    const [rows] = await pool.query(
+      `SELECT a.id, a.identifier, a.kind, a.content, a.status,
+              a.created_at, a.handled_at, a.handler_note,
+              s.full_name AS handled_by_name,
+              /* Còn đang bị khoá thật không — khoá có thể đã tự hết hạn */
+              (SELECT COUNT(*) FROM blacklists b
+                WHERE b.kind = a.kind AND b.identifier = a.identifier
+                  AND b.expires_at > NOW()) AS con_bi_khoa
+         FROM unlock_appeals a
+         LEFT JOIN staff s ON s.id = a.handled_by
+        WHERE (? = 1 OR a.status = 'cho_xu_ly')
+        ORDER BY a.status = 'cho_xu_ly' DESC, a.created_at DESC
+        LIMIT 200`,
+      [tatCa ? 1 : 0]
+    );
+    res.json(rows.map((r) => ({ ...r, con_bi_khoa: Number(r.con_bi_khoa) > 0 })));
+  } catch (err) {
+    console.error('Đọc khiếu nại lỗi:', err.message);
+    res.status(500).json({ error: 'Không tải được. Đã chạy nang_cap_v17.sql chưa?' });
+  }
+});
+
+/** POST /api/admin/chat/khieu-nai/:id/xu-ly — gỡ khoá hoặc từ chối
+ *  body: { quyetDinh: 'go_khoa' | 'tu_choi', ghiChu?: string } */
+router.post('/khieu-nai/:id/xu-ly', authorize('admin', 'manager'), async (req, res) => {
+  const id = Number(req.params.id);
+  const quyetDinh = String(req.body?.quyetDinh || '');
+  const ghiChu = String(req.body?.ghiChu || '').trim().slice(0, 255);
+
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });
+  if (!['go_khoa', 'tu_choi'].includes(quyetDinh)) {
+    return res.status(400).json({ error: 'Quyết định không hợp lệ.' });
+  }
+
+  try {
+    const [[don]] = await pool.query(
+      `SELECT id, identifier, kind, status FROM unlock_appeals WHERE id = ?`, [id]
+    );
+    if (!don) return res.status(404).json({ error: 'Không tìm thấy khiếu nại.' });
+    if (don.status !== 'cho_xu_ly') {
+      return res.status(409).json({ error: 'Khiếu nại này đã được xử lý rồi.' });
+    }
+
+    if (quyetDinh === 'go_khoa') {
+      /* Gỡ khoá THẬT khỏi danh sách chặn — không chỉ đổi trạng thái khiếu nại,
+         vì đổi trạng thái mà không gỡ thì bà con vẫn không gửi được tin, còn
+         cán bộ tưởng đã xong. */
+      await pool.query(
+        `DELETE FROM blacklists WHERE kind = ? AND identifier = ?`,
+        [don.kind, don.identifier]
+      );
+    }
+
+    await pool.query(
+      `UPDATE unlock_appeals
+          SET status = ?, handled_by = ?, handled_at = NOW(), handler_note = ?
+        WHERE id = ?`,
+      [quyetDinh === 'go_khoa' ? 'da_go_khoa' : 'tu_choi', req.staff?.id || null, ghiChu || null, id]
+    );
+
+    await ghiNhatKy(pool, req, {
+      hanhDong: quyetDinh === 'go_khoa' ? 'unlock_appeal_accept' : 'unlock_appeal_reject',
+      loaiDoiTuong: 'unlock_appeal',
+      doiTuongId: id,
+      chiTiet: { kind: don.kind, ghiChu: ghiChu || null },
+    });
+
+    res.json({
+      ok: true,
+      message: quyetDinh === 'go_khoa' ? 'Đã gỡ khoá.' : 'Đã từ chối khiếu nại.',
+    });
+  } catch (err) {
+    console.error('Xử lý khiếu nại lỗi:', err.message);
+    res.status(500).json({ error: 'Không xử lý được.' });
   }
 });
 

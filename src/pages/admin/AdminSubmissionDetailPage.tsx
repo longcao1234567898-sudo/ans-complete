@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle, Ban } from 'lucide-react';
+import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle, Ban, MapPin } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
@@ -235,6 +235,44 @@ export default function AdminSubmissionDetailPage() {
                 </p>
               )}
             </div>
+
+            {/* VỊ TRÍ VỤ VIỆC — chỉ hiện khi người dân có gửi toạ độ.
+
+                Người dân mô tả địa điểm bằng lời thường không đủ rõ ("gần cây
+                xăng", "đầu ấp"), cán bộ xuống hiện trường phải dò hỏi. Toạ độ
+                này cho biết chính xác chỗ nào, mở thẳng được bằng bản đồ để
+                xem đường đi. */}
+            {data.incident_lat != null && data.incident_lng != null && (
+              <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
+                <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
+                  <MapPin className="h-4 w-4 text-rose-600" /> Vị trí vụ việc
+                </h3>
+                <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                  Do người dân tự nguyện gửi khi đang ở hiện trường.
+                </p>
+                <p className="mb-3 font-mono text-sm text-slate-700 dark:text-slate-200">
+                  {Number(data.incident_lat).toFixed(6)}, {Number(data.incident_lng).toFixed(6)}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={`https://www.google.com/maps?q=${data.incident_lat},${data.incident_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-primary-700"
+                  >
+                    <MapPin className="h-3.5 w-3.5" /> Mở bản đồ
+                  </a>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${data.incident_lat},${data.incident_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border-2 border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+                  >
+                    Chỉ đường tới hiện trường
+                  </a>
+                </div>
+              </div>
+            )}
 
             {/* CẤP ĐỘ BẢO MẬT — chỉ lãnh đạo (admin/manager) được đổi.
                 Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký. */}

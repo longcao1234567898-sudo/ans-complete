@@ -14,6 +14,24 @@ router.use(requireAuth);
    nhớ kết quả, để truy vấn danh sách/chi tiết không sập nếu database chưa nâng
    cấp — cột chưa có thì coi mọi tin là 'thuong'. Thà thiếu tính năng phân loại
    còn hơn cả danh sách ý kiến trắng trơn vì thiếu một cột. */
+/* Cột toạ độ vụ việc chỉ có sau khi chạy nang_cap_v16.sql. Kiểm một lần rồi
+   nhớ, để trang chi tiết không sập khi database chưa nâng cấp. */
+let _coCotToaDoAd = null;
+async function coCotToaDoAd() {
+  if (_coCotToaDoAd !== null) return _coCotToaDoAd;
+  try {
+    const [r] = await pool.query(
+      `SELECT 1 FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'submissions'
+          AND column_name = 'incident_lat' LIMIT 1`
+    );
+    _coCotToaDoAd = r.length > 0;
+  } catch {
+    _coCotToaDoAd = false;
+  }
+  return _coCotToaDoAd;
+}
+
 let _coCotMat = null;
 async function coCotCapDoMat() {
   if (_coCotMat !== null) return _coCotMat;
@@ -272,6 +290,10 @@ router.get('/:id', async (req, res) => {
               s.created_at, s.updated_at, s.deadline_at, s.resolved_at,
               s.assigned_to, s.resolved_by, s.reviewed_by, s.reviewed_at,
               s.rejection_reason, s.resolution_note, s.ward_id,
+              /* Toạ độ nơi XẢY RA VỤ VIỆC do người dân tự nguyện gửi — thông
+                 tin nghiệp vụ để cán bộ tìm đúng hiện trường, KHÔNG phải vị
+                 trí người báo. Cột chỉ có sau nang_cap_v16.sql nên phải kiểm. */
+              ${(await coCotToaDoAd()) ? 's.incident_lat, s.incident_lng,' : 'NULL AS incident_lat, NULL AS incident_lng,'}
               s.identity_erased, s.identity_erased_at, s.deleted_at,
               s.incident_group_id,
               /* Mã thiết bị: chuỗi NGẪU NHIÊN do trình duyệt tự sinh, KHÔNG

@@ -16,6 +16,15 @@ const router = Router();
    tải là mang đi được gần như toàn bộ dữ liệu nghiệp vụ, mà nhật ký lại chỉ
    admin/manager mới xem (logs.js), nên hành vi đó gần như vô hình.
    Chốt ở tầng router để endpoint báo cáo thêm mới sau này cũng được bảo vệ. */
+/* ⚠️ NGOẠI LỆ MỞ QUYỀN: bản đồ điểm nóng khai TRƯỚC dòng chốt quyền bên dưới,
+   nên MỌI vai trò cán bộ đều xem được.
+
+   Lý do: bản đồ chỉ trả về SỐ LƯỢNG tin theo địa bàn — không có nội dung tin,
+   không có danh tính, không có dữ liệu cá nhân. Đây là công cụ nắm tình hình
+   địa bàn mà cán bộ cơ sở cần hằng ngày, khác hẳn /details vốn xuất tới 2000
+   dòng nội dung, hay /summary cho thấy hiệu suất từng cán bộ. */
+router.get('/map', banDoDiemNong);
+
 router.use(authorize('admin', 'manager'));
 
 /** GET /api/admin/reports/summary?from=&to= — số liệu tổng hợp để xem + xuất Excel */
@@ -97,7 +106,7 @@ router.get('/summary', async (req, res) => {
 });
 
 /** GET /api/admin/reports/map — dữ liệu bản đồ điểm nóng */
-router.get('/map', async (req, res) => {
+async function banDoDiemNong(req, res) {
   try {
     /* ------------------------------------------------------------------
        KHUNG THỜI GIAN
@@ -177,7 +186,7 @@ router.get('/map', async (req, res) => {
     console.error('Lỗi bản đồ:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v2.sql chưa?' });
   }
-});
+}
 
 /**
  * GET /api/admin/reports/details?from=&to=

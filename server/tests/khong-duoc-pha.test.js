@@ -226,7 +226,13 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa
                  có thì bỏ hẳn hai cột khỏi câu lệnh. Bản thân GIÁ TRỊ toạ độ
                  vẫn đi qua dấu ? ở mảng params. */
-              || /^coCotToaDo \? '.*' : ''$/.test(bieuThuc);
+              || /^coCotToaDo \? '.*' : ''$/.test(bieuThuc)
+              /* admin/submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên
+                 cột toạ độ vụ việc đã tồn tại chưa (coCotToaDoAd, đọc từ
+                 information_schema chứ không phải dữ liệu người dùng). Cột chưa
+                 có thì trả NULL để trang chi tiết không sập. Không có giá trị
+                 nào của người dùng đi vào câu lệnh ở đây. */
+              || /^\(await coCotToaDoAd\(\)\) \? /.test(bieuThuc);
             if (!hopLe) loi.push(`${muc.name}: \${${bieuThuc}}`);
           }
         }

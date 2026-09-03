@@ -24,6 +24,8 @@ import authRouter from './routes/auth.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
+import banDoRouter from './routes/ban-do.js';
+import khieuNaiRouter from './routes/khieu-nai.js';
 import ttsRouter from './routes/tts.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
@@ -37,6 +39,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/tracking', trackingRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/news', newsRouter);
+/* Bản đồ an ninh CÔNG KHAI cho người dân — số liệu tổng hợp, che số nhỏ. */
+app.use('/api/ban-do', banDoRouter);
+/* Khiếu nại mở khoá — KHÔNG cần đăng nhập, vì người bị khoá không có tài khoản. */
+app.use('/api/khieu-nai', khieuNaiRouter);
 app.use('/api/tts', ttsRouter);
 app.use('/api/otp', otpRouter);
 app.use('/api/submissions', submissionsRouter);
