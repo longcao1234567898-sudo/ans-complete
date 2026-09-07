@@ -1,57 +1,135 @@
-# Cấu hình deploy backend lên Render (Blueprint)
+# ============================================================================
+# CẤU HÌNH TRIỂN KHAI LÊN RENDER — HAI MÁY CHỦ TÁCH RIÊNG
+# ============================================================================
+#
+# Khai báo HAI dịch vụ chạy từ CÙNG một mã nguồn, chỉ khác lệnh khởi động:
+#
+#   hop-thu-cong-khai — phục vụ người dân: gửi ý kiến, tin tức, tra cứu, bản đồ.
+#     KHÔNG nạp mã quản trị, nên kẻ tấn công chọc thủng dịch vụ này cũng không
+#     chạm được chức năng cán bộ.
+#
+#   hop-thu-can-bo — phục vụ cán bộ: duyệt hồ sơ, xem danh tính, thống kê.
+#     Có sẵn lớp giới hạn theo địa chỉ mạng, bật khi đơn vị có IP tĩnh.
+#
+# ⚠️ HAI DỊCH VỤ DÙNG CHUNG MỘT CƠ SỞ DỮ LIỆU. Tách máy chủ không phải tách dữ
+#    liệu — ý kiến bà con gửi vào đâu thì cán bộ đọc ra ngay ở đó, không có độ
+#    trễ, không phải đồng bộ gì cả.
+#
+# ⚠️ BA KHOÁ JWT_SECRET, ENCRYPTION_KEY, HASH_PEPPER PHẢI GIỐNG HỆT ở hai dịch
+#    vụ. Khác nhau thì: cán bộ đăng nhập bên này mà bên kia không công nhận;
+#    danh tính mã hoá bên này mà bên kia mở ra thấy chuỗi vô nghĩa.
+#
+# ⚠️ TUYỆT ĐỐI KHÔNG khai ADMIN_PORT. Render tự cấp cổng qua biến PORT và bắt
+#    buộc ứng dụng nghe đúng cổng đó. Khai ADMIN_PORT sẽ khiến máy chủ cán bộ
+#    nghe sai cổng, Render báo dịch vụ hỏng.
+#
+# "sync: false" nghĩa là Render HỎI giá trị lúc dựng, không lưu trong tệp này —
+# nên tệp an toàn để đưa lên GitHub.
+# ============================================================================
+
 services:
+  # ==========================================================================
+  # 1. MÁY CHỦ CÔNG KHAI — cho người dân
+  # ==========================================================================
   - type: web
-    name: hop-thu-an-ninh-so-api
+    name: hop-thu-cong-khai
     runtime: node
     rootDir: server
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: npm run start:cong-khai
+    healthCheckPath: /api/health
     envVars:
       - key: DB_HOST
         sync: false
       - key: DB_PORT
-        value: 3306
+        sync: false
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD
         sync: false
       - key: DB_NAME
         value: hop_thu_an_ninh_so
-      - key: DB_SSL
-        value: true
-      - key: GEMINI_API_KEY
-        sync: false
+      # Tải ca.pem lên bằng mục Secret Files của Render, đặt tên tệp là ca.pem
+      - key: DB_SSL_CA
+        value: /etc/secrets/ca.pem
+
+      # ---------- BA KHOÁ PHẢI GIỐNG HỆT MÁY CHỦ CÁN BỘ ----------
+      - key: JWT_SECRET
+        sync: false            # chuỗi ngẫu nhiên >= 32 ký tự
+      - key: ENCRYPTION_KEY
+        sync: false            # 64 ký tự hex. ĐỔI = MẤT VĨNH VIỄN danh tính đã lưu
+      - key: HASH_PEPPER
+        sync: false            # băm số điện thoại, chống trùng và chống spam
+
       - key: CORS_ORIGIN
+        sync: false            # địa chỉ trang công dân, không có dấu / ở cuối
+      - key: CLIENT_URL
         sync: false
 
-      # ======================================================================
-      # KHOÁ BÍ MẬT — BẮT BUỘC, KHÔNG CÓ GIÁ TRỊ MẶC ĐỊNH
-      #
-      # ⚠️ Trước đây file này THIẾU cả 5 biến dưới. Ai dựng lại dịch vụ từ
-      #    file này sẽ có một máy chủ chạy được nhưng:
-      #      · JWT_SECRET rơi về giá trị dự phòng ghi trong mã nguồn công khai
-      #        -> bất kỳ ai cũng tự ký được token quản trị
-      #      · ENCRYPTION_KEY trống -> hệ thống từ chối nhận ý kiến có danh tính
-      #
-      #    Nay khai báo đủ. "sync: false" nghĩa là Render sẽ HỎI giá trị lúc
-      #    dựng, không lưu trong file — nên file này an toàn để đưa lên GitHub.
-      # ======================================================================
-      - key: JWT_SECRET
-        sync: false            # chuỗi ngẫu nhiên >= 32 ký tự. Thiếu -> máy chủ KHÔNG khởi động
-      - key: ENCRYPTION_KEY
-        sync: false            # 64 ký tự hex. ⚠️ ĐỔI = MẤT VĨNH VIỄN danh tính đã mã hoá
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-3.5-flash
       - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: BREVO_API_KEY
         sync: false
       - key: MAIL_USER
         sync: false
+      - key: BAT_XAC_THUC_EMAIL
+        value: false
 
-      # Model AI — đổi được mà không cần sửa mã nguồn
-      - key: GEMINI_MODEL
-        value: gemini-3.5-flash
-      - key: GEMINI_CHAT_MODEL
-        value: gemini-3.5-flash
+      - key: NODE_ENV
+        value: production
+
+  # ==========================================================================
+  # 2. MÁY CHỦ CÁN BỘ — cho cán bộ xử lý
+  # ==========================================================================
+  - type: web
+    name: hop-thu-can-bo
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm run start:can-bo
+    healthCheckPath: /api/health
+    envVars:
+      # ---------- Cơ sở dữ liệu: GIỐNG HỆT máy chủ công khai ----------
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: hop_thu_an_ninh_so
+      - key: DB_SSL_CA
+        value: /etc/secrets/ca.pem
+
+      # ---------- BA KHOÁ PHẢI GIỐNG HỆT MÁY CHỦ CÔNG KHAI ----------
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: HASH_PEPPER
+        sync: false
+
+      # ---------- Địa chỉ trang cán bộ ----------
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ADMIN_CORS_ORIGIN
+        sync: false
+
+      # ---------- Giới hạn theo địa chỉ mạng ----------
+      # Để TRỐNG = không chặn ai (đúng cho lúc này, cán bộ làm từ nhiều nơi).
+      # Khi đơn vị có IP tĩnh thì khai dải IP cơ quan, cách nhau bằng dấu phẩy.
+      - key: ADMIN_ALLOWED_IPS
+        sync: false
 
       - key: NODE_ENV
         value: production

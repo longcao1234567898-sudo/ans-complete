@@ -31,6 +31,7 @@
  */
 import type { NewsArticle } from '../../types/news';
 import NewsCard from './NewsCard';
+import BangChuyenTinNoiBat from './BangChuyenTinNoiBat';
 
 interface NewsGridProps {
   articles: NewsArticle[];
@@ -111,13 +112,23 @@ export default function NewsGrid({ articles, isLoading, coTinNoiBat = true }: Ne
     return [...theoTieuDe.values()];
   })();
 
+  /* BĂNG CHUYỀN TIN NỔI BẬT — lấy tối đa 4 tin đầu.
+
+     Trước đây chỉ hiện MỘT tin nổi bật tĩnh, các tin quan trọng khác nằm lẫn
+     trong danh sách bên dưới và dễ bị bỏ qua. Băng chuyền cho nhiều tin cùng
+     có cơ hội được nhìn thấy: tự lướt 5 giây một lần, vuốt ngang được, hoặc
+     bấm chấm tròn để nhảy tới tin muốn xem.
+
+     Bốn tin là vừa: ít hơn thì không đáng làm băng chuyền, nhiều hơn thì hàng
+     chấm tròn dài quá, bà con không biết mình đang ở tin thứ mấy. */
+  const SO_TIN_NOI_BAT = 4;
   const tachNoiBat = coTinNoiBat && daLoc.length >= 2;
-  const noiBat = tachNoiBat ? daLoc[0] : null;
-  const conLai = tachNoiBat ? daLoc.slice(1) : daLoc;
+  const dsNoiBat = tachNoiBat ? daLoc.slice(0, Math.min(SO_TIN_NOI_BAT, daLoc.length - 1)) : [];
+  const conLai = tachNoiBat ? daLoc.slice(dsNoiBat.length) : daLoc;
 
   return (
     <div className="space-y-5">
-      {noiBat && <NewsCard article={noiBat} kieu="noi-bat" />}
+      {dsNoiBat.length > 0 && <BangChuyenTinNoiBat tin={dsNoiBat} />}
 
       {/* ==================================================================
           ĐIỆN THOẠI — DANH SÁCH LIỀN, NGĂN BẰNG ĐƯỜNG KẺ
