@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MessageSquare, Send, Lock, Loader2, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Send, Lock, Loader2, ShieldCheck, RefreshCw } from 'lucide-react';
 import { fetchChatMessages, sendChatMessage } from '../../services/adminService';
 
 interface Props {
@@ -26,7 +26,7 @@ export default function AdminChatPanel({ submissionId }: Props) {
   const [loi, setLoi] = useState('');
   const cuoiRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['admin-chat', submissionId],
     queryFn: () => fetchChatMessages(submissionId),
     /* Tự tải lại mỗi 20 giây. Không dùng kết nối thời gian thực vì máy chủ
@@ -70,12 +70,35 @@ export default function AdminChatPanel({ submissionId }: Props) {
             </span>
           )}
         </h3>
-        {data?.isAnonymous && (
-          <span className="flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            <ShieldCheck className="h-3 w-3" />
-            Ẩn danh
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {data?.isAnonymous && (
+            <span className="flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <ShieldCheck className="h-3 w-3" />
+              Ẩn danh
+            </span>
+          )}
+          {/* NÚT LÀM MỚI — chỉ nạp lại phiên chat, KHÔNG tải lại cả trang.
+
+              Vì sao cần: bên người dân đã có nút này, bên cán bộ thì không.
+              Chat tự nạp lại mỗi 20 giây, nhưng cán bộ đang chờ bà con trả lời
+              thì 20 giây là lâu — không có nút bấm, họ sẽ tải lại cả trang,
+              mất luôn phần ghi chú đang gõ dở và vị trí đang cuộn.
+
+              refetch của react-query chỉ gọi lại đúng truy vấn chat, các phần
+              khác của trang giữ nguyên. */}
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label="Tải lại tin nhắn"
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary-700 transition hover:bg-primary-100 disabled:opacity-60 dark:text-primary-300 dark:hover:bg-primary-900/30"
+          >
+            {isFetching
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <RefreshCw className="h-3.5 w-3.5" />}
+            Làm mới
+          </button>
+        </div>
       </div>
 
       <div className="max-h-80 space-y-3 overflow-y-auto px-4 py-4">

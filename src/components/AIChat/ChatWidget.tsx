@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { SendHorizonal, Trash2 } from 'lucide-react';
+import { SendHorizonal, Trash2, X } from 'lucide-react';
 import PoliceAvatar from '../common/PoliceAvatar';
 import ChatBubble from './ChatBubble';
 import MessageList from './MessageList';
@@ -104,13 +104,31 @@ export default function ChatWidget() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={clearChat}
-                aria-label="Xoá hội thoại"
-                className="rounded-lg p-1.5 transition hover:bg-white/15"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={clearChat}
+                  aria-label="Xoá hội thoại"
+                  className="rounded-lg p-1.5 transition hover:bg-white/15"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                {/* NÚT ĐÓNG NẰM NGAY TRONG KHUNG CHAT.
+
+                    Vì sao cần: nút nổi trợ lý kéo thả được trên điện thoại. Kéo
+                    nút đi rồi mở chat thì khung chat che mất nút nổi — mà nút
+                    nổi lại chính là chỗ duy nhất để đóng. Bà con bị kẹt trong
+                    khung chat, không biết thoát bằng cách nào.
+
+                    Nút đóng ở đây luôn thấy được, không phụ thuộc nút nổi đang
+                    nằm chỗ nào. */}
+                <button
+                  onClick={() => setOpen(false)}
+                  aria-label="Đóng trợ lý"
+                  className="rounded-lg p-1.5 transition hover:bg-white/15"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Nội dung */}
