@@ -12,7 +12,7 @@ và [`/ket-thuc-phien`](../.claude/commands/ket-thuc-phien.md). Quy trình: [QUY
 
 | Mã | Ngày | Loại | Mục tiêu | Trạng thái | SHA mốc | Commit | Việc còn dở |
 |---|---|---|---|---|---|---|---|
-| P00 | 2026-09-10 | `TAI-LIEU` | Dựng quy trình làm việc theo phiên + CLAUDE.md | XONG MỘT PHẦN | `cc6f65f` | *(chưa commit)* | Cổng DoD chưa chạy được: thiếu `node_modules`. Chưa chạy `npm test`/`npm run build` để xác lập số test thật. |
+| P00 | 2026-09-10 | `TAI-LIEU` | Dựng quy trình làm việc theo phiên + CLAUDE.md | **XONG** | `cc6f65f` | `6248123` `9c88250` `5c531ea` `197bd2f` `495bd35` | Không còn. Đã cài `node_modules`, cổng DoD chạy được (336/336 pass, build 0 lỗi). Trả xong ND-001, ND-002, ND-011. Phát sinh: `npm audit` lộ 12 lỗ hổng dependency → gộp vào ND-003, để P09 triage. |
 
 <!--
 Dòng mẫu để copy:
@@ -37,7 +37,7 @@ Dòng mẫu để copy:
 |---|---|---|
 | Đợt vá bảo mật khẩn cấp | ✅ Xong 2026-08-03 | [CHANGELOG-BAO-MAT.md](CHANGELOG-BAO-MAT.md) |
 | Kế hoạch kiểm thử bảo mật 12 ngày | 📋 Đã lập 2026-09-09 | [kiem-thu-bao-mat/](kiem-thu-bao-mat/) |
-| Quy trình làm việc theo phiên | 🔄 Đang dựng 2026-09-10 | Phiên P00 |
+| Quy trình làm việc theo phiên | ✅ Xong 2026-09-10 | Phiên P00 |
 | GĐ1 — Kiểm kê hệ thống | ⏳ Chưa bắt đầu | Dự kiến P01–P02 |
 | GĐ2 — Rà soát 8 nhóm | ⏳ Chưa bắt đầu | Dự kiến P03–P10 |
 | GĐ3 — Fix theo ưu tiên | ⏳ Chưa bắt đầu | Số phiên tuỳ số lỗi tìm được |
