@@ -127,24 +127,24 @@ Mỗi luồng vẽ theo mẫu:
 
 | Giới hạn | Giá trị | Nguồn trong code | Thực thi ở đâu? | Ghi chú rủi ro |
 |---|---|---|---|---|
-| Rate limit toàn cục | 300 req / 15 phút | `server/src/index.js:89` | Backend | `express-rate-limit` mặc định lưu **trong RAM** → nhiều instance = hạn mức nhân lên |
-| Đăng nhập | 5 lần / 15 phút | `routes/auth.js:30` | Backend | Theo IP hay theo tài khoản? |
-| Gọi AI | 30 lần / 5 phút / IP | `routes/ai.js:11` | Backend | |
-| Mở phòng chat | 5 / 15 phút | `routes/chat.js:66` | Backend | |
-| Gửi tin chat | 20 / 5 phút | `routes/chat.js:75` | Backend | |
-| Tra cứu | 30 / phút | `routes/tracking.js:22` | Backend | Đủ chống dò mã 6 ký tự không? |
-| Bản đồ | 20 / phút | `routes/ban-do.js:35` | Backend | |
-| TTS | 60 / phút | `routes/tts.js:32` | Backend | |
-| Khiếu nại | 5 / 10 phút **và tối đa 2 lần/hồ sơ** | `routes/khieu-nai.js:29,33` | ? | **Ưu tiên kiểm — "đếm rồi ghi" thường không atomic** |
-| OTP | 5 mã/giờ/email; sai 5 lần huỷ mã | `lib/otp.js:8,10` | Backend | **Ưu tiên kiểm** |
-| Số ảnh đính kèm | tối đa 3 | `lib/anh-an-toan.js:31` | ? | Backend có cắt thật không (`slice(0,3)`) |
-| Kích thước ảnh | 8 MB | `lib/anh-an-toan.js:28` | ? | Nhánh base64 có áp dụng? |
-| Kích thước body | 32 MB | `server/src/index.js:82` | Backend | DoS bộ nhớ khi nhiều request đồng thời |
-| Độ dài nội dung | 2000 ký tự | `lib/security.js:11` | ? | |
-| Độ dài tin chat | 1000 ký tự | `routes/chat.js:45`, `admin/chat.js:21` | Backend | |
-| Khoá thiết bị spam | 24 giờ | `lib/chan-spam.js` | Backend | Reset bằng cách đổi `deviceId` được không? |
-| Khoá IP spam | 2 giờ; ngưỡng 3 đơn / 3 thiết bị / 1 giờ | `lib/chan-spam.js` | Backend | |
-| Thùng rác giữ | 7 ngày | `database/nang_cap_v7.sql` | DB / cron? | Có job dọn thật, hay chỉ ẩn ở giao diện? |
+| Rate limit toàn cục | 300 req / 15 phút | `index.js:89` · `nen-tang.js:89` | **Cả ba biến thể.** `index.js` gắn trực tiếp; `may-chu-cong-khai.js` và `may-chu-can-bo.js` nhận qua `taoApp()`. Gắn **trước** mọi route nên phủ cả `/api/admin`. Khoá theo `req.ip` (mặc định `express-rate-limit@7.5.1`), có `trust proxy = 1` | Lưu **trong RAM** từng instance → nhiều instance = hạn mức nhân lên (ND-009) |
+| Đăng nhập | 5 lần / 15 phút | `routes/auth.js:30` | Backend, **cả ba biến thể** (`authRouter` gắn ở cả ba, kể cả máy chủ cán bộ). **Theo IP, không theo tài khoản** — không khai `keyGenerator` nên dùng mặc định `req.ip` | Trả lời câu hỏi cũ: **theo IP**. Hệ quả hai chiều: nhiều IP dò một tài khoản thì lớp này không thấy; ngược lại cả cơ quan chung một IP ra Internet thì 5 lượt là của chung |
+| Gọi AI | 30 lần / 5 phút / IP | `routes/ai.js:11` | Backend công khai (`index.js`, `may-chu-cong-khai.js`). `router.use(aiLimiter)` → **bốn route AI dùng chung một hạn mức**. Khoá `req.ip` mặc định | Máy chủ cán bộ không nạp `aiRouter` — mặt tấn công AI chỉ nằm ở phía công khai |
+| Mở phòng chat | 5 / 15 phút | `routes/chat.js:66` | Backend công khai, gắn đúng vào `POST /open` (`chat.js:100`). Khoá `req.ip` mặc định | |
+| Gửi tin chat | 20 / 5 phút | `routes/chat.js:75` | Backend công khai, gắn đúng vào `POST /messages` (`chat.js:208`). Khoá `req.ip` mặc định | `GET /messages` (`chat.js:166`) **không có** giới hạn riêng — chỉ còn 300/15p chung |
+| Tra cứu | 30 / phút | `routes/tracking.js:22` | Backend công khai, khoá theo `layIpThat(req)`. **Chỉ gắn vào `GET /:code`** (`tracking.js:31`) | `POST /:code/request-deletion` (`tracking.js:143`) không có giới hạn riêng — xem ghi chú P01 trong `buglogs/` |
+| Bản đồ | 20 / phút | `routes/ban-do.js:35` | Backend công khai, gắn đúng vào `GET /` (`ban-do.js:44`) | |
+| TTS | 60 / phút | `routes/tts.js:32` | Backend công khai, gắn đúng vào `GET /` (`tts.js:56`) | |
+| Khiếu nại | 5 / 10 phút **và tối đa 2 lần/hồ sơ** | `routes/khieu-nai.js:29,33` | Cả hai đều ở backend công khai. 5/10p là middleware khoá `layIpThat`, **dùng chung một bộ đếm cho cả `GET /trang-thai` và `POST /`** (`khieu-nai.js:46,98`). Giới hạn 2 lần/hồ sơ là `SELECT COUNT(*)` (`:125,:136`) rồi `INSERT` (`:148`) — **hai câu lệnh rời, không transaction, không khoá hàng** | **Ưu tiên kiểm — đúng khuôn "đếm rồi ghi" của luật 6.** Thêm một điểm: giao diện gọi `GET /trang-thai` trước khi hiện nút, nên lượt đọc ăn vào hạn mức của lượt ghi |
+| OTP | 5 mã/giờ/email; sai 5 lần huỷ mã; chờ 60s giữa hai lần xin; mã sống **10 phút** | `routes/otp.js:31–34` (bản **đang chạy**) | Backend công khai. **Không dùng `express-rate-limit`** — đếm bằng `SELECT COUNT(*) … INTERVAL 1 HOUR` (`otp.js:56`) rồi `INSERT` (`otp.js:83`), cùng khuôn không atomic như trên. Số lần sai thì atomic (`UPDATE … attempts = attempts + 1`, `otp.js:147`) | **Ưu tiên kiểm.** ⚠️ Bảng cũ dẫn nguồn `lib/otp.js:8,10` là **bản chết** — không tệp nào import `lib/otp.js`, và nó lệch bản đang chạy (TTL 5 phút vs 10 phút, băm SHA-256 vs bcrypt). Xem ND-013 |
+| Số ảnh đính kèm | tối đa 3 | `lib/anh-an-toan.js:31` | Backend, **hai lớp**: `submissions.js:90` cắt `slice(0, 3)`, rồi `locDanhSachAnh` cắt lại `slice(0, SO_ANH_TOI_DA)` (`anh-an-toan.js:201`) | Có cắt thật. `admin/kiosk.js` không nhận ảnh nên không đụng lớp này |
+| Kích thước ảnh | 8 MB | `lib/anh-an-toan.js:28` | Backend, **chỉ nhánh base64** — đo trên byte đã giải mã (`anh-an-toan.js:89`). Nhánh Cloudinary nhận đường dẫn nên không đo được kích thước ở đây, chỉ kiểm giao thức/miền/đuôi tệp (`anh-an-toan.js:150–184`) | Trả lời câu hỏi cũ: **nhánh base64 chính là nhánh có áp 8 MB**. Trần thật của nhánh này là `express.json` 32 MB ở trên. Kích thước ảnh qua Cloudinary do Cloudinary chặn, không do hệ thống này |
+| Kích thước body | 32 MB | `index.js:85` · `nen-tang.js:87` | Backend, cả ba biến thể | DoS bộ nhớ khi nhiều request đồng thời. *(Bảng cũ ghi `index.js:82` — số dòng đã trôi)* |
+| Độ dài nội dung | 2000 ký tự | `lib/security.js:11` | Backend, **chỉ ở `POST /api/submissions`** qua `sanitizeText(body.content)` (`submissions.js:84`). `admin/kiosk.js:40` đọc nội dung bằng `String(b.content \|\| '').trim()` — **không qua `sanitizeText`, không có trần trên** | Đường ki-ốt không đi qua lá chắn `security.js`: không cắt độ dài, không quét mẫu đáng ngờ. Xem ghi chú P02 trong `buglogs/` |
+| Độ dài tin chat | 1000 ký tự | `routes/chat.js:45`, `admin/chat.js:21` | Backend, cả hai phía — `sanitizeText(msg, MAX_DAI_TIN)` ở `chat.js:216` và `admin/chat.js:78` | Hai bản chép hằng số riêng, hiện bằng nhau |
+| Khoá thiết bị spam | 24 giờ | `lib/chan-spam.js:39` | Backend công khai, `xetTruocKhiNhan()` gọi từ `routes/submissions.js`. Mã thiết bị lấy từ **`req.body.deviceId`** (`chan-spam.js:55`) — do trình duyệt tự sinh và gửi lên | Trả lời câu hỏi cũ: **đổi `deviceId` là thoát khoá** — nhưng đây là **đánh đổi đã ghi rõ** ở đầu `chan-spam.js` (khoá theo IP sẽ chặn oan cả vùng CGNAT), và cơ chế chặn ngầm sinh ra chính vì biết điều đó. Không phải sơ suất |
+| Khoá IP spam | 2 giờ; ngưỡng 3 đơn / 3 thiết bị / 1 giờ | `lib/chan-spam.js:40,44–46` | Backend công khai, `xetKhoaIp()` (`chan-spam.js:356`), khoá theo `layIpThat` | Lớp dự phòng, cố ý đặt ngưỡng cao. Thêm nhánh tái phạm: 3 lần/30 ngày → khoá 30 ngày (`chan-spam.js:181–185`) |
+| Thùng rác giữ | 7 ngày | `routes/admin/trash.js:24` | **Backend, không phải DB.** `donRacQuaHan()` chạy `DELETE FROM submissions … deleted_at < NOW() - INTERVAL 7 DAY` (`trash.js:32–36`), gọi **mỗi lần cán bộ mở thùng rác**. Không có cron, không có EVENT trong `database/` | Trả lời câu hỏi cũ: **xoá thật, nhưng lười** — không ai mở thùng rác thì dữ liệu đã xoá mềm nằm lại quá 7 ngày. Nguồn dẫn trong bảng cũ (`nang_cap_v7.sql`) chỉ định nghĩa cột và khung nhìn, không thực thi hạn giữ |
 
 **Với mỗi dòng, GĐ2 phải trả lời đúng 3 câu:**
 1. Giới hạn này có kiểm ở **backend** không, hay chỉ ẩn nút ở frontend?
