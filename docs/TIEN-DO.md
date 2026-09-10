@@ -14,6 +14,7 @@ và [`/ket-thuc-phien`](../.claude/commands/ket-thuc-phien.md). Quy trình: [QUY
 |---|---|---|---|---|---|---|---|
 | P00 | 2026-09-10 | `TAI-LIEU` | Dựng quy trình làm việc theo phiên + CLAUDE.md | **XONG** | `cc6f65f` | `6248123` `9c88250` `5c531ea` `197bd2f` `495bd35` | Không còn. Đã cài `node_modules`, cổng DoD chạy được (336/336 pass, build 0 lỗi). Trả xong ND-001, ND-002, ND-011. Phát sinh: `npm audit` lộ 12 lỗ hổng dependency → gộp vào ND-003, để P09 triage. |
 | P01 | 2026-09-10 | `KHAO-SAT` | Điền hết dấu `?` trong ba bảng endpoint A/B/C của §1.1, lưu `kiem-ke-endpoint.md` | **XONG** | `d8d11a9` | `e667152` | Không còn phần nào của mục tiêu. Ba bảng A/B/C đã đầy đủ, đối chiếu xong ba biến thể máy chủ (không lệch — vì dùng chung router). Ghi 3 điểm nghi ngờ vào `buglogs/` cho P04/P05/P08. **Còn lại của D1 (cố ý ngoài phạm vi):** sơ đồ thành phần + bên thứ ba, và danh sách biến môi trường thật trên Render — hai ô chưa tích ở §1.3. |
+| P02 | 2026-09-10 | `KHAO-SAT` | Vẽ 5 luồng dữ liệu nhạy cảm + điền cột “Thực thi ở đâu” cho 18 giới hạn nghiệp vụ (§2.2) | **ĐANG CHẠY** | `c02088d` | | |
 
 <!--
 Dòng mẫu để copy:
