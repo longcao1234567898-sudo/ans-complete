@@ -8,7 +8,7 @@ Gồm 2 phần độc lập, có thể chạy riêng:
 
 ## Trạng thái hiện tại (2026-08-08)
 - ✅ `npm run build` (frontend) chạy sạch, không lỗi TypeScript.
-- ✅ Backend: 285/285 test pass (`cd server && npm test`).
+- ✅ Backend: test pass toàn bộ — chạy `cd server && npm test` để xem số hiện tại (không chép số vào đây, xem [docs/QUY-TRINH-LAM-VIEC.md](docs/QUY-TRINH-LAM-VIEC.md) §6).
 - ⚠️ Xem mục [Việc còn tồn đọng](#việc-còn-tồn-đọng--hướng-phát-triển-tiếp-theo) trước khi bàn giao hoặc mở rộng — có vài chỗ tài liệu/cấu hình chưa theo kịp code.
 
 ## Kiến trúc & thư mục chính
@@ -116,7 +116,7 @@ Dự án từng trải qua một đợt vá bảo mật khẩn cấp lớn (2026
 - Danh tính người tố giác chỉ `admin` hoặc cán bộ **được phân công đúng hồ sơ đó** mới xem được, mọi lượt xem đều ghi log.
 - Access token cán bộ giữ trong RAM (không `localStorage`/`sessionStorage`); phiên khôi phục qua cookie refresh `httpOnly`.
 - Hệ thống giả định **một đơn vị/một database** — xem [docs/adr/001-pham-vi-du-lieu-theo-don-vi.md](docs/adr/001-pham-vi-du-lieu-theo-don-vi.md) trước khi gộp nhiều xã/phường dùng chung một database.
-- Kiểm chứng: `cd server && npm test` (285 test, không cần MySQL).
+- Kiểm chứng: `cd server && npm test` (không cần MySQL).
 
 ## Tuỳ biến cho đơn vị
 Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/utils/constants.ts` (hằng số `UNIT`) và `server/src/lib/unit.js` (dùng trong email OTP).
