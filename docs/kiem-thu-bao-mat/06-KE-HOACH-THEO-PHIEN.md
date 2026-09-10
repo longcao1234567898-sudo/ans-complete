@@ -45,7 +45,7 @@ Tám nhóm hạng mục → tám phiên. Nhóm 2 (phân quyền) là nhóm nặn
 > khẳng định "phải bị chặn", chạy trên local/staging với dữ liệu giả. Bộ test này sau đó
 > chính là **trọng tài** cho các phiên RETEST ở GĐ4.
 
-> **P09 phụ thuộc ND-001** (chưa cài `node_modules`) — `npm audit` không chạy được nếu chưa cài.
+> ~~**P09 phụ thuộc ND-001** (chưa cài `node_modules`)~~ — ND-001 đã trả ở P00, `npm audit` chạy được.
 
 ## Giai đoạn 3 — Fix (D7–D9)
 
@@ -98,10 +98,10 @@ phiên `FIX` mới.
 
 | Phiên | Loại | Ngày dự kiến | Trạng thái | Ghi chú |
 |---|---|---|---|---|
-| P01 | KHAO-SAT | D1 | ⏳ | |
-| P02 | KHAO-SAT | D2 | ⏳ | |
-| P03 | RA-SOAT | D3 | ⏳ | |
-| P04 | RA-SOAT | D3 | ⏳ | Nhóm nặng nhất |
+| P01 | KHAO-SAT | D1 | ✅ | Xong 2026-09-10 |
+| P02 | KHAO-SAT | D2 | ✅ | Xong 2026-09-10 |
+| P03 | RA-SOAT | D3 | ✅ | Xong 2026-09-10 — 12/12 mục kiểm có kết quả, mở 4 BUG |
+| P04 | RA-SOAT | D3 | ⏳ | Nhóm nặng nhất. ⚠️ **Đọc BUG-001 trước khi bắt đầu** — nó đổi cách hiểu về những route "chỉ cần đăng nhập" |
 | P05 | RA-SOAT | D4 | ⏳ | |
 | P06 | RA-SOAT | D4 | ⏳ | |
 | P07 | RA-SOAT | D5 | ⏳ | |
