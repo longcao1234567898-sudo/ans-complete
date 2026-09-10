@@ -22,6 +22,7 @@ Nơi ghi những thứ **biết là chưa ổn nhưng cố ý chưa sửa**. Đ�
 | ND-008 | **Ảnh bằng chứng lưu base64 thẳng vào MySQL** ở nhánh fallback khi chưa cấu hình Cloudinary | `server/src/lib/anh-an-toan.js` | Bảng phình nhanh, bản sao lưu nặng, truy vấn chậm khi nhiều đơn | Là nhánh dự phòng, chưa phải đường chính | 2026-09-10 | GĐ2 nhóm 8 (D6) |
 | ND-009 | **Rate limit lưu trong RAM từng instance** (`express-rate-limit` store mặc định) | `server/src/index.js:89` và các route | Chạy 2 instance = hạn mức nhân đôi; cản scale ngang | Hiện chạy một instance nên chưa lộ | 2026-09-10 | GĐ2 nhóm 5+8 (D5–D6) |
 | ND-010 | **Ba biến thể khởi động backend** (`index.js`, `may-chu-cong-khai.js`, `may-chu-can-bo.js` + `nen-tang.js`) dễ lệch cấu hình bảo mật | `server/src/` | Lớp bảo vệ thêm ở một file có thể thiếu ở hai file kia | Tách ra có chủ đích để bàn giao nội bộ | 2026-09-10 | GĐ2 nhóm 5 (D5) |
+| ND-012 | **`BACKEND_VERSION` lệch giữa hai bản chép**: `index.js` ghi `v8-2026-07`, `nen-tang.js` ghi `v9-2026-08` | `server/src/index.js:95`, `server/src/nen-tang.js:27` | `/api/health` trả số phiên bản khác nhau tuỳ biến thể đang chạy — mà công dụng của biến này (theo chú thích trong code) đúng là để biết đã deploy bản mới chưa. Số sai thì mất tác dụng | Phát hiện khi kiểm kê ở P01, sửa là đụng code — ngoài phạm vi phiên `KHAO-SAT`. Bằng chứng cụ thể cho ND-010: hai bản chép song song đã bắt đầu trôi khỏi nhau | 2026-09-10 | Cùng lúc với ND-010 — GĐ2 nhóm 5 (D5) |
 
 ## Đã trả
 
