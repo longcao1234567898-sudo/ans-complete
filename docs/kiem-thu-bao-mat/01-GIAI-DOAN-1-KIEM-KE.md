@@ -98,7 +98,7 @@ trong code do AI sinh ra thường chính là chỗ thiếu kiểm tra quyền.
 | Cloudflare Turnstile | CAPTCHA | Không | Có verify **phía server** không, hay chỉ frontend |
 
 ### 1.3 Đầu ra D1
-- [ ] Bảng endpoint đã điền đủ (không còn `?`) — lưu tại `docs/kiem-thu-bao-mat/kiem-ke-endpoint.md`
+- [x] Bảng endpoint đã điền đủ (không còn `?`) — lưu tại [kiem-ke-endpoint.md](kiem-ke-endpoint.md) (phiên P01)
 - [ ] Sơ đồ thành phần + bên thứ ba
 - [ ] Danh sách biến môi trường thật đang dùng trên Render, đối chiếu `server/.env.example`
 
