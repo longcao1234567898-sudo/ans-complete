@@ -116,8 +116,11 @@ Mỗi luồng vẽ theo mẫu:
    *Câu hỏi:* cost factor bao nhiêu? Đổi mật khẩu có thu hồi phiên cũ không?
 2. **Danh tính người tố giác** (tên, SĐT, email) — form → `/api/submissions` → `lib/crypto.js` → cột `sender_*`.
    *Câu hỏi:* khoá nằm ở đâu, xoay khoá thế nào? Ngoài `/reveal` còn đường nào giải mã được?
-3. **Nội dung tố giác** — form → lá chắn `src/utils/security.ts` → backend `lib/security.js` → DB → **và gửi sang Gemini để phân loại**.
+3. **Nội dung tố giác** — form → lá chắn `src/utils/security.ts` → backend `lib/security.js` → DB.
    *Câu hỏi:* payload gửi sang Gemini có kèm danh tính không? Prompt có bị log lại không?
+   ⚠️ **P02 đính chính:** mô tả cũ ở dòng này ghi nội dung "gửi sang Gemini để phân loại" là
+   **sai với code hiện tại** — phân loại chạy thuần luật từ khoá trong `lib/phan-loai.js`,
+   không gọi mạng. Đường duy nhất ra Gemini là `POST /api/ai/chat`.
 4. **Ảnh/video bằng chứng** — chọn file → tái mã hoá canvas → kiểm duyệt AI → Cloudinary **hoặc** base64 vào DB.
    *Câu hỏi:* nhánh fallback base64 có áp cùng giới hạn kích thước/định dạng như nhánh Cloudinary không?
 5. **Mã tra cứu 6 ký tự** — sinh ở backend → hiển thị một lần → dùng ở `/api/tracking/:code`.
@@ -139,6 +142,7 @@ Mỗi luồng vẽ theo mẫu:
 | OTP | 5 mã/giờ/email; sai 5 lần huỷ mã; chờ 60s giữa hai lần xin; mã sống **10 phút** | `routes/otp.js:31–34` (bản **đang chạy**) | Backend công khai. **Không dùng `express-rate-limit`** — đếm bằng `SELECT COUNT(*) … INTERVAL 1 HOUR` (`otp.js:56`) rồi `INSERT` (`otp.js:83`), cùng khuôn không atomic như trên. Số lần sai thì atomic (`UPDATE … attempts = attempts + 1`, `otp.js:147`) | **Ưu tiên kiểm.** ⚠️ Bảng cũ dẫn nguồn `lib/otp.js:8,10` là **bản chết** — không tệp nào import `lib/otp.js`, và nó lệch bản đang chạy (TTL 5 phút vs 10 phút, băm SHA-256 vs bcrypt). Xem ND-013 |
 | Số ảnh đính kèm | tối đa 3 | `lib/anh-an-toan.js:31` | Backend, **hai lớp**: `submissions.js:90` cắt `slice(0, 3)`, rồi `locDanhSachAnh` cắt lại `slice(0, SO_ANH_TOI_DA)` (`anh-an-toan.js:201`) | Có cắt thật. `admin/kiosk.js` không nhận ảnh nên không đụng lớp này |
 | Kích thước ảnh | 8 MB | `lib/anh-an-toan.js:28` | Backend, **chỉ nhánh base64** — đo trên byte đã giải mã (`anh-an-toan.js:89`). Nhánh Cloudinary nhận đường dẫn nên không đo được kích thước ở đây, chỉ kiểm giao thức/miền/đuôi tệp (`anh-an-toan.js:150–184`) | Trả lời câu hỏi cũ: **nhánh base64 chính là nhánh có áp 8 MB**. Trần thật của nhánh này là `express.json` 32 MB ở trên. Kích thước ảnh qua Cloudinary do Cloudinary chặn, không do hệ thống này |
+| Kích thước video | base64 ≤ 22 MB chuỗi (≈ 16 MB tệp thật); link kho ảnh thì không đo | `routes/submissions.js:517` | Backend công khai, ngay trong `POST /api/submissions`. Kiểm hai dạng: link phải là `res.cloudinary.com/<cloud_name>/`, hoặc `data:video/…` | **Dòng này P02 bổ sung** — bảng cũ không có. ⚠️ Video **không** được tái mã hoá như ảnh, nên dữ liệu bên trong tệp (có thể gồm nơi quay) giữ nguyên |
 | Kích thước body | 32 MB | `index.js:85` · `nen-tang.js:87` | Backend, cả ba biến thể | DoS bộ nhớ khi nhiều request đồng thời. *(Bảng cũ ghi `index.js:82` — số dòng đã trôi)* |
 | Độ dài nội dung | 2000 ký tự | `lib/security.js:11` | Backend, **chỉ ở `POST /api/submissions`** qua `sanitizeText(body.content)` (`submissions.js:84`). `admin/kiosk.js:40` đọc nội dung bằng `String(b.content \|\| '').trim()` — **không qua `sanitizeText`, không có trần trên** | Đường ki-ốt không đi qua lá chắn `security.js`: không cắt độ dài, không quét mẫu đáng ngờ. Xem ghi chú P02 trong `buglogs/` |
 | Độ dài tin chat | 1000 ký tự | `routes/chat.js:45`, `admin/chat.js:21` | Backend, cả hai phía — `sanitizeText(msg, MAX_DAI_TIN)` ở `chat.js:216` và `admin/chat.js:78` | Hai bản chép hằng số riêng, hiện bằng nhau |
@@ -152,6 +156,6 @@ Mỗi luồng vẽ theo mẫu:
 3. Đổi tham số trong request (`deviceId`, `staffId`, `assigned_to`, `status`, `security_level`) có lách được không?
 
 ### 2.3 Đầu ra D2
-- [ ] 5 sơ đồ luồng dữ liệu nhạy cảm
-- [ ] Bảng giới hạn nghiệp vụ đã điền cột "Thực thi ở đâu"
-- [ ] Danh sách điểm nghi ngờ sơ bộ → chuyển thẳng thành mục cần soi ở Giai đoạn 2
+- [x] 5 sơ đồ luồng dữ liệu nhạy cảm — lưu tại [luong-du-lieu-nhay-cam.md](luong-du-lieu-nhay-cam.md) (phiên P02)
+- [x] Bảng giới hạn nghiệp vụ đã điền cột "Thực thi ở đâu" — §2.2 ở trên (phiên P02)
+- [x] Danh sách điểm nghi ngờ sơ bộ → `buglogs/ghi-chu-P02-diem-nghi.md` (nội bộ); bảng phân việc cho P03–P08 ở cuối [luong-du-lieu-nhay-cam.md](luong-du-lieu-nhay-cam.md)
