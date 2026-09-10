@@ -24,3 +24,16 @@ MAU-*env*.txt
 # Bản sao lưu cơ sở dữ liệu — chứa toàn bộ dữ liệu người dân
 server/sao-luu/
 *.sql.bak
+
+# ============================================================
+# NHẬT KÝ LỖ HỔNG — CHỈ GIỮ Ở MÁY, KHÔNG ĐẨY LÊN GITHUB
+# ============================================================
+# buglogs/ chứa lỗ hổng CHƯA vá của một hệ thống giữ dữ liệu tố
+# giác tội phạm. Đẩy lên repo công khai là đưa bản đồ tấn công
+# cho người ngoài. Cùng nguyên tắc đã áp dụng cho tài liệu phân
+# tích đợt vá 2026-08-03 (xem docs/CHANGELOG-BAO-MAT.md).
+# Phần PHƯƠNG PHÁP (không chứa lỗ hổng sống) vẫn công khai ở
+# docs/kiem-thu-bao-mat/.
+# Sao lưu: buglogs/ có git repo RIÊNG lồng bên trong, xem
+# buglogs/README.md.
+buglogs/
