@@ -7,6 +7,7 @@ import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppToaster from './components/common/Toast';
+import { ghiNhanTruyCap } from './services/thongKeService';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import MobileTabBar from './components/Layout/MobileTabBar';
@@ -56,6 +57,11 @@ function ScrollToTop() {
 
 function AppShell() {
   const location = useLocation();
+
+  /* Ghi nhận một lượt truy cập, gọi ĐÚNG MỘT LẦN khi ứng dụng khởi động.
+     Chỉ đếm số, không gửi thông tin nhận dạng nào — xem chú thích dài ở
+     services/thongKeService.ts về lý do. */
+  useEffect(() => { ghiNhanTruyCap(); }, []);
 
   /* ĐỒNG BỘ CLASS CHỮ LỚN Ở MỘT CHỖ DUY NHẤT.
 

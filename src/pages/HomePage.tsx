@@ -9,6 +9,7 @@ import PoliceAvatar from '../components/common/PoliceAvatar';
 import HeroSection from '../components/Hero/HeroSection';
 import FeaturesSection from '../components/Features/FeaturesSection';
 import CanhGiacLuaDao from '../components/Hero/CanhGiacLuaDao';
+import KhuThongKe from '../components/Home/KhuThongKe';
 import Reveal from '../components/common/Reveal';
 import NewsGrid from '../components/News/NewsGrid';
 import { fetchNews } from '../services/newsService';
@@ -23,6 +24,9 @@ export default function HomePage() {
     <div>
       <HeroSection />
       <CanhGiacLuaDao />
+      {/* Số liệu hoạt động — đặt sau dải cảnh giác, trước các khu chức năng.
+          Tự ẩn khi chưa có ý kiến nào, vì hiện số 0 sẽ phản tác dụng. */}
+      <KhuThongKe />
       <Reveal><FeaturesSection /></Reveal>
 
       {/* Xem trước tin tức */}

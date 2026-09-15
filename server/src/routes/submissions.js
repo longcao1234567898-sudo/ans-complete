@@ -538,6 +538,15 @@ router.post('/', async (req, res) => {
       }
     }
 
+    /* Ghi một lượt gửi thành công vào thống kê ngày. Bọc try riêng và bỏ qua
+       mọi lỗi: thống kê hỏng không được làm hỏng việc nhận tin của bà con. */
+    try {
+      await pool.query(
+        `INSERT INTO site_visits (ngay, luot_gui) VALUES (CURDATE(), 1)
+         ON DUPLICATE KEY UPDATE luot_gui = luot_gui + 1`
+      );
+    } catch { /* bảng chưa tạo -> bỏ qua */ }
+
     res.status(201).json({
       trackingCode,
       /* MÃ PIN VÀO PHÒNG CHAT — trả về ĐÚNG MỘT LẦN duy nhất.
