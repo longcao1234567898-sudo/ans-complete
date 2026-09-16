@@ -18,7 +18,7 @@ import { Navigate, Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText,
-  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff } from 'lucide-react';
+  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 interface MucDieuHuong {
@@ -51,6 +51,8 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
     muc: [
       { to: '/quan-tri/ki-ot', label: 'Ki-ốt tiếp dân', Icon: MonitorSmartphone, exact: false },
       { to: '/quan-tri/ma-qr', label: 'Mã QR', Icon: QrCode, exact: false },
+      { to: '/quan-tri/tin-tuc', label: 'Quản lý tin tức', Icon: Newspaper, exact: false },
+      { to: '/quan-tri/diem-den', label: 'Điểm đen giao thông', Icon: TriangleAlert, exact: false },
     ],
   },
   {

@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppToaster from './components/common/Toast';
 import { ghiNhanTruyCap } from './services/thongKeService';
+import HuongDanBanDau from './components/common/HuongDanBanDau';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import MobileTabBar from './components/Layout/MobileTabBar';
@@ -24,6 +25,7 @@ import SendFeedbackPage from './pages/SendFeedbackPage';
 import TrackingPage from './pages/TrackingPage';
 import NewsPage from './pages/NewsPage';
 import BanDoAnNinhPage from './pages/BanDoAnNinhPage';
+import DiemDenGiaoThongPage from './pages/DiemDenGiaoThongPage';
 import AboutPage from './pages/AboutPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
@@ -36,6 +38,8 @@ import AdminReviewPage from './pages/admin/AdminReviewPage';
 import AdminKioskPage from './pages/admin/AdminKioskPage';
 import AdminTrashPage from './pages/admin/AdminTrashPage';
 import AdminQrPage from './pages/admin/AdminQrPage';
+import AdminNewsPage from './pages/admin/AdminNewsPage';
+import AdminDiemDenPage from './pages/admin/AdminDiemDenPage';
 import AdminBlacklistPage from './pages/admin/AdminBlacklistPage';
 import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
@@ -123,6 +127,7 @@ function AppShell() {
             <Route path="/tra-cuu" element={<TrackingPage />} />
             <Route path="/tin-tuc" element={<NewsPage />} />
             <Route path="/ban-do" element={<BanDoAnNinhPage />} />
+            <Route path="/diem-den" element={<DiemDenGiaoThongPage />} />
             <Route path="/gioi-thieu" element={<AboutPage />} />
             <Route path="/chinh-sach-bao-mat" element={<PrivacyPage />} />
 
@@ -138,6 +143,8 @@ function AppShell() {
             <Route path="/quan-tri/ki-ot" element={<AdminKioskPage />} />
             <Route path="/quan-tri/thung-rac" element={<AdminTrashPage />} />
             <Route path="/quan-tri/ma-qr" element={<AdminQrPage />} />
+            <Route path="/quan-tri/tin-tuc" element={<AdminNewsPage />} />
+            <Route path="/quan-tri/diem-den" element={<AdminDiemDenPage />} />
             <Route path="/quan-tri/danh-sach-khoa" element={<AdminBlacklistPage />} />
           </Routes>
         </div>
@@ -151,6 +158,8 @@ function AppShell() {
       {!isAdminArea && <ChatWidget />}
       {!isAdminArea && <EmergencyButton />}
       <AppToaster />
+      {/* Hướng dẫn 8 bước cho người vào lần đầu. Tự ẩn nếu đã xem hoặc đã bỏ qua. */}
+      <HuongDanBanDau />
     </div>
   );
 }

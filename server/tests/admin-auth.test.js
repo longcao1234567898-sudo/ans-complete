@@ -54,6 +54,10 @@ const CAC_DUONG_DAN = [
   ['/api/admin/incident-groups', 'GET'],
   // V12 — chat với người tố giác + danh sách khoá thiết bị
   ['/api/admin/chat/blacklist', 'GET'],
+  // Quản lý tin tức — cán bộ tự đăng, sửa, ẩn tin ngay trên web
+  ['/api/admin/news', 'GET'],
+  // Điểm đen giao thông — cán bộ cập nhật số liệu tai nạn
+  ['/api/admin/diem-den', 'GET'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {

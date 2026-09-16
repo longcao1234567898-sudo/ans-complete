@@ -27,6 +27,7 @@ import newsRouter from './routes/news.js';
 import banDoRouter from './routes/ban-do.js';
 import khieuNaiRouter from './routes/khieu-nai.js';
 import thongKeRouter from './routes/thong-ke.js';
+import diemDenRouter from './routes/diem-den.js';
 import ttsRouter from './routes/tts.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
@@ -46,6 +47,8 @@ app.use('/api/ban-do', banDoRouter);
 app.use('/api/khieu-nai', khieuNaiRouter);
 /* Đếm lượt truy cập — CHỈ đếm số, không lưu dấu vết người dùng. */
 app.use('/api/thong-ke', thongKeRouter);
+/* Điểm đen giao thông — công khai, số liệu càng nhiều người biết càng tốt. */
+app.use('/api/diem-den', diemDenRouter);
 app.use('/api/tts', ttsRouter);
 app.use('/api/otp', otpRouter);
 app.use('/api/submissions', submissionsRouter);

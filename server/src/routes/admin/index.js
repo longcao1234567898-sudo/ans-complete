@@ -29,6 +29,8 @@ import kioskRouter from './kiosk.js';
 import trashRouter from './trash.js';
 import chatRouter from './chat.js';
 import qrPointsRouter from './qr-points.js';
+import adminNewsRouter from './news.js';
+import diemDenAdminRouter from './diem-den.js';
 import incidentGroupsRouter from './incident-groups.js';
 
 const router = Router();
@@ -48,6 +50,10 @@ router.use('/trash', trashRouter);
 /* Chat với người tố giác + quản lý danh sách khoá thiết bị */
 router.use('/chat', chatRouter);
 router.use('/qr-points', qrPointsRouter);
+/* Quản lý tin tức — mọi vai trò đọc, chỉ lãnh đạo viết sửa xoá. */
+router.use('/news', adminNewsRouter);
+/* Điểm đen giao thông — mọi vai trò đọc, chỉ lãnh đạo viết sửa ẩn. */
+router.use('/diem-den', diemDenAdminRouter);
 router.use('/incident-groups', incidentGroupsRouter);
 
 export default router;

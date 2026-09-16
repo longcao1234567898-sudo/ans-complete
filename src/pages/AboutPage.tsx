@@ -2,7 +2,7 @@
  * Trang "Giới thiệu": mục đích hệ thống, quy trình xử lý, cam kết bảo mật, liên hệ đơn vị.
  */
 import { motion } from 'framer-motion';
-import { Clock, Mail, MapPin, Phone, ShieldCheck, Siren, Sparkles, Workflow } from 'lucide-react';
+import { Clock, Mail, MapPin, Phone, ShieldCheck, Siren, Sparkles, Workflow, PlayCircle } from 'lucide-react';
 import Card from '../components/common/Card';
 import { UNIT } from '../utils/constants';
 import PageBackground from '../components/common/PageBackground';
@@ -41,6 +41,19 @@ export default function AboutPage() {
           Là kênh tiếp nhận ý kiến, phản ánh, kiến nghị của công dân do {UNIT.name} triển khai, ứng dụng trí tuệ
           nhân tạo để tiếp nhận nhanh chóng, phân loại chính xác và minh bạch trong theo dõi tiến độ xử lý.
         </p>
+
+        {/* XEM LẠI HƯỚNG DẪN — cho người lỡ bỏ qua vòng hướng dẫn lần đầu.
+
+            Hướng dẫn chỉ tự hiện một lần rồi thôi, nên phải có đường quay lại.
+            Bỏ hẳn mà không có chỗ mở lại là cụt đường của người cần nó nhất. */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('ans:mo-huong-dan'))}
+          className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-primary-300 px-4 py-2.5 text-sm font-bold text-primary-700 transition hover:bg-primary-50 dark:border-primary-700 dark:text-primary-300 dark:hover:bg-primary-900/20"
+        >
+          <PlayCircle className="h-4 w-4" />
+          Xem lại hướng dẫn sử dụng
+        </button>
       </div>
 
       {/* Quy trình xử lý */}

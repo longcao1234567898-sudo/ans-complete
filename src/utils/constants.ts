@@ -80,6 +80,7 @@ export const NAV_LINKS = [
   { to: '/tra-cuu', label: 'Tra cứu' },
   { to: '/tin-tuc', label: 'Tin tức' },
   { to: '/ban-do', label: 'Bản đồ an ninh' },
+  { to: '/diem-den', label: 'Điểm đen giao thông' },
   { to: '/gioi-thieu', label: 'Giới thiệu' },
 ];
 
@@ -173,6 +174,10 @@ export const STORAGE_KEYS = {
   /* Chế độ chữ lớn cho người lớn tuổi, người mắt kém. Lưu lại để lần sau vào
      vẫn giữ — người cần nó thì luôn cần, không phải bật lại mỗi lần. */
   chuLon: 'htans_chu_lon',
+  /* Đã xem hướng dẫn lần đầu chưa. Bỏ qua cũng ghi vào đây — hỏi đi hỏi lại
+     một người đã từ chối là phiền, và với người lớn tuổi thì mỗi lần hiện lại
+     là một lần họ tưởng mình bấm sai gì đó. Vẫn mở lại được từ trang Giới thiệu. */
+  daXemHuongDan: 'htans_da_xem_huong_dan',
 };
 
 /** Độ dài mã tra cứu */
