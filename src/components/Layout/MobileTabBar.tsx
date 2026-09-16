@@ -82,6 +82,7 @@ export default function MobileTabBar() {
 
   return (
     <nav
+      data-tab-bar
       aria-label="Điều hướng nhanh"
       className={cn(
         'fixed inset-x-0 bottom-0 z-40 md:hidden',
@@ -97,6 +98,7 @@ export default function MobileTabBar() {
         {TABS.map(({ to, label, Icon, cuoi }) => (
           <li key={to} className="flex-1">
             <NavLink
+            data-tab={to}
               to={to}
               end={cuoi}
               className={({ isActive }) =>

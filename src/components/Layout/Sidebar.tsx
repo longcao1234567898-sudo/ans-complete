@@ -4,6 +4,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import { Shield, X, Type } from 'lucide-react';
+import NutNgonNgu from '../common/NutNgonNgu';
 import { NAV_LINKS, STORAGE_KEYS, UNIT } from '../../utils/constants';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { cn } from '../../utils/helpers';
@@ -82,6 +83,20 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 cho người lớn tuổi hiểu trước khi bật. Ít dữ liệu chỉ đặt ở đây
                 vì ít dùng hơn, không cần chiếm chỗ trên Header.
                 ================================================================ */}
+            {/* ĐỔI NGÔN NGỮ trên điện thoại.
+
+                Đầu trang trên điện thoại chỉ đủ chỗ cho biểu tượng, nên đặt
+                nút đầy đủ ở đây, cùng khu với chữ lớn — đều là những thứ giúp
+                người dùng đọc được trang theo cách của mình. */}
+            <div className="mt-6 space-y-2">
+              <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                Language / Ngôn ngữ
+              </p>
+              <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700">
+                <NutNgonNgu kieu="day-du" />
+              </div>
+            </div>
+
             <div className="mt-6 space-y-2">
               <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                 Dễ đọc hơn

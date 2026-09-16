@@ -47,7 +47,7 @@ interface Buoc {
   buocForm?: number;
 }
 
-const CAC_BUOC: Buoc[] = [
+const BUOC_MAY_TINH: Buoc[] = [
   {
     tieuDe: 'Chào mừng đến với Điểm Chạm An Ninh',
     noiDung: 'Đây là nơi bà con gửi ý kiến, phản ánh hoặc tố giác tội phạm tới công an. '
@@ -134,10 +134,126 @@ const CAC_BUOC: Buoc[] = [
   },
 ];
 
+/* ============================================================================
+   BỘ BƯỚC RIÊNG CHO ĐIỆN THOẠI
+   ============================================================================
+
+   Vì sao phải tách: trên điện thoại các nút nằm CHỖ KHÁC HẲN máy tính. Menu
+   chính không hiện ngang trên đầu mà nằm trong nút ba gạch; thay vào đó có
+   thanh chức năng dưới chân màn hình. Dùng chung bộ bước thì hướng dẫn chỉ vào
+   thanh menu ngang — thứ không tồn tại trên điện thoại — nên khoanh vào chỗ
+   trống, bà con nhìn không ra.
+
+   Phần giữa (các bước trong biểu mẫu) giống nhau vì biểu mẫu cùng bố cục. */
+const BUOC_DIEN_THOAI: Buoc[] = [
+  {
+    tieuDe: 'Chào mừng đến với Điểm Chạm An Ninh',
+    noiDung: 'Đây là nơi bà con gửi ý kiến, phản ánh hoặc tố giác tội phạm tới công an. '
+           + 'Thanh chức năng nằm ở dưới chân màn hình.',
+    duong: '/',
+    chon: '[data-tab-bar]',
+  },
+  {
+    tieuDe: 'Nút Gửi ý kiến ở thanh dưới',
+    noiDung: 'Bà con bấm vào nút này ở thanh dưới chân màn hình để bắt đầu gửi.',
+    duong: '/',
+    chon: '[data-tab="/gui-y-kien"]',
+  },
+  {
+    tieuDe: 'Ô kể sự việc',
+    noiDung: 'Bà con gõ vào ô này, kể ngắn gọn chuyện muốn báo. Không cần đúng chính tả '
+           + 'hay dấu câu, cứ kể như nói chuyện bình thường.',
+    duong: '/gui-y-kien',
+    buocForm: 1,
+    chon: '[data-hd="o-noi-dung"]',
+  },
+  {
+    tieuDe: 'Nút micro — nói thay vì gõ',
+    noiDung: 'Bà con ngại gõ phím thì bấm nút này rồi nói. Máy tự chuyển lời nói thành '
+           + 'chữ. Nói xong bấm lại nút để dừng.',
+    duong: '/gui-y-kien',
+    buocForm: 1,
+    chon: '[data-hd="nut-micro"]',
+  },
+  {
+    tieuDe: 'Nút chụp ảnh',
+    noiDung: 'Có hình ảnh làm bằng chứng thì bấm nút này, máy mở thẳng camera của điện '
+           + 'thoại. Ảnh được tự động xoá vị trí GPS trước khi gửi.',
+    duong: '/gui-y-kien',
+    buocForm: 1,
+    chon: '[data-hd="nut-chup-anh"]',
+  },
+  {
+    tieuDe: 'Nút gửi vị trí vụ việc',
+    noiDung: 'Bà con đang đứng tại nơi xảy ra sự việc thì bấm nút này, cán bộ sẽ biết '
+           + 'chính xác chỗ nào, khỏi phải dò hỏi. Không bắt buộc.',
+    duong: '/gui-y-kien',
+    buocForm: 1,
+    chon: '[data-hd="nut-vi-tri"]',
+  },
+  {
+    tieuDe: 'Bước 2 — Máy đọc lại cho bà con nghe',
+    noiDung: 'Hệ thống sắp xếp lại lời bà con vừa kể cho rõ ràng. Bà con xem có đúng ý '
+           + 'không, bấm nút Nghe để nghe đọc to.',
+    duong: '/gui-y-kien',
+    buocForm: 2,
+  },
+  {
+    tieuDe: 'Bước 3 — Chọn loại việc',
+    noiDung: 'Bấm vào một trong bốn thẻ này. Máy đã gợi ý sẵn thẻ phù hợp, đúng rồi thì '
+           + 'bà con chỉ việc bấm đi tiếp.',
+    duong: '/gui-y-kien',
+    buocForm: 3,
+    chon: '[data-hd="the-nhom"]',
+  },
+  {
+    tieuDe: 'Bước 4 — Cho công an cách liên hệ',
+    noiDung: 'Bà con điền họ tên và số điện thoại để cán bộ gọi lại báo kết quả. '
+           + 'Email không bắt buộc.',
+    duong: '/gui-y-kien',
+    buocForm: 4,
+  },
+  {
+    tieuDe: 'Ô gửi ẩn danh',
+    noiDung: 'Bà con lo bị trả thù thì bấm vào ô này. Không cần cho tên, không cần số '
+           + 'điện thoại. Vẫn có mã tra cứu để xem kết quả.',
+    duong: '/gui-y-kien',
+    buocForm: 4,
+    chon: '[data-hd="o-an-danh"]',
+  },
+  {
+    tieuDe: 'Bước 5 — Nút gửi',
+    noiDung: 'Bà con đọc lại lần cuối rồi bấm nút này để gửi. Xong sẽ có mã tra cứu, '
+           + 'nhớ lưu lại để xem tiến độ xử lý.',
+    duong: '/gui-y-kien',
+    buocForm: 5,
+    chon: '[data-hd="nut-gui"]',
+  },
+  {
+    tieuDe: 'Nút Tra cứu ở thanh dưới',
+    noiDung: 'Bấm nút này ở thanh dưới để xem ý kiến đã gửi xử lý tới đâu. Các mục khác '
+           + 'nằm trong nút ba gạch ở góc trên. Bà con đã nắm được cách dùng rồi!',
+    duong: '/',
+    chon: '[data-tab="/tra-cuu"]',
+  },
+];
+
 export default function HuongDanBanDau() {
   const [hien, setHien] = useState(false);
   const [buoc, setBuoc] = useState(0);
+  /* CHỌN BỘ BƯỚC THEO KÍCH THƯỚC MÀN HÌNH.
+
+     Đo MỘT LẦN lúc mở hướng dẫn rồi giữ nguyên suốt vòng. Không đo lại giữa
+     chừng: xoay ngang điện thoại mà đổi bộ bước thì số bước đổi, bà con đang ở
+     bước 5 trên 12 bỗng nhảy sang bước 5 trên 11 của bộ khác — lạc hẳn. */
+  const [boBuoc, setBoBuoc] = useState<Buoc[]>(BUOC_MAY_TINH);
   const [oSang, setOSang] = useState<DOMRect | null>(null);
+  /* Giữ chính phần tử đang khoanh, không chỉ giữ toạ độ.
+
+     Toạ độ đo một lần rồi thôi sẽ lệch ngay khi trang cuộn tiếp hoặc đổi kích
+     thước — đúng lỗi bà con gặp ở bước 2: màn hình tụt xuống mà ô sáng vẫn
+     đứng chỗ cũ. Giữ phần tử thì đo lại bất cứ lúc nào cũng đúng. */
+  const phanTuDangKhoanh = useRef<Element | null>(null);
   const [dangDoc, setDangDoc] = useState(false);
   /* Giữ bộ điều khiển của lần đọc đang chạy để dừng được khi chuyển bước. */
   const dieuKhienDoc = useRef<DieuKhienDoc | null>(null);
@@ -169,13 +285,21 @@ export default function HuongDanBanDau() {
     } catch {
       return;   // trình duyệt chặn lưu trữ -> không hiện, tránh hiện lại mỗi lần
     }
-    const t = setTimeout(() => { if (!daHuy) setHien(true); }, 1200);
+    const t = setTimeout(() => {
+      if (daHuy) return;
+      setBoBuoc(window.innerWidth < 768 ? BUOC_DIEN_THOAI : BUOC_MAY_TINH);
+      setHien(true);
+    }, 1200);
     return () => { daHuy = true; clearTimeout(t); };
   }, []);
 
   /* Cho phép mở lại từ nơi khác (trang Giới thiệu) bằng một sự kiện chung. */
   useEffect(() => {
-    const moLai = () => { setBuoc(0); setHien(true); };
+    const moLai = () => {
+      setBoBuoc(window.innerWidth < 768 ? BUOC_DIEN_THOAI : BUOC_MAY_TINH);
+      setBuoc(0);
+      setHien(true);
+    };
     window.addEventListener('ans:mo-huong-dan', moLai);
     return () => window.removeEventListener('ans:mo-huong-dan', moLai);
   }, []);
@@ -183,7 +307,7 @@ export default function HuongDanBanDau() {
   /* Chuyển trang khi bước yêu cầu, rồi đo vị trí phần cần làm nổi bật. */
   useEffect(() => {
     if (!hien) return;
-    const b = CAC_BUOC[buoc];
+    const b = boBuoc[buoc];
     if (b.duong && location.pathname !== b.duong) {
       navigate(b.duong);
       return;   // đợi trang mới vẽ xong, hiệu ứng này chạy lại
@@ -199,7 +323,7 @@ export default function HuongDanBanDau() {
       window.dispatchEvent(new CustomEvent('ans:huong-dan-buoc', { detail: b.buocForm }));
     }
 
-    if (!b.chon) { setOSang(null); return; }
+    if (!b.chon) { phanTuDangKhoanh.current = null; setOSang(null); return; }
 
     /* CHỜ RỒI THỬ LẠI NHIỀU LẦN, không đo một lần rồi thôi.
 
@@ -216,13 +340,14 @@ export default function HuongDanBanDau() {
       const el = document.querySelector(b.chon!);
       if (!el) {
         if (++lan < 10) { dungLai = setTimeout(doThu, 200); }
-        else setOSang(null);
+        else { phanTuDangKhoanh.current = null; setOSang(null); }
         return;
       }
       /* Đưa phần tử vào GIỮA màn hình. Không cuộn thì phần tử có thể nằm ngoài
          tầm nhìn, ô sáng khoanh vào chỗ trống. */
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       /* Chờ cuộn xong hẳn rồi mới đo. Đo giữa lúc đang cuộn thì toạ độ sai. */
+      phanTuDangKhoanh.current = el;
       dungLai = setTimeout(() => setOSang(el.getBoundingClientRect()), 550);
     };
 
@@ -241,7 +366,7 @@ export default function HuongDanBanDau() {
   useEffect(() => {
     if (!hien) return;
     dungDoc();
-    const b = CAC_BUOC[buoc];
+    const b = boBuoc[buoc];
     const loi = `${b.tieuDe}. ${b.noiDung}`;
     /* Chờ một nhịp cho thẻ hiện ra rồi mới đọc, tránh đọc khi màn hình còn
        đang chuyển — bà con nghe tiếng mà chưa thấy chữ thì bối rối. */
@@ -252,6 +377,74 @@ export default function HuongDanBanDau() {
     return () => { clearTimeout(t); dungDoc(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hien, buoc]);
+
+  /* ĐO LẠI LIÊN TỤC CHO Ô SÁNG BÁM CHẮC NÚT.
+
+     Dùng ResizeObserver theo dõi phần tử, cộng lắng nghe cuộn và đổi kích
+     thước cửa sổ. Bất cứ khi nào bố cục đổi là đo lại ngay, nên ô sáng luôn
+     ôm đúng nút dù trang có nhúc nhích thế nào.
+
+     Không có phần này thì đo một lần rồi giữ nguyên: bước nào có nội dung tải
+     chậm hoặc ảnh vừa hiện ra đẩy bố cục xuống là ô sáng lệch khỏi nút. */
+  useEffect(() => {
+    if (!hien) return;
+
+    const doLai = () => {
+      const el = phanTuDangKhoanh.current;
+      if (el && document.body.contains(el)) setOSang(el.getBoundingClientRect());
+    };
+
+    window.addEventListener('scroll', doLai, { passive: true });
+    window.addEventListener('resize', doLai);
+
+    /* Theo dõi cả thay đổi kích thước của chính phần tử — ví dụ nút đổi chữ
+       từ "Nghe lại" sang "Dừng đọc" thì nó rộng ra. */
+    const theoDoi = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(doLai) : null;
+    if (theoDoi && phanTuDangKhoanh.current) theoDoi.observe(phanTuDangKhoanh.current);
+
+    return () => {
+      window.removeEventListener('scroll', doLai);
+      window.removeEventListener('resize', doLai);
+      theoDoi?.disconnect();
+    };
+  }, [hien, buoc, oSang === null]);
+
+  /* KHOÁ CUỘN TAY TRONG LÚC HƯỚNG DẪN.
+
+     Vì sao cần: hướng dẫn tự cuộn tới đúng nút rồi khoanh sáng. Nếu bà con lỡ
+     vuốt màn hình thì nút trôi đi mất, ô sáng phải chạy theo, mà lời đọc đang
+     nói về nút đó — rối hẳn.
+
+     ⚠️ CHẶN ĐÚNG THAO TÁC CỦA TAY, KHÔNG dùng overflow hidden trên thẻ body.
+
+     Đặt overflow hidden thì chặn luôn cả phần cuộn bằng mã, nên hướng dẫn
+     không tự đưa được nút vào tầm nhìn — hỏng đúng thứ đang cần.
+
+     Cách này chỉ chặn lăn chuột và vuốt tay; lệnh cuộn do mã gọi vẫn chạy
+     bình thường. Vẫn cho bấm phím Escape để thoát, và cho cuộn BÊN TRONG thẻ
+     hướng dẫn phòng khi lời giải thích dài hơn màn hình. */
+  useEffect(() => {
+    if (!hien) return;
+
+    const trongThe = (e: Event) => {
+      const t = e.target as Element | null;
+      return Boolean(t?.closest?.('[data-huong-dan-the]'));
+    };
+    const chan = (e: Event) => { if (!trongThe(e)) e.preventDefault(); };
+    const chanPhim = (e: KeyboardEvent) => {
+      const phimCuon = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '];
+      if (phimCuon.includes(e.key) && !trongThe(e)) e.preventDefault();
+    };
+
+    window.addEventListener('wheel', chan, { passive: false });
+    window.addEventListener('touchmove', chan, { passive: false });
+    window.addEventListener('keydown', chanPhim);
+    return () => {
+      window.removeEventListener('wheel', chan);
+      window.removeEventListener('touchmove', chan);
+      window.removeEventListener('keydown', chanPhim);
+    };
+  }, [hien]);
 
   function dong() {
     /* Ghi MỐC THỜI GIAN đóng. Sau một giờ hướng dẫn sẽ hiện lại. */
@@ -266,8 +459,8 @@ export default function HuongDanBanDau() {
 
   if (!hien) return null;
 
-  const b = CAC_BUOC[buoc];
-  const laCuoi = buoc === CAC_BUOC.length - 1;
+  const b = boBuoc[buoc];
+  const laCuoi = buoc === boBuoc.length - 1;
 
   /* Phần tử đang khoanh nằm nửa DƯỚI màn hình -> đưa thẻ lên TRÊN, và ngược
      lại. Không có ô sáng thì để thẻ ở đáy như cũ, chỗ ngón tay dễ với nhất. */
@@ -306,6 +499,7 @@ export default function HuongDanBanDau() {
         {/* THẺ HƯỚNG DẪN — luôn ở đáy màn hình, chỗ ngón tay dễ với tới nhất. */}
         <motion.div
           key={buoc}
+          data-huong-dan-the
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
@@ -321,7 +515,7 @@ export default function HuongDanBanDau() {
         >
           <div className="mb-2 flex items-center gap-2">
             <span className="rounded-lg bg-primary-600 px-2 py-0.5 text-xs font-extrabold text-white">
-              {buoc + 1}/{CAC_BUOC.length}
+              {buoc + 1}/{boBuoc.length}
             </span>
             <h3 className="text-base font-extrabold leading-snug text-slate-800 dark:text-slate-100">
               {laCuoi ? 'Hoàn tất hướng dẫn' : b.tieuDe}
@@ -346,7 +540,7 @@ export default function HuongDanBanDau() {
             type="button"
             onClick={() => {
               if (dangDoc) { dungDoc(); return; }
-              const b2 = CAC_BUOC[buoc];
+              const b2 = boBuoc[buoc];
               setDangDoc(true);
               dieuKhienDoc.current = docTiengViet(
                 `${b2.tieuDe}. ${b2.noiDung}`, () => setDangDoc(false));
@@ -383,7 +577,7 @@ export default function HuongDanBanDau() {
 
           {/* Chấm chỉ vị trí — cho biết còn bao nhiêu bước nữa, đỡ sốt ruột. */}
           <div className="mt-3 flex justify-center gap-1">
-            {CAC_BUOC.map((_, i) => (
+            {boBuoc.map((_, i) => (
               <span
                 key={i}
                 className={`h-1.5 rounded-full transition-all ${

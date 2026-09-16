@@ -31,7 +31,7 @@
  *    cách xử lý khác nhau, nói chung chung thì bà con không biết làm gì.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Languages } from 'lucide-react';
+import { Mic, MicOff } from 'lucide-react';
 
 interface VoiceInputProps {
   /** Được gọi với đoạn chữ vừa nói xong — cha tự nối vào nội dung */
@@ -124,11 +124,6 @@ function taoBoNhanDang(): SpeechRec | null {
 
 type MaNgonNgu = 'vi-VN' | 'en-US';
 
-const NGON_NGU: { ma: MaNgonNgu; ten: string; nhan: string }[] = [
-  { ma: 'vi-VN', ten: 'Tiếng Việt', nhan: 'VI' },
-  { ma: 'en-US', ten: 'English', nhan: 'EN' },
-];
-
 export default function VoiceInput({ onText, className }: VoiceInputProps) {
   const recRef = useRef<SpeechRec | null>(null);
   /** Cờ báo người dùng CHỦ ĐỘNG dừng — để phân biệt với trình duyệt tự ngắt */
@@ -139,7 +134,11 @@ export default function VoiceInput({ onText, className }: VoiceInputProps) {
 
   const [hoTro, setHoTro] = useState(false);
   const [dangNghe, setDangNghe] = useState(false);
-  const [ngonNgu, setNgonNgu] = useState<MaNgonNgu>('vi-VN');
+  /* Cố định tiếng Việt. Trước đây có nút cho người dùng đổi sang tiếng Anh
+     nhưng gần như không ai bấm, mà lại chiếm chỗ cạnh nút micro nên dễ bấm
+     nhầm. Giữ biến (thay vì viết thẳng chuỗi) để sau này cần đa ngữ thì chỉ
+     việc nối lại nút, không phải sửa logic nhận dạng. */
+  const [ngonNgu] = useState<MaNgonNgu>('vi-VN');
   const [chuTam, setChuTam] = useState('');   // chữ đang nói dở, chưa chốt
   const [loi, setLoi] = useState('');
 
@@ -243,19 +242,7 @@ export default function VoiceInput({ onText, className }: VoiceInputProps) {
     }
   }, [dangNghe]);
 
-  /* Đổi ngôn ngữ: dừng hẳn rồi mới đổi, để useEffect dựng lại bộ nhận dạng */
-  function doiNgonNgu(ma: MaNgonNgu) {
-    if (ma === ngonNgu) return;
-    nguoiDungDungRef.current = true;
-    try { recRef.current?.abort(); } catch { /* bỏ qua */ }
-    setDangNghe(false);
-    setChuTam('');
-    setNgonNgu(ma);
-  }
-
   if (!hoTro) return null;
-
-  const nn = NGON_NGU.find((x) => x.ma === ngonNgu)!;
 
   return (
     <div className={className}>
@@ -278,37 +265,20 @@ export default function VoiceInput({ onText, className }: VoiceInputProps) {
 
         {/* Chọn ngôn ngữ. Ẩn trong lúc đang nghe để bà con không bấm nhầm
             làm mất đoạn đang nói dở. */}
-        {!dangNghe && (
-          <div
-            className="flex items-center gap-1 rounded-xl border-2 border-slate-200 bg-white p-1 dark:border-slate-600 dark:bg-slate-800"
-            role="group"
-            aria-label="Chọn ngôn ngữ nhận dạng giọng nói"
-          >
-            <Languages className="ml-1 h-3.5 w-3.5 text-slate-500" aria-hidden />
-            {NGON_NGU.map((x) => (
-              <button
-                key={x.ma}
-                type="button"
-                onClick={() => doiNgonNgu(x.ma)}
-                aria-pressed={x.ma === ngonNgu}
-                title={`Nhận dạng ${x.ten}`}
-                className={`min-h-[32px] rounded-lg px-2.5 text-xs font-bold transition ${
-                  x.ma === ngonNgu
-                    ? 'bg-primary-600 text-white'
-                    : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
-                }`}
-              >
-                {x.nhan}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* ĐÃ BỎ NÚT CHỌN NGÔN NGỮ NHẬN DẠNG (VI / EN).
+
+            Bà con ở địa bàn chỉ nói tiếng Việt, nên nút này gần như không ai
+            bấm — mà lại chiếm chỗ ngay cạnh nút micro, dễ bấm nhầm. Bỏ đi cho
+            gọn; máy vẫn nhận dạng tiếng Việt như mặc định.
+
+            Cần nhận dạng tiếng Anh thì mở lại khối này, logic doiNgonNgu vẫn
+            còn nguyên bên dưới. */}
       </div>
 
       {/* Chữ đang nói dở — cho bà con thấy máy đang nghe được */}
       {dangNghe && (
         <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm italic text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-          {chuTam || `Đang nghe ${nn.ten}… bà con cứ nói tự nhiên.`}
+          {chuTam || "Đang nghe… bà con cứ nói tự nhiên."}
         </p>
       )}
 

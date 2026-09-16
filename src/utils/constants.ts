@@ -81,14 +81,16 @@ export const UNIT = {
    Nhãn ngắn vẫn hiểu được vì trang nào cũng có tiêu đề đầy đủ ở trên cùng.
    Thêm mục mới thì rút nhãn về một hoặc hai từ, đừng nới thanh. */
 export const NAV_LINKS = [
-  { to: '/', label: 'Trang chủ' },
-  { to: '/gui-y-kien', label: 'Gửi ý kiến' },
-  { to: '/tra-cuu', label: 'Tra cứu' },
-  { to: '/tin-tuc', label: 'Tin tức' },
-  { to: '/ban-do', label: 'Bản đồ' },
-  { to: '/diem-den', label: 'Điểm đen' },
-  { to: '/gioi-thieu', label: 'Giới thiệu' },
-];
+  /* khoa: mã tra bản dịch trong src/i18n/chu.ts. label giữ lại làm bản dự
+     phòng cho chỗ nào chưa nối vào hệ đa ngữ. */
+  { to: '/', label: 'Trang chủ', khoa: 'nav.home' },
+  { to: '/gui-y-kien', label: 'Gửi ý kiến', khoa: 'nav.send' },
+  { to: '/tra-cuu', label: 'Tra cứu', khoa: 'nav.track' },
+  { to: '/tin-tuc', label: 'Tin tức', khoa: 'nav.news' },
+  { to: '/ban-do', label: 'Bản đồ', khoa: 'nav.map' },
+  { to: '/diem-den', label: 'Điểm đen', khoa: 'nav.blackspot' },
+  { to: '/gioi-thieu', label: 'Giới thiệu', khoa: 'nav.about' },
+] as const;
 
 /** 4 nhóm phân loại ý kiến */
 export const CATEGORIES: CategoryInfo[] = [

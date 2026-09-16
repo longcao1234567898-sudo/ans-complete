@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Menu, Moon, Shield, Sun, ShieldCheck, Type } from 'lucide-react';
+import NutNgonNgu from '../common/NutNgonNgu';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import Sidebar from './Sidebar';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { NAV_LINKS, STORAGE_KEYS, UNIT } from '../../utils/constants';
@@ -11,6 +13,7 @@ import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { cn } from '../../utils/helpers';
 
 export default function Header() {
+  const { t } = useNgonNgu();
   // Header CO LẠI + đổ bóng sâu khi người dùng cuộn xuống
   // -> tiết kiệm chỗ trên màn hình, tạo cảm giác "phản hồi" với thao tác
   const [scrolled, setScrolled] = useState(false);
@@ -90,7 +93,7 @@ export default function Header() {
                   )
                 }
               >
-                {link.label}
+                {t(link.khoa)}
               </NavLink>
             ))}
             {staff && (
@@ -121,6 +124,11 @@ export default function Header() {
             >
               <Type className="h-5 w-5" />
             </button>
+
+            {/* Nút đổi ngôn ngữ — đặt cạnh nút chế độ tối. Địa bàn có người
+                nước ngoài sinh sống và làm việc; họ cũng có quyền báo tin cho
+                công an, nhưng trang toàn tiếng Việt thì không dùng được. */}
+            <NutNgonNgu />
 
             {/* Nút chuyển dark mode */}
             <button
