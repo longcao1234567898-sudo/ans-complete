@@ -8,13 +8,15 @@
  * ⚠️ Mọi vai trò XEM được danh sách; chỉ chỉ huy và quản trị VIẾT, SỬA, ẨN.
  *    Cán bộ thường thấy dòng giải thích thay vì thấy nút rồi bấm vào bị từ chối.
  */
-import { useState } from 'react';
+import { useState, useRef, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Newspaper, Plus, Pencil, Eye, EyeOff, Loader2, Star, X, Save,
+  Newspaper, Plus, Pencil, Eye, EyeOff, Loader2, Star, X, Save, Search, ImagePlus,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { uploadToCloudinary, cloudinaryEnabled } from '../../services/uploadService';
+import { compressImageFile } from '../../utils/helpers';
 import {
   fetchTinQuanTri, fetchMotTin, dangTinMoi, suaTin, doiHienTin,
   type TinQuanTri,
@@ -40,6 +42,37 @@ export default function AdminNewsPage() {
   const [hienCaAn, setHienCaAn] = useState(false);
   const [dangSua, setDangSua] = useState<Partial<TinQuanTri> | null>(null);
   const [thongBao, setThongBao] = useState('');
+  const [tuKhoa, setTuKhoa] = useState('');
+  const [dangTaiAnh, setDangTaiAnh] = useState(false);
+  const anhRef = useRef<HTMLInputElement>(null);
+
+  /* TẢI ẢNH MINH HOẠ cho tin. Nén trước khi tải lên vì cán bộ thường chọn ảnh
+     chụp từ điện thoại, dung lượng 8 tới 15MB — tải thẳng thì rất lâu và tốn
+     dung lượng kho ảnh. Nén xong còn khoảng 150KB, đủ nét để minh hoạ tin. */
+  async function chonAnh(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !dangSua) return;
+    if (!file.type.startsWith('image/')) { setThongBao('Tệp này không phải ảnh.'); return; }
+
+    setDangTaiAnh(true);
+    try {
+      const daNen = await compressImageFile(file);
+      if (!cloudinaryEnabled) {
+        /* Chưa cấu hình kho ảnh -> dùng thẳng chuỗi ảnh. Nặng hơn nhưng vẫn
+           hiện được, còn hơn chặn cán bộ không gắn được ảnh nào. */
+        setDangSua({ ...dangSua, image_url: daNen });
+        setThongBao('Đã gắn ảnh (chưa cấu hình kho ảnh nên ảnh lưu trực tiếp).');
+      } else {
+        const { url } = await uploadToCloudinary(daNen);
+        setDangSua({ ...dangSua, image_url: url });
+        setThongBao('Đã tải ảnh lên.');
+      }
+    } catch (err) {
+      setThongBao(err instanceof Error ? err.message : 'Không tải được ảnh.');
+    }
+    setDangTaiAnh(false);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-news', hienCaAn],
@@ -74,7 +107,16 @@ export default function AdminNewsPage() {
     }
   }
 
-  const ds = data ?? [];
+  const tatCa = data ?? [];
+  const soDangAn = tatCa.filter((t) => !Number(t.is_published)).length;
+
+  /* Tìm theo tiêu đề hoặc tóm tắt. Khi đơn vị đã đăng vài chục tin thì cuộn
+     tay tìm một tin cũ rất mất thời gian. */
+  const q = tuKhoa.trim().toLowerCase();
+  const ds = q
+    ? tatCa.filter((t) =>
+        t.title.toLowerCase().includes(q) || (t.summary || '').toLowerCase().includes(q))
+    : tatCa;
 
   return (
     <AdminLayout>
@@ -102,12 +144,26 @@ export default function AdminNewsPage() {
             <Plus className="h-4 w-4" /> Đăng tin mới
           </button>
         )}
+        {/* Nút này TRƯỚC ĐÂY khó biết có ăn hay không: khi chưa có tin nào bị
+            ẩn thì bấm qua bấm lại danh sách vẫn y hệt, cán bộ tưởng nút hỏng.
+            Nay nút đổi màu khi đang bật, và hiện luôn số tin đang ẩn để thấy
+            rõ việc bấm có tác dụng gì. */}
         <button
           type="button"
           onClick={() => setHienCaAn((v) => !v)}
-          className="inline-flex min-h-[40px] items-center rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+          className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+            hienCaAn
+              ? 'border-primary-500 bg-primary-600 text-white'
+              : 'border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800'
+          }`}
         >
-          {hienCaAn ? 'Chỉ xem tin đang hiện' : 'Xem cả tin đã ẩn'}
+          {hienCaAn ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          {hienCaAn ? 'Đang xem cả tin đã ẩn' : 'Xem cả tin đã ẩn'}
+          {soDangAn > 0 && (
+            <span className={`rounded-full px-1.5 text-[10px] font-bold ${
+              hienCaAn ? 'bg-white/25' : 'bg-slate-200 dark:bg-slate-700'
+            }`}>{soDangAn}</span>
+          )}
         </button>
         {!laLanhDao && (
           <span className="text-xs italic text-slate-500 dark:text-slate-400">
@@ -116,9 +172,35 @@ export default function AdminNewsPage() {
         )}
       </div>
 
+      {tatCa.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+          <input
+            type="text"
+            value={tuKhoa}
+            onChange={(e) => setTuKhoa(e.target.value)}
+            placeholder="Tìm theo tiêu đề hoặc nội dung tóm tắt..."
+            className="min-h-[36px] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-slate-100"
+          />
+          {tuKhoa && (
+            <button type="button" onClick={() => setTuKhoa('')}
+              className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
+              Xoá
+            </button>
+          )}
+          <span className="shrink-0 text-xs text-slate-400">{ds.length}/{tatCa.length}</span>
+        </div>
+      )}
+
       {isLoading && <p className="text-sm text-slate-500">Đang tải…</p>}
 
-      {!isLoading && ds.length === 0 && (
+      {!isLoading && tatCa.length > 0 && ds.length === 0 && (
+        <p className="rounded-2xl border border-slate-200 bg-white py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+          Không tìm thấy tin nào khớp "{tuKhoa}"
+        </p>
+      )}
+
+      {!isLoading && tatCa.length === 0 && (
         <p className="rounded-2xl border border-slate-200 bg-white py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
           Chưa có tin nào.
         </p>
@@ -258,6 +340,65 @@ export default function AdminNewsPage() {
               rows={8}
               maxLength={20000}
               className="mb-3 w-full rounded-xl border-2 border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            />
+
+            {/* ẢNH MINH HOẠ — tin có ảnh được bà con để mắt tới nhiều hơn hẳn,
+                nhất là tin cảnh giác lừa đảo. */}
+            <label className="mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Ảnh minh hoạ <span className="font-normal text-slate-400">(không bắt buộc)</span>
+            </label>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              {dangSua.image_url ? (
+                <div className="relative">
+                  <img
+                    src={dangSua.image_url}
+                    alt="Ảnh minh hoạ tin"
+                    className="h-24 w-36 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDangSua({ ...dangSua, image_url: '' })}
+                    aria-label="Bỏ ảnh"
+                    className="absolute -right-2 -top-2 rounded-full bg-white p-1 text-slate-500 shadow-md transition hover:bg-red-50 hover:text-red-600 dark:bg-slate-700"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => anhRef.current?.click()}
+                  disabled={dangTaiAnh}
+                  className="flex h-24 w-36 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-primary-400 hover:text-primary-500 disabled:opacity-60 dark:border-slate-600"
+                >
+                  {dangTaiAnh
+                    ? <Loader2 className="h-5 w-5 animate-spin" />
+                    : <ImagePlus className="h-5 w-5" />}
+                  <span className="text-[10px] font-semibold">
+                    {dangTaiAnh ? 'Đang tải...' : 'Chọn ảnh'}
+                  </span>
+                </button>
+              )}
+              <div className="flex-1 min-w-[200px]">
+                <input
+                  type="url"
+                  value={dangSua.image_url ?? ''}
+                  onChange={(e) => setDangSua({ ...dangSua, image_url: e.target.value })}
+                  placeholder="Hoặc dán đường dẫn ảnh https://..."
+                  className="w-full rounded-xl border-2 border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Ảnh tự động thu gọn trước khi tải lên, không cần lo dung lượng.
+                </p>
+              </div>
+            </div>
+            <input
+              ref={anhRef}
+              type="file"
+              accept="image/*"
+              onChange={chonAnh}
+              className="hidden"
+              aria-hidden
             />
 
             <div className="mb-3 grid gap-3 sm:grid-cols-2">

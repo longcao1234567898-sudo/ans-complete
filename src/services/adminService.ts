@@ -472,8 +472,10 @@ export interface DiemDenQuanTri {
   is_published: number | boolean;
 }
 
-export const fetchDiemDenQuanTri = (): Promise<DiemDenQuanTri[]> =>
-  adminFetch<DiemDenQuanTri[]>('/api/admin/diem-den');
+/** Máy chủ trả kèm cờ coBang để giao diện phân biệt "bảng chưa tạo" với
+    "bảng có nhưng chưa có dữ liệu" — hai việc cần xử lý khác hẳn nhau. */
+export const fetchDiemDenQuanTri = (): Promise<{ coBang: boolean; ds: DiemDenQuanTri[] }> =>
+  adminFetch<{ coBang: boolean; ds: DiemDenQuanTri[] }>('/api/admin/diem-den');
 
 export const luuDiemDen = (id: number | null, d: Record<string, unknown>) =>
   adminFetch<{ ok: boolean; message: string }>(

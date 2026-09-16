@@ -79,7 +79,11 @@ export default function Header() {
                 to={link.to}
                 className={({ isActive }) =>
                   cn(
-                    'rounded-xl px-3.5 py-2 text-sm font-medium transition',
+                    /* whitespace-nowrap: chặn nhãn tự xuống dòng khi thanh
+                       chật. Không có nó thì "Trang chủ" bị bẻ thành hai dòng,
+                       thanh menu cao gấp đôi, trông rối. Nhãn đã rút ngắn
+                       trong NAV_LINKS nên vẫn đủ chỗ. */
+                    'whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition',
                     isActive
                       ? 'bg-primary-600 text-white shadow-soft'
                       : 'text-slate-600 hover:bg-primary-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800'

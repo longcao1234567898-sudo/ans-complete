@@ -74,13 +74,19 @@ export const UNIT = {
 };
 
 /** Menu điều hướng chính */
+/* ⚠️ NHÃN PHẢI NGẮN. Thanh menu chỉ đủ chỗ cho MỘT dòng; nhãn dài như
+   "Bản đồ an ninh" hay "Điểm đen giao thông" đẩy thanh xuống hai dòng, trông
+   rối và đẩy nội dung trang xuống thấp.
+
+   Nhãn ngắn vẫn hiểu được vì trang nào cũng có tiêu đề đầy đủ ở trên cùng.
+   Thêm mục mới thì rút nhãn về một hoặc hai từ, đừng nới thanh. */
 export const NAV_LINKS = [
   { to: '/', label: 'Trang chủ' },
   { to: '/gui-y-kien', label: 'Gửi ý kiến' },
   { to: '/tra-cuu', label: 'Tra cứu' },
   { to: '/tin-tuc', label: 'Tin tức' },
-  { to: '/ban-do', label: 'Bản đồ an ninh' },
-  { to: '/diem-den', label: 'Điểm đen giao thông' },
+  { to: '/ban-do', label: 'Bản đồ' },
+  { to: '/diem-den', label: 'Điểm đen' },
   { to: '/gioi-thieu', label: 'Giới thiệu' },
 ];
 

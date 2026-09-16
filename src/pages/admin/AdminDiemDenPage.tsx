@@ -86,7 +86,8 @@ export default function AdminDiemDenPage() {
     setThongBao('');
   }
 
-  const ds = data ?? [];
+  const ds = data?.ds ?? [];
+  const coBang = data?.coBang !== false;
   const o = 'w-full rounded-xl border-2 border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
   const nhan = 'mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200';
 
@@ -122,10 +123,28 @@ export default function AdminDiemDenPage() {
 
       {isLoading && <p className="text-sm text-slate-500">Đang tải…</p>}
 
+      {/* PHÂN BIỆT RÕ hai trường hợp. Trước đây cả hai đều hỏi "đã chạy SQL
+          chưa?" nên cán bộ đã chạy rồi vẫn bị hỏi, tưởng mình làm sai. */}
       {!isLoading && ds.length === 0 && (
-        <p className="rounded-2xl border border-slate-200 bg-white py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
-          Chưa có điểm nào. Đã chạy nang_cap_v18.sql chưa?
-        </p>
+        coBang ? (
+          <div className="rounded-2xl border border-slate-200 bg-white py-8 text-center dark:border-slate-700 dark:bg-slate-900">
+            <TriangleAlert className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Chưa có điểm cảnh báo nào.
+              {laLanhDao && ' Bấm "Thêm điểm cảnh báo" ở trên để thêm.'}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/15">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+              Chưa tạo bảng dữ liệu
+            </p>
+            <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">
+              Cần chạy tệp <b>database/nang_cap_v18.sql</b> trên cơ sở dữ liệu, rồi tải
+              lại trang này.
+            </p>
+          </div>
+        )
       )}
 
       <div className="space-y-2">

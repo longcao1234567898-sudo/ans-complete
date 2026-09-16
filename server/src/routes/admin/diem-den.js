@@ -64,10 +64,19 @@ router.get('/', async (_req, res) => {
                  FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'),
                  h.so_tu_vong DESC`
     );
-    res.json(rows);
+    res.json({ coBang: true, ds: rows });
   } catch (err) {
-    if (String(err.message).includes("doesn't exist")) return res.json([]);
-    res.status(500).json({ error: 'Không tải được. Đã chạy nang_cap_v18.sql chưa?' });
+    /* PHÂN BIỆT RÕ hai trường hợp, vì cách xử lý khác hẳn nhau:
+         - Bảng CHƯA TẠO  -> cần chạy nang_cap_v18.sql
+         - Bảng CÓ, CHƯA CÓ DỮ LIỆU -> chỉ cần bấm thêm điểm
+
+       Trước đây cả hai đều trả danh sách rỗng nên giao diện luôn hỏi "đã chạy
+       SQL chưa?" — cán bộ đã chạy rồi vẫn bị hỏi, tưởng mình làm sai. */
+    if (String(err.message).includes("doesn't exist")) {
+      return res.json({ coBang: false, ds: [] });
+    }
+    console.error('Đọc điểm đen lỗi:', err.message);
+    res.status(500).json({ error: 'Không tải được danh sách.' });
   }
 });
 
