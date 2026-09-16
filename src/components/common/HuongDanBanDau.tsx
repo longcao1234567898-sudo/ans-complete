@@ -18,15 +18,19 @@
  * ⚠️ VẪN MỞ LẠI ĐƯỢC. Có mục "Xem lại hướng dẫn" ở trang Giới thiệu cho người
  *    lỡ bỏ qua rồi muốn xem — bỏ hẳn mà không có đường quay lại là cụt.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Rocket, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Rocket, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
 import { STORAGE_KEYS } from '../../utils/constants';
+import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
 
 /** Khoá nhớ đã xem hướng dẫn. */
 const KHOA = STORAGE_KEYS.daXemHuongDan ?? 'ans_da_xem_huong_dan';
+
+/** Cách bao lâu thì hiện lại hướng dẫn. Một giờ — xem chú thích ở chỗ dùng. */
+const HAN_HIEN_LAI_MS = 60 * 60 * 1000;
 
 interface Buoc {
   /** Tiêu đề in đậm trên thẻ hướng dẫn */
@@ -52,40 +56,46 @@ const CAC_BUOC: Buoc[] = [
     noiDung: 'Bà con kể ngắn gọn chuyện muốn báo. Có thể gõ chữ, bấm nút micro để nói '
            + 'thay vì gõ, hoặc chụp ảnh nếu có hình.',
     duong: '/gui-y-kien',
+    chon: '[data-buoc="1"]',
   },
   {
     tieuDe: 'Bước 2 — Máy xem lại',
     noiDung: 'Hệ thống đọc lại lời bà con vừa kể và sắp xếp cho rõ ràng. Bà con xem có '
-           + 'đúng ý không, có nút "Nghe" để nghe đọc to.',
+           + 'đúng ý không, có nút Nghe để nghe đọc to.',
     duong: '/gui-y-kien',
+    chon: '[data-buoc="2"]',
   },
   {
     tieuDe: 'Bước 3 — Chọn loại việc',
     noiDung: 'Chọn nhóm việc phù hợp: tố giác tội phạm, khiếu nại tố cáo, phản ánh kiến '
            + 'nghị, hay đề xuất thắc mắc. Máy đã gợi ý sẵn, đúng thì bấm đi tiếp.',
     duong: '/gui-y-kien',
+    chon: '[data-buoc="3"]',
   },
   {
     tieuDe: 'Bước 4 — Cách liên hệ',
     noiDung: 'Bà con điền tên và số điện thoại để cán bộ liên hệ lại. Hoặc chọn gửi kín '
            + 'không cần cho tên. Email không bắt buộc.',
     duong: '/gui-y-kien',
+    chon: '[data-buoc="4"]',
   },
   {
     tieuDe: 'Gửi kín — chỉ có ở nhóm tố giác tội phạm',
-    noiDung: 'Bà con lo ngại bị trả thù thì chọn "Gửi ẩn danh". Không cần cho tên, số '
+    noiDung: 'Bà con lo ngại bị trả thù thì chọn Gửi ẩn danh. Không cần cho tên, số '
            + 'điện thoại hay email. Bà con vẫn được cấp mã tra cứu để theo dõi kết quả.',
     duong: '/gui-y-kien',
+    chon: '[data-buoc="4"]',
   },
   {
     tieuDe: 'Bước 5 — Kiểm lại và gửi',
-    noiDung: 'Bà con đọc lại lần cuối rồi bấm gửi. Xong sẽ có mã tra cứu — nhớ lưu lại '
+    noiDung: 'Bà con đọc lại lần cuối rồi bấm gửi. Xong sẽ có mã tra cứu, nhớ lưu lại '
            + 'mã đó để xem tiến độ xử lý.',
     duong: '/gui-y-kien',
+    chon: '[data-buoc="5"]',
   },
   {
     tieuDe: 'Xem tin tức và tra cứu',
-    noiDung: 'Mục "Tin tức" có tin cảnh giác lừa đảo và hướng dẫn thủ tục. Mục "Tra cứu" '
+    noiDung: 'Mục Tin tức có tin cảnh giác lừa đảo và hướng dẫn thủ tục. Mục Tra cứu '
            + 'để xem ý kiến đã gửi xử lý tới đâu. Bà con đã nắm được các bước rồi!',
     duong: '/',
     chon: 'a[href="/tin-tuc"]',
@@ -96,6 +106,15 @@ export default function HuongDanBanDau() {
   const [hien, setHien] = useState(false);
   const [buoc, setBuoc] = useState(0);
   const [oSang, setOSang] = useState<DOMRect | null>(null);
+  const [dangDoc, setDangDoc] = useState(false);
+  /* Giữ bộ điều khiển của lần đọc đang chạy để dừng được khi chuyển bước. */
+  const dieuKhienDoc = useRef<DieuKhienDoc | null>(null);
+
+  function dungDoc() {
+    dieuKhienDoc.current?.dung();
+    dieuKhienDoc.current = null;
+    setDangDoc(false);
+  }
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -104,7 +123,17 @@ export default function HuongDanBanDau() {
   useEffect(() => {
     let daHuy = false;
     try {
-      if (localStorage.getItem(KHOA)) return;
+      /* HIỆN LẠI SAU MỖI GIỜ, không phải một lần rồi thôi.
+
+         Lý do: bà con lớn tuổi thường không nhớ hết sau một lần xem, mà cũng
+         ít khi chủ động đi tìm lại hướng dẫn. Cách một giờ hiện lại là vừa —
+         người vào lướt qua vài trang trong một buổi thì không bị làm phiền,
+         còn người quay lại hôm sau vẫn được nhắc.
+
+         Ghi MỐC THỜI GIAN thay vì ghi cờ đã xem: cờ thì chỉ biết có hay không,
+         mốc thời gian mới tính được đã qua bao lâu. */
+      const luc = Number(localStorage.getItem(KHOA) || 0);
+      if (luc && Date.now() - luc < HAN_HIEN_LAI_MS) return;
     } catch {
       return;   // trình duyệt chặn lưu trữ -> không hiện, tránh hiện lại mỗi lần
     }
@@ -140,8 +169,33 @@ export default function HuongDanBanDau() {
     return () => clearTimeout(t);
   }, [hien, buoc, location.pathname, navigate]);
 
-  function dong(daXong: boolean) {
-    try { localStorage.setItem(KHOA, daXong ? 'xong' : 'bo-qua'); } catch { /* bỏ qua */ }
+  /* ĐỌC TO NỘI DUNG MỖI BƯỚC.
+
+     Vì sao tự đọc chứ không chờ bấm nút: đây là hướng dẫn cho người không quen
+     đọc chữ — nếu bắt họ bấm nút loa trước thì đã mất một bước phải hiểu rồi.
+     Vẫn có nút để dừng hoặc nghe lại.
+
+     Dừng lần đọc cũ TRƯỚC khi đọc lần mới, nếu không hai giọng chồng lên nhau
+     khi bà con bấm tiếp tục nhanh. */
+  useEffect(() => {
+    if (!hien) return;
+    dungDoc();
+    const b = CAC_BUOC[buoc];
+    const loi = `${b.tieuDe}. ${b.noiDung}`;
+    /* Chờ một nhịp cho thẻ hiện ra rồi mới đọc, tránh đọc khi màn hình còn
+       đang chuyển — bà con nghe tiếng mà chưa thấy chữ thì bối rối. */
+    const t = setTimeout(() => {
+      setDangDoc(true);
+      dieuKhienDoc.current = docTiengViet(loi, () => setDangDoc(false));
+    }, 500);
+    return () => { clearTimeout(t); dungDoc(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hien, buoc]);
+
+  function dong() {
+    /* Ghi MỐC THỜI GIAN đóng. Sau một giờ hướng dẫn sẽ hiện lại. */
+    try { localStorage.setItem(KHOA, String(Date.now())); } catch { /* bỏ qua */ }
+    dungDoc();
     setHien(false);
   }
 
@@ -208,10 +262,29 @@ export default function HuongDanBanDau() {
               : b.noiDung}
           </p>
 
+          {/* Nút nghe lại hoặc dừng — cho người muốn nghe kỹ, và cho người
+              không cần nghe được tắt tiếng. */}
+          <button
+            type="button"
+            onClick={() => {
+              if (dangDoc) { dungDoc(); return; }
+              const b2 = CAC_BUOC[buoc];
+              setDangDoc(true);
+              dieuKhienDoc.current = docTiengViet(
+                `${b2.tieuDe}. ${b2.noiDung}`, () => setDangDoc(false));
+            }}
+            className="mb-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700 transition hover:bg-primary-100 dark:bg-primary-900/25 dark:text-primary-300"
+          >
+            {dangDoc ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            {dangDoc ? 'Dừng đọc' : 'Nghe lại'}
+          </button>
+
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => dong(false)}
+              onClick={dong}
+              aria-label={laCuoi ? 'Đóng hướng dẫn' : 'Bỏ qua hướng dẫn'}
+              data-huong-dan="bo-qua"
               className="min-h-[44px] flex-1 rounded-xl border-2 border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               {laCuoi ? 'Đóng' : 'Bỏ qua'}
@@ -219,9 +292,11 @@ export default function HuongDanBanDau() {
             <button
               type="button"
               onClick={() => {
-                if (laCuoi) { dong(true); navigate('/gui-y-kien'); }
+                if (laCuoi) { dong(); navigate('/gui-y-kien'); }
                 else setBuoc((i) => i + 1);
               }}
+              aria-label={laCuoi ? 'Bắt đầu gửi ý kiến' : 'Bước tiếp theo của hướng dẫn'}
+              data-huong-dan="tiep-tuc"
               className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
             >
               {laCuoi ? <><Rocket className="h-4 w-4" /> Bắt đầu</> : <>Tiếp tục <ArrowRight className="h-4 w-4" /></>}

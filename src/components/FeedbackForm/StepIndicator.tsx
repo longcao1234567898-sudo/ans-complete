@@ -14,7 +14,10 @@ export default function StepIndicator({ current }: { current: number }) {
         const done = step < current;
         const active = step === current;
         return (
-          <li key={label} className="flex flex-1 items-center last:flex-none">
+          /* data-buoc để vòng hướng dẫn bám vào và làm nổi bật đúng bước đang
+             nói tới. Không có mốc này thì hướng dẫn chỉ hiện thẻ chữ mà không
+             chỉ được vào đâu cả. */
+          <li key={label} data-buoc={step} className="flex flex-1 items-center last:flex-none">
             <div className="flex flex-col items-center gap-1.5">
               <span
                 className={cn(
