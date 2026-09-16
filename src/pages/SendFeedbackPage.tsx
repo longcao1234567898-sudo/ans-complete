@@ -30,6 +30,31 @@ const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 export default function SendFeedbackPage() {
   const [step, setStep] = useState(1);
 
+  /* CHẾ ĐỘ XEM HƯỚNG DẪN.
+
+     Vòng hướng dẫn cần CHUYỂN THẬT qua từng màn hình để bà con thấy mỗi bước
+     trông ra sao — đứng yên ở bước 1 rồi chỉ vào con số trên thanh tiến trình
+     thì không hình dung được gì.
+
+     Nhưng nhảy thẳng tới bước 5 là chỗ có nút gửi, nên phải KHOÁ GỬI trong lúc
+     xem hướng dẫn. Không khoá thì bà con lỡ bấm là gửi một ý kiến rỗng vào hệ
+     thống, cán bộ phải mất công dọn. */
+  const [dangHuongDan, setDangHuongDan] = useState(false);
+
+  useEffect(() => {
+    const chuyenBuoc = (e: Event) => {
+      const b = Number((e as CustomEvent).detail);
+      if (b >= 1 && b <= 5) { setDangHuongDan(true); setStep(b); }
+    };
+    const ketThuc = () => { setDangHuongDan(false); setStep(1); };
+    window.addEventListener('ans:huong-dan-buoc', chuyenBuoc);
+    window.addEventListener('ans:huong-dan-ket-thuc', ketThuc);
+    return () => {
+      window.removeEventListener('ans:huong-dan-buoc', chuyenBuoc);
+      window.removeEventListener('ans:huong-dan-ket-thuc', ketThuc);
+    };
+  }, []);
+
   /* Kiểm tra thiết bị có bị tạm khoá không NGAY KHI mở trang — không để bà con
      điền hết năm bước rồi mới báo. */
   const [biKhoa, setBiKhoa] = useState<{ biKhoa: boolean; conLaiPhut?: number } | null>(null);
@@ -149,6 +174,19 @@ export default function SendFeedbackPage() {
         )}
       </div>
 
+      {/* Dải báo rõ đang xem hướng dẫn, chưa gửi gì cả. Không có dòng này thì
+          bà con thấy màn hình xác nhận với ô trống lại tưởng mình làm sai. */}
+      {dangHuongDan && (
+        <div className="mb-4 rounded-2xl border-2 border-primary-300 bg-primary-50 p-3 text-center dark:border-primary-700 dark:bg-primary-900/20">
+          <p className="text-sm font-bold text-primary-800 dark:text-primary-300">
+            Đang xem hướng dẫn — chưa gửi gì cả
+          </p>
+          <p className="mt-0.5 text-xs text-primary-700 dark:text-primary-200">
+            Đây chỉ là xem trước các bước. Xong hướng dẫn sẽ quay về bước đầu.
+          </p>
+        </div>
+      )}
+
       {!submission && <StepIndicator current={step} />}
       {/* Hướng dẫn từng bước bằng lời, có nút đọc to — cho người lớn tuổi và
           người không đọc được chữ. Chỉ hiện khi chưa gửi xong và thiết bị
@@ -237,7 +275,9 @@ export default function SendFeedbackPage() {
             draft={draft}
             submission={submission}
             isSubmitting={submitMutation.isPending}
-            onSubmit={handleSubmit}
+            /* KHOÁ GỬI trong lúc xem hướng dẫn — xem chú thích ở chỗ khai
+               dangHuongDan. Truyền hàm rỗng thay vì hàm gửi thật. */
+            onSubmit={dangHuongDan ? () => {} : handleSubmit}
             onBack={() => setStep(4)}
             onVeBuocDau={() => setStep(1)}
             onReset={handleReset}

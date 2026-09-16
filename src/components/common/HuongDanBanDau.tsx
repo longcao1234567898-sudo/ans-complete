@@ -41,6 +41,10 @@ interface Buoc {
   duong?: string;
   /** Bộ chọn phần tử cần làm nổi bật. Không tìm thấy thì chỉ hiện thẻ, không sao. */
   chon?: string;
+  /** Bước của biểu mẫu gửi ý kiến cần CHUYỂN THẬT tới (1 tới 5).
+      Có giá trị thì biểu mẫu nhảy sang màn hình đó để bà con thấy tận mắt,
+      thay vì đứng ở bước 1 rồi chỉ vào con số trên thanh tiến trình. */
+  buocForm?: number;
 }
 
 const CAC_BUOC: Buoc[] = [
@@ -57,6 +61,7 @@ const CAC_BUOC: Buoc[] = [
            + 'thay vì gõ, hoặc chụp ảnh nếu có hình.',
     duong: '/gui-y-kien',
     chon: '[data-buoc="1"]',
+    buocForm: 1,
   },
   {
     tieuDe: 'Bước 2 — Máy xem lại',
@@ -64,6 +69,7 @@ const CAC_BUOC: Buoc[] = [
            + 'đúng ý không, có nút Nghe để nghe đọc to.',
     duong: '/gui-y-kien',
     chon: '[data-buoc="2"]',
+    buocForm: 2,
   },
   {
     tieuDe: 'Bước 3 — Chọn loại việc',
@@ -71,6 +77,7 @@ const CAC_BUOC: Buoc[] = [
            + 'nghị, hay đề xuất thắc mắc. Máy đã gợi ý sẵn, đúng thì bấm đi tiếp.',
     duong: '/gui-y-kien',
     chon: '[data-buoc="3"]',
+    buocForm: 3,
   },
   {
     tieuDe: 'Bước 4 — Cách liên hệ',
@@ -78,6 +85,7 @@ const CAC_BUOC: Buoc[] = [
            + 'không cần cho tên. Email không bắt buộc.',
     duong: '/gui-y-kien',
     chon: '[data-buoc="4"]',
+    buocForm: 4,
   },
   {
     tieuDe: 'Gửi kín — chỉ có ở nhóm tố giác tội phạm',
@@ -85,6 +93,7 @@ const CAC_BUOC: Buoc[] = [
            + 'điện thoại hay email. Bà con vẫn được cấp mã tra cứu để theo dõi kết quả.',
     duong: '/gui-y-kien',
     chon: '[data-buoc="4"]',
+    buocForm: 4,
   },
   {
     tieuDe: 'Bước 5 — Kiểm lại và gửi',
@@ -92,6 +101,7 @@ const CAC_BUOC: Buoc[] = [
            + 'mã đó để xem tiến độ xử lý.',
     duong: '/gui-y-kien',
     chon: '[data-buoc="5"]',
+    buocForm: 5,
   },
   {
     tieuDe: 'Xem tin tức và tra cứu',
@@ -157,6 +167,16 @@ export default function HuongDanBanDau() {
       return;   // đợi trang mới vẽ xong, hiệu ứng này chạy lại
     }
 
+    /* CHUYỂN THẬT màn hình biểu mẫu sang bước đang hướng dẫn.
+
+       Không làm việc này thì hướng dẫn nói "Bước 3 — Chọn loại việc" trong khi
+       màn hình vẫn đứng ở bước 1, bà con chẳng hình dung được bước đó trông ra
+       sao. Biểu mẫu nhận lệnh này sẽ khoá nút gửi và hiện dải báo "đang xem
+       hướng dẫn, chưa gửi gì cả". */
+    if (b.buocForm) {
+      window.dispatchEvent(new CustomEvent('ans:huong-dan-buoc', { detail: b.buocForm }));
+    }
+
     if (!b.chon) { setOSang(null); return; }
 
     /* Chờ trang vẽ xong mới đo. Đo sớm quá thì phần tử chưa có, ô sáng lệch chỗ. */
@@ -196,6 +216,10 @@ export default function HuongDanBanDau() {
     /* Ghi MỐC THỜI GIAN đóng. Sau một giờ hướng dẫn sẽ hiện lại. */
     try { localStorage.setItem(KHOA, String(Date.now())); } catch { /* bỏ qua */ }
     dungDoc();
+    /* Trả biểu mẫu về bước 1 và mở khoá nút gửi. Không báo kết thúc thì biểu
+       mẫu kẹt ở màn hình xác nhận với nút gửi bị khoá — bà con không gửi được
+       mà cũng không hiểu vì sao. */
+    window.dispatchEvent(new Event('ans:huong-dan-ket-thuc'));
     setHien(false);
   }
 
