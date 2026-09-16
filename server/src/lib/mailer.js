@@ -61,7 +61,7 @@ function emailHtml(code) {
   </div>`;
 }
 
-const SUBJECT = (code) => `${code} là mã xác thực gửi ý kiến — Hộp Thư Số — Điểm Chạm An Ninh`;
+const SUBJECT = (code) => `${code} là mã xác thực gửi ý kiến — Điểm Chạm An Ninh`;
 const TEXT = (code) => `Ma xac thuc cua ba con la: ${code}. Ma co hieu luc trong 10 phut. Khong chia se ma nay cho bat ky ai.`;
 
 /* ---------- Cách 1: RESEND (HTTPS — không bị chặn) ---------- */
@@ -105,7 +105,7 @@ async function sendViaBrevo(email, code) {
     },
     body: JSON.stringify({
       sender: {
-        name: 'Hộp Thư Số — Điểm Chạm An Ninh',
+        name: 'Điểm Chạm An Ninh',
         email: env('MAIL_USER') || 'noreply@example.com',
       },
       to: [{ email }],
@@ -144,7 +144,7 @@ function getTransporter() {
 
 async function sendViaGmail(email, code) {
   await getTransporter().sendMail({
-    from: env('MAIL_FROM') || `"Hộp Thư Số — Điểm Chạm An Ninh" <${env('MAIL_USER')}>`,
+    from: env('MAIL_FROM') || `"Điểm Chạm An Ninh" <${env('MAIL_USER')}>`,
     to: email,
     subject: SUBJECT(code),
     html: emailHtml(code),

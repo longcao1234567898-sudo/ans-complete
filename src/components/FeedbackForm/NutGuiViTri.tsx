@@ -155,6 +155,7 @@ export default function NutGuiViTri({ viTri, onChange }: Props) {
       <button
         type="button"
         onClick={layViTri}
+        data-hd="nut-vi-tri"
         disabled={dangLay}
         className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-primary-300 bg-white px-4 py-2.5 text-sm font-bold text-primary-700 transition hover:bg-primary-50 disabled:opacity-60 dark:border-primary-700 dark:bg-slate-800 dark:text-primary-300"
       >

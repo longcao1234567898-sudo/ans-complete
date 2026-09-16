@@ -1,5 +1,5 @@
 /**
- * Backend Hộp Thư Số — Điểm Chạm An Ninh (bản nâng cấp bảo mật cao).
+ * Backend Điểm Chạm An Ninh (bản nâng cấp bảo mật cao).
  * Chạy: npm install && npm run dev  (cần MySQL đã import database)
  */
 import 'dotenv/config';

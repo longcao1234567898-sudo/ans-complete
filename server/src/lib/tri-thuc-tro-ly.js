@@ -18,7 +18,7 @@ export const HE_THONG_KNOWLEDGE = `
 === KIẾN THỨC VỀ WEBSITE HỘP THƯ SỐ — ĐIỂM CHẠM AN NINH ===
 
 ## TÊN VÀ KHẨU HIỆU
-Tên đầy đủ của hệ thống: "Hộp Thư Số — Điểm Chạm An Ninh"
+Tên đầy đủ của hệ thống: "Điểm Chạm An Ninh"
 Khẩu hiệu: "Chạm để kết nối — Kết nối để bình yên"
 
 Ý nghĩa: chỉ cần một cú chạm trên điện thoại là bà con kết nối được với cơ quan

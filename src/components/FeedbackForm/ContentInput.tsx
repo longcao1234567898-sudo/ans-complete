@@ -238,6 +238,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         Nội dung ý kiến của bà con
       </label>
       <textarea
+        data-hd="o-noi-dung"
         id="content"
         rows={6}
         maxLength={CONTENT_MAX_LENGTH}
@@ -324,6 +325,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             <button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
+                data-hd="nut-chup-anh"
               className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary-300 text-primary-500 transition hover:border-primary-500 hover:bg-primary-50 dark:border-primary-700 dark:hover:bg-primary-900/20"
             >
               <Camera className="h-5 w-5" />

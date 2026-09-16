@@ -2,7 +2,7 @@
  * Trang "Gửi ý kiến": wizard 5 bước — nhập nội dung, AI phân tích, chọn nhóm,
  * thông tin liên hệ, xác nhận & nhận mã tra cứu.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -41,12 +41,56 @@ export default function SendFeedbackPage() {
      thống, cán bộ phải mất công dọn. */
   const [dangHuongDan, setDangHuongDan] = useState(false);
 
+  /* Bản nháp THẬT của bà con, cất tạm trong lúc xem hướng dẫn. */
+  const nhapThat = useRef<typeof draft | null>(null);
+
   useEffect(() => {
     const chuyenBuoc = (e: Event) => {
       const b = Number((e as CustomEvent).detail);
-      if (b >= 1 && b <= 5) { setDangHuongDan(true); setStep(b); }
+      if (b < 1 || b > 5) return;
+
+      /* ĐIỀN DỮ LIỆU MẪU khi bắt đầu xem hướng dẫn.
+
+         Vì sao bắt buộc: các bước sau chỉ vẽ ra khi biểu mẫu CÓ dữ liệu. Không
+         có nội dung thì bước 2 không có gì để đọc lại, bước 3 không hiện thẻ
+         chọn nhóm, bước 4 không hiện ô gửi ẩn danh (ô đó chỉ có ở nhóm tố
+         giác), bước 5 không có nút gửi. Hướng dẫn nói về những nút đó mà màn
+         hình trống trơn thì bà con càng rối.
+
+         Cất bản nháp thật lại trước, xong hướng dẫn trả về nguyên vẹn — bà con
+         đang gõ dở mà mất chữ là hỏng việc. */
+      /* ⚠️ Dùng nhapThat.current làm mốc, KHÔNG dùng dangHuongDan.
+
+         Hiệu ứng này khai phụ thuộc rỗng nên chỉ chạy một lần; biến trạng thái
+         đọc trong đây mãi là giá trị lúc đầu. Lấy dangHuongDan làm mốc thì lần
+         chuyển bước thứ hai vẫn thấy false, lại cất bản nháp lần nữa — lần này
+         cất nhầm chính dữ liệu mẫu, bản nháp thật của bà con mất luôn.
+
+         Biến ref luôn đọc được giá trị mới nhất nên dùng nó làm mốc mới đúng.
+         setDraft cũng dùng dạng hàm để lấy đúng bản nháp hiện tại. */
+      if (nhapThat.current === null) {
+        setDraft((hienTai) => {
+          nhapThat.current = hienTai;
+          return {
+            content: 'Tối qua khoảng 9 giờ, tôi thấy có nhóm thanh niên tụ tập gây mất trật tự ở gần chợ.',
+            urgency: 'important',
+            analysis: null,
+            category: 'to_giac',
+            contact: { ...EMPTY_CONTACT, fullName: 'Nguyễn Văn A', phone: '0901234567' },
+            images: [], video: null, viTri: null,
+          };
+        });
+      }
+      setDangHuongDan(true);
+      setStep(b);
     };
-    const ketThuc = () => { setDangHuongDan(false); setStep(1); };
+
+    const ketThuc = () => {
+      /* Trả lại đúng bản nháp bà con đang gõ dở, rồi mới mở khoá. */
+      if (nhapThat.current) { setDraft(nhapThat.current); nhapThat.current = null; }
+      setDangHuongDan(false);
+      setStep(1);
+    };
     window.addEventListener('ans:huong-dan-buoc', chuyenBuoc);
     window.addEventListener('ans:huong-dan-ket-thuc', ketThuc);
     return () => {

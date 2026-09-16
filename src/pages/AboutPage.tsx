@@ -36,7 +36,7 @@ export default function AboutPage() {
         <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-4 py-1.5 text-xs font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
           <Sparkles className="h-3.5 w-3.5" /> Giới thiệu hệ thống
         </span>
-        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Hộp Thư An Ninh Số</h1>
+        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Điểm Chạm An Ninh</h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
           Là kênh tiếp nhận ý kiến, phản ánh, kiến nghị của công dân do {UNIT.name} triển khai, ứng dụng trí tuệ
           nhân tạo để tiếp nhận nhanh chóng, phân loại chính xác và minh bạch trong theo dõi tiến độ xử lý.

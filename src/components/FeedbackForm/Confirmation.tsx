@@ -320,7 +320,8 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             </button>
           )}
         </div>
-        <Button onClick={onSubmit} loading={isSubmitting} disabled={!agreed}>
+        <Button onClick={onSubmit}
+            data-hd="nut-gui" loading={isSubmitting} disabled={!agreed}>
           Gửi ý kiến
         </Button>
       </div>

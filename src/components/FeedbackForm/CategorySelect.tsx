@@ -28,6 +28,7 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
           const active = value === cat.id;
           return (
             <button
+            data-hd="the-nhom"
               key={cat.id}
               type="button"
               onClick={() => onChange(cat.id)}

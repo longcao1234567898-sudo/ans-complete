@@ -263,6 +263,7 @@ export default function VoiceInput({ onText, className }: VoiceInputProps) {
         <button
           type="button"
           onClick={batTat}
+          data-hd="nut-micro"
           aria-label={dangNghe ? 'Dừng nói' : 'Nhập bằng giọng nói'}
           title={dangNghe ? 'Đang nghe — bấm để dừng' : 'Bấm rồi nói, chữ tự hiện ra'}
           className={`flex min-h-[44px] items-center gap-2 rounded-xl border-2 px-3.5 py-2 text-sm font-bold transition ${

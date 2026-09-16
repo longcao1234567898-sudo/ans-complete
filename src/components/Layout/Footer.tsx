@@ -124,7 +124,7 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
               <Shield className="h-4 w-4 text-accent-500" aria-hidden />
             </span>
-            <span className="block py-0.5 text-[17px] font-bold leading-[1.5] text-white">Hộp Thư An Ninh Số</span>
+            <span className="block py-0.5 text-[17px] font-bold leading-[1.5] text-white">Điểm Chạm An Ninh</span>
           </div>
           <p className="text-sm leading-relaxed text-slate-300">
             Nền tảng tiếp nhận, phân loại và xử lý ý kiến công dân của {UNIT.name}.

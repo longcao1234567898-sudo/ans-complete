@@ -236,6 +236,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
       <button
         type="button"
         onClick={() => toggleAnonymous(!anon)}
+        data-hd="o-an-danh"
         className={`mb-4 flex w-full items-start gap-3 rounded-2xl border-2 p-4 text-left transition ${
           anon
             ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20'

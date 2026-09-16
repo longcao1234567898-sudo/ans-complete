@@ -49,66 +49,88 @@ interface Buoc {
 
 const CAC_BUOC: Buoc[] = [
   {
-    tieuDe: 'Chào mừng đến với Hộp Thư An Ninh Số',
-    noiDung: 'Để gửi ý kiến, phản ánh hoặc tố giác tội phạm, bà con bấm vào mục '
-           + '"Gửi ý kiến" trên thanh menu.',
+    tieuDe: 'Chào mừng đến với Điểm Chạm An Ninh',
+    noiDung: 'Đây là nơi bà con gửi ý kiến, phản ánh hoặc tố giác tội phạm tới công an. '
+           + 'Bấm vào mục Gửi ý kiến trên thanh menu để bắt đầu.',
     duong: '/',
     chon: 'a[href="/gui-y-kien"]',
   },
   {
-    tieuDe: 'Bước 1 — Kể sự việc',
-    noiDung: 'Bà con kể ngắn gọn chuyện muốn báo. Có thể gõ chữ, bấm nút micro để nói '
-           + 'thay vì gõ, hoặc chụp ảnh nếu có hình.',
+    tieuDe: 'Ô kể sự việc',
+    noiDung: 'Bà con gõ vào ô này, kể ngắn gọn chuyện muốn báo. Không cần đúng chính tả '
+           + 'hay dấu câu, cứ kể như nói chuyện bình thường.',
     duong: '/gui-y-kien',
-    chon: '[data-buoc="1"]',
     buocForm: 1,
+    chon: '[data-hd="o-noi-dung"]',
   },
   {
-    tieuDe: 'Bước 2 — Máy xem lại',
-    noiDung: 'Hệ thống đọc lại lời bà con vừa kể và sắp xếp cho rõ ràng. Bà con xem có '
-           + 'đúng ý không, có nút Nghe để nghe đọc to.',
+    tieuDe: 'Nút micro — nói thay vì gõ',
+    noiDung: 'Bà con ngại gõ phím thì bấm nút này rồi nói. Máy tự chuyển lời nói thành '
+           + 'chữ. Nói xong bấm lại nút để dừng.',
     duong: '/gui-y-kien',
-    chon: '[data-buoc="2"]',
+    buocForm: 1,
+    chon: '[data-hd="nut-micro"]',
+  },
+  {
+    tieuDe: 'Nút chụp ảnh',
+    noiDung: 'Có hình ảnh làm bằng chứng thì bấm nút này, máy mở thẳng camera. '
+           + 'Ảnh được tự động xoá vị trí GPS trước khi gửi.',
+    duong: '/gui-y-kien',
+    buocForm: 1,
+    chon: '[data-hd="nut-chup-anh"]',
+  },
+  {
+    tieuDe: 'Nút gửi vị trí vụ việc',
+    noiDung: 'Bà con đang đứng tại nơi xảy ra sự việc thì bấm nút này, cán bộ sẽ biết '
+           + 'chính xác chỗ nào, khỏi phải dò hỏi. Không bắt buộc.',
+    duong: '/gui-y-kien',
+    buocForm: 1,
+    chon: '[data-hd="nut-vi-tri"]',
+  },
+  {
+    tieuDe: 'Bước 2 — Máy đọc lại cho bà con nghe',
+    noiDung: 'Hệ thống sắp xếp lại lời bà con vừa kể cho rõ ràng. Bà con xem có đúng ý '
+           + 'không, bấm nút Nghe để nghe đọc to.',
+    duong: '/gui-y-kien',
     buocForm: 2,
   },
   {
     tieuDe: 'Bước 3 — Chọn loại việc',
-    noiDung: 'Chọn nhóm việc phù hợp: tố giác tội phạm, khiếu nại tố cáo, phản ánh kiến '
-           + 'nghị, hay đề xuất thắc mắc. Máy đã gợi ý sẵn, đúng thì bấm đi tiếp.',
+    noiDung: 'Bấm vào một trong bốn thẻ này. Máy đã gợi ý sẵn thẻ phù hợp, đúng rồi thì '
+           + 'bà con chỉ việc bấm đi tiếp.',
     duong: '/gui-y-kien',
-    chon: '[data-buoc="3"]',
     buocForm: 3,
+    chon: '[data-hd="the-nhom"]',
   },
   {
-    tieuDe: 'Bước 4 — Cách liên hệ',
-    noiDung: 'Bà con điền tên và số điện thoại để cán bộ liên hệ lại. Hoặc chọn gửi kín '
-           + 'không cần cho tên. Email không bắt buộc.',
+    tieuDe: 'Bước 4 — Cho công an cách liên hệ',
+    noiDung: 'Bà con điền họ tên và số điện thoại để cán bộ gọi lại báo kết quả. '
+           + 'Email không bắt buộc.',
     duong: '/gui-y-kien',
-    chon: '[data-buoc="4"]',
     buocForm: 4,
   },
   {
-    tieuDe: 'Gửi kín — chỉ có ở nhóm tố giác tội phạm',
-    noiDung: 'Bà con lo ngại bị trả thù thì chọn Gửi ẩn danh. Không cần cho tên, số '
-           + 'điện thoại hay email. Bà con vẫn được cấp mã tra cứu để theo dõi kết quả.',
+    tieuDe: 'Ô gửi ẩn danh',
+    noiDung: 'Bà con lo bị trả thù thì bấm vào ô này. Không cần cho tên, không cần số '
+           + 'điện thoại. Vẫn có mã tra cứu để xem kết quả. Chỉ có ở nhóm tố giác tội phạm.',
     duong: '/gui-y-kien',
-    chon: '[data-buoc="4"]',
     buocForm: 4,
+    chon: '[data-hd="o-an-danh"]',
   },
   {
-    tieuDe: 'Bước 5 — Kiểm lại và gửi',
-    noiDung: 'Bà con đọc lại lần cuối rồi bấm gửi. Xong sẽ có mã tra cứu, nhớ lưu lại '
-           + 'mã đó để xem tiến độ xử lý.',
+    tieuDe: 'Bước 5 — Nút gửi',
+    noiDung: 'Bà con đọc lại lần cuối rồi bấm nút này để gửi. Xong sẽ có mã tra cứu, '
+           + 'nhớ lưu lại để xem tiến độ xử lý.',
     duong: '/gui-y-kien',
-    chon: '[data-buoc="5"]',
     buocForm: 5,
+    chon: '[data-hd="nut-gui"]',
   },
   {
-    tieuDe: 'Xem tin tức và tra cứu',
-    noiDung: 'Mục Tin tức có tin cảnh giác lừa đảo và hướng dẫn thủ tục. Mục Tra cứu '
-           + 'để xem ý kiến đã gửi xử lý tới đâu. Bà con đã nắm được các bước rồi!',
+    tieuDe: 'Mục Tra cứu và Tin tức',
+    noiDung: 'Mục Tra cứu để xem ý kiến đã gửi xử lý tới đâu. Mục Tin tức có tin cảnh '
+           + 'giác lừa đảo. Bà con đã nắm được cách dùng rồi!',
     duong: '/',
-    chon: 'a[href="/tin-tuc"]',
+    chon: 'a[href="/tra-cuu"]',
   },
 ];
 
@@ -179,14 +201,33 @@ export default function HuongDanBanDau() {
 
     if (!b.chon) { setOSang(null); return; }
 
-    /* Chờ trang vẽ xong mới đo. Đo sớm quá thì phần tử chưa có, ô sáng lệch chỗ. */
-    const t = setTimeout(() => {
+    /* CHỜ RỒI THỬ LẠI NHIỀU LẦN, không đo một lần rồi thôi.
+
+       Bước nào đổi màn hình biểu mẫu thì phần tử cần khoanh chỉ xuất hiện SAU
+       khi màn hình đó vẽ xong. Đo một lần ở mốc cố định thì khi máy chậm hoặc
+       màn hình nặng, phần tử chưa kịp có — ô sáng không hiện, hướng dẫn nói về
+       một nút mà không chỉ được vào đâu.
+
+       Thử lại mỗi 200ms, tối đa 10 lần (2 giây). Tìm thấy là dừng ngay. */
+    let lan = 0;
+    let dungLai: ReturnType<typeof setTimeout> | null = null;
+
+    const doThu = () => {
       const el = document.querySelector(b.chon!);
-      if (!el) { setOSang(null); return; }
+      if (!el) {
+        if (++lan < 10) { dungLai = setTimeout(doThu, 200); }
+        else setOSang(null);
+        return;
+      }
+      /* Đưa phần tử vào GIỮA màn hình. Không cuộn thì phần tử có thể nằm ngoài
+         tầm nhìn, ô sáng khoanh vào chỗ trống. */
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      setTimeout(() => setOSang(el.getBoundingClientRect()), 350);
-    }, 300);
-    return () => clearTimeout(t);
+      /* Chờ cuộn xong hẳn rồi mới đo. Đo giữa lúc đang cuộn thì toạ độ sai. */
+      dungLai = setTimeout(() => setOSang(el.getBoundingClientRect()), 550);
+    };
+
+    const t = setTimeout(doThu, 250);
+    return () => { clearTimeout(t); if (dungLai) clearTimeout(dungLai); };
   }, [hien, buoc, location.pathname, navigate]);
 
   /* ĐỌC TO NỘI DUNG MỖI BƯỚC.
@@ -228,6 +269,11 @@ export default function HuongDanBanDau() {
   const b = CAC_BUOC[buoc];
   const laCuoi = buoc === CAC_BUOC.length - 1;
 
+  /* Phần tử đang khoanh nằm nửa DƯỚI màn hình -> đưa thẻ lên TRÊN, và ngược
+     lại. Không có ô sáng thì để thẻ ở đáy như cũ, chỗ ngón tay dễ với nhất. */
+  const theONua: 'tren' | 'duoi' = oSang && oSang.top > window.innerHeight * 0.45
+    ? 'tren' : 'duoi';
+
   return createPortal(
     <AnimatePresence>
       <motion.div
@@ -263,7 +309,15 @@ export default function HuongDanBanDau() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="absolute inset-x-3 bottom-4 mx-auto max-w-lg rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900 sm:inset-x-6"
+          /* THẺ TỰ TRÁNH CHỖ ĐANG KHOANH.
+
+             Thẻ luôn ở đáy thì khi khoanh vào nút nằm dưới màn hình (nút gửi,
+             ô ẩn danh), thẻ che mất đúng thứ đang chỉ — bà con đọc chữ mà
+             không nhìn thấy nút. Nay phần tử nằm nửa dưới thì thẻ nhảy lên
+             trên, và ngược lại. */
+          className={`absolute inset-x-3 mx-auto max-w-lg rounded-2xl bg-white p-5 shadow-2xl transition-all duration-300 dark:bg-slate-900 sm:inset-x-6 ${
+            theONua === 'tren' ? 'top-4' : 'bottom-4'
+          }`}
         >
           <div className="mb-2 flex items-center gap-2">
             <span className="rounded-lg bg-primary-600 px-2 py-0.5 text-xs font-extrabold text-white">

@@ -65,7 +65,7 @@ export default function Header() {
                   tuỳ font. Chữ thường "ố" thấp hơn nhiều -> dấu luôn nằm gọn
                   trong dòng, hiển thị đúng trên MỌI font, mọi thiết bị. */}
               <span className="block text-[15px] font-extrabold leading-normal tracking-wide text-primary-700 dark:text-primary-300">
-                Hộp Thư An Ninh Số
+                Điểm Chạm An Ninh
               </span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">{UNIT.name}</span>
             </span>
