@@ -169,14 +169,14 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
           <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
           <div className="flex-1">
             <p className="text-xs font-semibold text-primary-700 dark:text-primary-300">
-              Đã khôi phục nội dung bà con gõ dở lần trước
+              {t('cn.daKhoiPhucNoi')}
             </p>
             <button
               type="button"
               onClick={onDismissDraft}
               className="mt-0.5 text-xs text-primary-600 underline hover:text-primary-800 dark:text-primary-400"
             >
-              Xoá và bắt đầu lại
+              {t('cn.xoaVaBatDau')}
             </button>
           </div>
         </div>
@@ -249,12 +249,12 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       <div className="mt-1.5 flex items-center justify-between text-xs">
         {tooShort ? (
           <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-            <AlertCircle className="h-3.5 w-3.5" /> Bà con mô tả rõ hơn một chút để hệ thống hiểu đúng nhé
+            <AlertCircle className="h-3.5 w-3.5" /> {t('cn.baConMoTa')}
           </span>
         ) : (
           <span className="text-slate-400">{t('f1.noSpelling')}</span>
         )}
-        <span className="text-slate-400">{value.length}/{CONTENT_MAX_LENGTH} ký tự</span>
+        <span className="text-slate-400">{value.length}/{CONTENT_MAX_LENGTH} {t('cn.kyTu')}</span>
       </div>
 
       {/* 🎤 Nhập bằng GIỌNG NÓI — cho bà con lớn tuổi, ngại gõ phím.
@@ -350,7 +350,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             aria-hidden
           />
         </div>
-        <p className="mt-1.5 text-xs text-slate-400">Hỗ trợ JPG, PNG, WebP... tối đa {MAX_FILE_MB}MB/ảnh. Mỗi ảnh được kiểm tra định dạng thật, tái mã hoá loại bỏ mã độc ẩn và kiểm duyệt nội dung nhạy cảm.</p>
+        <p className="mt-1.5 text-xs text-slate-400">{t('cn.hoTroJpg').replace('{mb}', String(MAX_FILE_MB))}</p>
       </div>
 
       {/* ================= VIDEO MINH CHỨNG ================= */}
@@ -424,7 +424,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             className="hidden"
             aria-hidden
           />
-          <p className="mt-1.5 text-xs text-slate-400">Tối đa {MAX_VIDEO_MB}MB, cỡ 3 tới 5 phút quay. Sóng yếu thì video dài sẽ lâu gửi — bà con quay vừa đủ nội dung cần thiết.</p>
+          <p className="mt-1.5 text-xs text-slate-400">{t('cn.toiDaMb').replace('{mb}', String(MAX_VIDEO_MB))}</p>
         </div>
       )}
 
@@ -442,13 +442,13 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       {onUrgencyChange && (
         <div className="mt-6">
           <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Mức độ khẩn cấp
+            {t('cn.mucDoKhanCap')}
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Mức độ khẩn cấp">
             {[
-              { id: 'normal', label: 'Bình thường', desc: 'Việc không gấp', ring: 'has-[:checked]:border-slate-400 has-[:checked]:bg-slate-50 dark:has-[:checked]:bg-slate-800' },
-              { id: 'important', label: 'Quan trọng', desc: 'Cần sớm quan tâm', ring: 'has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-900/20' },
-              { id: 'urgent', label: 'Khẩn cấp', desc: 'Cần xử lý ngay', ring: 'has-[:checked]:border-red-400 has-[:checked]:bg-red-50 dark:has-[:checked]:bg-red-900/20' },
+              { id: 'normal', khoaL: 'u.normal' as const, khoaD: 'u.normalD' as const, ring: 'has-[:checked]:border-slate-400 has-[:checked]:bg-slate-50 dark:has-[:checked]:bg-slate-800' },
+              { id: 'important', khoaL: 'u.important' as const, khoaD: 'u.importantD' as const, ring: 'has-[:checked]:border-amber-400 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-900/20' },
+              { id: 'urgent', khoaL: 'u.urgent' as const, khoaD: 'u.urgentD' as const, ring: 'has-[:checked]:border-red-400 has-[:checked]:bg-red-50 dark:has-[:checked]:bg-red-900/20' },
             ].map((o) => (
               <label
                 key={o.id}
@@ -462,8 +462,8 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
                   className="h-4 w-4 shrink-0 accent-primary-600"
                 />
                 <span>
-                  <span className="block text-sm font-bold leading-tight text-slate-700 dark:text-slate-200">{o.label}</span>
-                  <span className="block text-xs text-slate-500 dark:text-slate-400">{o.desc}</span>
+                  <span className="block text-sm font-bold leading-tight text-slate-700 dark:text-slate-200">{t(o.khoaL)}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">{t(o.khoaD)}</span>
                 </span>
               </label>
             ))}
@@ -482,7 +482,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p className="leading-relaxed">
                 Nếu đang có nguy hiểm cần lực lượng đến ngay, bà con hãy gọi ngay số{' '}
-                <b className="whitespace-nowrap">113</b>, hoặc bấm nút SOS đỏ ở góc dưới màn hình.
+                <b className="whitespace-nowrap">113</b>{t('cn.hoacBamNutSos')}
               </p>
             </div>
           )}
@@ -491,7 +491,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
 
       <div className="mt-6 flex justify-end">
         <Button onClick={onNext} disabled={value.trim().length < MIN_LENGTH || processing}>
-          Tiếp tục — Hệ thống phân tích
+          {t('cn.tiepTucHeThong')}
         </Button>
       </div>
     </div>

@@ -30,9 +30,12 @@ USE hop_thu_an_ninh_so;
 -- ============================================================================
 
 -- 1. Bảng cấu hình hệ thống
+--
+-- ⚠️ Cột tên là `key` và `value` — phải bọc dấu huyền vì "key" là từ khoá của
+--    MySQL, để trần thì máy hiểu nhầm thành lệnh.
 UPDATE system_settings
-   SET setting_value = 'Điểm Chạm An Ninh'
- WHERE setting_key = 'site_name';
+   SET `value` = 'Điểm Chạm An Ninh'
+ WHERE `key` = 'site_name';
 
 -- 2. Nội dung các bản tin đã đăng
 UPDATE news
@@ -55,8 +58,8 @@ UPDATE news
 -- ============================================================================
 -- KIỂM TRA SAU KHI CHẠY — phải trả về 0 dòng
 -- ============================================================================
-SELECT 'system_settings' AS bang, setting_value AS con_ten_cu
+SELECT 'system_settings' AS bang, `value` AS con_ten_cu
   FROM system_settings
- WHERE setting_key = 'site_name' AND setting_value LIKE '%Hộp Thư%'
+ WHERE `key` = 'site_name' AND `value` LIKE '%Hộp Thư%'
 UNION ALL
 SELECT 'news', title FROM news WHERE title LIKE '%Hộp Thư%' LIMIT 10;

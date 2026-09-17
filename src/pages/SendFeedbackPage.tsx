@@ -225,10 +225,10 @@ export default function SendFeedbackPage() {
       {dangHuongDan && (
         <div className="mb-4 rounded-2xl border-2 border-primary-300 bg-primary-50 p-3 text-center dark:border-primary-700 dark:bg-primary-900/20">
           <p className="text-sm font-bold text-primary-800 dark:text-primary-300">
-            Đang xem hướng dẫn — chưa gửi gì cả
+            {t('sf.dangXemHuongDan')}
           </p>
           <p className="mt-0.5 text-xs text-primary-700 dark:text-primary-200">
-            Đây chỉ là xem trước các bước. Xong hướng dẫn sẽ quay về bước đầu.
+            {t('sf.dayChiLaXem')}
           </p>
         </div>
       )}

@@ -3,6 +3,7 @@
  * Lỗi chỉ hiển thị khi người dùng đã nhập sai hoặc bấm Tiếp tục mà còn thiếu.
  */
 import { useEffect, useState } from 'react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck, MailCheck, Send, Loader2, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import type { ContactInfo as ContactInfoType } from '../../types/feedback';
@@ -29,6 +30,7 @@ interface ContactInfoProps {
 }
 
 export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocDau, category, qrPointName, noiDung }: ContactInfoProps) {
+  const { t } = useNgonNgu();
   // V2: danh sách địa bàn (phục vụ bản đồ điểm nóng)
   const { data: wards } = useQuery({ queryKey: ['wards'], queryFn: fetchWards });
 
@@ -225,10 +227,9 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
 
   return (
     <div>
-      <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Thông tin liên hệ</h3>
+      <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">{t('ci.thongTinLienHe')}</h3>
       <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-        Họ tên và số điện thoại là <span className="font-semibold text-slate-600 dark:text-slate-300">bắt buộc</span> để
-        cán bộ xác minh và phản hồi kết quả; email là tuỳ chọn.
+        {t('ci.hoTenVaSo2')} <span className="font-semibold text-slate-600 dark:text-slate-300">{t('ci.batBuoc')}</span> {t('ci.deCanBoXac')}
       </p>
 
       {/* V4: CÔNG TẮC GỬI ẨN DANH — CHỈ hiện với nhóm Tố giác tội phạm */}
@@ -254,11 +255,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
         </span>
         <span>
           <span className="block text-sm font-bold text-slate-700 dark:text-slate-200">
-            🕶️ Gửi ẩn danh — không cung cấp danh tính
+            {t('ci.guiAnDanhKhong')}
           </span>
           <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Dành cho bà con lo ngại bị trả thù khi tố giác. Không cần họ tên, số điện thoại hay email.
-            Bà con vẫn được cấp <b>mã tra cứu</b> để theo dõi kết quả.
+            {t('ci.danhChoBaCon')} <b>{t('ci.maTraCuu')}</b> {t('ci.deTheoDoiKet')}
           </span>
         </span>
       </button>
@@ -273,7 +273,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
           </svg>
           <div className="min-w-0">
             <p className="text-sm font-extrabold text-red-800 dark:text-red-300">
-              Bà con có muốn ẩn danh thật không?
+              {t('ci.baConCoMuon')}
             </p>
             <p className="mt-1 text-sm leading-snug text-red-700 dark:text-red-200">
               Trong lời kể của bà con đang có {dauHieuLoDanhTinh.join(', ')}. Bà con chọn
@@ -281,8 +281,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
               như vậy là không còn kín nữa.
             </p>
             <p className="mt-1.5 text-sm leading-snug text-red-700 dark:text-red-200">
-              Nếu muốn kín thật, bà con bấm <b>Quay lại</b> rồi xoá những chỗ đó
-              trong lời kể. Còn nếu không ngại thì cứ gửi tiếp bình thường.
+              {t('ci.neuMuonKinThat')} <b>{t('ci.quayLai')}</b> {t('ci.roiXoaNhungCho')}
             </p>
           </div>
         </div>
@@ -291,15 +290,14 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
       {anon && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
           <p className="mb-2 text-xs font-bold text-amber-800 dark:text-amber-300">
-            Quy định khi gửi ẩn danh
+            {t('ci.quyDinhKhiGui')}
           </p>
           <ul className="space-y-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-            <li>• Nội dung phải chi tiết, <b>ít nhất 50 ký tự</b> — nêu rõ thời gian, địa điểm, đối tượng.
-              Cán bộ không thể gọi lại hỏi thêm.</li>
-            <li>• Tin báo sẽ được <b>cán bộ kiểm duyệt</b> trước khi đưa vào xử lý.</li>
-            <li>• Mỗi thiết bị chỉ gửi được <b>2 tin ẩn danh trong 24 giờ</b> (để chống tin rác).</li>
+            <li>{t('ci.noiDungPhaiChi')} <b>{t('ci.itNhat50Ky')}</b> {t('ci.neuRoThoiGian')}</li>
+            <li>{t('ci.tinBaoSeDuoc')} <b>{t('ci.canBoKiemDuyet')}</b> {t('ci.truocKhiDuaVao')}</li>
+            <li>{t('ci.moiThietBiChi')} <b>{t('ci.2TinAnDanh')}</b> {t('ci.deChongTinRac')}</li>
             <li>
-              • Nếu vụ việc <b>khẩn cấp</b>, bà con hãy gọi ngay{' '}
+              {t('ci.neuVuViec')} <b>{t('ci.khanCap')}</b>, bà con hãy gọi ngay{' '}
               <b>113</b>.
             </li>
           </ul>
@@ -347,14 +345,14 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
         {wards && wards.length > 0 && (
           <div className="w-full">
             <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">
-              Địa bàn xảy ra vụ việc <span className="font-normal text-slate-500">(không bắt buộc)</span>
+              {t('ci.diaBanXayRa')} <span className="font-normal text-slate-500">{t('ci.khongBatBuoc')}</span>
             </label>
             <select
               value={value.wardId ?? ''}
               onChange={(e) => onChange({ ...value, wardId: e.target.value ? Number(e.target.value) : null })}
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-base sm:text-sm text-slate-800 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
-              <option value="">— Chọn phường/xã —</option>
+              <option value="">{t('ci.chonPhuongxa')}</option>
               {wards.map((w) => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
@@ -383,10 +381,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
             <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
             <div>
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-                Đã xác thực email thành công
+                {t('ci.daXacThucEmail')}
               </p>
               <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
-                Bà con có 15 phút để hoàn tất gửi ý kiến.
+                {t('ci.baConCo15')}
               </p>
             </div>
           </div>
@@ -396,11 +394,10 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
               <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
               <div>
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                  Xác thực email
+                  {t('ci.xacThucEmail')}
                 </p>
                 <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                  Bước này giúp Công an chắc chắn ý kiến là do người thật gửi,
-                  tránh tin giả và tin rác.
+                  {t('ci.buocNayGiupCong')}
                 </p>
               </div>
             </div>
@@ -423,7 +420,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
                 {devCode && (
                   <div className="rounded-xl border border-dashed border-amber-400 bg-amber-50 p-3 text-center dark:bg-amber-900/20">
                     <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
-                      MÁY CHỦ CHƯA CẤU HÌNH EMAIL (chế độ chạy thử) — mã của bà con là:
+                      {t('ci.mayChuChuaCau')}
                     </p>
                     <p className="mt-1 font-mono text-2xl font-extrabold tracking-[0.3em] text-amber-700 dark:text-amber-300">
                       {devCode}
@@ -475,7 +472,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
 
       {attempted && !anon && !otpVerified && (
         <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
-          Vui lòng xác thực email trước khi tiếp tục.
+          {t('ci.vuiLongXacThuc')}
         </p>
       )}
 
@@ -483,14 +480,13 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
       <Turnstile onToken={(t) => onChange({ ...value, captchaToken: t })} />
       {attempted && !captchaOk && (
         <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
-          Vui lòng hoàn tất bước xác minh "Tôi không phải người máy".
+          {t('ci.vuiLongHoanTat')}
         </p>
       )}
 
       <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
-        Họ tên và số điện thoại của bà con được MÃ HOÁ trong hệ thống. Cán bộ chỉ thấy dạng che bớt;
-        mọi lượt xem danh tính đầy đủ đều bị ghi vào nhật ký.
+        {t('ci.hoTenVaSo')}
       </div>
 
       {/* ==================================================================
@@ -533,7 +529,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
       <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={onBack}>
-            Quay lại
+            {t('ci.quayLai')}
           </Button>
           {onVeBuocDau && (
             <button
@@ -542,11 +538,11 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Về bước nhập nội dung
+              {t('ci.veBuocNhapNoi')}
             </button>
           )}
         </div>
-        <Button onClick={handleNext}>Tiếp tục — Xác nhận</Button>
+        <Button onClick={handleNext}>{t('ci.tiepTucXacNhan')}</Button>
       </div>
     </div>
   );

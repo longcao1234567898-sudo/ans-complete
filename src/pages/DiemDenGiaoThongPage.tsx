@@ -78,20 +78,20 @@ export default function DiemDenGiaoThongPage() {
           <TriangleAlert className="h-6 w-6 text-rose-600" /> {t('blackspot.title')}
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-          Những khu thường xảy ra tai nạn trên địa bàn. Bà con đi qua những nơi này
-          <b> xin đi chậm và quan sát kỹ</b> — biết trước là tránh được.
+          {t('dd.nhungKhuThuongXay')}
+          <b> {t('dd.xinDiChamVa')}</b> {t('dd.bietTruocLaTranh')}
         </p>
 
         {isLoading && (
           <p className="flex items-center gap-2 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
+            <Loader2 className="h-4 w-4 animate-spin" /> {t('dd.dangTai')}
           </p>
         )}
 
         {error && (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/15">
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              Chưa xem được lúc này. Bà con thử lại sau giúp.
+              {t('dd.chuaXemDuocLuc')}
             </p>
           </div>
         )}
@@ -100,7 +100,7 @@ export default function DiemDenGiaoThongPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-900">
             <MapPin className="mx-auto mb-2 h-8 w-8 text-slate-300" />
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Chưa có điểm cảnh báo nào được công bố.
+              {t('dd.chuaCoDiemCanh')}
             </p>
           </div>
         )}
@@ -111,15 +111,15 @@ export default function DiemDenGiaoThongPage() {
             <div className="mb-5 flex flex-wrap items-center gap-3">
               <div className="flex-1 rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{ds.length}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">khu cần chú ý</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('dd.khuCanChuY')}</p>
               </div>
               <div className="flex-1 rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{tongVu}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">vụ tai nạn</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('dd.vuTaiNan')}</p>
               </div>
               <div className="flex-1 rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">{tongTuVong}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">người tử vong</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('dd.nguoiTuVong')}</p>
               </div>
               {loiDoc && <SpeakButton text={loiDoc} label="Nghe" />}
             </div>
@@ -184,15 +184,15 @@ export default function DiemDenGiaoThongPage() {
                   <div className="mb-3 flex flex-wrap gap-4">
                     <div>
                       <p className="text-xl font-extrabold text-slate-700 dark:text-slate-200">{d.soVu}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">vụ tai nạn</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{t('dd.vuTaiNan')}</p>
                     </div>
                     <div>
                       <p className="text-xl font-extrabold text-rose-600 dark:text-rose-400">{d.soTuVong}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">người tử vong</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{t('dd.nguoiTuVong')}</p>
                     </div>
                     <div>
                       <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400">{d.soBiThuong}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">người bị thương</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{t('dd.nguoiBiThuong')}</p>
                     </div>
                   </div>
 
@@ -215,7 +215,7 @@ export default function DiemDenGiaoThongPage() {
                       rel="noopener noreferrer"
                       className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary-700 underline dark:text-primary-300"
                     >
-                      <MapPin className="h-3.5 w-3.5" /> Xem trên bản đồ
+                      <MapPin className="h-3.5 w-3.5" /> {t('dd.xemTrenBanDo')}
                     </a>
                   )}
                 </div>
@@ -225,9 +225,7 @@ export default function DiemDenGiaoThongPage() {
             <div className="mt-4 flex items-start gap-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                Số liệu do Công an thị xã tổng hợp theo kỳ thống kê ghi ở mỗi khu.
-                Bà con phát hiện điểm nguy hiểm chưa có trong danh sách, xin gửi ý kiến
-                để đơn vị bổ sung.
+                {t('dd.soLieuDoCong')}
               </p>
             </div>
           </>

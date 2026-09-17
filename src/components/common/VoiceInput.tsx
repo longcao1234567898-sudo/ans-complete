@@ -31,6 +31,7 @@
  *    cách xử lý khác nhau, nói chung chung thì bà con không biết làm gì.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { Mic, MicOff } from 'lucide-react';
 
 interface VoiceInputProps {
@@ -125,6 +126,7 @@ function taoBoNhanDang(): SpeechRec | null {
 type MaNgonNgu = 'vi-VN' | 'en-US';
 
 export default function VoiceInput({ onText, className }: VoiceInputProps) {
+  const { t } = useNgonNgu();
   const recRef = useRef<SpeechRec | null>(null);
   /** Cờ báo người dùng CHỦ ĐỘNG dừng — để phân biệt với trình duyệt tự ngắt */
   const nguoiDungDungRef = useRef(false);
@@ -260,7 +262,7 @@ export default function VoiceInput({ onText, className }: VoiceInputProps) {
           }`}
         >
           {dangNghe ? <MicOff className="h-4 w-4 animate-pulse" /> : <Mic className="h-4 w-4" />}
-          {dangNghe ? 'Đang nghe — bấm để dừng' : 'Nói thay vì gõ'}
+          {dangNghe ? t('f1.listening') : t('f1.voice')}
         </button>
 
         {/* Chọn ngôn ngữ. Ẩn trong lúc đang nghe để bà con không bấm nhầm
