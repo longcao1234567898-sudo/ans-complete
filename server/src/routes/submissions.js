@@ -527,11 +527,17 @@ router.post('/', async (req, res) => {
              VALUES (?,?,?,?,?,?)`,
             [result.insertId, body.video, laLinkKho ? 'cloudinary' : 'base64', kieu, false, 'suspicious']
           );
-          /* Có video -> đưa ý kiến vào hàng chờ duyệt để cán bộ xem trước. */
-          await pool.query(
-            `UPDATE submissions SET status = 'pending_review' WHERE id = ? AND status = 'received'`,
-            [result.insertId]
-          );
+          /* ⚠️ KHÔNG còn tự đẩy ý kiến có video sang hàng chờ duyệt.
+
+             Vì sao bỏ: danh sách ý kiến chính chỉ lấy trạng thái received và
+             processing, nên ý kiến có video biến mất khỏi đó — cán bộ tưởng
+             mất tin, bà con gửi xong không thấy đâu. Đẩy đi âm thầm mà không
+             báo cho ai là cách làm sai, dù lý do ban đầu (máy chủ không kiểm
+             duyệt được nội dung video) là chính đáng.
+
+             Thay vào đó, video được đánh dấu moderation_status = 'suspicious'
+             ngay ở dòng trên, nên giao diện cán bộ hiện nhãn nhắc xem trước
+             khi dùng làm căn cứ. Tin vẫn nằm đúng chỗ, chỉ là có nhãn. */
         }
       } catch (e) {
         console.warn('Không lưu được video đính kèm:', e.message);
