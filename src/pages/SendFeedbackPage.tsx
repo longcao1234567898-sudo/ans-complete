@@ -13,6 +13,7 @@ import { saveTrackingCode } from '../hooks/useTrackingHistory';
 import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import HuongDanBuoc from '../components/FeedbackForm/HuongDanBuoc';
 import ContentInput from '../components/FeedbackForm/ContentInput';
 import AIAnalysis from '../components/FeedbackForm/AIAnalysis';
@@ -28,6 +29,7 @@ import { MapPin } from 'lucide-react';
 const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
 export default function SendFeedbackPage() {
+  const { t } = useNgonNgu();
   const [step, setStep] = useState(1);
 
   /* CHẾ ĐỘ XEM HƯỚNG DẪN.
@@ -207,9 +209,9 @@ export default function SendFeedbackPage() {
       <PageBackground anh="bg-nui-cam.webp" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Gửi ý kiến</h1>
+        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">{t('send.title')}</h1>
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-          Chia sẻ tự nhiên — hệ thống giúp bà con diễn đạt rõ ràng và chuyển đến đúng bộ phận xử lý.
+          {t('send.subtitle')}
         </p>
         {qrPointName && (
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
@@ -230,6 +232,11 @@ export default function SendFeedbackPage() {
           </p>
         </div>
       )}
+
+      {/* Mốc để vòng hướng dẫn cuộn tới khi đổi bước mà không có nút cụ thể
+          nào để khoanh — nếu không trang giữ nguyên vị trí cuộn cũ, mà bước
+          mới ngắn hơn nên vị trí đó rơi xuống tận chân trang. */}
+      <div data-khu-bieu-mau />
 
       {!submission && <StepIndicator current={step} />}
       {/* Hướng dẫn từng bước bằng lời, có nút đọc to — cho người lớn tuổi và

@@ -1,6 +1,21 @@
 -- ============================================================================
 -- NÂNG CẤP V18 — ĐẾM LƯỢT TRUY CẬP VÀ ĐIỂM ĐEN GIAO THÔNG
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- BƯỚC 0 — CHỌN ĐÚNG CƠ SỞ DỮ LIỆU
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ KHÔNG CÓ DÒNG NÀY THÌ BÁO LỖI "No database selected".
+--
+-- HeidiSQL không tự biết chạy vào cơ sở dữ liệu nào, nên phải nói rõ. Cách
+-- khác: bấm đúp vào tên cơ sở dữ liệu ở khung bên trái cho tên đậm lên, rồi
+-- mới bấm F9.
+--
+-- Tên cơ sở dữ liệu của đơn vị khác thì sửa dòng dưới cho khớp (xem biến
+-- DB_NAME trong tệp server/.env).
+USE hop_thu_an_ninh_so;
+
 --
 -- Hai bảng cho hai tính năng mới:
 --   1. site_visits     — đếm lượt người dân vào trang, theo ngày

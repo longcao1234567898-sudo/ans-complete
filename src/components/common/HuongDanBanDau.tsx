@@ -323,7 +323,24 @@ export default function HuongDanBanDau() {
       window.dispatchEvent(new CustomEvent('ans:huong-dan-buoc', { detail: b.buocForm }));
     }
 
-    if (!b.chon) { phanTuDangKhoanh.current = null; setOSang(null); return; }
+    if (!b.chon) {
+      phanTuDangKhoanh.current = null;
+      setOSang(null);
+      /* KHÔNG có nút cụ thể để khoanh, nhưng vẫn phải đưa màn hình về đúng chỗ.
+
+         Lỗi gặp thật: bước trước cuộn sâu xuống để chỉ nút gửi vị trí, rồi
+         bước này đổi biểu mẫu sang màn hình ngắn hơn. Trang co lại mà vị trí
+         cuộn giữ nguyên, nên rơi xuống tận chân trang — bà con thấy phần liên
+         hệ và mã QR trong khi hướng dẫn đang nói về bước 2. */
+      if (b.buocForm) {
+        setTimeout(() => {
+          const khu = document.querySelector('[data-khu-bieu-mau]');
+          if (khu) khu.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          else window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 350);
+      }
+      return;
+    }
 
     /* CHỜ RỒI THỬ LẠI NHIỀU LẦN, không đo một lần rồi thôi.
 

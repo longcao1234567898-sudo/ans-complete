@@ -4,6 +4,7 @@
  */
 import { ChangeEvent, useRef, useState } from 'react';
 import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import NutGuiViTri from './NutGuiViTri';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
@@ -62,6 +63,7 @@ const MIN_LENGTH = 10;
 const MAX_FILE_MB = 25;
 
 export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, video, onVideoChange, viTri, onViTriChange, onNext }: ContentInputProps) {
+  const { t } = useNgonNgu();
   const tooShort = value.trim().length > 0 && value.trim().length < MIN_LENGTH;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -193,24 +195,24 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       <div className="mb-4 rounded-2xl border-2 border-primary-200 bg-primary-50/70 p-4 dark:border-primary-800 dark:bg-primary-900/15">
         <p className="mb-2 flex items-center gap-2 text-sm font-bold text-primary-800 dark:text-primary-200">
           <ListChecks className="h-4 w-4 shrink-0" />
-          Bà con nên nêu rõ 4 điều sau
+          {t('f1.tips')}
         </p>
         <ul className="mb-3 grid gap-1.5 text-xs text-slate-700 dark:text-slate-300 sm:grid-cols-2">
           <li className="flex items-start gap-1.5">
             <span className="font-bold text-primary-600">•</span>
-            <span><b>Thời gian:</b> ngày giờ xảy ra (hoặc &quot;khoảng 8 giờ tối qua&quot;)</span>
+            <span><b>{t('f1.tipWhen')}:</b> {t('f1.tipWhenD')}</span>
           </li>
           <li className="flex items-start gap-1.5">
             <span className="font-bold text-primary-600">•</span>
-            <span><b>Địa điểm:</b> càng cụ thể càng tốt — số nhà, ấp/khóm, gần chỗ nào</span>
+            <span><b>{t('f1.tipWhere')}:</b> {t('f1.tipWhereD')}</span>
           </li>
           <li className="flex items-start gap-1.5">
             <span className="font-bold text-primary-600">•</span>
-            <span><b>Sự việc:</b> chuyện gì đã xảy ra, diễn biến ra sao</span>
+            <span><b>{t('f1.tipWhat')}:</b> {t('f1.tipWhatD')}</span>
           </li>
           <li className="flex items-start gap-1.5">
             <span className="font-bold text-primary-600">•</span>
-            <span><b>Người liên quan:</b> đặc điểm nhận dạng, biển số xe (nếu biết)</span>
+            <span><b>{t('f1.tipWho')}:</b> {t('f1.tipWhoD')}</span>
           </li>
         </ul>
 
@@ -220,22 +222,19 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
           <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
             <ShieldQuestion className="h-3.5 w-3.5 shrink-0" />
-            Bà con sợ bị lộ danh tính?
+            {t('f1.anonTitle')}
           </p>
           <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-            Với <b>tố giác tin báo tội phạm</b>, ở bước điền thông tin bà con có thể bật{' '}
-            <b>&quot;Gửi ẩn danh&quot;</b> — không cần họ tên, số điện thoại hay email. Cán bộ
-            <b> không thể xem</b> danh tính người gửi ẩn danh.
+            {t('f1.anonBody')}
           </p>
           <p className="mt-1.5 text-xs font-semibold leading-relaxed text-amber-800 dark:text-amber-300">
-            Lưu ý: gửi ẩn danh thì cán bộ <b>không liên hệ lại được</b> để hỏi thêm. Bà con
-            hãy viết thật đầy đủ ngay từ bây giờ (tối thiểu 50 chữ), kèm ảnh nếu có.
+            {t('f1.anonNote')}
           </p>
         </div>
       </div>
 
       <label htmlFor="content" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-        Nội dung ý kiến của bà con
+        {t('f1.contentLabel')}
       </label>
       <textarea
         data-hd="o-noi-dung"
@@ -244,7 +243,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         maxLength={CONTENT_MAX_LENGTH}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Bà con cứ chia sẻ tự nhiên, không cần đúng chính tả hay dấu câu — hệ thống sẽ tự hiểu. Ví dụ: co nguoi danh nhau gan ben pha tan chau..."
+        placeholder={t('f1.placeholder')}
         className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
       />
       <div className="mt-1.5 flex items-center justify-between text-xs">
@@ -253,7 +252,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             <AlertCircle className="h-3.5 w-3.5" /> Bà con mô tả rõ hơn một chút để hệ thống hiểu đúng nhé
           </span>
         ) : (
-          <span className="text-slate-400">Không bắt buộc đúng chính tả, dấu câu</span>
+          <span className="text-slate-400">{t('f1.noSpelling')}</span>
         )}
         <span className="text-slate-400">{value.length}/{CONTENT_MAX_LENGTH} ký tự</span>
       </div>
@@ -265,7 +264,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       {/* Đính kèm ảnh minh chứng */}
       <div className="mt-5">
         <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-          Ảnh minh chứng <span className="font-normal text-slate-400">(tối đa {MAX_FEEDBACK_IMAGES} ảnh, không bắt buộc)</span>
+          {t('f1.images')} <span className="font-normal text-slate-400">({MAX_FEEDBACK_IMAGES} {t('f1.maxImages')})</span>
         </p>
         {/* NÓI RÕ VIỆC XOÁ DẤU VẾT ẢNH.
 
@@ -280,7 +279,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             gửi, nhưng đoạn dài ba dòng trước đây làm rối mắt người lớn tuổi. */}
         <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-          Ảnh tự động xoá vị trí GPS trước khi gửi
+          {t('f1.imagesGps')}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {images.map((src, idx) => (
@@ -329,7 +328,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary-300 text-primary-500 transition hover:border-primary-500 hover:bg-primary-50 dark:border-primary-700 dark:hover:bg-primary-900/20"
             >
               <Camera className="h-5 w-5" />
-              <span className="text-[10px] font-semibold">Chụp ảnh</span>
+              <span className="text-[10px] font-semibold">{t('f1.camera')}</span>
             </button>
           )}
           <input
@@ -358,7 +357,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       {onVideoChange && (
         <div className="mt-5">
           <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Video minh chứng <span className="font-normal text-slate-400">(1 video, không bắt buộc)</span>
+            {t('f1.video')} <span className="font-normal text-slate-400">(1 video, {t('common.notRequired')})</span>
           </p>
           {/* Nói thật về việc video giữ nguyên thông tin bên trong tệp.
 
@@ -370,7 +369,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
               ảnh — bỏ hẳn thì bà con tưởng video cũng an toàn như ảnh. */}
           <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            Video giữ nguyên vị trí quay, khác với ảnh
+            {t('f1.videoWarn')}
           </p>
 
           {video ? (
@@ -394,7 +393,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
                 className="flex h-20 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary-300 text-primary-500 transition hover:bg-primary-50 disabled:opacity-60 dark:border-primary-700"
               >
                 {dangDocVideo ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
-                <span className="text-[10px] font-semibold">Quay video</span>
+                <span className="text-[10px] font-semibold">{t('f1.recordVideo')}</span>
               </button>
               <button
                 type="button"
@@ -403,7 +402,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
                 className="flex h-20 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-primary-400 hover:text-primary-500 disabled:opacity-60 dark:border-slate-600"
               >
                 <ImagePlus className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Chọn video</span>
+                <span className="text-[10px] font-medium">{t('f1.pickVideo')}</span>
               </button>
             </div>
           )}
@@ -433,7 +432,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       {onViTriChange && (
         <div className="mt-5">
           <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Vị trí xảy ra vụ việc <span className="font-normal text-slate-400">(không bắt buộc)</span>
+            {t('f1.location')} <span className="font-normal text-slate-400">({t('common.notRequired')})</span>
           </p>
           <NutGuiViTri viTri={viTri} onChange={onViTriChange} />
         </div>

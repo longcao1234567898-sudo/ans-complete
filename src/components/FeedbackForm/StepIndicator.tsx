@@ -2,11 +2,15 @@
  * Thanh hiển thị tiến trình 5 bước của form gửi ý kiến.
  */
 import { Check } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
+import type { KhoaChu } from '../../i18n/chu';
 import { cn } from '../../utils/helpers';
 
-const STEPS = ['Nội dung', 'Phân tích', 'Chọn nhóm', 'Liên hệ', 'Xác nhận'];
+/* Khoá tra bản dịch. Giữ tên tiếng Việt trong khoá cho dễ đọc khi sửa mã. */
+const STEPS: KhoaChu[] = ['send.step1', 'send.step2', 'send.step3', 'send.step4', 'send.step5'];
 
 export default function StepIndicator({ current }: { current: number }) {
+  const { t } = useNgonNgu();
   return (
     <ol className="mb-8 flex items-center" aria-label="Tiến trình gửi ý kiến">
       {STEPS.map((label, idx) => {
@@ -17,7 +21,7 @@ export default function StepIndicator({ current }: { current: number }) {
           /* data-buoc để vòng hướng dẫn bám vào và làm nổi bật đúng bước đang
              nói tới. Không có mốc này thì hướng dẫn chỉ hiện thẻ chữ mà không
              chỉ được vào đâu cả. */
-          <li key={label} data-buoc={step} className="flex flex-1 items-center last:flex-none">
+          <li key={t(label)} data-buoc={step} className="flex flex-1 items-center last:flex-none">
             <div className="flex flex-col items-center gap-1.5">
               <span
                 className={cn(
@@ -36,7 +40,7 @@ export default function StepIndicator({ current }: { current: number }) {
                   active ? 'font-semibold text-primary-700 dark:text-primary-300' : 'text-slate-400'
                 )}
               >
-                {label}
+                {t(label)}
               </span>
             </div>
             {step < STEPS.length && (

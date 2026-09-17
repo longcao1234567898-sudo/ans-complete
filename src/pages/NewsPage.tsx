@@ -2,6 +2,7 @@
  * Trang "Tin tức": lọc theo chủ đề + lưới bản tin.
  */
 import { useState } from 'react';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import { ChevronDown, TrendingUp } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import type { NewsArticle, NewsTag } from '../types/news';
@@ -25,6 +26,7 @@ import PageBackground from '../components/common/PageBackground';
 const MOI_LAN = 21;
 
 export default function NewsPage() {
+  const { t } = useNgonNgu();
   const [tag, setTag] = useState<NewsTag | 'all'>('all');
   const [soHien, setSoHien] = useState(MOI_LAN);
   /* Lọc theo mốc thời gian, song song với lọc chủ đề. Giúp bà con nhanh thấy
@@ -121,12 +123,12 @@ export default function NewsPage() {
             không mà không phải bấm vào. */}
         <div className="flex flex-wrap items-center justify-center gap-2">
           {([
-            ['all', 'Tất cả', tatCa.length],
-            ['today', 'Hôm nay', tatCa.filter((a) => {
+            ['all', t('news.all'), tatCa.length],
+            ['today', t('news.today'), tatCa.filter((a) => {
               const d = new Date(a.publishedAt); const n = new Date();
               return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
             }).length],
-            ['week', 'Trong tuần', tatCa.filter((a) => {
+            ['week', t('news.week'), tatCa.filter((a) => {
               const t = new Date(a.publishedAt).getTime();
               return !Number.isNaN(t) && t >= Date.now() - 7 * 864e5;
             }).length],

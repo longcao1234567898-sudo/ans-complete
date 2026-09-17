@@ -10,6 +10,7 @@
  *    chỉ làm mất tác dụng cảnh báo.
  */
 import { useQuery } from '@tanstack/react-query';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { TriangleAlert, Loader2, Info, MapPin } from 'lucide-react';
@@ -48,6 +49,7 @@ async function fetchDiemDen(): Promise<DiemDen[]> {
 }
 
 export default function DiemDenGiaoThongPage() {
+  const { t } = useNgonNgu();
   const { data, isLoading, error } = useQuery({
     queryKey: ['diem-den-giao-thong'],
     queryFn: fetchDiemDen,
@@ -73,7 +75,7 @@ export default function DiemDenGiaoThongPage() {
 
       <div className="container-page py-8">
         <h1 className="mb-1 flex items-center gap-2 text-2xl font-extrabold text-slate-800 dark:text-slate-100">
-          <TriangleAlert className="h-6 w-6 text-rose-600" /> Cảnh báo điểm đen giao thông
+          <TriangleAlert className="h-6 w-6 text-rose-600" /> {t('blackspot.title')}
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           Những khu thường xảy ra tai nạn trên địa bàn. Bà con đi qua những nơi này

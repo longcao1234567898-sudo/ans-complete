@@ -11,6 +11,7 @@
  *    báo. Trang này tuyệt đối không hiện nội dung tin hay danh tính.
  */
 import { useState } from 'react';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -46,6 +47,7 @@ function banKinh(d: DiaBanAnNinh, cao: number): number {
 }
 
 export default function BanDoAnNinhPage() {
+  const { t } = useNgonNgu();
   const [ngay, setNgay] = useState(30);
 
   const { data, isLoading, error } = useQuery({
@@ -81,7 +83,7 @@ export default function BanDoAnNinhPage() {
 
       <div className="container-page py-8">
         <h1 className="mb-1 flex items-center gap-2 text-2xl font-extrabold text-slate-800 dark:text-slate-100">
-          <MapPin className="h-6 w-6 text-primary-600" /> Bản đồ an ninh địa bàn
+          <MapPin className="h-6 w-6 text-primary-600" /> {t('map.title')}
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           Xem tình hình an ninh trật tự nơi bà con sinh sống, để biết mà phòng ngừa.

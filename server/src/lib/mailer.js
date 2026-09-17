@@ -73,7 +73,7 @@ async function sendViaResend(email, code) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: env('MAIL_FROM') || 'Hop Thu An Ninh So <onboarding@resend.dev>',
+      from: env('MAIL_FROM') || 'Diem Cham An Ninh <onboarding@resend.dev>',
       to: [email],
       subject: SUBJECT(code),
       html: emailHtml(code),

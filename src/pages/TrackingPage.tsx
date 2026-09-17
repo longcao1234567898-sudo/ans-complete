@@ -4,6 +4,7 @@
  * thật sự bấm nút quét — giúp trang khởi động nhanh và nhẹ hơn hẳn.
  */
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import { useSearchParams } from 'react-router-dom';
 import { MascotSearch } from '../components/common/PoliceMascot';
 import { useTracking } from '../hooks/useTracking';
@@ -22,6 +23,7 @@ import { History as HistoryIcon, X } from 'lucide-react';
 const QRScanner = lazy(() => import('../components/Tracking/QRScanner'));
 
 export default function TrackingPage() {
+  const { t } = useNgonNgu();
   const [searchParams, setSearchParams] = useSearchParams();
   const [code, setCode] = useState<string | null>(null);
   const history = useTrackingHistory();
@@ -50,7 +52,7 @@ export default function TrackingPage() {
       <PageBackground anh="bg-lang-noi.webp" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Tra cứu tiến độ</h1>
+        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">{t('track.title')}</h1>
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
           Nhập mã 6 ký tự trên phiếu tiếp nhận hoặc quét mã QR để xem trạng thái xử lý.
         </p>

@@ -1,6 +1,21 @@
 -- ============================================================================
 -- 10 TIN CẬP NHẬT NGÀY HÔM NAY — LÀM PHONG PHÚ MỤC TIN TỨC
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- BƯỚC 0 — CHỌN ĐÚNG CƠ SỞ DỮ LIỆU
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ KHÔNG CÓ DÒNG NÀY THÌ BÁO LỖI "No database selected".
+--
+-- HeidiSQL không tự biết chạy vào cơ sở dữ liệu nào, nên phải nói rõ. Cách
+-- khác: bấm đúp vào tên cơ sở dữ liệu ở khung bên trái cho tên đậm lên, rồi
+-- mới bấm F9.
+--
+-- Tên cơ sở dữ liệu của đơn vị khác thì sửa dòng dưới cho khớp (xem biến
+-- DB_NAME trong tệp server/.env).
+USE hop_thu_an_ninh_so;
+
 --
 -- Nội dung viết lại theo tinh thần các cảnh báo, thông báo thời sự đang lưu
 -- hành (không sao chép nguyên văn từ bất kỳ nguồn nào), phù hợp giọng văn của
@@ -29,7 +44,7 @@ VALUES
 ('Ra quân bảo đảm trật tự an toàn giao thông dịp lễ, Tết', 'Lực lượng chức năng đồng loạt kiểm tra, xử lý vi phạm về nồng độ cồn, tốc độ và các lỗi vi phạm giao thông khác trên các tuyến đường trọng điểm.', 'Thực hiện chỉ đạo bảo đảm trật tự an toàn giao thông trong các dịp cao điểm, lực lượng cảnh sát giao thông đã ra quân kiểm tra, xử lý nghiêm các hành vi vi phạm như điều khiển phương tiện sau khi uống rượu bia, chạy quá tốc độ, không đội mũ bảo hiểm. Việc kiểm tra được thực hiện đồng loạt tại nhiều tuyến đường trọng điểm nhằm kéo giảm tai nạn giao thông.\n\nBà con khi tham gia giao thông cần chấp hành nghiêm quy định, không điều khiển phương tiện khi đã uống rượu bia để bảo đảm an toàn cho bản thân và người xung quanh.', 'security', NULL, 'Công an thị xã Tân Châu', NULL, FALSE, TRUE, 0, CURDATE()),
 ('Hướng dẫn thủ tục đăng ký tạm trú, tạm vắng qua ứng dụng VNeID', 'Người dân có thể thực hiện thủ tục đăng ký tạm trú, tạm vắng trực tuyến qua ứng dụng VNeID mà không cần tới trực tiếp trụ sở công an.', 'Để tạo thuận lợi cho người dân, thủ tục đăng ký tạm trú và khai báo tạm vắng hiện có thể thực hiện trực tuyến qua ứng dụng định danh điện tử VNeID. Người dân cần có tài khoản định danh mức 2, sau đó vào mục thủ tục hành chính, chọn đúng loại thủ tục cần đăng ký và làm theo hướng dẫn trên ứng dụng.\n\nTrường hợp chưa có tài khoản định danh điện tử hoặc gặp khó khăn khi thao tác, bà con có thể tới trực tiếp trụ sở Công an thị xã hoặc công an xã, phường nơi cư trú để được cán bộ hướng dẫn và hỗ trợ thực hiện.', 'guide', NULL, 'Công an thị xã Tân Châu', NULL, FALSE, TRUE, 0, CURDATE()),
 ('Hướng dẫn các bước làm lại căn cước công dân khi mất hoặc hư hỏng', 'Người dân bị mất hoặc hỏng căn cước công dân cần chuẩn bị giấy tờ gì và thực hiện thủ tục ở đâu để được cấp lại nhanh chóng.', 'Trường hợp căn cước công dân bị mất, hư hỏng hoặc hết hạn, người dân đến trực tiếp cơ quan công an cấp huyện, thị xã nơi thường trú hoặc tạm trú để làm thủ tục cấp lại. Cần mang theo sổ hộ khẩu hoặc giấy tờ chứng minh nơi cư trú, và có thể đặt lịch hẹn trước qua tổng đài hoặc ứng dụng VNeID để giảm thời gian chờ.\n\nSau khi hoàn tất thủ tục, người dân sẽ nhận được giấy hẹn trả kết quả và có thể tra cứu tiến độ xử lý căn cước qua Cổng dịch vụ công.', 'guide', NULL, 'Công an thị xã Tân Châu', NULL, FALSE, TRUE, 0, CURDATE()),
-('Thông báo lịch tiếp công dân định kỳ của Công an thị xã Tân Châu', 'Công an thị xã bố trí lịch tiếp công dân định kỳ để lắng nghe phản ánh, kiến nghị và giải quyết các thủ tục hành chính.', 'Nhằm tạo điều kiện thuận lợi cho người dân trong việc phản ánh, kiến nghị cũng như giải quyết các thủ tục hành chính, Công an thị xã Tân Châu thông báo lịch tiếp công dân định kỳ vào các ngày làm việc trong tuần tại trụ sở đơn vị.\n\nBà con có nhu cầu phản ánh, kiến nghị hoặc cần hướng dẫn thủ tục có thể đến trực tiếp trụ sở trong giờ hành chính, hoặc gửi ý kiến qua Hộp Thư An Ninh Số để được tiếp nhận và xử lý theo đúng quy trình.', 'document', NULL, 'Công an thị xã Tân Châu', NULL, FALSE, TRUE, 0, CURDATE());
+('Thông báo lịch tiếp công dân định kỳ của Công an thị xã Tân Châu', 'Công an thị xã bố trí lịch tiếp công dân định kỳ để lắng nghe phản ánh, kiến nghị và giải quyết các thủ tục hành chính.', 'Nhằm tạo điều kiện thuận lợi cho người dân trong việc phản ánh, kiến nghị cũng như giải quyết các thủ tục hành chính, Công an thị xã Tân Châu thông báo lịch tiếp công dân định kỳ vào các ngày làm việc trong tuần tại trụ sở đơn vị.\n\nBà con có nhu cầu phản ánh, kiến nghị hoặc cần hướng dẫn thủ tục có thể đến trực tiếp trụ sở trong giờ hành chính, hoặc gửi ý kiến qua Điểm Chạm An Ninh để được tiếp nhận và xử lý theo đúng quy trình.', 'document', NULL, 'Công an thị xã Tân Châu', NULL, FALSE, TRUE, 0, CURDATE());
 
 -- ============================================================================
 -- KIỂM TRA SAU KHI CHẠY

@@ -1,5 +1,5 @@
 -- =====================================================================
--- NẠP LẠI TIN TỨC — Hộp Thư An Ninh Số
+-- NẠP LẠI TIN TỨC — Điểm Chạm An Ninh
 -- Dùng khi trang Tin tức trống trơn (bảng news rỗng).
 -- Cách chạy: HeidiSQL -> chọn database hop_thu_an_ninh_so
 --            -> File -> Load SQL file -> chọn file này -> bấm F9

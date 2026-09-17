@@ -3,6 +3,7 @@
  */
 import { motion } from 'framer-motion';
 import { Clock, Mail, MapPin, Phone, ShieldCheck, Siren, Sparkles, Workflow, PlayCircle } from 'lucide-react';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import Card from '../components/common/Card';
 import { UNIT } from '../utils/constants';
 import PageBackground from '../components/common/PageBackground';
@@ -28,6 +29,7 @@ const PROCESS_STEPS = [
 ];
 
 export default function AboutPage() {
+  const { t } = useNgonNgu();
   return (
     <>
       <PageBackground anh="bg-nui-sam.webp" />
@@ -52,7 +54,7 @@ export default function AboutPage() {
           className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-primary-300 px-4 py-2.5 text-sm font-bold text-primary-700 transition hover:bg-primary-50 dark:border-primary-700 dark:text-primary-300 dark:hover:bg-primary-900/20"
         >
           <PlayCircle className="h-4 w-4" />
-          Xem lại hướng dẫn sử dụng
+          {t('about.replayGuide')}
         </button>
       </div>
 
@@ -60,7 +62,7 @@ export default function AboutPage() {
       <Reveal>
       <section className="mb-10">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800 dark:text-slate-100">
-          <Workflow className="h-5 w-5 text-primary-600" /> Quy trình xử lý
+          <Workflow className="h-5 w-5 text-primary-600" /> {t('about.process')}
         </h2>
         <div className="space-y-3">
           {PROCESS_STEPS.map((s, idx) => (

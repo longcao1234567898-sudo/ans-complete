@@ -7,13 +7,16 @@ import { motion } from 'framer-motion';
 import Magnetic from '../common/Magnetic';
 import { Link } from 'react-router-dom';
 import { Bot, Clock3, Mail, QrCode, Search, ShieldCheck, Zap } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
+import type { KhoaChu } from '../../i18n/chu';
 
 /** 4 thẻ tính năng nổi bật */
 const STATS = [
-  { Icon: Clock3, title: '24/7', sub: 'Tiếp nhận trực tuyến', color: 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300' },
-  { Icon: Bot, title: 'Tự động phân loại', sub: 'Nhanh, giải thích rõ', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
-  { Icon: Zap, title: '1 phút', sub: 'Gửi ý kiến nhanh gọn', color: 'bg-accent-100 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500' },
-  { Icon: ShieldCheck, title: 'Bảo mật', sub: 'Thông tin được bảo vệ', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
+  /* khoaT / khoaS: mã tra bản dịch. Giữ title/sub tiếng Việt làm bản dự phòng. */
+  { Icon: Clock3, title: '24/7', khoaT: 'home.badge.247t', sub: 'Tiếp nhận trực tuyến', khoaS: 'home.badge.247', color: 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300' },
+  { Icon: Bot, title: 'Tự động phân loại', khoaT: 'home.badge.auto', sub: 'Nhanh, giải thích rõ', khoaS: 'home.badge.autoSub', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
+  { Icon: Zap, title: '1 phút', khoaT: 'home.badge.fast', sub: 'Gửi ý kiến nhanh gọn', khoaS: 'home.badge.fastSub', color: 'bg-accent-100 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500' },
+  { Icon: ShieldCheck, title: 'Bảo mật', khoaT: 'home.badge.secure', sub: 'Thông tin được bảo vệ', khoaS: 'home.badge.secureSub', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
 ];
 
 /** Dải cam kết dưới cùng */
@@ -37,6 +40,7 @@ function UnitEmblem({ className }: { className?: string }) {
 }
 
 export default function HeroSection() {
+  const { t } = useNgonNgu();
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
       {/* NỀN VIDEO chuyển động — GIỮ NGUYÊN cho riêng trang chủ.
@@ -109,7 +113,7 @@ export default function HeroSection() {
 
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
           <h1 id="hero-title" className="mx-auto max-w-4xl text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
-            <span className="text-gradient">HỘP THƯ AN NINH SỐ</span>
+            <span className="text-gradient">{t('home.title')}</span>
             {/* Đã gỡ huy hiệu "AI" cạnh tên hệ thống.
                   AI nay chỉ còn ở trợ lý hỏi đáp, không tham gia phân loại ý
                   kiến nữa. Để chữ AI cạnh tên là nói quá vai trò của nó, dễ bị
@@ -117,7 +121,7 @@ export default function HeroSection() {
           </h1>
 
           <p className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
-            Tiếp nhận ý kiến công dân trực tuyến — gửi trong 1 phút, theo dõi tiến độ mọi lúc.
+            {t('home.subtitle')}
           </p>
 
           {/* 2 nút CTA 2 dòng */}
@@ -132,8 +136,8 @@ export default function HeroSection() {
                   <Mail className="icon-pop h-5 w-5" aria-hidden />
                 </span>
                 <span>
-                  <span className="block text-base font-bold leading-tight">Gửi ý kiến ngay</span>
-                  <span className="block text-[11px] text-white/85">Gửi phản ánh, kiến nghị</span>
+                  <span className="block text-base font-bold leading-tight">{t('home.cta.send')}</span>
+                  <span className="block text-[11px] text-white/85">{t('home.cta.sendSub')}</span>
                 </span>
               </Link>
             </Magnetic>
@@ -147,8 +151,8 @@ export default function HeroSection() {
                   <Search className="icon-pop h-5 w-5" aria-hidden />
                 </span>
                 <span>
-                  <span className="block text-base font-bold leading-tight">Tra cứu kết quả</span>
-                  <span className="block text-[11px] text-white/85">Theo dõi tiến độ xử lý</span>
+                  <span className="block text-base font-bold leading-tight">{t('home.cta.track')}</span>
+                  <span className="block text-[11px] text-white/85">{t('home.cta.trackSub')}</span>
                 </span>
               </Link>
             </Magnetic>
@@ -156,12 +160,12 @@ export default function HeroSection() {
 
           {/* Dải 4 thẻ tính năng */}
           <div className="mx-auto mt-8 grid max-w-3xl grid-cols-2 gap-3 lg:grid-cols-4">
-            {STATS.map(({ Icon, title, sub, color }, idx) => (
+            {STATS.map(({ Icon, title, sub, color, khoaT, khoaS }, idx) => (
               <motion.div key={title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + idx * 0.1 }} className="flex items-center gap-3 rounded-2xl bg-white/90 p-3.5 text-left shadow-soft dark:bg-slate-900/90">
                 <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" aria-hidden /></span>
                 <span>
-                  <span className="block text-sm font-extrabold text-slate-800 dark:text-slate-100">{title}</span>
-                  <span className="block text-[11px] leading-tight text-slate-500 dark:text-slate-400">{sub}</span>
+                  <span className="block text-sm font-extrabold text-slate-800 dark:text-slate-100">{khoaT ? t(khoaT as KhoaChu) : title}</span>
+                  <span className="block text-[11px] leading-tight text-slate-500 dark:text-slate-400">{khoaS ? t(khoaS as KhoaChu) : sub}</span>
                 </span>
               </motion.div>
             ))}
