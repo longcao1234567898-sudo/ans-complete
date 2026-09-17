@@ -25,6 +25,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Rocket, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
+import type { KhoaChu } from '../../i18n/chu';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 
 /** Khoá nhớ đã xem hướng dẫn. */
 const KHOA = STORAGE_KEYS.daXemHuongDan ?? 'ans_da_xem_huong_dan';
@@ -33,10 +35,11 @@ const KHOA = STORAGE_KEYS.daXemHuongDan ?? 'ans_da_xem_huong_dan';
 const HAN_HIEN_LAI_MS = 60 * 60 * 1000;
 
 interface Buoc {
-  /** Tiêu đề in đậm trên thẻ hướng dẫn */
-  tieuDe: string;
-  /** Lời giải thích, viết như nói chuyện với bà con */
-  noiDung: string;
+  /** Khoá tra bản dịch cho tiêu đề. Trước đây viết thẳng chữ tiếng Việt vào
+      đây nên người nước ngoài đổi sang tiếng Anh vẫn nghe và đọc tiếng Việt. */
+  khoaTieuDe: KhoaChu;
+  /** Khoá tra bản dịch cho lời giải thích */
+  khoaNoiDung: KhoaChu;
   /** Đường dẫn cần mở để thấy phần đang nói tới. Bỏ trống = giữ nguyên trang. */
   duong?: string;
   /** Bộ chọn phần tử cần làm nổi bật. Không tìm thấy thì chỉ hiện thẻ, không sao. */
@@ -49,87 +52,65 @@ interface Buoc {
 
 const BUOC_MAY_TINH: Buoc[] = [
   {
-    tieuDe: 'Chào mừng đến với Điểm Chạm An Ninh',
-    noiDung: 'Đây là nơi bà con gửi ý kiến, phản ánh hoặc tố giác tội phạm tới công an. '
-           + 'Bấm vào mục Gửi ý kiến trên thanh menu để bắt đầu.',
-    duong: '/',
+    khoaTieuDe: 'hd.b1t',
+    khoaNoiDung: 'hd.b1n',    duong: '/',
     chon: 'a[href="/gui-y-kien"]',
   },
   {
-    tieuDe: 'Ô kể sự việc',
-    noiDung: 'Bà con gõ vào ô này, kể ngắn gọn chuyện muốn báo. Không cần đúng chính tả '
-           + 'hay dấu câu, cứ kể như nói chuyện bình thường.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b2t',
+    khoaNoiDung: 'hd.b2n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="o-noi-dung"]',
   },
   {
-    tieuDe: 'Nút micro — nói thay vì gõ',
-    noiDung: 'Bà con ngại gõ phím thì bấm nút này rồi nói. Máy tự chuyển lời nói thành '
-           + 'chữ. Nói xong bấm lại nút để dừng.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b3t',
+    khoaNoiDung: 'hd.b3n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="nut-micro"]',
   },
   {
-    tieuDe: 'Nút chụp ảnh',
-    noiDung: 'Có hình ảnh làm bằng chứng thì bấm nút này, máy mở thẳng camera. '
-           + 'Ảnh được tự động xoá vị trí GPS trước khi gửi.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b4t',
+    khoaNoiDung: 'hd.b4n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="nut-chup-anh"]',
   },
   {
-    tieuDe: 'Nút gửi vị trí vụ việc',
-    noiDung: 'Bà con đang đứng tại nơi xảy ra sự việc thì bấm nút này, cán bộ sẽ biết '
-           + 'chính xác chỗ nào, khỏi phải dò hỏi. Không bắt buộc.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b5t',
+    khoaNoiDung: 'hd.b5n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="nut-vi-tri"]',
   },
   {
-    tieuDe: 'Bước 2 — Máy đọc lại cho bà con nghe',
-    noiDung: 'Hệ thống sắp xếp lại lời bà con vừa kể cho rõ ràng. Bà con xem có đúng ý '
-           + 'không, bấm nút Nghe để nghe đọc to.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b6t',
+    khoaNoiDung: 'hd.b6n',    duong: '/gui-y-kien',
     buocForm: 2,
   },
   {
-    tieuDe: 'Bước 3 — Chọn loại việc',
-    noiDung: 'Bấm vào một trong bốn thẻ này. Máy đã gợi ý sẵn thẻ phù hợp, đúng rồi thì '
-           + 'bà con chỉ việc bấm đi tiếp.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b7t',
+    khoaNoiDung: 'hd.b7n',    duong: '/gui-y-kien',
     buocForm: 3,
     chon: '[data-hd="the-nhom"]',
   },
   {
-    tieuDe: 'Bước 4 — Cho công an cách liên hệ',
-    noiDung: 'Bà con điền họ tên và số điện thoại để cán bộ gọi lại báo kết quả. '
-           + 'Email không bắt buộc.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b8t',
+    khoaNoiDung: 'hd.b8n',    duong: '/gui-y-kien',
     buocForm: 4,
   },
   {
-    tieuDe: 'Ô gửi ẩn danh',
-    noiDung: 'Bà con lo bị trả thù thì bấm vào ô này. Không cần cho tên, không cần số '
-           + 'điện thoại. Vẫn có mã tra cứu để xem kết quả. Chỉ có ở nhóm tố giác tội phạm.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b9t',
+    khoaNoiDung: 'hd.b9n',    duong: '/gui-y-kien',
     buocForm: 4,
     chon: '[data-hd="o-an-danh"]',
   },
   {
-    tieuDe: 'Bước 5 — Nút gửi',
-    noiDung: 'Bà con đọc lại lần cuối rồi bấm nút này để gửi. Xong sẽ có mã tra cứu, '
-           + 'nhớ lưu lại để xem tiến độ xử lý.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b10t',
+    khoaNoiDung: 'hd.b10n',    duong: '/gui-y-kien',
     buocForm: 5,
     chon: '[data-hd="nut-gui"]',
   },
   {
-    tieuDe: 'Mục Tra cứu và Tin tức',
-    noiDung: 'Mục Tra cứu để xem ý kiến đã gửi xử lý tới đâu. Mục Tin tức có tin cảnh '
-           + 'giác lừa đảo. Bà con đã nắm được cách dùng rồi!',
-    duong: '/',
+    khoaTieuDe: 'hd.b11t',
+    khoaNoiDung: 'hd.b11n',    duong: '/',
     chon: 'a[href="/tra-cuu"]',
   },
 ];
@@ -147,98 +128,77 @@ const BUOC_MAY_TINH: Buoc[] = [
    Phần giữa (các bước trong biểu mẫu) giống nhau vì biểu mẫu cùng bố cục. */
 const BUOC_DIEN_THOAI: Buoc[] = [
   {
-    tieuDe: 'Chào mừng đến với Điểm Chạm An Ninh',
-    noiDung: 'Đây là nơi bà con gửi ý kiến, phản ánh hoặc tố giác tội phạm tới công an. '
-           + 'Thanh chức năng nằm ở dưới chân màn hình.',
-    duong: '/',
+    khoaTieuDe: 'hd.b12t',
+    khoaNoiDung: 'hd.b12n',    duong: '/',
     chon: '[data-tab-bar]',
   },
   {
-    tieuDe: 'Nút Gửi ý kiến ở thanh dưới',
-    noiDung: 'Bà con bấm vào nút này ở thanh dưới chân màn hình để bắt đầu gửi.',
-    duong: '/',
+    khoaTieuDe: 'hd.b13t',
+    khoaNoiDung: 'hd.b13n',    duong: '/',
     chon: '[data-tab="/gui-y-kien"]',
   },
   {
-    tieuDe: 'Ô kể sự việc',
-    noiDung: 'Bà con gõ vào ô này, kể ngắn gọn chuyện muốn báo. Không cần đúng chính tả '
-           + 'hay dấu câu, cứ kể như nói chuyện bình thường.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b2t',
+    khoaNoiDung: 'hd.b2n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="o-noi-dung"]',
   },
   {
-    tieuDe: 'Nút micro — nói thay vì gõ',
-    noiDung: 'Bà con ngại gõ phím thì bấm nút này rồi nói. Máy tự chuyển lời nói thành '
-           + 'chữ. Nói xong bấm lại nút để dừng.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b3t',
+    khoaNoiDung: 'hd.b3n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="nut-micro"]',
   },
   {
-    tieuDe: 'Nút chụp ảnh',
-    noiDung: 'Có hình ảnh làm bằng chứng thì bấm nút này, máy mở thẳng camera của điện '
-           + 'thoại. Ảnh được tự động xoá vị trí GPS trước khi gửi.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b14t',
+    khoaNoiDung: 'hd.b14n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="nut-chup-anh"]',
   },
   {
-    tieuDe: 'Nút gửi vị trí vụ việc',
-    noiDung: 'Bà con đang đứng tại nơi xảy ra sự việc thì bấm nút này, cán bộ sẽ biết '
-           + 'chính xác chỗ nào, khỏi phải dò hỏi. Không bắt buộc.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b5t',
+    khoaNoiDung: 'hd.b5n',    duong: '/gui-y-kien',
     buocForm: 1,
     chon: '[data-hd="nut-vi-tri"]',
   },
   {
-    tieuDe: 'Bước 2 — Máy đọc lại cho bà con nghe',
-    noiDung: 'Hệ thống sắp xếp lại lời bà con vừa kể cho rõ ràng. Bà con xem có đúng ý '
-           + 'không, bấm nút Nghe để nghe đọc to.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b6t',
+    khoaNoiDung: 'hd.b6n',    duong: '/gui-y-kien',
     buocForm: 2,
   },
   {
-    tieuDe: 'Bước 3 — Chọn loại việc',
-    noiDung: 'Bấm vào một trong bốn thẻ này. Máy đã gợi ý sẵn thẻ phù hợp, đúng rồi thì '
-           + 'bà con chỉ việc bấm đi tiếp.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b7t',
+    khoaNoiDung: 'hd.b7n',    duong: '/gui-y-kien',
     buocForm: 3,
     chon: '[data-hd="the-nhom"]',
   },
   {
-    tieuDe: 'Bước 4 — Cho công an cách liên hệ',
-    noiDung: 'Bà con điền họ tên và số điện thoại để cán bộ gọi lại báo kết quả. '
-           + 'Email không bắt buộc.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b8t',
+    khoaNoiDung: 'hd.b8n',    duong: '/gui-y-kien',
     buocForm: 4,
   },
   {
-    tieuDe: 'Ô gửi ẩn danh',
-    noiDung: 'Bà con lo bị trả thù thì bấm vào ô này. Không cần cho tên, không cần số '
-           + 'điện thoại. Vẫn có mã tra cứu để xem kết quả.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b15t',
+    khoaNoiDung: 'hd.b15n',    duong: '/gui-y-kien',
     buocForm: 4,
     chon: '[data-hd="o-an-danh"]',
   },
   {
-    tieuDe: 'Bước 5 — Nút gửi',
-    noiDung: 'Bà con đọc lại lần cuối rồi bấm nút này để gửi. Xong sẽ có mã tra cứu, '
-           + 'nhớ lưu lại để xem tiến độ xử lý.',
-    duong: '/gui-y-kien',
+    khoaTieuDe: 'hd.b10t',
+    khoaNoiDung: 'hd.b10n',    duong: '/gui-y-kien',
     buocForm: 5,
     chon: '[data-hd="nut-gui"]',
   },
   {
-    tieuDe: 'Nút Tra cứu ở thanh dưới',
-    noiDung: 'Bấm nút này ở thanh dưới để xem ý kiến đã gửi xử lý tới đâu. Các mục khác '
-           + 'nằm trong nút ba gạch ở góc trên. Bà con đã nắm được cách dùng rồi!',
-    duong: '/',
+    khoaTieuDe: 'hd.b16t',
+    khoaNoiDung: 'hd.b16n',    duong: '/',
     chon: '[data-tab="/tra-cuu"]',
   },
 ];
 
 export default function HuongDanBanDau() {
+  /* Đặt tên là dich chứ không phải t: trong tệp này t đã dùng cho bộ hẹn giờ. */
+  const { t: dich, ngonNgu } = useNgonNgu();
   const [hien, setHien] = useState(false);
   const [buoc, setBuoc] = useState(0);
   /* CHỌN BỘ BƯỚC THEO KÍCH THƯỚC MÀN HÌNH.
@@ -285,8 +245,22 @@ export default function HuongDanBanDau() {
     } catch {
       return;   // trình duyệt chặn lưu trữ -> không hiện, tránh hiện lại mỗi lần
     }
+    /* ⚠️ KHÔNG TỰ HIỆN khi bà con đang ở trang gửi ý kiến.
+
+       Lỗi đã xảy ra thật: hướng dẫn tự hiện mỗi giờ, gặp lúc bà con đang viết
+       thì cắt ngang, chèn dữ liệu mẫu và khoá nút gửi. Đang làm việc mà bị cắt
+       ngang là phiền nhất, còn tệ hơn không có hướng dẫn.
+
+       Hướng dẫn chỉ tự hiện ở trang khác; muốn xem khi đang ở trang gửi thì
+       bấm "Xem lại hướng dẫn" ở trang Giới thiệu — lúc đó là chủ động. */
     const t = setTimeout(() => {
       if (daHuy) return;
+      /* ⚠️ KIỂM ĐƯỜNG DẪN ĐÚNG LÚC ĐỊNH HIỆN, không phải lúc trang mới mở.
+
+         Kiểm lúc mở thì sai: bà con mở trang chủ rồi bấm sang gửi ý kiến trong
+         vòng một giây, hẹn giờ đã đặt xong nên hướng dẫn vẫn nhảy ra giữa lúc
+         họ bắt đầu viết. */
+      if (window.location.pathname.startsWith('/gui-y-kien')) return;
       setBoBuoc(window.innerWidth < 768 ? BUOC_DIEN_THOAI : BUOC_MAY_TINH);
       setHien(true);
     }, 1200);
@@ -384,12 +358,12 @@ export default function HuongDanBanDau() {
     if (!hien) return;
     dungDoc();
     const b = boBuoc[buoc];
-    const loi = `${b.tieuDe}. ${b.noiDung}`;
+    const loi = `${dich(b.khoaTieuDe)}. ${dich(b.khoaNoiDung)}`;
     /* Chờ một nhịp cho thẻ hiện ra rồi mới đọc, tránh đọc khi màn hình còn
        đang chuyển — bà con nghe tiếng mà chưa thấy chữ thì bối rối. */
     const t = setTimeout(() => {
       setDangDoc(true);
-      dieuKhienDoc.current = docTiengViet(loi, () => setDangDoc(false));
+      dieuKhienDoc.current = docTiengViet(loi, () => setDangDoc(false), ngonNgu);
     }, 500);
     return () => { clearTimeout(t); dungDoc(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -535,7 +509,7 @@ export default function HuongDanBanDau() {
               {buoc + 1}/{boBuoc.length}
             </span>
             <h3 className="text-base font-extrabold leading-snug text-slate-800 dark:text-slate-100">
-              {laCuoi ? 'Hoàn tất hướng dẫn' : b.tieuDe}
+              {laCuoi ? dich('hd.done') : dich(b.khoaTieuDe)}
             </h3>
           </div>
 
@@ -547,8 +521,8 @@ export default function HuongDanBanDau() {
 
           <p className="mb-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {laCuoi
-              ? 'Bà con đã nắm được các bước cơ bản. Hãy bắt đầu gửi ý kiến ngay bây giờ!'
-              : b.noiDung}
+              ? dich('hd.doneMsg')
+              : dich(b.khoaNoiDung)}
           </p>
 
           {/* Nút nghe lại hoặc dừng — cho người muốn nghe kỹ, và cho người
@@ -560,23 +534,23 @@ export default function HuongDanBanDau() {
               const b2 = boBuoc[buoc];
               setDangDoc(true);
               dieuKhienDoc.current = docTiengViet(
-                `${b2.tieuDe}. ${b2.noiDung}`, () => setDangDoc(false));
+                `${dich(b2.khoaTieuDe)}. ${dich(b2.khoaNoiDung)}`, () => setDangDoc(false), ngonNgu);
             }}
             className="mb-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700 transition hover:bg-primary-100 dark:bg-primary-900/25 dark:text-primary-300"
           >
             {dangDoc ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {dangDoc ? 'Dừng đọc' : 'Nghe lại'}
+            {dangDoc ? dich('hd.stopRead') : dich('hd.listenAgain')}
           </button>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={dong}
-              aria-label={laCuoi ? 'Đóng hướng dẫn' : 'Bỏ qua hướng dẫn'}
+              aria-label={laCuoi ? dich('common.close') : dich('common.skip')}
               data-huong-dan="bo-qua"
               className="min-h-[44px] flex-1 rounded-xl border-2 border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              {laCuoi ? 'Đóng' : 'Bỏ qua'}
+              {laCuoi ? dich('common.close') : dich('common.skip')}
             </button>
             <button
               type="button"
@@ -584,11 +558,13 @@ export default function HuongDanBanDau() {
                 if (laCuoi) { dong(); navigate('/gui-y-kien'); }
                 else setBuoc((i) => i + 1);
               }}
-              aria-label={laCuoi ? 'Bắt đầu gửi ý kiến' : 'Bước tiếp theo của hướng dẫn'}
+              aria-label={laCuoi ? dich('hd.start') : dich('common.next')}
               data-huong-dan="tiep-tuc"
               className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
             >
-              {laCuoi ? <><Rocket className="h-4 w-4" /> Bắt đầu</> : <>Tiếp tục <ArrowRight className="h-4 w-4" /></>}
+              {laCuoi
+                ? <><Rocket className="h-4 w-4" /> {dich('hd.start')}</>
+                : <>{dich('common.next')} <ArrowRight className="h-4 w-4" /></>}
             </button>
           </div>
 

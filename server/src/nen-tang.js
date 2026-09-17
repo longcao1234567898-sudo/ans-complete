@@ -85,7 +85,25 @@ export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
   /* 32mb: đủ cho một video 20MB sau khi mã hoá base64 (tăng khoảng 33%) cộng
    phần nội dung và ảnh. Trước đây 12mb nên video vừa gửi đã bị từ chối. */
 app.use(express.json({ limit: '32mb' }));
-  app.use(cookieParser());
+  /* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
+
+   ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
+   trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
+   được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
+   kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
+
+   Nay nói thẳng nguyên nhân và cách làm tiếp. */
+app.use((err, _req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
+           + 'quay đoạn ngắn hơn, rồi gửi lại.',
+    });
+  }
+  return next(err);
+});
+
+app.use(cookieParser());
   app.use(rateLimit({ windowMs: 15 * 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
 
   // Health check — mỗi máy chủ tự khai tên để phân biệt khi tách

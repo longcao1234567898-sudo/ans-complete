@@ -72,6 +72,18 @@ export default function SendFeedbackPage() {
          setDraft cũng dùng dạng hàm để lấy đúng bản nháp hiện tại. */
       if (nhapThat.current === null) {
         setDraft((hienTai) => {
+          /* ⚠️ BÀ CON ĐANG GÕ DỞ THÌ TUYỆT ĐỐI KHÔNG ĐÈ.
+
+             Lỗi đã xảy ra thật: vòng hướng dẫn tự hiện mỗi giờ, gặp lúc bà con
+             đang viết thì chèn dữ liệu mẫu đè lên chữ họ vừa gõ. Công sức mất
+             sạch mà không hiểu vì sao.
+
+             Có nội dung rồi thì giữ nguyên, chỉ xem hướng dẫn trên chính nội
+             dung đó. */
+          if (hienTai.content.trim().length > 0) {
+            nhapThat.current = hienTai;
+            return hienTai;
+          }
           nhapThat.current = hienTai;
           return {
             content: 'Tối qua khoảng 9 giờ, tôi thấy có nhóm thanh niên tụ tập gây mất trật tự ở gần chợ.',
@@ -98,6 +110,15 @@ export default function SendFeedbackPage() {
     return () => {
       window.removeEventListener('ans:huong-dan-buoc', chuyenBuoc);
       window.removeEventListener('ans:huong-dan-ket-thuc', ketThuc);
+      /* ⚠️ MỞ KHOÁ KHI RỜI TRANG — chặn lỗi nút gửi im lặng không làm gì.
+
+         Lỗi đã xảy ra thật: hướng dẫn khoá nút gửi trong lúc xem, và chỉ mở
+         khoá khi bà con bấm nút đóng. Bà con rời trang giữa chừng thì lệnh mở
+         khoá không bao giờ chạy — quay lại bấm gửi, nút không phản ứng gì,
+         không báo lỗi, không biết vì sao.
+
+         Nay dọn dẹp ngay lúc rời trang nên khoá không bao giờ kẹt. */
+      ketThuc();
     };
   }, []);
 

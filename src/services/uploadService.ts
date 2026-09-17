@@ -133,6 +133,25 @@ export async function prepareVideo(dataUrl: string | null | undefined): Promise<
     const { url } = await uploadVideoToCloudinary(dataUrl);
     return url;
   } catch (e) {
+    /* ⚠️ QUAY VỀ GỬI THẲNG CHỈ KHI VIDEO ĐỦ NHỎ.
+
+       Lỗi đã xảy ra thật: cấu hình kho ảnh của đơn vị chỉ cho phép ẢNH, từ
+       chối video với thông báo "Image file format mp4 not allowed". Mã cũ gặp
+       lỗi thì lặng lẽ gửi thẳng cả video 50MB — chuỗi phình lên ~67MB, vượt
+       giới hạn 32MB của máy chủ, nên máy chủ từ chối CẢ GÓI. Kết quả: không
+       chỉ video hỏng mà Ý KIẾN CŨNG KHÔNG GỬI ĐƯỢC, bà con bấm gửi mà không
+       thấy gì xảy ra.
+
+       Nay video quá lớn thì BỎ VIDEO và vẫn gửi ý kiến. Mất video còn hơn mất
+       cả tin báo — nội dung mới là thứ quan trọng nhất.
+
+       Cách sửa tận gốc: vào trang quản lý kho ảnh, mở cấu hình tải lên và cho
+       phép định dạng video (hoặc đặt kiểu tài nguyên là "auto"). */
+    const TRAN_BYTE = 20 * 1024 * 1024;   // ~15MB tệp thật sau khi mã hoá
+    if (dataUrl.length > TRAN_BYTE) {
+      console.warn('Kho ảnh từ chối video và video quá lớn để gửi thẳng — bỏ video:', e);
+      return null;
+    }
     console.warn('Không tải được video lên kho ảnh, gửi thẳng:', e);
     return dataUrl;
   }

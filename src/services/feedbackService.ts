@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 /**
  * Dịch vụ gửi ý kiến (MOCK — lưu localStorage) kèm cơ chế CHỐNG SPAM:
  * - Phải chờ tối thiểu 2 phút giữa 2 lần gửi
@@ -94,6 +95,14 @@ function saveSubmissions(list: FeedbackSubmission[], newest: FeedbackSubmission)
 
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
 export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubmission> {
+    /* Chuẩn bị video TRƯỚC khi dựng gói, để báo cho bà con biết nếu video bị
+       bỏ. Bỏ im lặng thì họ tưởng đã gửi được video, tới lúc cán bộ hỏi lại
+       mới biết là không có. */
+    const videoDaChuanBi = await prepareVideo(draft.video);
+    if (draft.video && !videoDaChuanBi) {
+      toast.error('Video quá lớn nên không gửi kèm được. Ý kiến của bà con vẫn được gửi bình thường.', { duration: 7000 });
+    }
+
   await delay(1100);
 
   // Tuyến phòng thủ thứ 2: làm sạch + quét lại toàn bộ văn bản ngay trước khi lưu
@@ -151,7 +160,7 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         /* Video minh chứng — tải lên kho ảnh trước rồi chỉ gửi đường dẫn, để
            không nhồi hàng chục MB base64 vào database. Chưa cấu hình kho ảnh
            hoặc tải lỗi thì tự quay về gửi thẳng, không chặn bà con. */
-        video: await prepareVideo(draft.video),
+        video: videoDaChuanBi,
         /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
            Không bấm thì trường này rỗng, máy chủ bỏ qua. */
         viTri: draft.viTri ?? null,

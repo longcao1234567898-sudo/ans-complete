@@ -5,6 +5,7 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
+import { cloudinaryEnabled } from '../../services/uploadService';
 import NutGuiViTri from './NutGuiViTri';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
@@ -49,6 +50,22 @@ interface ContentInputProps {
    hoá lại, quá nặng cho điện thoại), nên đây là kích thước thật của tệp. */
 const MAX_VIDEO_MB = 50;
 
+/* GIỚI HẠN KHI CHƯA CẤU HÌNH KHO ẢNH.
+
+   ⚠️ LỖI ĐÃ XẢY RA THẬT VÀ RẤT KHÓ ĐOÁN:
+
+   Có kho ảnh thì video tải thẳng lên đó, máy chủ chỉ nhận một đường dẫn vài
+   chục ký tự — 50MB không vấn đề gì.
+
+   CHƯA cấu hình kho ảnh thì video đi kèm ngay trong gói dữ liệu dưới dạng
+   chuỗi, và chuỗi đó phình thêm khoảng một phần ba. Video 50MB thành gói ~67MB,
+   vượt giới hạn 32MB của máy chủ. Máy chủ từ chối CẢ GÓI, nên không chỉ video
+   hỏng mà Ý KIẾN CŨNG KHÔNG GỬI ĐƯỢC — bà con bấm gửi mà không thấy gì xảy ra.
+
+   Nay giới hạn tự co xuống 15MB khi chưa có kho ảnh, và giao diện nói rõ lý do
+   thay vì để bà con loay hoay. */
+const MAX_VIDEO_MB_KHONG_KHO = 15;
+
 const MIN_LENGTH = 10;
 /* GIỚI HẠN KÍCH THƯỚC TỆP TRƯỚC KHI NÉN.
 
@@ -86,9 +103,10 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       toast.error('Tệp này không phải video.');
       return;
     }
-    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+    const gioiHanMB = cloudinaryEnabled ? MAX_VIDEO_MB : MAX_VIDEO_MB_KHONG_KHO;
+    if (file.size > gioiHanMB * 1024 * 1024) {
       const mb = (file.size / 1024 / 1024).toFixed(0);
-      toast.error(`Video ${mb}MB, vượt quá ${MAX_VIDEO_MB}MB. Bà con quay đoạn ngắn hơn giúp.`, { duration: 6000 });
+      toast.error(`Video ${mb}MB, vượt quá ${gioiHanMB}MB. Bà con quay đoạn ngắn hơn giúp.`, { duration: 6000 });
       return;
     }
 
@@ -424,7 +442,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             className="hidden"
             aria-hidden
           />
-          <p className="mt-1.5 text-xs text-slate-400">{t('cn.toiDaMb').replace('{mb}', String(MAX_VIDEO_MB))}</p>
+          <p className="mt-1.5 text-xs text-slate-400">{t('cn.toiDaMb').replace('{mb}', String(cloudinaryEnabled ? MAX_VIDEO_MB : MAX_VIDEO_MB_KHONG_KHO))}</p>
         </div>
       )}
 
