@@ -43,6 +43,23 @@ export default function SendFeedbackPage() {
      thống, cán bộ phải mất công dọn. */
   const [dangHuongDan, setDangHuongDan] = useState(false);
 
+  /* CUỘN VỀ ĐẦU BIỂU MẪU MỖI KHI ĐỔI BƯỚC.
+
+     ⚠️ Lỗi đã xảy ra thật: bước 1 rất dài (ô nhập, ảnh, video, vị trí, mức
+     khẩn), bước 2 lại ngắn. Bấm tiếp tục thì trang co lại nhưng vị trí cuộn
+     giữ nguyên — rơi thẳng xuống chân trang. Bà con thấy phần liên hệ và mã QR
+     trong khi đáng lẽ phải thấy màn hình máy đang phân tích.
+
+     Bỏ qua lần đầu (bước 1) vì lúc đó bà con vừa mở trang, kéo lên đầu là thừa. */
+  const buocTruoc = useRef(step);
+  useEffect(() => {
+    if (buocTruoc.current === step) return;
+    buocTruoc.current = step;
+    const khu = document.querySelector('[data-khu-bieu-mau]');
+    if (khu) khu.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
   /* Bản nháp THẬT của bà con, cất tạm trong lúc xem hướng dẫn. */
   const nhapThat = useRef<typeof draft | null>(null);
 

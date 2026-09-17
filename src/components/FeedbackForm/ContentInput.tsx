@@ -5,7 +5,7 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
-import { cloudinaryEnabled, prepareVideo } from '../../services/uploadService';
+import { cloudinaryEnabled, prepareVideo, khoAnhNhanVideo } from '../../services/uploadService';
 import NutGuiViTri from './NutGuiViTri';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
@@ -89,6 +89,10 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
   const [processing, setProcessing] = useState(false);
   const [dangDocVideo, setDangDocVideo] = useState(false);
 
+  /* Giới hạn THẬT đang áp dụng: kho ảnh nhận video thì 50MB, không thì 15MB
+     vì lúc đó video đi kèm ngay trong gói dữ liệu và phình thêm một phần ba. */
+  const gioiHanVideoMB = khoAnhNhanVideo() ? MAX_VIDEO_MB : MAX_VIDEO_MB_KHONG_KHO;
+
   /* NHẬN VIDEO MINH CHỨNG.
 
      Khác ảnh, video KHÔNG nén được phía trình duyệt và cũng không xoá được
@@ -103,7 +107,7 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
       toast.error('Tệp này không phải video.');
       return;
     }
-    const gioiHanMB = cloudinaryEnabled ? MAX_VIDEO_MB : MAX_VIDEO_MB_KHONG_KHO;
+    const gioiHanMB = gioiHanVideoMB;
     if (file.size > gioiHanMB * 1024 * 1024) {
       const mb = (file.size / 1024 / 1024).toFixed(0);
       toast.error(`Video ${mb}MB, vượt quá ${gioiHanMB}MB. Bà con quay đoạn ngắn hơn giúp.`, { duration: 6000 });
@@ -474,7 +478,14 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
             className="hidden"
             aria-hidden
           />
-          <p className="mt-1.5 text-xs text-slate-400">{t('cn.toiDaMb').replace('{mb}', String(cloudinaryEnabled ? MAX_VIDEO_MB : MAX_VIDEO_MB_KHONG_KHO))}</p>
+          {/* Hiện GIỚI HẠN THẬT đang áp dụng, không phải con số lý thuyết.
+
+              Lỗi đã xảy ra thật: giao diện ghi "tối đa 50MB" trong khi kho ảnh
+              của đơn vị từ chối video, nên thực tế chỉ nhận được 15MB. Bà con
+              quay đoạn 40MB, chọn xong mới bị báo hỏng — mất công quay lại. */}
+          <p className="mt-1.5 text-xs text-slate-400">
+            {t('cn.toiDaMb').replace('{mb}', String(gioiHanVideoMB))}
+          </p>
         </div>
       )}
 

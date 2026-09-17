@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import PoliceAvatar from '../common/PoliceAvatar';
+import { useDangGo } from '../../hooks/useDangGo';
 
 interface ChatBubbleProps {
   open: boolean;
@@ -24,6 +25,8 @@ const MOC_DIEN_THOAI = 640;
 
 export default function ChatBubble({ open, onClick }: ChatBubbleProps) {
   const [laDienThoai, setLaDienThoai] = useState(false);
+  /* Ẩn khi đang gõ — cùng lý do với nút SOS, xem hooks/useDangGo.ts. */
+  const dangGo = useDangGo();
   /* Đổi khoá này là dựng lại nút, đưa về vị trí mặc định. Dùng khi xoay ngang
      máy hoặc đổi cỡ cửa sổ — chỗ đã kéo có thể nằm ngoài màn hình mới. */
   const [khoaDungLai, setKhoaDungLai] = useState(0);
@@ -72,8 +75,13 @@ export default function ChatBubble({ open, onClick }: ChatBubbleProps) {
     </>
   );
 
+  /* Đang gõ mà chat chưa mở thì ẩn nút. Chat ĐANG MỞ thì giữ nguyên, vì lúc
+     đó bà con gõ tin nhắn trong chính khung chat — ẩn nút đóng đi là kẹt. */
+  const anDi = dangGo && !open;
   const lopChung =
-    'fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full '
+    (anDi ? 'pointer-events-none opacity-0 ' : 'opacity-100 ')
+    + 'transition-opacity duration-200 '
+    + 'fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full '
     + 'bg-gradient-to-br from-primary-600 to-secondary-500 text-white '
     + 'shadow-lg shadow-primary-900/20 sm:bottom-6 sm:right-6';
 

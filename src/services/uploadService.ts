@@ -139,12 +139,28 @@ export async function uploadVideoToCloudinary(dataUrl: string): Promise<Uploaded
  * Nguyên tắc xuyên suốt: hỏng khâu phụ thì bỏ khâu phụ, không làm hỏng việc
  * chính là nhận tin của bà con.
  */
+/** Kho ảnh đã từ chối video lần nào chưa.
+ *
+ *  Cấu hình kho ảnh cấm định dạng video thì lần nào gọi cũng hỏng như nhau.
+ *  Nhớ lại để lần sau khỏi gọi vô ích: đỡ cho bà con phải chờ thêm một vòng
+ *  mạng mới biết kết quả đã biết trước. Đặt lại khi tải lại trang, phòng khi
+ *  đơn vị vừa sửa cấu hình. */
+let khoAnhTuChoiVideo = false;
+
+/** Kho ảnh có nhận video không — giao diện dùng để báo trước cho bà con. */
+export function khoAnhNhanVideo(): boolean {
+  return cloudinaryEnabled && !khoAnhTuChoiVideo;
+}
+
 export async function prepareVideo(dataUrl: string | null | undefined): Promise<string | null> {
   if (!dataUrl) return null;
   /* Đã là đường dẫn rồi (tải lên từ lúc đính kèm) -> trả về luôn, đừng tải lại
      lần nữa. Không kiểm chỗ này thì mỗi lần gửi lại tải thêm một bản. */
   if (/^https?:\/\//i.test(dataUrl)) return dataUrl;
   if (!cloudinaryEnabled) return dataUrl;
+  /* Đã biết kho ảnh từ chối video thì đừng gọi nữa — gọi cũng hỏng, chỉ tốn
+     thời gian chờ của bà con. */
+  if (khoAnhTuChoiVideo) return dataUrl;
   try {
     const { url } = await uploadVideoToCloudinary(dataUrl);
     return url;
@@ -163,6 +179,7 @@ export async function prepareVideo(dataUrl: string | null | undefined): Promise<
 
        Cách sửa tận gốc: vào trang quản lý kho ảnh, mở cấu hình tải lên và cho
        phép định dạng video (hoặc đặt kiểu tài nguyên là "auto"). */
+    khoAnhTuChoiVideo = true;   // nhớ lại, lần sau khỏi gọi vô ích
     const TRAN_BYTE = 20 * 1024 * 1024;   // ~15MB tệp thật sau khi mã hoá
     if (dataUrl.length > TRAN_BYTE) {
       console.warn('Kho ảnh từ chối video và video quá lớn để gửi thẳng — bỏ video:', e);
