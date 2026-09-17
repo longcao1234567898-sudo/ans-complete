@@ -102,10 +102,23 @@ export async function uploadVideoToCloudinary(dataUrl: string): Promise<Uploaded
   form.append('upload_preset', PRESET);
   form.append('folder', 'hop-thu-an-ninh-so/video');
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
-    method: 'POST',
-    body: form,
-  });
+  /* GIỚI HẠN THỜI GIAN CHỜ 90 giây.
+
+     Không có giới hạn thì mạng chập chờn làm lệnh tải treo vô hạn — bà con
+     nhìn nút quay mãi mà không biết bao giờ xong, cũng không có cách nào
+     thoát. Thà báo hỏng sau 90 giây để họ thử lại. */
+  const huy = new AbortController();
+  const hetGio = setTimeout(() => huy.abort(), 90_000);
+  let res: Response;
+  try {
+    res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
+      method: 'POST',
+      body: form,
+      signal: huy.signal,
+    });
+  } finally {
+    clearTimeout(hetGio);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -128,6 +141,9 @@ export async function uploadVideoToCloudinary(dataUrl: string): Promise<Uploaded
  */
 export async function prepareVideo(dataUrl: string | null | undefined): Promise<string | null> {
   if (!dataUrl) return null;
+  /* Đã là đường dẫn rồi (tải lên từ lúc đính kèm) -> trả về luôn, đừng tải lại
+     lần nữa. Không kiểm chỗ này thì mỗi lần gửi lại tải thêm một bản. */
+  if (/^https?:\/\//i.test(dataUrl)) return dataUrl;
   if (!cloudinaryEnabled) return dataUrl;
   try {
     const { url } = await uploadVideoToCloudinary(dataUrl);

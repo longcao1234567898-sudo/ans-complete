@@ -5,7 +5,7 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
-import { cloudinaryEnabled } from '../../services/uploadService';
+import { cloudinaryEnabled, prepareVideo } from '../../services/uploadService';
 import NutGuiViTri from './NutGuiViTri';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
@@ -118,8 +118,40 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         reader.onload = () => resolve(reader.result as string);
         reader.readAsDataURL(file);
       });
-      onVideoChange(dataUrl);
-      toast.success('Đã đính kèm video');
+
+      /* ⚠️ TẢI LÊN NGAY LÚC ĐÍNH, KHÔNG ĐỢI TỚI LÚC BẤM GỬI.
+
+         Lỗi đã xảy ra thật: video được giữ nguyên trong máy cho tới lúc bấm
+         gửi mới tải lên. Kho ảnh của đơn vị lại từ chối video, nên video đi
+         kèm ngay trong gói dữ liệu — gói phình quá giới hạn, nút gửi quay mãi
+         rồi hỏng. Bà con điền xong cả biểu mẫu mới biết không gửi được.
+
+         Nay tải lên ngay lúc đính: hỏng thì biết liền, chỉ mất công chọn lại
+         video chứ không mất cả bài viết. Gửi cũng nhanh vì lúc đó chỉ còn một
+         đường dẫn ngắn. */
+      if (cloudinaryEnabled) {
+        const kq = await prepareVideo(dataUrl);
+        if (!kq || kq.startsWith('data:')) {
+          /* Kho ảnh từ chối — thường vì cấu hình chỉ cho phép ảnh. */
+          if (file.size > MAX_VIDEO_MB_KHONG_KHO * 1024 * 1024) {
+            toast.error(
+              'Kho ảnh của đơn vị chưa cho phép video, nên video lớn không gửi được. '
+              + 'Bà con quay đoạn ngắn dưới ' + MAX_VIDEO_MB_KHONG_KHO + 'MB, hoặc gửi ảnh thay thế.',
+              { duration: 9000 }
+            );
+            setDangDocVideo(false);
+            return;
+          }
+          onVideoChange(dataUrl);
+          toast('Đã đính video. Video sẽ gửi kèm nên có thể lâu hơn bình thường.', { duration: 6000 });
+        } else {
+          onVideoChange(kq);
+          toast.success('Đã tải video lên');
+        }
+      } else {
+        onVideoChange(dataUrl);
+        toast.success('Đã đính kèm video');
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không xử lý được video');
     }
