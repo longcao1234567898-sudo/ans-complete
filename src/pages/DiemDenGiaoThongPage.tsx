@@ -18,7 +18,9 @@ import PageBackground from '../components/common/PageBackground';
 import SpeakButton from '../components/common/SpeakButton';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '') || '';
-const CENTER: [number, number] = [10.81, 105.21];
+/* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
+   Tương Bình Hiệp cũ, phía bắc trung tâm Thủ Dầu Một). */
+const CENTER: [number, number] = [11.0105, 106.6525];
 
 interface DiemDen {
   id: number;

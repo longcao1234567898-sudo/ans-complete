@@ -10,7 +10,7 @@ export default function PoliceAvatar({ className }: Props) {
   return (
     <img
       src="/media/police-avatar.png"
-      alt="Trợ lý Công an thị xã Tân Châu"
+      alt="Trợ lý Công an phường Chánh Hiệp"
       /* ⚠️ draggable={false} và pointer-events-none là BẮT BUỘC.
 
          Trình duyệt cho kéo thẻ ảnh sẵn. Ảnh này nằm trong nút nổi trợ lý —

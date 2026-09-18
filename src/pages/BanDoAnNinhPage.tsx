@@ -20,7 +20,9 @@ import { fetchBanDoAnNinh, type DiaBanAnNinh } from '../services/banDoService';
 import PageBackground from '../components/common/PageBackground';
 import SpeakButton from '../components/common/SpeakButton';
 
-const CENTER: [number, number] = [10.81, 105.21];
+/* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
+   Tương Bình Hiệp cũ, phía bắc trung tâm Thủ Dầu Một). */
+const CENTER: [number, number] = [11.0105, 106.6525];
 
 const KHOANG = [
   { ngay: 7, khoa: 'map.7days' as const },

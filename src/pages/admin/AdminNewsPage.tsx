@@ -410,7 +410,7 @@ export default function AdminNewsPage() {
                   type="text"
                   value={dangSua.source_name ?? ''}
                   onChange={(e) => setDangSua((d) => ({ ...d!, source_name: e.target.value }))}
-                  placeholder="Ví dụ: Công an thị xã Tân Châu"
+                  placeholder="Ví dụ: Công an phường Chánh Hiệp"
                   className="w-full rounded-xl border-2 border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
               </div>

@@ -12,8 +12,9 @@ import { UNIT } from '../../utils/constants';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { fetchMapData, type WardPoint, tinhXuHuong } from '../../services/adminService';
 
-/** Tâm bản đồ: thị xã Tân Châu, An Giang */
-const CENTER: [number, number] = [10.81, 105.21];
+/* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
+   Tương Bình Hiệp cũ, phía bắc trung tâm Thủ Dầu Một). */
+const CENTER: [number, number] = [11.0105, 106.6525];
 
 /** Màu theo mức độ nóng */
 function colorOf(w: WardPoint) {

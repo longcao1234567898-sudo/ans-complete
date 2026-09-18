@@ -1,8 +1,19 @@
-/** Thông tin đơn vị — đồng bộ với src/utils/constants.ts của frontend */
+/** Thông tin đơn vị — đồng bộ với src/utils/constants.ts của frontend.
+ *
+ *  ⚠️ ĐỊA GIỚI HÀNH CHÍNH HIỆN HÀNH: từ 01/7/2025 theo Nghị quyết
+ *  202/2025/QH15, toàn bộ tỉnh Bình Dương sáp nhập vào Thành phố Hồ Chí Minh.
+ *  Tỉnh Bình Dương KHÔNG CÒN TỒN TẠI. Phường Chánh Hiệp được lập từ toàn bộ
+ *  phường Định Hoà và Tương Bình Hiệp cũ, nay trực thuộc TP. Hồ Chí Minh.
+ *
+ *  ⚠️ SỬA Ở ĐÂY PHẢI SỬA CẢ constants.ts. Sửa một bên thì giao diện hiện tên
+ *  mới trong khi thư gửi đi vẫn tên cũ — sai lệch khó phát hiện vì cả hai đều
+ *  "chạy được".
+ */
 export const UNIT = {
-  name: 'Công an thị xã Tân Châu',
-  communeName: 'thị xã Tân Châu',
-  address: 'Số 16 Phạm Hùng, khóm Long Thị D, phường Long Thạnh, thị xã Tân Châu, tỉnh An Giang',
-  hotline: '0296 3822 154',
+  name: 'Công an phường Chánh Hiệp',
+  communeName: 'phường Chánh Hiệp',
+  province: 'Thành phố Hồ Chí Minh',
+  address: 'Trụ sở Công an phường Chánh Hiệp, Thành phố Hồ Chí Minh',
+  hotline: '069 3630 000',
   emergency: '113',
 };

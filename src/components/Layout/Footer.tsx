@@ -96,7 +96,7 @@ export default function Footer() {
   const { staff } = useAdminAuth();
   return (
     <div className="relative z-10">
-      {/* Dải cảnh quan An Giang thu nhỏ nối liền nội dung với footer */}
+      {/* Dải cảnh quan TP. Hồ Chí Minh thu nhỏ nối liền nội dung với footer */}
       <div className="relative z-10 mt-16" aria-hidden>
         <svg viewBox="0 0 1440 70" preserveAspectRatio="none" className="block h-14 w-full">
           <path
@@ -228,7 +228,7 @@ export default function Footer() {
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-bold leading-tight text-white">
-                  Fanpage Công an thị xã Tân Châu
+                  Fanpage Công an phường Chánh Hiệp
                 </span>
                 <span className="block truncate text-xs text-slate-400 transition group-hover:text-slate-200">
                   Theo dõi thông báo, cảnh báo mới nhất
@@ -247,10 +247,10 @@ export default function Footer() {
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-bold leading-tight text-white">
-                  Cổng TTĐT Công an tỉnh An Giang
+                  Cổng TTĐT Công an TP. Hồ Chí Minh
                 </span>
                 <span className="block truncate text-xs text-slate-400 transition group-hover:text-slate-200">
-                  congan.angiang.gov.vn — kênh chính thức
+                  congan.tphcm.gov.vn — kênh chính thức
                 </span>
               </span>
             </a>

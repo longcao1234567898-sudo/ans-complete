@@ -22,8 +22,8 @@ const STATS = [
 /** Dải cam kết dưới cùng */
 const TRUST_ITEMS = [
   'Mọi phản ánh đều được bảo mật',
-  'Được tiếp nhận bởi Công an thị xã Tân Châu',
-  'Vì một Tân Châu bình yên và phát triển',
+  'Được tiếp nhận bởi Công an phường Chánh Hiệp',
+  'Vì một Chánh Hiệp bình yên và phát triển',
 ];
 
 /** Quốc huy cách điệu vàng của đơn vị */
@@ -106,7 +106,7 @@ export default function HeroSection() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="mb-7 flex items-center justify-center gap-3">
           <UnitEmblem className="h-12 w-12 sm:h-14 sm:w-14" />
           <div className="text-left leading-tight">
-            <p className="text-lg font-extrabold tracking-wide text-primary-700 dark:text-primary-300 sm:text-xl">CÔNG AN THỊ XÃ TÂN CHÂU</p>
+            <p className="text-lg font-extrabold tracking-wide text-primary-700 dark:text-primary-300 sm:text-xl">CÔNG AN PHƯỜNG CHÁNH HIỆP</p>
             <p className="text-xs italic text-slate-600 dark:text-slate-400">Vì nước quên thân, vì dân phục vụ</p>
           </div>
         </motion.div>

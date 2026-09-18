@@ -32,7 +32,7 @@ export default function PageBackground({ anh }: Props) {
       {/* ====================================================================
           LỚP PHỦ LÀM MỜ ẢNH NỀN — 72-88% (trước 95,5-97,5%)
 
-          Mức cũ quá đục: ảnh phong cảnh Tân Châu gần như biến mất, nền trông
+          Mức cũ quá đục: ảnh phong cảnh Chánh Hiệp gần như biến mất, nền trông
           như tờ giấy trắng. Nay hạ xuống để thấy rõ hình mà chữ vẫn đọc tốt.
 
           Đậm nhất ở ĐÁY (88%) vì phần cuối trang thường có chữ nhỏ và chân

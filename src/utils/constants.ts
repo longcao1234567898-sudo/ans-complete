@@ -22,17 +22,27 @@ import type { NewsTag } from '../types/news';
 export const BAT_XAC_THUC_EMAIL = false;
 
 export const UNIT = {
-  name: 'Công an thị xã Tân Châu',
+  /* ⚠️ ĐỊA GIỚI HÀNH CHÍNH HIỆN HÀNH.
+
+     Từ 01/7/2025, theo Nghị quyết 202/2025/QH15, toàn bộ tỉnh Bình Dương sáp
+     nhập vào Thành phố Hồ Chí Minh. Tỉnh Bình Dương KHÔNG CÒN TỒN TẠI.
+
+     Phường Chánh Hiệp được lập từ toàn bộ phường Định Hoà và phường Tương Bình
+     Hiệp cũ của thành phố Thủ Dầu Một, nay trực thuộc Thành phố Hồ Chí Minh.
+
+     Ghi "tỉnh Bình Dương" là sai địa giới hiện hành — với hệ thống mang tên cơ
+     quan công an thì đó là lỗi nặng. */
+  name: 'Công an phường Chánh Hiệp',
   /** Tên rút gọn — dùng ở chỗ hẹp: nút gọi khẩn cấp, chân phiếu mã tra cứu */
-  shortName: 'Công an thị xã Tân Châu',
-  communeName: 'thị xã Tân Châu',
-  province: 'tỉnh An Giang',
-  address: 'Số 16 Phạm Hùng, khóm Long Thị D, phường Long Thạnh, thị xã Tân Châu, tỉnh An Giang',
-  hotline: '0296 3822 154',
+  shortName: 'Công an phường Chánh Hiệp',
+  communeName: 'phường Chánh Hiệp',
+  province: 'Thành phố Hồ Chí Minh',
+  address: 'Trụ sở Công an phường Chánh Hiệp, Thành phố Hồ Chí Minh',
+  hotline: '069 3630 000',
   emergency: '113',
-  email: 'congan.tanchau@angiang.gov.vn',
-  facebookUrl: 'https://www.facebook.com/conganthixatanchauangiang',
-  websiteUrl: 'https://congan.angiang.gov.vn',
+  email: 'conganphuongchanhhiep@tphcm.gov.vn',
+  facebookUrl: 'https://www.facebook.com/congantphcm',
+  websiteUrl: 'https://congan.tphcm.gov.vn',
   /* ==========================================================================
      NHÓM ZALO CỦA ĐỊA BÀN — ba trường, một nguồn duy nhất
 

@@ -118,7 +118,7 @@ function AppShell() {
       <main id="noi-dung-chinh" tabIndex={-1} className="relative z-10 flex-1">
         {/* ⚠️ KHÔNG dùng transform (translateY/scale) để chuyển trang!
             Phần tử có transform trở thành KHUNG THAM CHIẾU MỚI cho position:fixed
-            -> PageBackground (nền ảnh An Giang, dùng fixed inset-0) sẽ MẤT HẾT.
+            -> PageBackground (nền ảnh TP. Hồ Chí Minh, dùng fixed inset-0) sẽ MẤT HẾT.
             Chỉ dùng opacity: vẫn mượt, mà nền ảnh giữ nguyên. */}
         <div key={location.pathname} className="animate-page">
           <Routes location={location}>
