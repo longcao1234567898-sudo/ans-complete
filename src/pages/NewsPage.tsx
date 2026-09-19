@@ -106,7 +106,8 @@ export default function NewsPage() {
 
   return (
     <>
-      <PageBackground anh="bg-ho-tinh-tam.webp" />
+      {/* Ảnh nền: làng nghề sơn mài — nét riêng địa phương */}
+      <PageBackground anh="bg-lang-son-mai.webp" />
       <div className="container-page py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Tin tức &amp; Pháp luật</h1>

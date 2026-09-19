@@ -108,7 +108,7 @@ export default function SendFeedbackPage() {
             analysis: null,
             category: 'to_giac',
             contact: { ...EMPTY_CONTACT, fullName: 'Nguyễn Văn A', phone: '0901234567' },
-            images: [], video: null, viTri: null,
+            images: [], viTri: null,
           };
         });
       }
@@ -236,7 +236,7 @@ export default function SendFeedbackPage() {
   };
 
   const handleReset = () => {
-    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], video: null, viTri: null });
+    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], viTri: null });
     clearDraft();
     setSubmission(null);
     setStep(1);
@@ -244,7 +244,8 @@ export default function SendFeedbackPage() {
 
   return (
     <>
-      <PageBackground anh="bg-nui-cam.webp" />
+      {/* Ảnh nền: trụ sở công an — đúng nơi tiếp nhận tin báo */}
+      <PageBackground anh="bg-tru-so-cong-an.webp" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">{t('send.title')}</h1>
@@ -312,14 +313,12 @@ export default function SendFeedbackPage() {
             onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
             draftRestored={draftRestored}
             onDismissDraft={() => {
-              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], video: null, viTri: null });
+              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], viTri: null });
               clearDraft();
               setDraftRestored(false);
             }}
             images={draft.images}
             onImagesChange={(images) => setDraft((d) => ({ ...d, images }))}
-            video={draft.video}
-            onVideoChange={(video) => setDraft((d) => ({ ...d, video }))}
             viTri={draft.viTri}
             onViTriChange={(viTri) => setDraft((d) => ({ ...d, viTri }))}
             onNext={handleContentNext}

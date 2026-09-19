@@ -12,7 +12,7 @@ import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
-import { prepareImages, prepareVideo } from './uploadService';
+import { prepareImages } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
 export function readSubmissions(): FeedbackSubmission[] {
@@ -95,13 +95,6 @@ function saveSubmissions(list: FeedbackSubmission[], newest: FeedbackSubmission)
 
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
 export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubmission> {
-    /* Chuẩn bị video TRƯỚC khi dựng gói, để báo cho bà con biết nếu video bị
-       bỏ. Bỏ im lặng thì họ tưởng đã gửi được video, tới lúc cán bộ hỏi lại
-       mới biết là không có. */
-    const videoDaChuanBi = await prepareVideo(draft.video);
-    if (draft.video && !videoDaChuanBi) {
-      toast.error('Video quá lớn nên không gửi kèm được. Ý kiến của bà con vẫn được gửi bình thường.', { duration: 7000 });
-    }
 
   await delay(1100);
 
@@ -157,10 +150,6 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         phone: draft.contact.phone.trim(),
         email: draft.contact.email.trim() || undefined,
         images: await prepareImages(draft.images),
-        /* Video minh chứng — tải lên kho ảnh trước rồi chỉ gửi đường dẫn, để
-           không nhồi hàng chục MB base64 vào database. Chưa cấu hình kho ảnh
-           hoặc tải lỗi thì tự quay về gửi thẳng, không chặn bà con. */
-        video: videoDaChuanBi,
         /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
            Không bấm thì trường này rỗng, máy chủ bỏ qua. */
         viTri: draft.viTri ?? null,

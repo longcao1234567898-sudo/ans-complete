@@ -81,7 +81,8 @@ export default function BanDoAnNinhPage() {
 
   return (
     <div className="relative min-h-screen">
-      <PageBackground anh="bg-ho-tinh-tam.webp" />
+      {/* Ảnh nền: toàn cảnh địa bàn */}
+      <PageBackground anh="bg-chua-hoi-khanh.webp" />
 
       <div className="container-page py-8">
         <h1 className="mb-1 flex items-center gap-2 text-2xl font-extrabold text-slate-800 dark:text-slate-100">

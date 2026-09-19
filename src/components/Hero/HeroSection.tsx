@@ -43,28 +43,21 @@ export default function HeroSection() {
   const { t } = useNgonNgu();
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
-      {/* NỀN VIDEO chuyển động — GIỮ NGUYÊN cho riêng trang chủ.
-          Trang chủ là nơi gây ấn tượng đầu tiên, nền động ở đây có giá trị.
-          Các trang phụ (gửi ý kiến, tra cứu, tin tức, giới thiệu) thì dùng ảnh
-          tĩnh vì bà con ở lại lâu, video chạy lặp làm nóng máy và tốn dung
-          lượng mà nền lại bị phủ mờ gần hết. */}
-      <video
+      {/* NỀN TRANG CHỦ — ảnh trụ sở Công an phường Chánh Hiệp.
+
+          ⚠️ ĐÃ BỎ VIDEO NỀN. Video cũ quay cảnh địa bàn Tân Châu, không còn
+          đúng sau khi chuyển sang phường Chánh Hiệp. Thay bằng ảnh tĩnh của
+          chính trụ sở đơn vị: đúng địa bàn, tải nhanh hơn hẳn (video 330KB và
+          chạy lặp liên tục làm nóng máy), và bà con nhìn là nhận ra ngay nơi
+          mình sẽ tới nếu cần gặp trực tiếp.
+
+          ⚠️ Ảnh có sẵn chữ tên đơn vị trên biển hiệu. Lớp phủ bên dưới phải đủ
+          đậm để chữ đó không chọi với tiêu đề trang — xem chú thích ở lớp phủ. */}
+      <img
         className="absolute inset-0 h-full w-full object-cover"
-        src="/media/hero-bg.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        /* ⚠️ Ảnh chờ PHẢI là ảnh phong cảnh, KHÔNG dùng ảnh có chữ.
-           Trước đây dùng police-assistant.png — ảnh minh hoạ hội thoại có sẵn
-           chữ "Xin chào / Tôi là trợ lý ảo...". Vì object-cover phóng to cắt
-           hai bên trên màn hình hẹp, chữ trong ảnh tràn ra mép, hiện dở dang
-           sau tiêu đề, trông như trang bị lỗi.
-           hero-poster.webp cắt từ chính khung hình video nên khớp liền mạch khi
-           video tải xong, KHÔNG có chữ, và đã cắt bỏ watermark của công cụ tạo
-           video ở mép dưới. Các ảnh bg-*.webp khác đều có bia chữ địa danh nên
-           không dùng làm nền cho vùng có tiêu đề. */
-        poster="/media/hero-poster.webp"
+        src="/media/bg-tru-so-cong-an.webp"
+        alt=""
+        loading="eager"
         aria-hidden
       />
       {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video.
@@ -79,7 +72,16 @@ export default function HeroSection() {
           ⚠️ CHỈ dùng các mức opacity CHUẨN của Tailwind (5, 10, 20... 90, 95).
           Mức lạ như /92, /88, /94 KHÔNG được sinh ra trong tệp CSS, lớp phủ sẽ
           trong suốt hoàn toàn và lỗi còn nặng hơn lúc chưa sửa. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/80 to-white/90 dark:from-slate-950/90 dark:via-slate-950/80 dark:to-slate-950/90" aria-hidden />
+      {/* ⚠️ ĐỘ PHỦ PHẢI ĐẬM HƠN Ở GIỮA — chỗ đặt tiêu đề.
+
+          Ảnh nền là trụ sở, trên biển hiệu có sẵn dòng chữ tên đơn vị cỡ lớn.
+          Phủ đều 80% thì dòng chữ đó lọt qua ngay dưới tiêu đề "ĐIỂM CHẠM AN
+          NINH", hai dòng chữ chọi nhau trông rối — thấy rõ nhất trên điện
+          thoại vì ảnh bị phóng to cắt hai bên.
+
+          Nay phủ đậm 94% ở dải giữa nơi có tiêu đề và hai nút chính, nhạt hơn
+          ở mép trên dưới để vẫn thấy được khung cảnh trụ sở. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/94 to-white/88 dark:from-slate-950/85 dark:via-slate-950/94 dark:to-slate-950/88" aria-hidden />
 
       {/* Huy hiệu Bảo mật góc trái */}
       <div className="glass absolute left-4 top-4 z-10 hidden items-center gap-2 rounded-2xl px-3 py-2 md:flex" aria-hidden>

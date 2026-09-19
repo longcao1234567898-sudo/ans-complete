@@ -5,7 +5,7 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
-import { cloudinaryEnabled, prepareVideo, khoAnhNhanVideo } from '../../services/uploadService';
+
 import NutGuiViTri from './NutGuiViTri';
 import toast from 'react-hot-toast';
 import Button from '../common/Button';
@@ -24,49 +24,24 @@ interface ContentInputProps {
   onDismissDraft?: () => void;
   images: string[];
   onImagesChange: (imgs: string[]) => void;
-  /** Video minh chứng — tối đa MỘT tệp vì rất nặng */
-  video?: string | null;
-  onVideoChange?: (v: string | null) => void;
+  /** Tài liệu đính kèm (PDF, Word) — cho người khiếu nại tố cáo gửi giấy tờ */
+  taiLieu?: { ten: string; data: string }[];
+  onTaiLieuChange?: (ds: { ten: string; data: string }[]) => void;
   /** Toạ độ nơi xảy ra vụ việc, người dân tự nguyện gửi */
   viTri?: { lat: number; lng: number; doChinhXacMet?: number } | null;
   onViTriChange?: (v: { lat: number; lng: number; doChinhXacMet?: number } | null) => void;
   onNext: () => void;
 }
 
-/* GIỚI HẠN VIDEO — 50MB, cỡ 3 tới 5 phút quay ở chất lượng vừa.
 
-   Con số này chọn theo THỜI GIAN TẢI trên sóng yếu, không theo dung lượng lưu
-   trữ. Video đi thẳng lên kho ảnh nên không tốn dung lượng database, nhưng bà
-   con vùng sâu vẫn phải chờ tải:
-
-       50MB  ->  3G yếu: khoảng 22 phút | 3G tốt: 7 phút | 4G: dưới 1 phút
-      100MB  ->  3G yếu: khoảng 44 phút | 3G tốt: 13 phút
-
-   Trên 50MB thì người dùng 3G gần như chắc chắn bỏ cuộc giữa chừng, hoặc mạng
-   rớt làm mất hết công. Nới rộng hơn nữa chỉ có lợi cho người dùng wifi, mà
-   đó không phải nhóm người hệ thống này hướng tới.
-
-   Video KHÔNG nén được phía trình duyệt như ảnh (nén video cần giải mã rồi mã
-   hoá lại, quá nặng cho điện thoại), nên đây là kích thước thật của tệp. */
-const MAX_VIDEO_MB = 50;
-
-/* GIỚI HẠN KHI CHƯA CẤU HÌNH KHO ẢNH.
-
-   ⚠️ LỖI ĐÃ XẢY RA THẬT VÀ RẤT KHÓ ĐOÁN:
-
-   Có kho ảnh thì video tải thẳng lên đó, máy chủ chỉ nhận một đường dẫn vài
-   chục ký tự — 50MB không vấn đề gì.
-
-   CHƯA cấu hình kho ảnh thì video đi kèm ngay trong gói dữ liệu dưới dạng
-   chuỗi, và chuỗi đó phình thêm khoảng một phần ba. Video 50MB thành gói ~67MB,
-   vượt giới hạn 32MB của máy chủ. Máy chủ từ chối CẢ GÓI, nên không chỉ video
-   hỏng mà Ý KIẾN CŨNG KHÔNG GỬI ĐƯỢC — bà con bấm gửi mà không thấy gì xảy ra.
-
-   Nay giới hạn tự co xuống 15MB khi chưa có kho ảnh, và giao diện nói rõ lý do
-   thay vì để bà con loay hoay. */
-const MAX_VIDEO_MB_KHONG_KHO = 15;
 
 const MIN_LENGTH = 10;
+
+/* GIỚI HẠN TÀI LIỆU. 10MB đủ cho đơn từ và quyết định hành chính; 3 tệp đủ
+   cho một hồ sơ khiếu nại thông thường. Máy chủ kiểm lại con số này, đây chỉ
+   là lớp chặn sớm để bà con biết ngay thay vì chờ gửi xong mới báo. */
+const MAX_TAI_LIEU_MB = 10;
+const MAX_SO_TAI_LIEU = 3;
 /* GIỚI HẠN KÍCH THƯỚC TỆP TRƯỚC KHI NÉN.
 
    ⚠️ Trước đây đặt 8MB và chặn NGAY khi chọn tệp — sai, vì điện thoại đời mới
@@ -79,88 +54,67 @@ const MIN_LENGTH = 10;
    xuống dưới 300KB ở bước sau. */
 const MAX_FILE_MB = 25;
 
-export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, video, onVideoChange, viTri, onViTriChange, onNext }: ContentInputProps) {
+export default function ContentInput({ value, onChange, urgency = 'normal', onUrgencyChange, draftRestored, onDismissDraft, images, onImagesChange, taiLieu = [], onTaiLieuChange, viTri, onViTriChange, onNext }: ContentInputProps) {
   const { t } = useNgonNgu();
   const tooShort = value.trim().length > 0 && value.trim().length < MIN_LENGTH;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
-  const videoQuayRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
-  const [dangDocVideo, setDangDocVideo] = useState(false);
+  const taiLieuRef = useRef<HTMLInputElement>(null);
+  const [dangDocTL, setDangDocTL] = useState(false);
 
-  /* Giới hạn THẬT đang áp dụng: kho ảnh nhận video thì 50MB, không thì 15MB
-     vì lúc đó video đi kèm ngay trong gói dữ liệu và phình thêm một phần ba. */
-  const gioiHanVideoMB = khoAnhNhanVideo() ? MAX_VIDEO_MB : MAX_VIDEO_MB_KHONG_KHO;
+  /* CHỌN TÀI LIỆU ĐÍNH KÈM.
 
-  /* NHẬN VIDEO MINH CHỨNG.
-
-     Khác ảnh, video KHÔNG nén được phía trình duyệt và cũng không xoá được
-     thông tin vị trí bên trong tệp. Nên chỉ kiểm tra kích thước rồi đọc thẳng,
-     và giao diện nói rõ điều này để bà con tự quyết. */
-  const handlePickVideo = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+     Chỉ đọc tệp và kiểm sơ bộ ở đây; kiểm an toàn thật nằm ở máy chủ
+     (lib/tai-lieu-an-toan.js) vì mã trên trình duyệt sửa được, không tin
+     được. Lớp này chỉ để bà con biết sớm thay vì chờ gửi xong mới báo. */
+  const chonTaiLieu = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (!file || !onVideoChange) return;
+    if (!files.length || !onTaiLieuChange) return;
 
-    if (!file.type.startsWith('video/')) {
-      toast.error('Tệp này không phải video.');
-      return;
-    }
-    const gioiHanMB = gioiHanVideoMB;
-    if (file.size > gioiHanMB * 1024 * 1024) {
-      const mb = (file.size / 1024 / 1024).toFixed(0);
-      toast.error(`Video ${mb}MB, vượt quá ${gioiHanMB}MB. Bà con quay đoạn ngắn hơn giúp.`, { duration: 6000 });
+    const conCho = MAX_SO_TAI_LIEU - taiLieu.length;
+    if (conCho <= 0) {
+      toast.error(`Chỉ đính được tối đa ${MAX_SO_TAI_LIEU} tài liệu.`);
       return;
     }
 
-    setDangDocVideo(true);
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error('Không đọc được tệp video'));
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-
-      /* ⚠️ TẢI LÊN NGAY LÚC ĐÍNH, KHÔNG ĐỢI TỚI LÚC BẤM GỬI.
-
-         Lỗi đã xảy ra thật: video được giữ nguyên trong máy cho tới lúc bấm
-         gửi mới tải lên. Kho ảnh của đơn vị lại từ chối video, nên video đi
-         kèm ngay trong gói dữ liệu — gói phình quá giới hạn, nút gửi quay mãi
-         rồi hỏng. Bà con điền xong cả biểu mẫu mới biết không gửi được.
-
-         Nay tải lên ngay lúc đính: hỏng thì biết liền, chỉ mất công chọn lại
-         video chứ không mất cả bài viết. Gửi cũng nhanh vì lúc đó chỉ còn một
-         đường dẫn ngắn. */
-      if (cloudinaryEnabled) {
-        const kq = await prepareVideo(dataUrl);
-        if (!kq || kq.startsWith('data:')) {
-          /* Kho ảnh từ chối — thường vì cấu hình chỉ cho phép ảnh. */
-          if (file.size > MAX_VIDEO_MB_KHONG_KHO * 1024 * 1024) {
-            toast.error(
-              'Kho ảnh của đơn vị chưa cho phép video, nên video lớn không gửi được. '
-              + 'Bà con quay đoạn ngắn dưới ' + MAX_VIDEO_MB_KHONG_KHO + 'MB, hoặc gửi ảnh thay thế.',
-              { duration: 9000 }
-            );
-            setDangDocVideo(false);
-            return;
-          }
-          onVideoChange(dataUrl);
-          toast('Đã đính video. Video sẽ gửi kèm nên có thể lâu hơn bình thường.', { duration: 6000 });
-        } else {
-          onVideoChange(kq);
-          toast.success('Đã tải video lên');
-        }
-      } else {
-        onVideoChange(dataUrl);
-        toast.success('Đã đính kèm video');
+    setDangDocTL(true);
+    const them: { ten: string; data: string }[] = [];
+    for (const f of files.slice(0, conCho)) {
+      const ten = f.name.toLowerCase();
+      if (ten.endsWith('.docm') || ten.endsWith('.dotm') || ten.endsWith('.xlsm')) {
+        toast.error(`"${f.name}" là tệp có macro nên không nhận. Bà con lưu lại dạng PDF rồi gửi.`, { duration: 8000 });
+        continue;
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Không xử lý được video');
+      if (!/\.(pdf|docx?|)$/i.test(ten) || /\.(exe|bat|cmd|js|vbs|scr|zip|rar)$/i.test(ten)) {
+        toast.error(`"${f.name}" không phải tệp PDF hoặc Word.`, { duration: 6000 });
+        continue;
+      }
+      if (f.size > MAX_TAI_LIEU_MB * 1024 * 1024) {
+        toast.error(`"${f.name}" nặng ${(f.size / 1024 / 1024).toFixed(1)}MB, vượt quá ${MAX_TAI_LIEU_MB}MB.`, { duration: 6000 });
+        continue;
+      }
+      try {
+        const data = await new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onerror = () => rej(new Error('Không đọc được tệp'));
+          r.onload = () => res(r.result as string);
+          r.readAsDataURL(f);
+        });
+        them.push({ ten: f.name, data });
+      } catch {
+        toast.error(`Không đọc được "${f.name}".`);
+      }
     }
-    setDangDocVideo(false);
+    if (them.length) {
+      onTaiLieuChange([...taiLieu, ...them]);
+      toast.success(`Đã đính ${them.length} tài liệu`);
+    }
+    setDangDocTL(false);
   };
+
+
 
   const handlePickImages = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -407,87 +361,17 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         <p className="mt-1.5 text-xs text-slate-400">{t('cn.hoTroJpg').replace('{mb}', String(MAX_FILE_MB))}</p>
       </div>
 
-      {/* ================= VIDEO MINH CHỨNG ================= */}
-      {onVideoChange && (
-        <div className="mt-5">
-          <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {t('f1.video')} <span className="font-normal text-slate-400">(1 video, {t('common.notRequired')})</span>
-          </p>
-          {/* Nói thật về việc video giữ nguyên thông tin bên trong tệp.
+      {/* ĐÃ BỎ HẲN PHẦN VIDEO MINH CHỨNG.
 
-              Ảnh thì hệ thống vẽ lại nên xoá sạch được vị trí; video KHÔNG làm
-              vậy được vì phải giải mã rồi mã hoá lại, quá nặng cho điện thoại.
-              Nói ra để bà con tự quyết, thay vì để họ tưởng video cũng được
-              xoá dấu vết như ảnh. */}
-          {/* Rút còn một dòng. Vẫn phải nói vì video KHÔNG xoá được vị trí như
-              ảnh — bỏ hẳn thì bà con tưởng video cũng an toàn như ảnh. */}
-          <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            {t('f1.videoWarn')}
-          </p>
+          Lý do bỏ: kho ảnh của đơn vị chỉ cho phép ảnh, từ chối mọi định dạng
+          video. Video đành đi kèm ngay trong gói dữ liệu, phình quá giới hạn
+          máy chủ và làm hỏng CẢ việc gửi ý kiến — bà con bấm gửi mà nút quay
+          mãi rồi mất luôn bài viết.
 
-          {video ? (
-            <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
-              <video src={video} controls className="h-32 w-auto rounded-lg" />
-              <button
-                type="button"
-                onClick={() => { onVideoChange(null); toast('Đã bỏ video'); }}
-                aria-label="Bỏ video"
-                className="rounded-lg bg-white p-1.5 text-slate-500 shadow-sm transition hover:bg-red-50 hover:text-red-600 dark:bg-slate-700"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => videoQuayRef.current?.click()}
-                disabled={dangDocVideo}
-                className="flex h-20 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-primary-300 text-primary-500 transition hover:bg-primary-50 disabled:opacity-60 dark:border-primary-700"
-              >
-                {dangDocVideo ? <Loader2 className="h-5 w-5 animate-spin" /> : <Video className="h-5 w-5" />}
-                <span className="text-[10px] font-semibold">{t('f1.recordVideo')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => videoInputRef.current?.click()}
-                disabled={dangDocVideo}
-                className="flex h-20 w-24 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-primary-400 hover:text-primary-500 disabled:opacity-60 dark:border-slate-600"
-              >
-                <ImagePlus className="h-5 w-5" />
-                <span className="text-[10px] font-medium">{t('f1.pickVideo')}</span>
-              </button>
-            </div>
-          )}
-
-          <input
-            ref={videoQuayRef}
-            type="file"
-            accept="video/*"
-            capture="environment"
-            onChange={handlePickVideo}
-            className="hidden"
-            aria-hidden
-          />
-          <input
-            ref={videoInputRef}
-            type="file"
-            accept="video/*"
-            onChange={handlePickVideo}
-            className="hidden"
-            aria-hidden
-          />
-          {/* Hiện GIỚI HẠN THẬT đang áp dụng, không phải con số lý thuyết.
-
-              Lỗi đã xảy ra thật: giao diện ghi "tối đa 50MB" trong khi kho ảnh
-              của đơn vị từ chối video, nên thực tế chỉ nhận được 15MB. Bà con
-              quay đoạn 40MB, chọn xong mới bị báo hỏng — mất công quay lại. */}
-          <p className="mt-1.5 text-xs text-slate-400">
-            {t('cn.toiDaMb').replace('{mb}', String(gioiHanVideoMB))}
-          </p>
-        </div>
-      )}
+          Thay bằng ĐÍNH KÈM TÀI LIỆU (PDF, Word) bên dưới, thứ mà người khiếu
+          nại tố cáo cần hơn nhiều: đơn đã nộp, quyết định hành chính bị khiếu
+          nại, biên bản. Trước đây họ phải chụp ảnh từng trang, vừa khó đọc
+          vừa dễ sót. */}
 
       {/* ================= VỊ TRÍ VỤ VIỆC ================= */}
       {onViTriChange && (

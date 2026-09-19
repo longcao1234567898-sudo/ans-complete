@@ -73,7 +73,8 @@ export default function DiemDenGiaoThongPage() {
 
   return (
     <div className="relative min-h-screen">
-      <PageBackground anh="bg-lang-noi.webp" />
+      {/* Ảnh nền: khu vực có tuyến đường đông xe */}
+      <PageBackground anh="bg-lo-lu-dai-hung.webp" />
 
       <div className="container-page py-8">
         <h1 className="mb-1 flex items-center gap-2 text-2xl font-extrabold text-slate-800 dark:text-slate-100">
