@@ -3,7 +3,7 @@
  * Ảnh được nén ngay trên trình duyệt trước khi lưu.
  */
 import { ChangeEvent, useRef, useState } from 'react';
-import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video } from 'lucide-react';
+import { AlertCircle, ImagePlus, Loader2, X, RotateCcw, ListChecks, ShieldQuestion, Camera, ShieldCheck, Video, FileText, FilePlus } from 'lucide-react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
 
 import NutGuiViTri from './NutGuiViTri';
@@ -361,17 +361,76 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         <p className="mt-1.5 text-xs text-slate-400">{t('cn.hoTroJpg').replace('{mb}', String(MAX_FILE_MB))}</p>
       </div>
 
-      {/* ĐÃ BỎ HẲN PHẦN VIDEO MINH CHỨNG.
+      {/* ================= TÀI LIỆU ĐÍNH KÈM ================= */}
+      {onTaiLieuChange && (
+        <div className="mt-5">
+          <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Tài liệu đính kèm{' '}
+            <span className="font-normal text-slate-400">
+              (PDF hoặc Word, tối đa {MAX_SO_TAI_LIEU} tệp, không bắt buộc)
+            </span>
+          </p>
+          {/* Nói rõ tài liệu dùng làm gì — bà con khiếu nại thường không nghĩ
+              tới việc gửi kèm giấy tờ, cứ chụp ảnh từng trang. */}
+          <p className="mb-2 flex items-start gap-1.5 text-xs leading-snug text-slate-500 dark:text-slate-400">
+            <FileText className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span>
+              Có đơn đã nộp, quyết định, biên bản thì gửi kèm ở đây, rõ hơn chụp ảnh nhiều.
+              Tệp được kiểm an toàn trước khi nhận.
+            </span>
+          </p>
 
-          Lý do bỏ: kho ảnh của đơn vị chỉ cho phép ảnh, từ chối mọi định dạng
-          video. Video đành đi kèm ngay trong gói dữ liệu, phình quá giới hạn
-          máy chủ và làm hỏng CẢ việc gửi ý kiến — bà con bấm gửi mà nút quay
-          mãi rồi mất luôn bài viết.
+          {taiLieu.length > 0 && (
+            <ul className="mb-2 space-y-1.5">
+              {taiLieu.map((t, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60"
+                >
+                  <FileText className="h-4 w-4 shrink-0 text-primary-600" />
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">
+                    {t.ten}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onTaiLieuChange(taiLieu.filter((_, k) => k !== i))}
+                    aria-label={`Bỏ tệp ${t.ten}`}
+                    className="shrink-0 rounded-lg p-1 text-slate-500 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-slate-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-          Thay bằng ĐÍNH KÈM TÀI LIỆU (PDF, Word) bên dưới, thứ mà người khiếu
-          nại tố cáo cần hơn nhiều: đơn đã nộp, quyết định hành chính bị khiếu
-          nại, biên bản. Trước đây họ phải chụp ảnh từng trang, vừa khó đọc
-          vừa dễ sót. */}
+          {taiLieu.length < MAX_SO_TAI_LIEU && (
+            <button
+              type="button"
+              onClick={() => taiLieuRef.current?.click()}
+              disabled={dangDocTL}
+              data-hd="nut-tai-lieu"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-primary-400 hover:text-primary-600 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300"
+            >
+              {dangDocTL ? <Loader2 className="h-4 w-4 animate-spin" /> : <FilePlus className="h-4 w-4" />}
+              {dangDocTL ? 'Đang đọc tệp...' : 'Chọn tệp PDF hoặc Word'}
+            </button>
+          )}
+
+          <input
+            ref={taiLieuRef}
+            type="file"
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            multiple
+            onChange={chonTaiLieu}
+            className="hidden"
+            aria-hidden
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            Tối đa {MAX_TAI_LIEU_MB}MB mỗi tệp. Không nhận tệp Word có macro vì có thể chứa mã độc.
+          </p>
+        </div>
+      )}
 
       {/* ================= VỊ TRÍ VỤ VIỆC ================= */}
       {onViTriChange && (

@@ -150,6 +150,10 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         phone: draft.contact.phone.trim(),
         email: draft.contact.email.trim() || undefined,
         images: await prepareImages(draft.images),
+        /* Tài liệu gửi thẳng dạng chuỗi — máy chủ kiểm an toàn bốn lớp trước
+           khi lưu (lib/tai-lieu-an-toan.js). Không qua kho ảnh vì kho ảnh chỉ
+           nhận ảnh, và tài liệu cần kiểm nội dung chứ không chỉ lưu trữ. */
+        taiLieu: draft.taiLieu ?? [],
         /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
            Không bấm thì trường này rỗng, máy chủ bỏ qua. */
         viTri: draft.viTri ?? null,

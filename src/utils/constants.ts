@@ -38,10 +38,10 @@ export const UNIT = {
   communeName: 'phường Chánh Hiệp',
   province: 'Thành phố Hồ Chí Minh',
   address: 'Trụ sở Công an phường Chánh Hiệp, Thành phố Hồ Chí Minh',
-  hotline: '069 3630 000',
+  hotline: '0274 3827 132',
   emergency: '113',
   email: 'conganphuongchanhhiep@tphcm.gov.vn',
-  facebookUrl: 'https://www.facebook.com/congantphcm',
+  facebookUrl: 'https://www.facebook.com/profile.php?id=61569502381565',
   websiteUrl: 'https://congan.tphcm.gov.vn',
   /* ==========================================================================
      NHÓM ZALO CỦA ĐỊA BÀN — ba trường, một nguồn duy nhất

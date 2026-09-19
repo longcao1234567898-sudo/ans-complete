@@ -99,7 +99,16 @@ export default function SendFeedbackPage() {
              dung đó. */
           if (hienTai.content.trim().length > 0) {
             nhapThat.current = hienTai;
-            return hienTai;
+            /* ⚠️ VẪN PHẢI ĐẶT NHÓM TỐ GIÁC, dù giữ nguyên chữ bà con đã gõ.
+
+               Ô "Gửi ẩn danh" CHỈ hiện ở nhóm tố giác tội phạm. Bà con đang gõ
+               dở mà chưa chọn nhóm thì nhóm còn trống, nên tới bước hướng dẫn
+               về gửi ẩn danh, màn hình không có gì để chỉ — hướng dẫn nói suông
+               còn bà con không thấy ô đó ở đâu.
+
+               Đặt tạm nhóm tố giác để ô hiện ra. An toàn vì bản nháp thật đã
+               cất nguyên vẹn ở trên và được trả lại đầy đủ khi xong hướng dẫn. */
+            return { ...hienTai, category: 'to_giac' as const };
           }
           nhapThat.current = hienTai;
           return {
@@ -108,7 +117,7 @@ export default function SendFeedbackPage() {
             analysis: null,
             category: 'to_giac',
             contact: { ...EMPTY_CONTACT, fullName: 'Nguyễn Văn A', phone: '0901234567' },
-            images: [], viTri: null,
+            images: [], taiLieu: [], viTri: null,
           };
         });
       }
@@ -236,7 +245,7 @@ export default function SendFeedbackPage() {
   };
 
   const handleReset = () => {
-    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], viTri: null });
+    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
     clearDraft();
     setSubmission(null);
     setStep(1);
@@ -313,12 +322,14 @@ export default function SendFeedbackPage() {
             onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
             draftRestored={draftRestored}
             onDismissDraft={() => {
-              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], viTri: null });
+              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
               clearDraft();
               setDraftRestored(false);
             }}
             images={draft.images}
             onImagesChange={(images) => setDraft((d) => ({ ...d, images }))}
+            taiLieu={draft.taiLieu}
+            onTaiLieuChange={(taiLieu) => setDraft((d) => ({ ...d, taiLieu }))}
             viTri={draft.viTri}
             onViTriChange={(viTri) => setDraft((d) => ({ ...d, viTri }))}
             onNext={handleContentNext}

@@ -14,6 +14,6 @@ export const UNIT = {
   communeName: 'phường Chánh Hiệp',
   province: 'Thành phố Hồ Chí Minh',
   address: 'Trụ sở Công an phường Chánh Hiệp, Thành phố Hồ Chí Minh',
-  hotline: '069 3630 000',
+  hotline: '0274 3827 132',
   emergency: '113',
 };
