@@ -53,13 +53,17 @@ export default function HeroSection() {
 
           ⚠️ Ảnh có sẵn chữ tên đơn vị trên biển hiệu. Lớp phủ bên dưới phải đủ
           đậm để chữ đó không chọi với tiêu đề trang — xem chú thích ở lớp phủ. */}
-      <img
-        className="absolute inset-0 h-full w-full object-cover"
-        src="/media/bg-tru-so-cong-an.webp"
-        alt=""
-        loading="eager"
-        aria-hidden
-      />
+      <picture>
+        {/* Bản dọc cho điện thoại — xem chú thích ở PageBackground.tsx */}
+        <source media="(max-width: 767px)" srcSet="/media/bg-tru-so-cong-an-dt.webp" />
+        <img
+          className="absolute inset-0 h-full w-full object-cover"
+          src="/media/bg-tru-so-cong-an.webp"
+          alt=""
+          loading="eager"
+          aria-hidden
+        />
+      </picture>
       {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video.
 
           ⚠️ Độ phủ phải ĐỦ ĐẬM: video nền có sẵn chữ trong nội dung ("Xin

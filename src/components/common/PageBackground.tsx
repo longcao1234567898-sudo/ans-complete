@@ -22,13 +22,26 @@ interface Props {
 export default function PageBackground({ anh }: Props) {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-      <img
-        className="h-full w-full object-cover"
-        src={`/media/${anh}`}
-        alt=""
-        loading="eager"
-        decoding="async"
-      />
+      {/* ẢNH RIÊNG CHO ĐIỆN THOẠI.
+
+          ⚠️ Ảnh gốc là ảnh NGANG. Trên màn hình dọc, object-cover phóng to cho
+          vừa chiều cao rồi cắt hai bên — với ảnh 1600x900 trên màn 390x844 thì
+          chỉ còn thấy khoảng một phần tư bề ngang. Công trình chính và linh vật
+          bị cắt mất, chỉ còn một mảng nền vô nghĩa.
+
+          Nay mỗi ảnh có thêm bản dọc 3:4 cắt sẵn quanh phần quan trọng, đuôi
+          -dt. Trình duyệt tự chọn: màn hẹp lấy bản dọc, màn rộng lấy bản ngang.
+          Bản dọc cũng nhẹ hơn nhiều nên bà con dùng 3G đỡ tốn dung lượng. */}
+      <picture>
+        <source media="(max-width: 767px)" srcSet={`/media/${anh.replace('.webp', '-dt.webp')}`} />
+        <img
+          className="h-full w-full object-cover"
+          src={`/media/${anh}`}
+          alt=""
+          loading="eager"
+          decoding="async"
+        />
+      </picture>
       {/* ====================================================================
           LỚP PHỦ LÀM MỜ ẢNH NỀN — 72-88% (trước 95,5-97,5%)
 
