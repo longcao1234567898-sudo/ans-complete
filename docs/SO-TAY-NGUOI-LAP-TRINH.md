@@ -110,6 +110,15 @@ git diff --stat                # co file nao ngoai pham vi khong?
 
 Thấy file lạ trong `--stat` là tín hiệu rõ nhất của trôi phạm vi. Hỏi ngay.
 
+**Một lệnh nữa, chạy trước mỗi lần push** — nó soát cả cây tệp chứ không chỉ soát thay đổi:
+
+```bash
+git ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -v "\.env\.example"
+```
+
+In ra dòng nào là có tệp nhạy cảm đang bị git theo dõi. `.gitignore` không cứu được, vì luật
+ignore chỉ áp dụng cho tệp **chưa** được theo dõi. Phải `git rm --cached`.
+
 **Không bao giờ để lọt:**
 - `git add .` — luôn `git add` từng file
 - Gộp nhiều việc vào một commit

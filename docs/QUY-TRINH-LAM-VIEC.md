@@ -164,8 +164,23 @@ trôi phạm vi, không phải hình thức.
 | 5 | Không file ngoài phạm vi | File lạ trong `git diff --stat` → tách hoặc hoàn nguyên |
 | 6 | Tài liệu đã đồng bộ | Bảng ánh xạ §6 |
 | 7 | Số liệu là số **đo được** | Chạy lệnh đếm, không chép từ trí nhớ |
+| 8 | **Không tệp nhạy cảm nào đang bị theo dõi** | Lệnh ở ngay dưới — phải không in ra dòng nào |
 
-**Không đủ 7 mục → không commit.** Ghi lý do vào `TIEN-DO.md` với trạng thái `KHÔNG COMMIT`.
+```bash
+git ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -v "\.env\.example"
+```
+
+**Không đủ 8 mục → không commit.** Ghi lý do vào `TIEN-DO.md` với trạng thái `KHÔNG COMMIT`.
+
+**Mục 8 khác hẳn bảy mục trên: nó không soát diff, nó soát toàn bộ cây tệp đang được theo
+dõi.** Bảy mục đầu chỉ nhìn thay đổi của phiên hiện tại, nên một tệp đã bị `git add` từ lâu
+là vô hình với chúng. `.gitignore` cũng không cứu: luật ignore **chỉ áp dụng cho tệp chưa
+được theo dõi**, nên thêm luật vào đó **không** gỡ được thứ đã lỡ commit — phải
+`git rm --cached`.
+
+Ngày 2026-09-23, khi quét an toàn trước lần push đầu tiên, phát hiện một bản sao lưu toàn bộ
+cơ sở dữ liệu đã nằm công khai trên GitHub đúng theo đường đó. Nó sống sót qua năm phiên vì
+không phiên nào nhìn ra ngoài diff của chính mình. Chi tiết: BUG-005 trong `buglogs/`.
 
 ### 5.1 Bảng dấu hiệu đáng ngờ khi đọc diff
 
