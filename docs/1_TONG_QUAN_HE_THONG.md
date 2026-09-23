@@ -1,4 +1,4 @@
-# Tổng quan hệ thống — Hộp Thư An Ninh Số
+# Tổng quan hệ thống — Điểm Chạm An Ninh
 
 Nền tảng web tiếp nhận, phân loại và quản lý ý kiến, phản ánh, tố giác của công dân, phục vụ Công an cấp cơ sở.
 

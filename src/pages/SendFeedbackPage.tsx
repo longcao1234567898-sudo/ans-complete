@@ -2,7 +2,7 @@
  * Trang "Gửi ý kiến": wizard 5 bước — nhập nội dung, AI phân tích, chọn nhóm,
  * thông tin liên hệ, xác nhận & nhận mã tra cứu.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -13,6 +13,7 @@ import { saveTrackingCode } from '../hooks/useTrackingHistory';
 import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import HuongDanBuoc from '../components/FeedbackForm/HuongDanBuoc';
 import ContentInput from '../components/FeedbackForm/ContentInput';
 import AIAnalysis from '../components/FeedbackForm/AIAnalysis';
@@ -28,7 +29,124 @@ import { MapPin } from 'lucide-react';
 const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
 export default function SendFeedbackPage() {
+  const { t } = useNgonNgu();
   const [step, setStep] = useState(1);
+
+  /* CHẾ ĐỘ XEM HƯỚNG DẪN.
+
+     Vòng hướng dẫn cần CHUYỂN THẬT qua từng màn hình để bà con thấy mỗi bước
+     trông ra sao — đứng yên ở bước 1 rồi chỉ vào con số trên thanh tiến trình
+     thì không hình dung được gì.
+
+     Nhưng nhảy thẳng tới bước 5 là chỗ có nút gửi, nên phải KHOÁ GỬI trong lúc
+     xem hướng dẫn. Không khoá thì bà con lỡ bấm là gửi một ý kiến rỗng vào hệ
+     thống, cán bộ phải mất công dọn. */
+  const [dangHuongDan, setDangHuongDan] = useState(false);
+
+  /* CUỘN VỀ ĐẦU BIỂU MẪU MỖI KHI ĐỔI BƯỚC.
+
+     ⚠️ Lỗi đã xảy ra thật: bước 1 rất dài (ô nhập, ảnh, video, vị trí, mức
+     khẩn), bước 2 lại ngắn. Bấm tiếp tục thì trang co lại nhưng vị trí cuộn
+     giữ nguyên — rơi thẳng xuống chân trang. Bà con thấy phần liên hệ và mã QR
+     trong khi đáng lẽ phải thấy màn hình máy đang phân tích.
+
+     Bỏ qua lần đầu (bước 1) vì lúc đó bà con vừa mở trang, kéo lên đầu là thừa. */
+  const buocTruoc = useRef(step);
+  useEffect(() => {
+    if (buocTruoc.current === step) return;
+    buocTruoc.current = step;
+    const khu = document.querySelector('[data-khu-bieu-mau]');
+    if (khu) khu.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
+  /* Bản nháp THẬT của bà con, cất tạm trong lúc xem hướng dẫn. */
+  const nhapThat = useRef<typeof draft | null>(null);
+
+  useEffect(() => {
+    const chuyenBuoc = (e: Event) => {
+      const b = Number((e as CustomEvent).detail);
+      if (b < 1 || b > 5) return;
+
+      /* ĐIỀN DỮ LIỆU MẪU khi bắt đầu xem hướng dẫn.
+
+         Vì sao bắt buộc: các bước sau chỉ vẽ ra khi biểu mẫu CÓ dữ liệu. Không
+         có nội dung thì bước 2 không có gì để đọc lại, bước 3 không hiện thẻ
+         chọn nhóm, bước 4 không hiện ô gửi ẩn danh (ô đó chỉ có ở nhóm tố
+         giác), bước 5 không có nút gửi. Hướng dẫn nói về những nút đó mà màn
+         hình trống trơn thì bà con càng rối.
+
+         Cất bản nháp thật lại trước, xong hướng dẫn trả về nguyên vẹn — bà con
+         đang gõ dở mà mất chữ là hỏng việc. */
+      /* ⚠️ Dùng nhapThat.current làm mốc, KHÔNG dùng dangHuongDan.
+
+         Hiệu ứng này khai phụ thuộc rỗng nên chỉ chạy một lần; biến trạng thái
+         đọc trong đây mãi là giá trị lúc đầu. Lấy dangHuongDan làm mốc thì lần
+         chuyển bước thứ hai vẫn thấy false, lại cất bản nháp lần nữa — lần này
+         cất nhầm chính dữ liệu mẫu, bản nháp thật của bà con mất luôn.
+
+         Biến ref luôn đọc được giá trị mới nhất nên dùng nó làm mốc mới đúng.
+         setDraft cũng dùng dạng hàm để lấy đúng bản nháp hiện tại. */
+      if (nhapThat.current === null) {
+        setDraft((hienTai) => {
+          /* ⚠️ BÀ CON ĐANG GÕ DỞ THÌ TUYỆT ĐỐI KHÔNG ĐÈ.
+
+             Lỗi đã xảy ra thật: vòng hướng dẫn tự hiện mỗi giờ, gặp lúc bà con
+             đang viết thì chèn dữ liệu mẫu đè lên chữ họ vừa gõ. Công sức mất
+             sạch mà không hiểu vì sao.
+
+             Có nội dung rồi thì giữ nguyên, chỉ xem hướng dẫn trên chính nội
+             dung đó. */
+          if (hienTai.content.trim().length > 0) {
+            nhapThat.current = hienTai;
+            /* ⚠️ VẪN PHẢI ĐẶT NHÓM TỐ GIÁC, dù giữ nguyên chữ bà con đã gõ.
+
+               Ô "Gửi ẩn danh" CHỈ hiện ở nhóm tố giác tội phạm. Bà con đang gõ
+               dở mà chưa chọn nhóm thì nhóm còn trống, nên tới bước hướng dẫn
+               về gửi ẩn danh, màn hình không có gì để chỉ — hướng dẫn nói suông
+               còn bà con không thấy ô đó ở đâu.
+
+               Đặt tạm nhóm tố giác để ô hiện ra. An toàn vì bản nháp thật đã
+               cất nguyên vẹn ở trên và được trả lại đầy đủ khi xong hướng dẫn. */
+            return { ...hienTai, category: 'to_giac' as const };
+          }
+          nhapThat.current = hienTai;
+          return {
+            content: 'Tối qua khoảng 9 giờ, tôi thấy có nhóm thanh niên tụ tập gây mất trật tự ở gần chợ.',
+            urgency: 'important',
+            analysis: null,
+            category: 'to_giac',
+            contact: { ...EMPTY_CONTACT, fullName: 'Nguyễn Văn A', phone: '0901234567' },
+            images: [], taiLieu: [], viTri: null,
+          };
+        });
+      }
+      setDangHuongDan(true);
+      setStep(b);
+    };
+
+    const ketThuc = () => {
+      /* Trả lại đúng bản nháp bà con đang gõ dở, rồi mới mở khoá. */
+      if (nhapThat.current) { setDraft(nhapThat.current); nhapThat.current = null; }
+      setDangHuongDan(false);
+      setStep(1);
+    };
+    window.addEventListener('ans:huong-dan-buoc', chuyenBuoc);
+    window.addEventListener('ans:huong-dan-ket-thuc', ketThuc);
+    return () => {
+      window.removeEventListener('ans:huong-dan-buoc', chuyenBuoc);
+      window.removeEventListener('ans:huong-dan-ket-thuc', ketThuc);
+      /* ⚠️ MỞ KHOÁ KHI RỜI TRANG — chặn lỗi nút gửi im lặng không làm gì.
+
+         Lỗi đã xảy ra thật: hướng dẫn khoá nút gửi trong lúc xem, và chỉ mở
+         khoá khi bà con bấm nút đóng. Bà con rời trang giữa chừng thì lệnh mở
+         khoá không bao giờ chạy — quay lại bấm gửi, nút không phản ứng gì,
+         không báo lỗi, không biết vì sao.
+
+         Nay dọn dẹp ngay lúc rời trang nên khoá không bao giờ kẹt. */
+      ketThuc();
+    };
+  }, []);
 
   /* Kiểm tra thiết bị có bị tạm khoá không NGAY KHI mở trang — không để bà con
      điền hết năm bước rồi mới báo. */
@@ -127,7 +245,7 @@ export default function SendFeedbackPage() {
   };
 
   const handleReset = () => {
-    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], video: null, viTri: null });
+    setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
     clearDraft();
     setSubmission(null);
     setStep(1);
@@ -135,12 +253,13 @@ export default function SendFeedbackPage() {
 
   return (
     <>
-      <PageBackground anh="bg-nui-cam.webp" />
+      {/* Ảnh nền: trụ sở công an — đúng nơi tiếp nhận tin báo */}
+      <PageBackground anh="bg-tru-so-cong-an.webp" />
       <div className="container-page max-w-2xl py-10 sm:py-14">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">Gửi ý kiến</h1>
+        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 sm:text-3xl">{t('send.title')}</h1>
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-          Chia sẻ tự nhiên — hệ thống giúp bà con diễn đạt rõ ràng và chuyển đến đúng bộ phận xử lý.
+          {t('send.subtitle')}
         </p>
         {qrPointName && (
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
@@ -148,6 +267,24 @@ export default function SendFeedbackPage() {
           </p>
         )}
       </div>
+
+      {/* Dải báo rõ đang xem hướng dẫn, chưa gửi gì cả. Không có dòng này thì
+          bà con thấy màn hình xác nhận với ô trống lại tưởng mình làm sai. */}
+      {dangHuongDan && (
+        <div className="mb-4 rounded-2xl border-2 border-primary-300 bg-primary-50 p-3 text-center dark:border-primary-700 dark:bg-primary-900/20">
+          <p className="text-sm font-bold text-primary-800 dark:text-primary-300">
+            {t('sf.dangXemHuongDan')}
+          </p>
+          <p className="mt-0.5 text-xs text-primary-700 dark:text-primary-200">
+            {t('sf.dayChiLaXem')}
+          </p>
+        </div>
+      )}
+
+      {/* Mốc để vòng hướng dẫn cuộn tới khi đổi bước mà không có nút cụ thể
+          nào để khoanh — nếu không trang giữ nguyên vị trí cuộn cũ, mà bước
+          mới ngắn hơn nên vị trí đó rơi xuống tận chân trang. */}
+      <div data-khu-bieu-mau />
 
       {!submission && <StepIndicator current={step} />}
       {/* Hướng dẫn từng bước bằng lời, có nút đọc to — cho người lớn tuổi và
@@ -185,14 +322,14 @@ export default function SendFeedbackPage() {
             onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
             draftRestored={draftRestored}
             onDismissDraft={() => {
-              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], video: null, viTri: null });
+              setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
               clearDraft();
               setDraftRestored(false);
             }}
             images={draft.images}
             onImagesChange={(images) => setDraft((d) => ({ ...d, images }))}
-            video={draft.video}
-            onVideoChange={(video) => setDraft((d) => ({ ...d, video }))}
+            taiLieu={draft.taiLieu}
+            onTaiLieuChange={(taiLieu) => setDraft((d) => ({ ...d, taiLieu }))}
             viTri={draft.viTri}
             onViTriChange={(viTri) => setDraft((d) => ({ ...d, viTri }))}
             onNext={handleContentNext}
@@ -237,7 +374,9 @@ export default function SendFeedbackPage() {
             draft={draft}
             submission={submission}
             isSubmitting={submitMutation.isPending}
-            onSubmit={handleSubmit}
+            /* KHOÁ GỬI trong lúc xem hướng dẫn — xem chú thích ở chỗ khai
+               dangHuongDan. Truyền hàm rỗng thay vì hàm gửi thật. */
+            onSubmit={dangHuongDan ? () => {} : handleSubmit}
             onBack={() => setStep(4)}
             onVeBuocDau={() => setStep(1)}
             onReset={handleReset}

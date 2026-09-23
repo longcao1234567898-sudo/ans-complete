@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Menu, Moon, Shield, Sun, ShieldCheck, Type } from 'lucide-react';
+import NutNgonNgu from '../common/NutNgonNgu';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import Sidebar from './Sidebar';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { NAV_LINKS, STORAGE_KEYS, UNIT } from '../../utils/constants';
@@ -11,6 +13,7 @@ import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { cn } from '../../utils/helpers';
 
 export default function Header() {
+  const { t } = useNgonNgu();
   // Header CO LẠI + đổ bóng sâu khi người dùng cuộn xuống
   // -> tiết kiệm chỗ trên màn hình, tạo cảm giác "phản hồi" với thao tác
   const [scrolled, setScrolled] = useState(false);
@@ -65,7 +68,7 @@ export default function Header() {
                   tuỳ font. Chữ thường "ố" thấp hơn nhiều -> dấu luôn nằm gọn
                   trong dòng, hiển thị đúng trên MỌI font, mọi thiết bị. */}
               <span className="block text-[15px] font-extrabold leading-normal tracking-wide text-primary-700 dark:text-primary-300">
-                Hộp Thư An Ninh Số
+                Điểm Chạm An Ninh
               </span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400">{UNIT.name}</span>
             </span>
@@ -79,14 +82,18 @@ export default function Header() {
                 to={link.to}
                 className={({ isActive }) =>
                   cn(
-                    'rounded-xl px-3.5 py-2 text-sm font-medium transition',
+                    /* whitespace-nowrap: chặn nhãn tự xuống dòng khi thanh
+                       chật. Không có nó thì "Trang chủ" bị bẻ thành hai dòng,
+                       thanh menu cao gấp đôi, trông rối. Nhãn đã rút ngắn
+                       trong NAV_LINKS nên vẫn đủ chỗ. */
+                    'whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition',
                     isActive
                       ? 'bg-primary-600 text-white shadow-soft'
                       : 'text-slate-600 hover:bg-primary-50 hover:text-primary-700 dark:text-slate-300 dark:hover:bg-slate-800'
                   )
                 }
               >
-                {link.label}
+                {t(link.khoa)}
               </NavLink>
             ))}
             {staff && (
@@ -117,6 +124,11 @@ export default function Header() {
             >
               <Type className="h-5 w-5" />
             </button>
+
+            {/* Nút đổi ngôn ngữ — đặt cạnh nút chế độ tối. Địa bàn có người
+                nước ngoài sinh sống và làm việc; họ cũng có quyền báo tin cho
+                công an, nhưng trang toàn tiếng Việt thì không dùng được. */}
+            <NutNgonNgu />
 
             {/* Nút chuyển dark mode */}
             <button

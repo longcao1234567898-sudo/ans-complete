@@ -1,0 +1,49 @@
+HƯỚNG DẪN GỘP COMMIT
+=====================
+
+Từ đợt "rà soát bảo mật" tới giờ có 5 lần commit lẻ. Chọn ĐÚNG MỘT trong hai
+cách dưới đây, tuỳ bạn đã đẩy các commit đó lên GitHub chưa.
+
+
+CÁCH 1 — CHƯA đẩy commit nào lên GitHub (hoặc chỉ mới sửa trên máy)
+------------------------------------------------------------------
+Đơn giản nhất. Chỉ cần chạy lệnh trong COMMIT.txt — nó gộp mọi thay đổi hiện
+tại thành một commit rồi đẩy lên:
+
+    (mở COMMIT.txt, chạy cả dòng trong đó)
+
+
+CÁCH 2 — ĐÃ đẩy 5 commit lẻ lên GitHub rồi, muốn gộp lại thành 1
+----------------------------------------------------------------
+Dùng reset mềm: lùi con trỏ về TRƯỚC 5 commit đó nhưng GIỮ NGUYÊN toàn bộ mã,
+rồi commit lại một lần.
+
+  Bước 1 — kiểm tra 5 commit sắp gộp có đúng không (xem danh sách):
+      git log --oneline -8
+
+    Đếm từ trên xuống, 5 dòng đầu phải là:
+      - Go bo che do it du lieu, nang cap doc tieng Viet
+      - Them dai huong dan tung buoc...
+      - Them 5 tinh nang tro nang...
+      - Thuc hien de xuat cho nguoi yeu the...
+      - Va hai lo hong bao mat...
+    Nếu KHÔNG khớp (bạn có commit khác xen vào), ĐỪNG chạy bước 2 — nhắn lại
+    để tính số cho đúng.
+
+  Bước 2 — gộp 5 commit thành 1 (giải nén gói mã mới nhất đè lên trước đã):
+      git reset --soft HEAD~5
+      git add .
+      git commit -m "Ra soat bao mat + tro nang cho nguoi yeu the + nang cap doc tieng Viet"
+      git push --force-with-lease
+
+    --soft nghĩa là chỉ lùi con trỏ, mã nguồn không mất gì.
+    --force-with-lease cần vì lịch sử đã đổi; nó an toàn hơn --force thuần
+    (từ chối đẩy nếu người khác vừa push lên nhánh).
+
+
+NÊN DÙNG CÁCH NÀO
+-----------------
+- Làm một mình, nhánh chính: Cách 2 cho lịch sử gọn.
+- Có người khác cùng làm trên nhánh này: cân nhắc, vì --force viết lại lịch sử
+  chung. Trường hợp đó thà để 5 commit lẻ còn hơn.
+- Không chắc: Cách 1 an toàn nhất, khỏi đụng --force.

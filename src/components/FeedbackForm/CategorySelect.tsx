@@ -2,6 +2,7 @@
  * Bước 3: Xác nhận / thay đổi nhóm xử lý (mặc định chọn theo gợi ý của AI).
  */
 import { CheckCircle2 } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import type { FeedbackCategory } from '../../types/feedback';
 import { CATEGORIES } from '../../utils/constants';
 import Button from '../common/Button';
@@ -16,11 +17,12 @@ interface CategorySelectProps {
 }
 
 export default function CategorySelect({ value, suggested, onChange, onNext, onBack }: CategorySelectProps) {
+  const { t } = useNgonNgu();
   return (
     <div>
-      <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Chọn nhóm xử lý phù hợp</h3>
+      <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">{t('cs.chonNhomXuLy')}</h3>
       <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-        Hệ thống đã gợi ý sẵn nhóm phù hợp nhất, bà con có thể thay đổi nếu thấy chưa chính xác.
+        {t('cs.heThongDaGoi')}
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -28,6 +30,7 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
           const active = value === cat.id;
           return (
             <button
+            data-hd="the-nhom"
               key={cat.id}
               type="button"
               onClick={() => onChange(cat.id)}
@@ -55,10 +58,10 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
 
       <div className="mt-6 flex justify-between">
         <Button variant="ghost" onClick={onBack}>
-          Quay lại
+          {t('cs.quayLai')}
         </Button>
         <Button onClick={onNext} disabled={!value}>
-          Tiếp tục — Thông tin liên hệ
+          {t('cs.tiepTucThongTin')}
         </Button>
       </div>
     </div>

@@ -3,6 +3,7 @@
  * mã tra cứu 6 ký tự kèm mã QR, nút sao chép mã và nút TẢI QR VỀ MÁY (PNG).
  */
 import { useEffect, useRef, useState } from 'react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Check, Copy, Download, Home, RotateCcw, Search } from 'lucide-react';
@@ -26,6 +27,7 @@ interface ConfirmationProps {
 }
 
 export default function Confirmation({ draft, submission, isSubmitting, onSubmit, onBack, onReset, onVeBuocDau }: ConfirmationProps) {
+  const { t } = useNgonNgu();
   const [agreed, setAgreed] = useState(false);
   const [savedReceipt, setSavedReceipt] = useState(false);
   const autoSaved = useRef(false);
@@ -106,13 +108,13 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
           alt="Chú công an"
           className="mx-auto mb-3 h-36 w-36 rounded-full object-cover"
         />
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Gửi ý kiến thành công!</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{t('cf.guiYKienThanh')}</h3>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Cảm ơn bà con đã đóng góp ý kiến. Vui lòng lưu lại mã tra cứu bên dưới.
+          {t('cf.camOnBaCon')}
         </p>
 
         <div className="mx-auto mt-5 max-w-xs rounded-2xl border-2 border-dashed border-primary-300 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-900/10">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Mã tra cứu của bà con</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('cf.maTraCuuCua')}</p>
           <p className="my-2 font-mono text-3xl font-extrabold tracking-[0.3em] text-primary-700 dark:text-primary-300">
             {submission.trackingCode}
           </p>
@@ -127,17 +129,15 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
           {submission.chatPin && (
             <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
               <p className="text-xs font-medium text-amber-900 dark:text-amber-200">
-                Mã PIN vào phòng trao đổi
+                {t('cf.maPinVaoPhong')}
               </p>
               <p className="my-1 font-mono text-2xl font-extrabold tracking-[0.3em] text-amber-900 dark:text-amber-200">
                 {submission.chatPin}
               </p>
               <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
-                Dùng mã này ở trang <b>Tra cứu</b> để trao đổi thêm với cán bộ khi cần
-                bổ sung thông tin.
+                {t('cf.dungMaNayO')} <b>{t('cf.traCuu')}</b> {t('cf.deTraoDoiThem')}
                 <br />
-                <b>Chỉ hiện một lần duy nhất</b> — bà con lưu lại ngay, hệ thống không
-                cấp lại được.
+                <b>{t('cf.chiHienMotLan')}</b> {t('cf.baConLuuLai')}
               </p>
             </div>
           )}
@@ -159,21 +159,21 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700"
             >
               <Download className="h-3.5 w-3.5" />
-              Tải phiếu về máy
+              {t('cf.taiPhieuVeMay')}
             </button>
             <button
               onClick={handleDownloadQR}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 dark:bg-slate-800 dark:text-primary-300"
             >
               <Download className="h-3.5 w-3.5" />
-              Tải QR
+              {t('cf.taiQr')}
             </button>
           </div>
 
           {savedReceipt && (
             <p className="mb-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <Check className="h-3.5 w-3.5" />
-              Đã lưu phiếu mã tra cứu vào máy của bà con
+              {t('cf.daLuuPhieuMa')}
             </p>
           )}
 
@@ -181,7 +181,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             <QRCodeSVG value={qrValue} size={140} fgColor="#1B5E20" />
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            Lưu ảnh QR để tra cứu nhanh: vào mục Tra cứu → biểu tượng QR → chọn ảnh từ máy
+            {t('cf.luuAnhQrDe')}
           </p>
         </div>
 
@@ -202,16 +202,16 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
             to={`/tra-cuu?ma=${submission.trackingCode}`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-secondary-600 sm:w-auto"
           >
-            <Search className="h-4 w-4" /> Xem tiến độ ngay
+            <Search className="h-4 w-4" /> {t('cf.xemTienDoNgay')}
           </Link>
           <Link
             to="/"
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
           >
-            <Home className="h-4 w-4" /> Về trang chủ
+            <Home className="h-4 w-4" /> {t('cf.veTrangChu')}
           </Link>
           <Button variant="outline" onClick={onReset}>
-            Gửi ý kiến khác
+            {t('cf.guiYKienKhac')}
           </Button>
         </div>
       </div>
@@ -222,11 +222,11 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
   const category = draft.category ? CATEGORY_MAP[draft.category] : null;
   return (
     <div>
-      <h3 className="mb-4 text-sm font-bold text-slate-700 dark:text-slate-200">Xác nhận thông tin trước khi gửi</h3>
+      <h3 className="mb-4 text-sm font-bold text-slate-700 dark:text-slate-200">{t('cf.xacNhanThongTin')}</h3>
 
       <div className="space-y-4">
         <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">Nội dung (đã chuẩn hoá)</p>
+          <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">{t('cf.noiDungDaChuan')}</p>
           <p className="text-sm text-slate-700 dark:text-slate-200">
             {draft.analysis?.normalizedContent ?? draft.content}
           </p>
@@ -251,17 +251,17 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
         )}
 
         <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">Nhóm xử lý</p>
+          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">{t('cf.nhomXuLy')}</p>
           {category && <Badge colorClass={category.colorClass}>{category.label}</Badge>}
         </div>
 
         <div className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/60">
-          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">Thông tin liên hệ</p>
+          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">{t('cf.thongTinLienHe')}</p>
           <ul className="space-y-0.5 text-slate-700 dark:text-slate-200">
             {draft.contact.isAnonymous && (
               <>
-                <li className="font-semibold">🕶️ Gửi ẩn danh — không cung cấp danh tính</li>
-                <li className="text-amber-700 dark:text-amber-400">Tin báo ẩn danh sẽ được cán bộ kiểm duyệt trước khi đưa vào xử lý</li>
+                <li className="font-semibold">{t('cf.guiAnDanhKhong')}</li>
+                <li className="text-amber-700 dark:text-amber-400">{t('cf.tinBaoAnDanh')}</li>
               </>
             )}
             {draft.contact.fullName && <li>{draft.contact.fullName}</li>}
@@ -283,9 +283,9 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
           Tôi xác nhận thông tin cung cấp là đúng sự thật và đồng ý để Công an tiếp nhận, xử lý ý kiến này
           theo{' '}
           <a href="/chinh-sach-bao-mat" target="_blank" className="font-semibold text-primary-600 underline dark:text-primary-400">
-            Chính sách bảo mật
+            {t('cf.chinhSachBaoMat')}
           </a>
-          . Tôi hiểu rằng việc cố ý tố giác sai sự thật có thể bị xử lý theo quy định pháp luật.
+          {t('cf.toiHieuRangViec')}
         </span>
       </label>
 
@@ -306,7 +306,7 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" onClick={onBack} disabled={isSubmitting}>
-            Quay lại
+            {t('cf.quayLai')}
           </Button>
           {onVeBuocDau && (
             <button
@@ -316,12 +316,13 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Về bước nhập nội dung
+              {t('cf.veBuocNhapNoi')}
             </button>
           )}
         </div>
-        <Button onClick={onSubmit} loading={isSubmitting} disabled={!agreed}>
-          Gửi ý kiến
+        <Button onClick={onSubmit}
+            data-hd="nut-gui" loading={isSubmitting} disabled={!agreed}>
+          {t('cf.guiYKien')}
         </Button>
       </div>
     </div>

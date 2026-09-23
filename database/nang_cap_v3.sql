@@ -1,5 +1,5 @@
 -- =====================================================================
--- NÂNG CẤP V3 — Hộp Thư An Ninh Số
+-- NÂNG CẤP V3 — Điểm Chạm An Ninh
 -- Thêm: XÁC THỰC OTP qua email · Chuyển ảnh sang CLOUDINARY
 --
 -- CÁCH CHẠY: HeidiSQL -> chọn database hop_thu_an_ninh_so

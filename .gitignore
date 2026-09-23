@@ -36,4 +36,10 @@ server/sao-luu/
 # docs/kiem-thu-bao-mat/.
 # Sao lưu: buglogs/ có git repo RIÊNG lồng bên trong, xem
 # buglogs/README.md.
+#
+# ⚠️ LUẬT NÀY ĐÃ TỪNG BỊ XOÁ MỘT LẦN ở commit 76ee015 (kèm theo
+# một thay đổi không liên quan: bộ đếm lượt truy cập). Khôi phục
+# ngày 2026-09-23 khi hợp nhất nhánh. Nếu thấy nó biến mất lần
+# nữa, đó là dấu hiệu có người sửa .gitignore ngoài phạm vi việc
+# đang làm — dừng lại và kiểm, đừng đẩy gì lên.
 buglogs/

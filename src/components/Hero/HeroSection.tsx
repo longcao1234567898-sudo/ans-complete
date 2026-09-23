@@ -7,20 +7,23 @@ import { motion } from 'framer-motion';
 import Magnetic from '../common/Magnetic';
 import { Link } from 'react-router-dom';
 import { Bot, Clock3, Mail, QrCode, Search, ShieldCheck, Zap } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
+import type { KhoaChu } from '../../i18n/chu';
 
 /** 4 thẻ tính năng nổi bật */
 const STATS = [
-  { Icon: Clock3, title: '24/7', sub: 'Tiếp nhận trực tuyến', color: 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300' },
-  { Icon: Bot, title: 'Tự động phân loại', sub: 'Nhanh, giải thích rõ', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
-  { Icon: Zap, title: '1 phút', sub: 'Gửi ý kiến nhanh gọn', color: 'bg-accent-100 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500' },
-  { Icon: ShieldCheck, title: 'Bảo mật', sub: 'Thông tin được bảo vệ', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
+  /* khoaT / khoaS: mã tra bản dịch. Giữ title/sub tiếng Việt làm bản dự phòng. */
+  { Icon: Clock3, title: '24/7', khoaT: 'home.badge.247t', sub: 'Tiếp nhận trực tuyến', khoaS: 'home.badge.247', color: 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300' },
+  { Icon: Bot, title: 'Tự động phân loại', khoaT: 'home.badge.auto', sub: 'Nhanh, giải thích rõ', khoaS: 'home.badge.autoSub', color: 'bg-secondary-100 text-secondary-500 dark:bg-secondary-500/20 dark:text-secondary-400' },
+  { Icon: Zap, title: '1 phút', khoaT: 'home.badge.fast', sub: 'Gửi ý kiến nhanh gọn', khoaS: 'home.badge.fastSub', color: 'bg-accent-100 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500' },
+  { Icon: ShieldCheck, title: 'Bảo mật', khoaT: 'home.badge.secure', sub: 'Thông tin được bảo vệ', khoaS: 'home.badge.secureSub', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
 ];
 
 /** Dải cam kết dưới cùng */
 const TRUST_ITEMS = [
   'Mọi phản ánh đều được bảo mật',
-  'Được tiếp nhận bởi Công an thị xã Tân Châu',
-  'Vì một Tân Châu bình yên và phát triển',
+  'Được tiếp nhận bởi Công an phường Chánh Hiệp',
+  'Vì một Chánh Hiệp bình yên và phát triển',
 ];
 
 /** Quốc huy cách điệu vàng của đơn vị */
@@ -37,32 +40,30 @@ function UnitEmblem({ className }: { className?: string }) {
 }
 
 export default function HeroSection() {
+  const { t } = useNgonNgu();
   return (
     <section className="relative overflow-hidden" aria-labelledby="hero-title">
-      {/* NỀN VIDEO chuyển động — GIỮ NGUYÊN cho riêng trang chủ.
-          Trang chủ là nơi gây ấn tượng đầu tiên, nền động ở đây có giá trị.
-          Các trang phụ (gửi ý kiến, tra cứu, tin tức, giới thiệu) thì dùng ảnh
-          tĩnh vì bà con ở lại lâu, video chạy lặp làm nóng máy và tốn dung
-          lượng mà nền lại bị phủ mờ gần hết. */}
-      <video
-        className="absolute inset-0 h-full w-full object-cover"
-        src="/media/hero-bg.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        /* ⚠️ Ảnh chờ PHẢI là ảnh phong cảnh, KHÔNG dùng ảnh có chữ.
-           Trước đây dùng police-assistant.png — ảnh minh hoạ hội thoại có sẵn
-           chữ "Xin chào / Tôi là trợ lý ảo...". Vì object-cover phóng to cắt
-           hai bên trên màn hình hẹp, chữ trong ảnh tràn ra mép, hiện dở dang
-           sau tiêu đề, trông như trang bị lỗi.
-           hero-poster.webp cắt từ chính khung hình video nên khớp liền mạch khi
-           video tải xong, KHÔNG có chữ, và đã cắt bỏ watermark của công cụ tạo
-           video ở mép dưới. Các ảnh bg-*.webp khác đều có bia chữ địa danh nên
-           không dùng làm nền cho vùng có tiêu đề. */
-        poster="/media/hero-poster.webp"
-        aria-hidden
-      />
+      {/* NỀN TRANG CHỦ — ảnh trụ sở Công an phường Chánh Hiệp.
+
+          ⚠️ ĐÃ BỎ VIDEO NỀN. Video cũ quay cảnh địa bàn Tân Châu, không còn
+          đúng sau khi chuyển sang phường Chánh Hiệp. Thay bằng ảnh tĩnh của
+          chính trụ sở đơn vị: đúng địa bàn, tải nhanh hơn hẳn (video 330KB và
+          chạy lặp liên tục làm nóng máy), và bà con nhìn là nhận ra ngay nơi
+          mình sẽ tới nếu cần gặp trực tiếp.
+
+          ⚠️ Ảnh có sẵn chữ tên đơn vị trên biển hiệu. Lớp phủ bên dưới phải đủ
+          đậm để chữ đó không chọi với tiêu đề trang — xem chú thích ở lớp phủ. */}
+      <picture>
+        {/* Bản dọc cho điện thoại — xem chú thích ở PageBackground.tsx */}
+        <source media="(max-width: 767px)" srcSet="/media/bg-tru-so-cong-an-dt.webp" />
+        <img
+          className="absolute inset-0 h-full w-full object-cover"
+          src="/media/bg-tru-so-cong-an.webp"
+          alt=""
+          loading="eager"
+          aria-hidden
+        />
+      </picture>
       {/* Lớp phủ gradient để chữ luôn đọc rõ trên mọi khung hình video.
 
           ⚠️ Độ phủ phải ĐỦ ĐẬM: video nền có sẵn chữ trong nội dung ("Xin
@@ -75,7 +76,16 @@ export default function HeroSection() {
           ⚠️ CHỈ dùng các mức opacity CHUẨN của Tailwind (5, 10, 20... 90, 95).
           Mức lạ như /92, /88, /94 KHÔNG được sinh ra trong tệp CSS, lớp phủ sẽ
           trong suốt hoàn toàn và lỗi còn nặng hơn lúc chưa sửa. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/80 to-white/90 dark:from-slate-950/90 dark:via-slate-950/80 dark:to-slate-950/90" aria-hidden />
+      {/* ⚠️ ĐỘ PHỦ PHẢI ĐẬM HƠN Ở GIỮA — chỗ đặt tiêu đề.
+
+          Ảnh nền là trụ sở, trên biển hiệu có sẵn dòng chữ tên đơn vị cỡ lớn.
+          Phủ đều 80% thì dòng chữ đó lọt qua ngay dưới tiêu đề "ĐIỂM CHẠM AN
+          NINH", hai dòng chữ chọi nhau trông rối — thấy rõ nhất trên điện
+          thoại vì ảnh bị phóng to cắt hai bên.
+
+          Nay phủ đậm 94% ở dải giữa nơi có tiêu đề và hai nút chính, nhạt hơn
+          ở mép trên dưới để vẫn thấy được khung cảnh trụ sở. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/94 to-white/88 dark:from-slate-950/85 dark:via-slate-950/94 dark:to-slate-950/88" aria-hidden />
 
       {/* Huy hiệu Bảo mật góc trái */}
       <div className="glass absolute left-4 top-4 z-10 hidden items-center gap-2 rounded-2xl px-3 py-2 md:flex" aria-hidden>
@@ -102,14 +112,14 @@ export default function HeroSection() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="mb-7 flex items-center justify-center gap-3">
           <UnitEmblem className="h-12 w-12 sm:h-14 sm:w-14" />
           <div className="text-left leading-tight">
-            <p className="text-lg font-extrabold tracking-wide text-primary-700 dark:text-primary-300 sm:text-xl">CÔNG AN THỊ XÃ TÂN CHÂU</p>
+            <p className="text-lg font-extrabold tracking-wide text-primary-700 dark:text-primary-300 sm:text-xl">CÔNG AN PHƯỜNG CHÁNH HIỆP</p>
             <p className="text-xs italic text-slate-600 dark:text-slate-400">Vì nước quên thân, vì dân phục vụ</p>
           </div>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
           <h1 id="hero-title" className="mx-auto max-w-4xl text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
-            <span className="text-gradient">HỘP THƯ AN NINH SỐ</span>
+            <span className="text-gradient">{t('home.title')}</span>
             {/* Đã gỡ huy hiệu "AI" cạnh tên hệ thống.
                   AI nay chỉ còn ở trợ lý hỏi đáp, không tham gia phân loại ý
                   kiến nữa. Để chữ AI cạnh tên là nói quá vai trò của nó, dễ bị
@@ -117,7 +127,7 @@ export default function HeroSection() {
           </h1>
 
           <p className="mx-auto mt-4 max-w-xl text-base font-medium text-slate-700 dark:text-slate-200 sm:text-lg">
-            Tiếp nhận ý kiến công dân trực tuyến — gửi trong 1 phút, theo dõi tiến độ mọi lúc.
+            {t('home.subtitle')}
           </p>
 
           {/* 2 nút CTA 2 dòng */}
@@ -132,8 +142,8 @@ export default function HeroSection() {
                   <Mail className="icon-pop h-5 w-5" aria-hidden />
                 </span>
                 <span>
-                  <span className="block text-base font-bold leading-tight">Gửi ý kiến ngay</span>
-                  <span className="block text-[11px] text-white/85">Gửi phản ánh, kiến nghị</span>
+                  <span className="block text-base font-bold leading-tight">{t('home.cta.send')}</span>
+                  <span className="block text-[11px] text-white/85">{t('home.cta.sendSub')}</span>
                 </span>
               </Link>
             </Magnetic>
@@ -147,8 +157,8 @@ export default function HeroSection() {
                   <Search className="icon-pop h-5 w-5" aria-hidden />
                 </span>
                 <span>
-                  <span className="block text-base font-bold leading-tight">Tra cứu kết quả</span>
-                  <span className="block text-[11px] text-white/85">Theo dõi tiến độ xử lý</span>
+                  <span className="block text-base font-bold leading-tight">{t('home.cta.track')}</span>
+                  <span className="block text-[11px] text-white/85">{t('home.cta.trackSub')}</span>
                 </span>
               </Link>
             </Magnetic>
@@ -156,12 +166,12 @@ export default function HeroSection() {
 
           {/* Dải 4 thẻ tính năng */}
           <div className="mx-auto mt-8 grid max-w-3xl grid-cols-2 gap-3 lg:grid-cols-4">
-            {STATS.map(({ Icon, title, sub, color }, idx) => (
+            {STATS.map(({ Icon, title, sub, color, khoaT, khoaS }, idx) => (
               <motion.div key={title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + idx * 0.1 }} className="flex items-center gap-3 rounded-2xl bg-white/90 p-3.5 text-left shadow-soft dark:bg-slate-900/90">
                 <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5" aria-hidden /></span>
                 <span>
-                  <span className="block text-sm font-extrabold text-slate-800 dark:text-slate-100">{title}</span>
-                  <span className="block text-[11px] leading-tight text-slate-500 dark:text-slate-400">{sub}</span>
+                  <span className="block text-sm font-extrabold text-slate-800 dark:text-slate-100">{khoaT ? t(khoaT as KhoaChu) : title}</span>
+                  <span className="block text-[11px] leading-tight text-slate-500 dark:text-slate-400">{khoaS ? t(khoaS as KhoaChu) : sub}</span>
                 </span>
               </motion.div>
             ))}

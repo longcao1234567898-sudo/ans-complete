@@ -102,10 +102,23 @@ export async function uploadVideoToCloudinary(dataUrl: string): Promise<Uploaded
   form.append('upload_preset', PRESET);
   form.append('folder', 'hop-thu-an-ninh-so/video');
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
-    method: 'POST',
-    body: form,
-  });
+  /* GIỚI HẠN THỜI GIAN CHỜ 90 giây.
+
+     Không có giới hạn thì mạng chập chờn làm lệnh tải treo vô hạn — bà con
+     nhìn nút quay mãi mà không biết bao giờ xong, cũng không có cách nào
+     thoát. Thà báo hỏng sau 90 giây để họ thử lại. */
+  const huy = new AbortController();
+  const hetGio = setTimeout(() => huy.abort(), 90_000);
+  let res: Response;
+  try {
+    res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
+      method: 'POST',
+      body: form,
+      signal: huy.signal,
+    });
+  } finally {
+    clearTimeout(hetGio);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -126,13 +139,52 @@ export async function uploadVideoToCloudinary(dataUrl: string): Promise<Uploaded
  * Nguyên tắc xuyên suốt: hỏng khâu phụ thì bỏ khâu phụ, không làm hỏng việc
  * chính là nhận tin của bà con.
  */
+/** Kho ảnh đã từ chối video lần nào chưa.
+ *
+ *  Cấu hình kho ảnh cấm định dạng video thì lần nào gọi cũng hỏng như nhau.
+ *  Nhớ lại để lần sau khỏi gọi vô ích: đỡ cho bà con phải chờ thêm một vòng
+ *  mạng mới biết kết quả đã biết trước. Đặt lại khi tải lại trang, phòng khi
+ *  đơn vị vừa sửa cấu hình. */
+let khoAnhTuChoiVideo = false;
+
+/** Kho ảnh có nhận video không — giao diện dùng để báo trước cho bà con. */
+export function khoAnhNhanVideo(): boolean {
+  return cloudinaryEnabled && !khoAnhTuChoiVideo;
+}
+
 export async function prepareVideo(dataUrl: string | null | undefined): Promise<string | null> {
   if (!dataUrl) return null;
+  /* Đã là đường dẫn rồi (tải lên từ lúc đính kèm) -> trả về luôn, đừng tải lại
+     lần nữa. Không kiểm chỗ này thì mỗi lần gửi lại tải thêm một bản. */
+  if (/^https?:\/\//i.test(dataUrl)) return dataUrl;
   if (!cloudinaryEnabled) return dataUrl;
+  /* Đã biết kho ảnh từ chối video thì đừng gọi nữa — gọi cũng hỏng, chỉ tốn
+     thời gian chờ của bà con. */
+  if (khoAnhTuChoiVideo) return dataUrl;
   try {
     const { url } = await uploadVideoToCloudinary(dataUrl);
     return url;
   } catch (e) {
+    /* ⚠️ QUAY VỀ GỬI THẲNG CHỈ KHI VIDEO ĐỦ NHỎ.
+
+       Lỗi đã xảy ra thật: cấu hình kho ảnh của đơn vị chỉ cho phép ẢNH, từ
+       chối video với thông báo "Image file format mp4 not allowed". Mã cũ gặp
+       lỗi thì lặng lẽ gửi thẳng cả video 50MB — chuỗi phình lên ~67MB, vượt
+       giới hạn 32MB của máy chủ, nên máy chủ từ chối CẢ GÓI. Kết quả: không
+       chỉ video hỏng mà Ý KIẾN CŨNG KHÔNG GỬI ĐƯỢC, bà con bấm gửi mà không
+       thấy gì xảy ra.
+
+       Nay video quá lớn thì BỎ VIDEO và vẫn gửi ý kiến. Mất video còn hơn mất
+       cả tin báo — nội dung mới là thứ quan trọng nhất.
+
+       Cách sửa tận gốc: vào trang quản lý kho ảnh, mở cấu hình tải lên và cho
+       phép định dạng video (hoặc đặt kiểu tài nguyên là "auto"). */
+    khoAnhTuChoiVideo = true;   // nhớ lại, lần sau khỏi gọi vô ích
+    const TRAN_BYTE = 20 * 1024 * 1024;   // ~15MB tệp thật sau khi mã hoá
+    if (dataUrl.length > TRAN_BYTE) {
+      console.warn('Kho ảnh từ chối video và video quá lớn để gửi thẳng — bỏ video:', e);
+      return null;
+    }
     console.warn('Không tải được video lên kho ảnh, gửi thẳng:', e);
     return dataUrl;
   }

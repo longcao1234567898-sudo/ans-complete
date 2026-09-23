@@ -11,6 +11,7 @@
  *    báo. Trang này tuyệt đối không hiện nội dung tin hay danh tính.
  */
 import { useState } from 'react';
+import { useNgonNgu } from '../i18n/useNgonNgu';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -19,12 +20,14 @@ import { fetchBanDoAnNinh, type DiaBanAnNinh } from '../services/banDoService';
 import PageBackground from '../components/common/PageBackground';
 import SpeakButton from '../components/common/SpeakButton';
 
-const CENTER: [number, number] = [10.81, 105.21];
+/* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
+   Tương Bình Hiệp cũ, phía bắc trung tâm Thủ Dầu Một). */
+const CENTER: [number, number] = [11.0105, 106.6525];
 
 const KHOANG = [
-  { ngay: 7, nhan: '7 ngày qua' },
-  { ngay: 30, nhan: '30 ngày qua' },
-  { ngay: 90, nhan: '3 tháng qua' },
+  { ngay: 7, khoa: 'map.7days' as const },
+  { ngay: 30, khoa: 'map.30days' as const },
+  { ngay: 90, khoa: 'map.90days' as const },
 ];
 
 /* Màu theo mức độ: xanh ít việc, cam vừa, đỏ nhiều. Địa bàn bị che số thì xám —
@@ -46,6 +49,7 @@ function banKinh(d: DiaBanAnNinh, cao: number): number {
 }
 
 export default function BanDoAnNinhPage() {
+  const { t } = useNgonNgu();
   const [ngay, setNgay] = useState(30);
 
   const { data, isLoading, error } = useQuery({
@@ -68,25 +72,24 @@ export default function BanDoAnNinhPage() {
 
   /* Lời đọc cho người mắt kém — gộp thành một đoạn để nghe liền mạch. */
   const loiDoc = diaBanNong.length
-    ? `Tình hình an ninh ${KHOANG.find((k) => k.ngay === ngay)?.nhan}. `
+    ? `Tình hình an ninh ${t(KHOANG.find((k) => k.ngay === ngay)?.khoa ?? 'map.30days')}. `
       + `Toàn địa bàn tiếp nhận ${tongTin} tin. `
       + `Các nơi có nhiều tin nhất: `
       + diaBanNong.map((d) => `${d.ten} ${d.tong} tin`).join(', ')
       + '. Bà con ở những nơi này lưu ý cảnh giác hơn.'
-    : `Tình hình an ninh ${KHOANG.find((k) => k.ngay === ngay)?.nhan}. Chưa có địa bàn nào nổi bật.`;
+    : `Tình hình an ninh ${t(KHOANG.find((k) => k.ngay === ngay)?.khoa ?? 'map.30days')}. Chưa có địa bàn nào nổi bật.`;
 
   return (
     <div className="relative min-h-screen">
-      <PageBackground anh="bg-ho-tinh-tam.webp" />
+      {/* Ảnh nền: toàn cảnh địa bàn */}
+      <PageBackground anh="bg-chua-hoi-khanh.webp" />
 
       <div className="container-page py-8">
         <h1 className="mb-1 flex items-center gap-2 text-2xl font-extrabold text-slate-800 dark:text-slate-100">
-          <MapPin className="h-6 w-6 text-primary-600" /> Bản đồ an ninh địa bàn
+          <MapPin className="h-6 w-6 text-primary-600" /> {t('map.title')}
         </h1>
         <p className="mb-5 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-          Xem tình hình an ninh trật tự nơi bà con sinh sống, để biết mà phòng ngừa.
-          Bản đồ chỉ hiện <b>số lượng tin đã tiếp nhận</b> theo từng địa bàn —
-          không hiện nội dung tin, không hiện ai đã báo.
+          {t('bd.xemTinhHinhAn')} <b>{t('bd.soLuongTinDa')}</b> {t('bd.theoTungDiaBan')}
         </p>
 
         {/* Chọn khoảng thời gian */}
@@ -102,21 +105,21 @@ export default function BanDoAnNinhPage() {
                   : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300'
               }`}
             >
-              {k.nhan}
+              {t(k.khoa)}
             </button>
           ))}
         </div>
 
         {isLoading && (
           <p className="flex items-center gap-2 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải bản đồ…
+            <Loader2 className="h-4 w-4 animate-spin" /> {t('bd.dangTaiBanDo')}
           </p>
         )}
 
         {error && (
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/15">
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              Chưa xem được bản đồ lúc này. Bà con thử lại sau giúp.
+              {t('bd.chuaXemDuocBan')}
             </p>
           </div>
         )}
@@ -128,12 +131,12 @@ export default function BanDoAnNinhPage() {
               <div className="mb-6 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/15">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="flex items-center gap-2 text-base font-extrabold text-amber-800 dark:text-amber-300">
-                    <ShieldAlert className="h-5 w-5" /> Cảnh báo tại địa bàn
+                    <ShieldAlert className="h-5 w-5" /> {t('bd.canhBaoTaiDia')}
                   </p>
                   <SpeakButton text={loiDoc} label="Nghe" />
                 </div>
                 <p className="mb-3 text-sm text-amber-700 dark:text-amber-200">
-                  Những nơi có nhiều tin báo nhất {KHOANG.find((k) => k.ngay === ngay)?.nhan.toLowerCase()}.
+                  Những nơi có nhiều tin báo nhất {t(KHOANG.find((k) => k.ngay === ngay)?.khoa ?? 'map.30days').toLowerCase()}.
                   Bà con ở các khu này lưu ý cảnh giác hơn.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -166,15 +169,15 @@ export default function BanDoAnNinhPage() {
             <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className="text-2xl font-extrabold text-primary-600 dark:text-primary-400">{tongTin}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">tin đã tiếp nhận</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('bd.tinDaTiepNhan')}</p>
               </div>
               <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{tongToGiac}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">tin tố giác tội phạm</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('bd.tinToGiacToi')}</p>
               </div>
               <div className="rounded-2xl bg-white p-4 shadow-soft dark:bg-slate-900">
                 <p className="text-2xl font-extrabold text-slate-700 dark:text-slate-200">{ds.length}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">địa bàn theo dõi</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('bd.diaBanTheoDoi')}</p>
               </div>
             </div>
 
@@ -201,7 +204,7 @@ export default function BanDoAnNinhPage() {
                       <div className="text-xs">
                         <p className="font-bold">{d.ten}</p>
                         {d.duLieuIt ? (
-                          <p className="text-slate-500">Chưa đủ dữ liệu để công bố</p>
+                          <p className="text-slate-500">{t('bd.chuaDuDuLieu')}</p>
                         ) : (
                           <>
                             <p>{d.tong} tin đã tiếp nhận</p>
@@ -224,9 +227,7 @@ export default function BanDoAnNinhPage() {
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 <p>
-                  <b>Chấm càng lớn và càng đỏ</b> nghĩa là địa bàn đó có nhiều tin báo hơn.
-                  Chấm xám là địa bàn <b>chưa đủ dữ liệu để công bố</b> — không phải nơi đó
-                  không có việc gì.
+                  <b>{t('bd.chamCangLonVa')}</b> {t('bd.nghiaLaDiaBan')} <b>{t('bd.chuaDuDuLieu2')}</b> {t('bd.khongPhaiNoiDo')}
                 </p>
                 <p className="mt-1.5">
                   Địa bàn có dưới {data.nguongChe} tin thì hệ thống không hiện số, để tránh

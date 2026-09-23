@@ -36,6 +36,10 @@ function gaPool(hoSo) {
   pool.query = async (sql, params) => {
     cacTruyVan.push({ sql, params });
     if (/FROM submissions/i.test(sql)) return [hoSo ? [hoSo] : []];
+    /* Lớp kiểm quyền hỏi tài khoản còn hoạt động không (thêm vào để khoá tài
+       khoản có hiệu lực tức thì). Mọi tài khoản trong bài này đều đang hoạt
+       động — bài này kiểm phân quyền xem danh tính, không kiểm việc khoá. */
+    if (/SELECT is_active FROM staff/i.test(sql)) return [[{ is_active: 1 }]];
     return [{ affectedRows: 1 }];   // INSERT nhật ký
   };
 }

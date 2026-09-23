@@ -1,5 +1,5 @@
 /**
- * Backend Hộp Thư Số — Điểm Chạm An Ninh (bản nâng cấp bảo mật cao).
+ * Backend Điểm Chạm An Ninh (bản nâng cấp bảo mật cao).
  * Chạy: npm install && npm run dev  (cần MySQL đã import database)
  */
 import 'dotenv/config';
@@ -18,6 +18,8 @@ import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
 import banDoRouter from './routes/ban-do.js';
 import khieuNaiRouter from './routes/khieu-nai.js';
+import thongKeRouter from './routes/thong-ke.js';
+import diemDenRouter from './routes/diem-den.js';
 import ttsRouter from './routes/tts.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
@@ -83,6 +85,24 @@ app.use(
 /* 32mb: đủ cho một video 20MB sau khi mã hoá base64 (tăng khoảng 33%) cộng
    phần nội dung và ảnh. Trước đây 12mb nên video vừa gửi đã bị từ chối. */
 app.use(express.json({ limit: '32mb' }));
+/* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
+
+   ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
+   trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
+   được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
+   kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
+
+   Nay nói thẳng nguyên nhân và cách làm tiếp. */
+app.use((err, _req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
+           + 'quay đoạn ngắn hơn, rồi gửi lại.',
+    });
+  }
+  return next(err);
+});
+
 app.use(cookieParser());
 
 // Rate limit chung
@@ -176,6 +196,10 @@ app.use('/api/news', newsRouter);
 app.use('/api/ban-do', banDoRouter);
 /* Khiếu nại mở khoá — KHÔNG cần đăng nhập, vì người bị khoá không có tài khoản. */
 app.use('/api/khieu-nai', khieuNaiRouter);
+/* Đếm lượt truy cập — CHỈ đếm số, không lưu dấu vết người dùng. */
+app.use('/api/thong-ke', thongKeRouter);
+/* Điểm đen giao thông — công khai, số liệu càng nhiều người biết càng tốt. */
+app.use('/api/diem-den', diemDenRouter);
 /* Đọc tiếng Việt qua máy chủ — cho máy người dùng không cài giọng Việt */
 app.use('/api/tts', ttsRouter);
 app.use('/api/otp', otpRouter);

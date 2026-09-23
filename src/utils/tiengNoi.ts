@@ -55,13 +55,18 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => { docDanhSachGiong(); };
 }
 
-/** Chọn giọng tiếng Việt tốt nhất máy đang có. */
-function chonGiongViet(): SpeechSynthesisVoice | undefined {
+/** Chọn giọng tốt nhất máy đang có cho ngôn ngữ yêu cầu.
+ *
+ *  Trước đây chốt cứng tiếng Việt. Từ khi có phần tiếng Anh cho người nước
+ *  ngoài, đọc chữ tiếng Anh bằng giọng Việt nghe rất kỳ và khó hiểu — nên phải
+ *  chọn giọng theo đúng ngôn ngữ của văn bản. */
+function chonGiong(ma: 'vi' | 'en' = 'vi'): SpeechSynthesisVoice | undefined {
   const ds = docDanhSachGiong();
+  const day = ma === 'en' ? 'en-US' : 'vi-VN';
   return (
-    ds.find((v) => v.lang.startsWith('vi') && /google/i.test(v.name)) ||
-    ds.find((v) => v.lang === 'vi-VN') ||
-    ds.find((v) => v.lang.startsWith('vi'))
+    ds.find((v) => v.lang.startsWith(ma) && /google/i.test(v.name)) ||
+    ds.find((v) => v.lang === day) ||
+    ds.find((v) => v.lang.startsWith(ma))
   );
 }
 
@@ -202,7 +207,7 @@ function dungLuongCu() {
  * @param onXong   gọi khi đọc hết hoặc bị dừng — để nút cập nhật trạng thái
  * @returns        đối tượng có hàm dung() để dừng giữa chừng
  */
-export function docTiengViet(text: string, onXong?: () => void): DieuKhienDoc {
+export function docTiengViet(text: string, onXong?: () => void, ma: 'vi' | 'en' = 'vi'): DieuKhienDoc {
   /* Dừng luồng đọc đang chạy (nếu có) trước khi bắt đầu luồng mới — để bấm
      nghe bài khác thì bài đang nghe tắt ngay, không đọc chồng. */
   dungLuongCu();
@@ -227,7 +232,7 @@ export function docTiengViet(text: string, onXong?: () => void): DieuKhienDoc {
     const docTiep = () => {
       if (daDung || i >= cac.length) { onXong?.(); return; }
       const u = new SpeechSynthesisUtterance(cac[i]);
-      u.lang = 'vi-VN';   // báo cho trình duyệt đây là tiếng Việt dù không có giọng riêng
+      u.lang = ma === 'en' ? 'en-US' : 'vi-VN';   // báo đúng ngôn ngữ cho trình duyệt
       u.rate = 0.95;   // chậm hơn chút cho người lớn tuổi dễ nghe
       u.pitch = 1;
       if (giong) u.voice = giong;
@@ -261,7 +266,7 @@ export function docTiengViet(text: string, onXong?: () => void): DieuKhienDoc {
         '[đọc tiếng Việt] Máy chủ /api/tts không phản hồi — lùi về giọng trên máy. ' +
         'API_URL hiện tại:', API_URL || '(TRỐNG — chưa cấu hình VITE_API_URL)'
       );
-      const giongViet = chonGiongViet();
+      const giongViet = chonGiong(ma);
       if (!giongViet) {
         console.warn(
           '[đọc tiếng Việt] Máy này KHÔNG có giọng tiếng Việt nào -> sẽ đọc bằng ' +

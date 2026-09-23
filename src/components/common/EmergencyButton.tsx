@@ -11,13 +11,18 @@
 import { useState } from 'react';
 import { Phone, PhoneCall, X, Siren } from 'lucide-react';
 import { UNIT } from '../../utils/constants';
+import { useDangGo } from '../../hooks/useDangGo';
 
 export default function EmergencyButton() {
+  /* Ẩn khi bà con đang gõ — nút này nổi ở góc dưới trái, bàn phím bật lên là
+     nó đè thẳng lên ô đang nhập, che mất chữ vừa gõ. Xem chú thích dài ở
+     hooks/useDangGo.ts. */
+  const dangGo = useDangGo();
   const [open, setOpen] = useState(false);
 
   return (
     <div
-      className="fixed left-5 z-50"
+      className={`fixed left-5 z-50 transition-opacity duration-200 ${dangGo ? "pointer-events-none opacity-0" : "opacity-100"}`}
       /* ĐẨY LÊN KHI THANH CHỨC NĂNG HIỆN RA.
          MobileTabBar đặt biến --tab-bar-h = 4.25rem lúc thanh trượt lên, và
          về 0rem lúc thanh ẩn đi. Không đọc biến này thì nút SOS nằm ĐÈ lên

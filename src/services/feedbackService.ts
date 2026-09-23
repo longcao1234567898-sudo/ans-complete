@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 /**
  * Dịch vụ gửi ý kiến (MOCK — lưu localStorage) kèm cơ chế CHỐNG SPAM:
  * - Phải chờ tối thiểu 2 phút giữa 2 lần gửi
@@ -11,7 +12,7 @@ import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
-import { prepareImages, prepareVideo } from './uploadService';
+import { prepareImages } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
 export function readSubmissions(): FeedbackSubmission[] {
@@ -94,6 +95,7 @@ function saveSubmissions(list: FeedbackSubmission[], newest: FeedbackSubmission)
 
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
 export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubmission> {
+
   await delay(1100);
 
   // Tuyến phòng thủ thứ 2: làm sạch + quét lại toàn bộ văn bản ngay trước khi lưu
@@ -148,10 +150,10 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         phone: draft.contact.phone.trim(),
         email: draft.contact.email.trim() || undefined,
         images: await prepareImages(draft.images),
-        /* Video minh chứng — tải lên kho ảnh trước rồi chỉ gửi đường dẫn, để
-           không nhồi hàng chục MB base64 vào database. Chưa cấu hình kho ảnh
-           hoặc tải lỗi thì tự quay về gửi thẳng, không chặn bà con. */
-        video: await prepareVideo(draft.video),
+        /* Tài liệu gửi thẳng dạng chuỗi — máy chủ kiểm an toàn bốn lớp trước
+           khi lưu (lib/tai-lieu-an-toan.js). Không qua kho ảnh vì kho ảnh chỉ
+           nhận ảnh, và tài liệu cần kiểm nội dung chứ không chỉ lưu trữ. */
+        taiLieu: draft.taiLieu ?? [],
         /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
            Không bấm thì trường này rỗng, máy chủ bỏ qua. */
         viTri: draft.viTri ?? null,

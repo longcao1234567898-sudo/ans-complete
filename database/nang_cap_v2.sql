@@ -1,5 +1,5 @@
 -- =====================================================================
--- NÂNG CẤP V2 — Hộp Thư An Ninh Số
+-- NÂNG CẤP V2 — Điểm Chạm An Ninh
 -- Thêm: Mã hoá danh tính · SLA hạn xử lý · Phân công cán bộ · Địa bàn (bản đồ)
 --
 -- CÁCH CHẠY: HeidiSQL -> chọn database hop_thu_an_ninh_so

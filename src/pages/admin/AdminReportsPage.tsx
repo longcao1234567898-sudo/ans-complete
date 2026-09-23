@@ -80,7 +80,7 @@ export default function AdminReportsPage() {
       // ───── Sheet 1: BÌA BÁO CÁO ─────
       const cover = XLSX.utils.aoa_to_sheet([
         ['BÁO CÁO TỔNG HỢP Ý KIẾN CÔNG DÂN'],
-        ['Hệ thống Hộp Thư An Ninh Số'],
+        ['Hệ thống Điểm Chạm An Ninh'],
         [UNIT.name],
         [],
         ['Kỳ báo cáo:', `Từ ${new Date(range.from).toLocaleDateString('vi-VN')} đến ${new Date(range.to).toLocaleDateString('vi-VN')}`],

@@ -232,7 +232,13 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa
                  có thì trả NULL để trang chi tiết không sập. Không có giá trị
                  nào của người dùng đi vào câu lệnh ở đây. */
-              || /^\(await coCotToaDoAd\(\)\) \? /.test(bieuThuc);
+              || /^\(await coCotToaDoAd\(\)\) \? /.test(bieuThuc)
+              /* admin/news.js — chọn giữa các hằng SQL viết sẵn dựa trên cột
+                 is_featured đã tồn tại chưa (coNB, đọc từ information_schema
+                 chứ không phải dữ liệu người dùng). Cột chưa có thì bỏ khỏi câu
+                 lệnh hoặc trả 0. Mọi GIÁ TRỊ do cán bộ nhập vẫn đi qua dấu ?
+                 trong mảng params — xem docDuLieuTin() làm sạch trước đó. */
+              || /^coNB \? /.test(bieuThuc);
             if (!hopLe) loi.push(`${muc.name}: \${${bieuThuc}}`);
           }
         }

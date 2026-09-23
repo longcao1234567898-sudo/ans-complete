@@ -1,5 +1,5 @@
 -- ============================================================
--- HỘP THƯ AN NINH SỐ — Database (bản CHỐNG LỖI IMPORT)
+-- ĐIỂM CHẠM AN NINH — Database (bản CHỐNG LỖI IMPORT)
 -- Công an thị xã Tân Châu, tỉnh An Giang  |  MySQL 8.0+ / MariaDB 10.4+
 --
 -- CÁCH DÙNG (phpMyAdmin):
@@ -219,7 +219,7 @@ INSERT INTO staff (id, full_name, username, password_hash, email, role) VALUES
 (1, 'Quản trị hệ thống', 'admin', '$2b$12$PLACEHOLDER_DOI_NGAY_TRUOC_KHI_SU_DUNG_THAT', 'congan.tanchau@angiang.gov.vn', 'admin');
 
 INSERT INTO system_settings (`key`, `value`, description) VALUES
-('site_name', 'Hộp Thư An Ninh Số', 'Tên hệ thống'),
+('site_name', 'Điểm Chạm An Ninh', 'Tên hệ thống'),
 ('site_unit', 'Công an thị xã Tân Châu', 'Tên đơn vị'),
 ('site_address', 'Số 16 Phạm Hùng, khóm Long Thị D, phường Long Thạnh, thị xã Tân Châu, tỉnh An Giang', 'Địa chỉ'),
 ('site_phone', '0296 3822 154', 'Điện thoại trực ban'),
@@ -266,7 +266,7 @@ INSERT INTO news (title, summary, category, image_url, source_name, source_url, 
  'Bộ Chính trị xác định khoa học công nghệ, đổi mới sáng tạo và chuyển đổi số là đột phá quan trọng hàng đầu - nền tảng để hiện đại hoá quản trị quốc gia, trong đó có chuyển đổi số ngành Công an.',
  'document', '/images/news/nq57.jpg', 'xaydungchinhsach.chinhphu.vn', 'https://xaydungchinhsach.chinhphu.vn', CURDATE() - INTERVAL 12 DAY),
 ('Nghị quyết 66-NQ/TW về đổi mới công tác xây dựng và thi hành pháp luật trong kỷ nguyên mới',
- 'Hoàn thiện thể chế, đưa pháp luật đi vào cuộc sống - cơ sở chính trị quan trọng để các mô hình tiếp nhận ý kiến công dân như Hộp Thư An Ninh Số hoạt động minh bạch, đúng quy định.',
+ 'Hoàn thiện thể chế, đưa pháp luật đi vào cuộc sống - cơ sở chính trị quan trọng để các mô hình tiếp nhận ý kiến công dân như Điểm Chạm An Ninh hoạt động minh bạch, đúng quy định.',
  'document', '/images/news/nq66.jpg', 'vbpl.vn', 'https://vbpl.vn', CURDATE() - INTERVAL 15 DAY);
 
 INSERT INTO submissions

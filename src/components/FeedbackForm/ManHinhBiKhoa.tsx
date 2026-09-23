@@ -17,6 +17,7 @@
  *      chặn đường cầu cứu của người đang gặp nguy.
  */
 import { ShieldAlert, Clock, PhoneCall, ArrowLeft } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { Link } from 'react-router-dom';
 import { UNIT } from '../../utils/constants';
 import KhieuNaiMoKhoa from './KhieuNaiMoKhoa';
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
+  const { t } = useNgonNgu();
   const gio = Math.floor(conLaiPhut / 60);
   const phut = conLaiPhut % 60;
 
@@ -49,10 +51,10 @@ export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
           </span>
           <div>
             <h2 className="text-lg font-extrabold leading-tight text-white">
-              Tạm dừng tiếp nhận từ thiết bị này
+              {t('mk.tamDungTiepNhan')}
             </h2>
             <p className="text-xs text-white/85">
-              Biện pháp tự động, có thời hạn
+              {t('mk.bienPhapTuDong')}
             </p>
           </div>
         </div>
@@ -63,7 +65,7 @@ export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
             <Clock className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
             <div>
               <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                Bà con có thể gửi lại sau
+                {t('mk.baConCoThe')}
               </p>
               <p className="text-xl font-extrabold leading-tight text-amber-900 dark:text-amber-200">
                 {chuoiThoiGian}
@@ -72,26 +74,20 @@ export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
           </div>
 
           <p className="mb-3 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-            Hệ thống ghi nhận có nội dung không phù hợp được gửi từ thiết bị hoặc
-            đường mạng này, nên tạm dừng tiếp nhận một thời gian ngắn. Đây là
-            biện pháp tự động nhằm giữ cho hòm thư không bị quá tải, giúp cán bộ
-            tập trung xử lý những tin báo thật của bà con.
+            {t('mk.heThongGhiNhan')}
           </p>
 
           {/* Nói rõ khả năng khoá oan — quan trọng để người vô can không thấy
               mình bị quy kết */}
           <p className="mb-4 rounded-xl bg-slate-50 px-3.5 py-3 text-xs leading-relaxed text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
-            Nếu bà con không gửi nội dung nào như vậy, có thể máy này từng được
-            người khác dùng — chẳng hạn máy ở tiệm dịch vụ, hoặc điện thoại mượn
-            của người thân. Lệnh tạm dừng sẽ <b>tự hết hạn</b>, bà con không cần
-            làm gì thêm.
+            {t('mk.neuBaConKhong')} <b>{t('mk.tuHetHan')}</b>{t('mk.baConKhongCan')}
           </p>
 
           {/* Lối ra cho việc gấp — KHÔNG được thiếu phần này */}
           <div className="mb-4 rounded-2xl border-2 border-rose-200 bg-rose-50 px-4 py-3.5 dark:border-rose-800 dark:bg-rose-900/20">
             <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-rose-800 dark:text-rose-300">
               <PhoneCall className="h-4 w-4 shrink-0" />
-              Nếu việc gấp, đừng chờ
+              {t('mk.neuViecGapDung')}
             </p>
             <p className="text-xs leading-relaxed text-rose-800 dark:text-rose-300">
               Có nguy hiểm cần lực lượng đến ngay, bà con gọi{' '}
@@ -102,7 +98,7 @@ export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
               <a href={`tel:${UNIT.hotline.replace(/\s/g, '')}`} className="font-extrabold underline">
                 {UNIT.hotline}
               </a>
-              . Hai số này luôn có người nghe, không bị ảnh hưởng bởi lệnh tạm dừng.
+              {t('mk.haiSoNayLuon')}
             </p>
           </div>
 
@@ -112,13 +108,13 @@ export default function ManHinhBiKhoa({ conLaiPhut }: Props) {
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700"
             >
               <ArrowLeft className="h-4 w-4" />
-              Về trang chủ
+              {t('mk.veTrangChu')}
             </Link>
             <Link
               to="/tra-cuu"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              Tra cứu ý kiến đã gửi
+              {t('mk.traCuuYKien')}
             </Link>
           </div>
 

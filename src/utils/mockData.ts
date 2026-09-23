@@ -117,7 +117,7 @@ export const MOCK_TRACKING: TrackingResult[] = [
     code: 'DEMO01',
     status: 'received',
     category: 'phan_anh',
-    summary: 'Phản ánh về tình hình: "Tụ tập gây ồn ào ban đêm tại khóm Long Thị D, phường Long Thạnh."',
+    summary: 'Phản ánh về tình hình: "Tụ tập gây ồn ào ban đêm tại khu phố Tương Bình Hiệp, phường Long Thạnh."',
     createdAt: hoursAgo(2),
     steps: buildSteps('received', hoursAgo(2)),
   },
@@ -125,7 +125,7 @@ export const MOCK_TRACKING: TrackingResult[] = [
     code: 'DEMO02',
     status: 'processing',
     category: 'to_giac',
-    summary: 'Tố giác/tin báo về vụ việc: "Có người đánh nhau gần bến phà Tân Châu."',
+    summary: 'Tố giác/tin báo về vụ việc: "Có người đánh nhau gần chợ Tương Bình Hiệp."',
     createdAt: hoursAgo(26),
     steps: buildSteps('processing', hoursAgo(26)),
   },
@@ -195,31 +195,31 @@ const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString
 export const MOCK_NEWS: NewsArticle[] = [
   {
     id: 'n1',
-    title: 'Công an thị xã Tân Châu ra quân cao điểm bảo đảm ANTT tuyến biên giới Vĩnh Xương',
+    title: 'Công an phường Chánh Hiệp ra quân cao điểm bảo đảm ANTT địa bàn giáp ranh',
     summary:
       'Lực lượng Công an thị xã phối hợp Đồn Biên phòng cửa khẩu quốc tế Vĩnh Xương tuần tra khép kín tuyến biên giới, phòng chống buôn lậu, xuất nhập cảnh trái phép và tội phạm ma tuý.',
     thumbnail: 'https://picsum.photos/seed/htans-bien-gioi/640/400',
     publishedAt: daysAgo(1),
     tag: 'an_ninh',
-    externalUrl: 'https://congan.angiang.gov.vn',
-    source: 'congan.angiang.gov.vn',
+    externalUrl: 'https://congan.tphcm.gov.vn',
+    source: 'congan.tphcm.gov.vn',
   },
   {
     id: 'n2',
-    title: 'Tuần tra đêm khép kín địa bàn các phường Long Thạnh, Long Châu, Long Phú',
+    title: 'Tuần tra đêm khép kín địa bàn các khu phố Định Hoà, Tương Bình Hiệp',
     summary:
-      'Tổ tuần tra 161 Công an thị xã Tân Châu duy trì tuần tra vũ trang ban đêm, kịp thời phát hiện, ngăn chặn các nhóm thanh thiếu niên tụ tập gây rối trật tự công cộng.',
+      'Tổ tuần tra 161 Công an phường Chánh Hiệp duy trì tuần tra vũ trang ban đêm, kịp thời phát hiện, ngăn chặn các nhóm thanh thiếu niên tụ tập gây rối trật tự công cộng.',
     thumbnail: 'https://picsum.photos/seed/htans-tuantra/640/400',
     publishedAt: daysAgo(3),
     tag: 'an_ninh',
     externalUrl: UNIT.facebookUrl,
-    source: 'Fanpage Công an TX Tân Châu',
+    source: 'Fanpage Công an phường Chánh Hiệp',
   },
   {
     id: 'n3',
     title: 'Cảnh giác chiêu trò "việc nhẹ lương cao" dụ dỗ xuất cảnh trái phép sang Campuchia',
     summary:
-      'Địa bàn biên giới Tân Châu là điểm nóng của thủ đoạn lôi kéo lao động vượt biên rồi cưỡng bức làm việc trong các cơ sở lừa đảo trực tuyến. Người dân tuyệt đối không tin lời mời chào trên mạng xã hội.',
+      'Địa bàn phường Chánh Hiệp là điểm nóng của thủ đoạn lôi kéo lao động vượt biên rồi cưỡng bức làm việc trong các cơ sở lừa đảo trực tuyến. Người dân tuyệt đối không tin lời mời chào trên mạng xã hội.',
     thumbnail: 'https://picsum.photos/seed/htans-canhgiac1/640/400',
     publishedAt: daysAgo(4),
     tag: 'canh_giac',
@@ -250,14 +250,14 @@ export const MOCK_NEWS: NewsArticle[] = [
   },
   {
     id: 'n6',
-    title: 'Công an Tân Châu cấp căn cước lưu động cho người già yếu, bệnh tật tại nhà',
+    title: 'Công an phường Chánh Hiệp cấp căn cước lưu động cho người già yếu, bệnh tật tại nhà',
     summary:
       'Tổ công tác mang thiết bị thu nhận sinh trắc học đến tận nhà phục vụ người cao tuổi, người khuyết tật trên địa bàn các phường, xã — bảo đảm không ai bị bỏ lại phía sau trong Đề án 06.',
     thumbnail: 'https://picsum.photos/seed/htans-thutuc2/640/400',
     publishedAt: daysAgo(10),
     tag: 'thu_tuc',
-    externalUrl: 'https://congan.angiang.gov.vn',
-    source: 'congan.angiang.gov.vn',
+    externalUrl: 'https://congan.tphcm.gov.vn',
+    source: 'congan.tphcm.gov.vn',
   },
   {
     id: 'n7',
@@ -274,7 +274,7 @@ export const MOCK_NEWS: NewsArticle[] = [
     id: 'n8',
     title: 'Nghị quyết 66-NQ/TW về đổi mới công tác xây dựng và thi hành pháp luật trong kỷ nguyên mới',
     summary:
-      'Hoàn thiện thể chế, đưa pháp luật đi vào cuộc sống — cơ sở chính trị quan trọng để các mô hình tiếp nhận ý kiến công dân như Hộp Thư An Ninh Số hoạt động minh bạch, đúng quy định.',
+      'Hoàn thiện thể chế, đưa pháp luật đi vào cuộc sống — cơ sở chính trị quan trọng để các mô hình tiếp nhận ý kiến công dân như Điểm Chạm An Ninh hoạt động minh bạch, đúng quy định.',
     thumbnail: 'https://picsum.photos/seed/htans-nq66/640/400',
     publishedAt: daysAgo(15),
     tag: 'van_ban',

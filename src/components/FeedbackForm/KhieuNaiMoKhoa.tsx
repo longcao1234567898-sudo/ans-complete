@@ -11,6 +11,7 @@
  * lượt để bà con khỏi gõ xong mới bị từ chối.
  */
 import { useEffect, useState } from 'react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { MessageSquareWarning, Loader2, CheckCircle2, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { layMaThietBi } from '../../utils/deviceId';
@@ -26,6 +27,7 @@ interface TrangThai {
 }
 
 export default function KhieuNaiMoKhoa() {
+  const { t } = useNgonNgu();
   const [tt, setTt] = useState<TrangThai | null>(null);
   const [moForm, setMoForm] = useState(false);
   const [noiDung, setNoiDung] = useState('');
@@ -74,11 +76,10 @@ export default function KhieuNaiMoKhoa() {
         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <div>
           <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-            Khiếu nại đang được xem xét
+            {t('kn.khieuNaiDangDuoc')}
           </p>
           <p className="mt-1 text-sm leading-snug text-emerald-700 dark:text-emerald-200">
-            Cán bộ sẽ xem lại trường hợp của bà con. Nếu đúng là nhầm lẫn, máy sẽ được
-            mở lại. Việc gấp thì bà con cứ gọi trực ban, đường dây nóng không bị ảnh hưởng.
+            {t('kn.canBoSeXem')}
           </p>
         </div>
       </div>
@@ -102,18 +103,17 @@ export default function KhieuNaiMoKhoa() {
     return (
       <div className="mt-4 rounded-2xl border-2 border-primary-200 bg-primary-50/60 p-4 dark:border-primary-900/40 dark:bg-primary-900/10">
         <p className="flex items-center gap-1.5 text-sm font-bold text-primary-800 dark:text-primary-300">
-          <MessageSquareWarning className="h-4 w-4" /> Bà con cho rằng bị khoá nhầm?
+          <MessageSquareWarning className="h-4 w-4" /> {t('kn.baConChoRang')}
         </p>
         <p className="mt-1 text-sm leading-snug text-slate-600 dark:text-slate-300">
-          Máy có thể khoá nhầm khi nhiều người dùng chung một điện thoại, hoặc nhà mạng
-          cấp chung địa chỉ cho nhiều nhà. Bà con trình bày để cán bộ xem lại.
+          {t('kn.mayCoTheKhoa')}
         </p>
         <button
           type="button"
           onClick={() => setMoForm(true)}
           className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
         >
-          <MessageSquareWarning className="h-4 w-4" /> Gửi khiếu nại
+          <MessageSquareWarning className="h-4 w-4" /> {t('kn.guiKhieuNai')}
         </button>
         <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
           Còn {tt.soLanToiDa - tt.soLanDaGui} lượt.
@@ -126,7 +126,7 @@ export default function KhieuNaiMoKhoa() {
   return (
     <div className="mt-4 rounded-2xl border-2 border-primary-200 bg-white p-4 dark:border-primary-900/40 dark:bg-slate-900">
       <p className="mb-2 text-sm font-bold text-primary-800 dark:text-primary-300">
-        Bà con trình bày giúp
+        {t('kn.baConTrinhBay')}
       </p>
       <textarea
         value={noiDung}
@@ -137,7 +137,7 @@ export default function KhieuNaiMoKhoa() {
         className="w-full rounded-xl border-2 border-slate-200 p-3 text-base outline-none transition focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
       />
       <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
-        <span>Ít nhất 10 chữ</span>
+        <span>{t('kn.itNhat10Chu')}</span>
         <span>{noiDung.length}/1000</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

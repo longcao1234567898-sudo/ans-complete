@@ -1,6 +1,21 @@
 -- ============================================================================
 -- 20 Ý KIẾN MẪU ĐỂ THỬ BẢN ĐỒ VÀ CẢNH BÁO ĐỊA BÀN
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- BƯỚC 0 — CHỌN ĐÚNG CƠ SỞ DỮ LIỆU
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ KHÔNG CÓ DÒNG NÀY THÌ BÁO LỖI "No database selected".
+--
+-- HeidiSQL không tự biết chạy vào cơ sở dữ liệu nào, nên phải nói rõ. Cách
+-- khác: bấm đúp vào tên cơ sở dữ liệu ở khung bên trái cho tên đậm lên, rồi
+-- mới bấm F9.
+--
+-- Tên cơ sở dữ liệu của đơn vị khác thì sửa dòng dưới cho khớp (xem biến
+-- DB_NAME trong tệp server/.env).
+USE hop_thu_an_ninh_so;
+
 --
 -- Dùng để xem bản đồ điểm nóng, cảnh báo theo địa bàn và các bộ lọc hoạt động
 -- ra sao khi có dữ liệu thật. Toạ độ rải quanh 14 địa bàn của Tân Châu, tập

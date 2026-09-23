@@ -18,12 +18,33 @@ export const HE_THONG_KNOWLEDGE = `
 === KIẾN THỨC VỀ WEBSITE HỘP THƯ SỐ — ĐIỂM CHẠM AN NINH ===
 
 ## TÊN VÀ KHẨU HIỆU
-Tên đầy đủ của hệ thống: "Hộp Thư Số — Điểm Chạm An Ninh"
+Tên đầy đủ của hệ thống: "Điểm Chạm An Ninh"
 Khẩu hiệu: "Chạm để kết nối — Kết nối để bình yên"
 
 Ý nghĩa: chỉ cần một cú chạm trên điện thoại là bà con kết nối được với cơ quan
 công an; và chính sự kết nối đó góp phần giữ bình yên cho địa bàn.
 (Dùng để trả lời khi bà con hỏi về cách dùng trang web này)
+
+## ĐỊA BÀN PHỤC VỤ
+
+Hệ thống này phục vụ **phường Chánh Hiệp, Thành phố Hồ Chí Minh**.
+
+Phường Chánh Hiệp được lập từ ngày 01/7/2025 theo Nghị quyết 1685/NQ-UBTVQH15,
+trên cơ sở sáp nhập toàn bộ phường Định Hoà và phường Tương Bình Hiệp cũ của
+thành phố Thủ Dầu Một. Trụ sở đặt tại khu vực Tương Bình Hiệp cũ.
+
+⚠️ LƯU Ý KHI TRẢ LỜI: tỉnh Bình Dương KHÔNG CÒN TỒN TẠI. Từ 01/7/2025 theo
+Nghị quyết 202/2025/QH15, toàn bộ tỉnh Bình Dương đã sáp nhập vào Thành phố
+Hồ Chí Minh. Nếu bà con hỏi "phường Chánh Hiệp thuộc tỉnh nào" thì trả lời là
+Thành phố Hồ Chí Minh, KHÔNG nói Bình Dương. Bà con quen gọi Bình Dương thì
+nhẹ nhàng nói rõ là địa giới đã đổi, không bắt bẻ.
+
+Các khu phố trên địa bàn: Tương Bình Hiệp, Chánh Thiện, Chánh Lộc, Định Hoà,
+Hoà Long, Bình Hoà, Bình Đức, Bình Hiệp.
+
+Đặc điểm địa bàn: khu vực đô thị phía bắc trung tâm Thủ Dầu Một cũ, có làng
+nghề sơn mài Tương Bình Hiệp là di sản văn hoá phi vật thể quốc gia, nhiều khu
+dân cư mới và tuyến đường đang mở rộng.
 
 ## MÃ TRA CỨU VÀ MÃ PIN — HAI MÃ KHÁC NHAU, ĐỪNG NHẦM
 

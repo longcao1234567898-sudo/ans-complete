@@ -7,6 +7,8 @@ import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppToaster from './components/common/Toast';
+import { ghiNhanTruyCap } from './services/thongKeService';
+import HuongDanBanDau from './components/common/HuongDanBanDau';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import MobileTabBar from './components/Layout/MobileTabBar';
@@ -23,6 +25,7 @@ import SendFeedbackPage from './pages/SendFeedbackPage';
 import TrackingPage from './pages/TrackingPage';
 import NewsPage from './pages/NewsPage';
 import BanDoAnNinhPage from './pages/BanDoAnNinhPage';
+import DiemDenGiaoThongPage from './pages/DiemDenGiaoThongPage';
 import AboutPage from './pages/AboutPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
@@ -35,6 +38,8 @@ import AdminReviewPage from './pages/admin/AdminReviewPage';
 import AdminKioskPage from './pages/admin/AdminKioskPage';
 import AdminTrashPage from './pages/admin/AdminTrashPage';
 import AdminQrPage from './pages/admin/AdminQrPage';
+import AdminNewsPage from './pages/admin/AdminNewsPage';
+import AdminDiemDenPage from './pages/admin/AdminDiemDenPage';
 import AdminBlacklistPage from './pages/admin/AdminBlacklistPage';
 import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
@@ -56,6 +61,11 @@ function ScrollToTop() {
 
 function AppShell() {
   const location = useLocation();
+
+  /* Ghi nhận một lượt truy cập, gọi ĐÚNG MỘT LẦN khi ứng dụng khởi động.
+     Chỉ đếm số, không gửi thông tin nhận dạng nào — xem chú thích dài ở
+     services/thongKeService.ts về lý do. */
+  useEffect(() => { ghiNhanTruyCap(); }, []);
 
   /* ĐỒNG BỘ CLASS CHỮ LỚN Ở MỘT CHỖ DUY NHẤT.
 
@@ -108,7 +118,7 @@ function AppShell() {
       <main id="noi-dung-chinh" tabIndex={-1} className="relative z-10 flex-1">
         {/* ⚠️ KHÔNG dùng transform (translateY/scale) để chuyển trang!
             Phần tử có transform trở thành KHUNG THAM CHIẾU MỚI cho position:fixed
-            -> PageBackground (nền ảnh An Giang, dùng fixed inset-0) sẽ MẤT HẾT.
+            -> PageBackground (nền ảnh TP. Hồ Chí Minh, dùng fixed inset-0) sẽ MẤT HẾT.
             Chỉ dùng opacity: vẫn mượt, mà nền ảnh giữ nguyên. */}
         <div key={location.pathname} className="animate-page">
           <Routes location={location}>
@@ -117,6 +127,7 @@ function AppShell() {
             <Route path="/tra-cuu" element={<TrackingPage />} />
             <Route path="/tin-tuc" element={<NewsPage />} />
             <Route path="/ban-do" element={<BanDoAnNinhPage />} />
+            <Route path="/diem-den" element={<DiemDenGiaoThongPage />} />
             <Route path="/gioi-thieu" element={<AboutPage />} />
             <Route path="/chinh-sach-bao-mat" element={<PrivacyPage />} />
 
@@ -132,6 +143,8 @@ function AppShell() {
             <Route path="/quan-tri/ki-ot" element={<AdminKioskPage />} />
             <Route path="/quan-tri/thung-rac" element={<AdminTrashPage />} />
             <Route path="/quan-tri/ma-qr" element={<AdminQrPage />} />
+            <Route path="/quan-tri/tin-tuc" element={<AdminNewsPage />} />
+            <Route path="/quan-tri/diem-den" element={<AdminDiemDenPage />} />
             <Route path="/quan-tri/danh-sach-khoa" element={<AdminBlacklistPage />} />
           </Routes>
         </div>
@@ -145,6 +158,8 @@ function AppShell() {
       {!isAdminArea && <ChatWidget />}
       {!isAdminArea && <EmergencyButton />}
       <AppToaster />
+      {/* Hướng dẫn 8 bước cho người vào lần đầu. Tự ẩn nếu đã xem hoặc đã bỏ qua. */}
+      <HuongDanBanDau />
     </div>
   );
 }

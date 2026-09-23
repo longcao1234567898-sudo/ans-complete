@@ -82,7 +82,7 @@ export default function AdminLoginPage() {
           </span>
           <h1 className="text-xl font-extrabold text-slate-800 dark:text-slate-100">Khu vực cán bộ</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Hộp Thư An Ninh Số — Công an thị xã Tân Châu
+            Điểm Chạm An Ninh — Công an phường Chánh Hiệp
           </p>
         </div>
 

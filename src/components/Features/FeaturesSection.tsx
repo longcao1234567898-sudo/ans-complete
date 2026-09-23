@@ -22,7 +22,7 @@ import { CATEGORIES, STATUS_MAP } from '../../utils/constants';
 import { cn } from '../../utils/helpers';
 
 const DEMO_INPUT = 'co nguoi danh nhau gan ben pha tan chau';
-const DEMO_OUTPUT = 'Phản ánh vụ việc đánh nhau gần bến phà Tân Châu';
+const DEMO_OUTPUT = 'Phản ánh vụ việc đánh nhau gần chợ Tương Bình Hiệp';
 /** Nhóm mà câu mẫu trên sẽ rơi vào — dùng chung cho thẻ 2 */
 const DEMO_CATEGORY = 'phan_anh';
 

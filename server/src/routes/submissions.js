@@ -7,6 +7,7 @@ import {
 } from '../lib/security.js';
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
+import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
 import { xetTruocKhiNhan, xetKhoaIp, layMaThietBi } from '../lib/chan-spam.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
@@ -487,54 +488,33 @@ router.post('/', async (req, res) => {
       }
     }
 
-    /* 8b) LƯU VIDEO MINH CHỨNG — bỏ qua nếu lỗi, không chặn ý kiến.
+    /* 8b) LƯU TÀI LIỆU ĐÍNH KÈM (PDF, Word) — bỏ qua nếu lỗi, không chặn ý kiến.
 
-       Video đi đường riêng, KHÔNG qua bộ kiểm ảnh vì bộ đó soi chữ ký nhị phân
-       của định dạng ảnh. Ở đây kiểm ba điều tối thiểu:
-         1. Phải là data URL kiểu video (chặn người ta nhét kiểu tệp khác vào)
-         2. Giới hạn kích thước, tránh một video nuốt hết dung lượng database
-         3. Đánh dấu chờ duyệt — cán bộ xem rồi mới hiện, vì máy chủ không tự
-            kiểm duyệt được nội dung video như với ảnh.
+       Người gửi khiếu nại, tố cáo hầu như luôn có giấy tờ: đơn đã nộp, quyết
+       định hành chính bị khiếu nại, biên bản. Trước đây họ phải chụp ảnh từng
+       trang, vừa khó đọc vừa dễ sót.
 
-       ⚠️ Video KHÔNG được xoá thông tin bên trong tệp (có thể gồm nơi quay).
-       Giao diện đã nói rõ điều này cho người gửi biết trước khi đính kèm. */
-    if (typeof body.video === 'string' && body.video) {
+       ⚠️ TÀI LIỆU NGUY HIỂM HƠN ẢNH NHIỀU — PDF chạy được JavaScript, Word
+       chạy được macro. Bộ kiểm ở lib/tai-lieu-an-toan.js soi bốn lớp: chữ ký
+       nhị phân, macro, phần tự chạy trong PDF, và kích thước. Xem chú thích
+       dài ở tệp đó. */
+    if (Array.isArray(body.taiLieu) && body.taiLieu.length > 0) {
       try {
-        const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
-        /* Video tới theo MỘT trong hai dạng:
-             - Đường dẫn kho ảnh: trình duyệt đã tải lên Cloudinary, chỉ gửi link
-               (đường đi bình thường, nhẹ, không tốn dung lượng database)
-             - data URL base64: chưa cấu hình kho ảnh hoặc tải lên lỗi
-               (đường lui, nặng, nên giới hạn chặt) */
-        const laLinkKho = cloudName
-          && /^https:\/\/res\.cloudinary\.com\//.test(body.video)
-          && body.video.includes(`/${cloudName}/`);
-        const laBase64 = body.video.startsWith('data:video/');
-
-        if (!laLinkKho && !laBase64) {
-          console.warn(`[VIDEO] Bỏ qua video sai định dạng của ${trackingCode}`);
-        } else if (laBase64 && body.video.length > 22 * 1024 * 1024) {
-          /* Đường lui base64 chỉ cho tới ~16MB tệp thật. Lớn hơn thì phải qua
-             kho ảnh, vì nhồi vào database sẽ ăn hết dung lượng chung. */
-          console.warn(`[VIDEO] Bỏ qua video base64 quá lớn của ${trackingCode}`);
-        } else {
-          const kieu = laBase64
-            ? ((body.video.match(/^data:(video\/[a-z0-9.+-]+);/i) || [])[1] || 'video/mp4')
-            : 'video/mp4';
+        const { hopLe, biChan } = locDanhSachTaiLieu(body.taiLieu);
+        for (const t of hopLe) {
           await pool.query(
             `INSERT INTO submission_images
              (submission_id, image_url, storage, mime_type, is_verified, moderation_status)
              VALUES (?,?,?,?,?,?)`,
-            [result.insertId, body.video, laLinkKho ? 'cloudinary' : 'base64', kieu, false, 'suspicious']
-          );
-          /* Có video -> đưa ý kiến vào hàng chờ duyệt để cán bộ xem trước. */
-          await pool.query(
-            `UPDATE submissions SET status = 'pending_review' WHERE id = ? AND status = 'received'`,
-            [result.insertId]
+            [result.insertId, t.data, 'base64', t.mime, false, 'suspicious']
           );
         }
+        if (biChan.length) {
+          console.warn(`[TÀI LIỆU] ${trackingCode}: chặn ${biChan.length} tệp —`,
+            biChan.map((x) => x.lyDo).join(' | '));
+        }
       } catch (e) {
-        console.warn('Không lưu được video đính kèm:', e.message);
+        console.warn('Không lưu được tài liệu đính kèm:', e.message);
       }
     }
 

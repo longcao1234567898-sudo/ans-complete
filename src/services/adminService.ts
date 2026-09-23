@@ -417,6 +417,77 @@ export interface LogsResult {
 }
 
 /** Nhật ký hệ thống (chỉ admin/manager) */
+/* ---------- QUẢN LÝ TIN TỨC ---------- */
+export interface TinQuanTri {
+  id: number;
+  title: string;
+  summary: string;
+  content?: string;
+  category: 'security' | 'warning' | 'guide' | 'document';
+  image_url: string | null;
+  source_name: string | null;
+  source_url: string | null;
+  is_published: number | boolean;
+  is_featured: number | boolean;
+  published_at: string | null;
+  created_at?: string;
+}
+
+export const fetchTinQuanTri = (hienCaAn = false): Promise<TinQuanTri[]> =>
+  adminFetch<TinQuanTri[]>(`/api/admin/news${hienCaAn ? '?hienCaAn=1' : ''}`);
+
+export const fetchMotTin = (id: number): Promise<TinQuanTri> =>
+  adminFetch<TinQuanTri>(`/api/admin/news/${id}`);
+
+export const dangTinMoi = (tin: Partial<TinQuanTri>) =>
+  adminFetch<{ ok: boolean; id: number; message: string }>('/api/admin/news', {
+    method: 'POST', body: JSON.stringify(tin),
+  });
+
+export const suaTin = (id: number, tin: Partial<TinQuanTri>) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/news/${id}`, {
+    method: 'PUT', body: JSON.stringify(tin),
+  });
+
+export const doiHienTin = (id: number, hien: boolean) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/news/${id}/hien`, {
+    method: 'PATCH', body: JSON.stringify({ hien }),
+  });
+
+/* ---------- ĐIỂM ĐEN GIAO THÔNG ---------- */
+export interface DiemDenQuanTri {
+  id: number;
+  ten: string;
+  mo_ta: string | null;
+  lat: number | string | null;
+  lng: number | string | null;
+  ward_id: number | null;
+  dia_ban: string | null;
+  so_vu: number;
+  so_tu_vong: number;
+  so_bi_thuong: number;
+  ky_thong_ke: string | null;
+  muc_do: 'cao' | 'trung_binh' | 'thap';
+  khuyen_cao: string | null;
+  is_published: number | boolean;
+}
+
+/** Máy chủ trả kèm cờ coBang để giao diện phân biệt "bảng chưa tạo" với
+    "bảng có nhưng chưa có dữ liệu" — hai việc cần xử lý khác hẳn nhau. */
+export const fetchDiemDenQuanTri = (): Promise<{ coBang: boolean; ds: DiemDenQuanTri[] }> =>
+  adminFetch<{ coBang: boolean; ds: DiemDenQuanTri[] }>('/api/admin/diem-den');
+
+export const luuDiemDen = (id: number | null, d: Record<string, unknown>) =>
+  adminFetch<{ ok: boolean; message: string }>(
+    id ? `/api/admin/diem-den/${id}` : '/api/admin/diem-den',
+    { method: id ? 'PUT' : 'POST', body: JSON.stringify(d) }
+  );
+
+export const doiHienDiemDen = (id: number, hien: boolean) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/hien`, {
+    method: 'PATCH', body: JSON.stringify({ hien }),
+  });
+
 /* ---------- KHIẾU NẠI MỞ KHOÁ ---------- */
 export interface KhieuNai {
   id: number;

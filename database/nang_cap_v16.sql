@@ -1,6 +1,21 @@
 -- ============================================================================
 -- NÂNG CẤP V16 — TOẠ ĐỘ VỊ TRÍ VỤ VIỆC
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- BƯỚC 0 — CHỌN ĐÚNG CƠ SỞ DỮ LIỆU
+-- ---------------------------------------------------------------------------
+--
+-- ⚠️ KHÔNG CÓ DÒNG NÀY THÌ BÁO LỖI "No database selected".
+--
+-- HeidiSQL không tự biết chạy vào cơ sở dữ liệu nào, nên phải nói rõ. Cách
+-- khác: bấm đúp vào tên cơ sở dữ liệu ở khung bên trái cho tên đậm lên, rồi
+-- mới bấm F9.
+--
+-- Tên cơ sở dữ liệu của đơn vị khác thì sửa dòng dưới cho khớp (xem biến
+-- DB_NAME trong tệp server/.env).
+USE hop_thu_an_ninh_so;
+
 --
 -- Vì sao cần: bà con mô tả địa điểm bằng lời thường không đủ rõ ("gần cây xăng",
 -- "đầu ấp"), cán bộ xuống hiện trường phải dò hỏi. Nút gửi vị trí cho phép bà

@@ -11,6 +11,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { ShieldAlert, Volume2, Square } from 'lucide-react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
 
 const LOI_CANH_GIAC =
@@ -19,6 +20,7 @@ const LOI_CANH_GIAC =
   'trong sạch. Ai làm vậy đều là kẻ lừa đảo. Bà con hãy tắt máy và báo ngay cho công an.';
 
 export default function CanhGiacLuaDao() {
+  const { t } = useNgonNgu();
   const [dangDoc, setDangDoc] = useState(false);
   const [coLoa, setCoLoa] = useState(false);
   const dkRef = useRef<DieuKhienDoc | null>(null);
@@ -42,12 +44,10 @@ export default function CanhGiacLuaDao() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-base font-extrabold text-red-800 dark:text-red-300 sm:text-lg">
-            Cảnh giác lừa đảo mạo danh công an
+            {t('fraud.title')}
           </p>
           <p className="mt-1 text-sm leading-snug text-red-700 dark:text-red-200 sm:text-base">
-            Công an <b>KHÔNG BAO GIỜ</b> gọi điện hay nhắn tin hỏi mật khẩu, mã OTP,
-            số tài khoản, hay bắt chuyển tiền để "chứng minh trong sạch". Ai làm vậy
-            là <b>kẻ lừa đảo</b> — bà con hãy tắt máy và báo ngay cho công an.
+            {t('fraud.body')}
           </p>
         </div>
         {coLoa && (

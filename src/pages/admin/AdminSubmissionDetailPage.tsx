@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle, Ban, MapPin } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import KhuTepDinhKem from '../../components/admin/KhuTepDinhKem';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
   fetchStaffList, assignSubmission, revealIdentity, markSpam, setSecurityLevel } from '../../services/adminService';
@@ -147,12 +148,14 @@ export default function AdminSubmissionDetailPage() {
 
               {data.images.length > 0 && (
                 <>
-                  <h3 className="mb-2 mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">Ảnh đính kèm ({data.images.length})</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {data.images.map((img, i) => (
-                      <img key={i} src={img.image_url} alt={`Ảnh ${i + 1}`} className="h-24 w-24 rounded-xl object-cover" />
-                    ))}
-                  </div>
+                  <h3 className="mb-2 mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+                    Tệp đính kèm ({data.images.length})
+                    <span className="ml-1.5 font-normal text-slate-400">— bấm để xem to</span>
+                  </h3>
+                  {/* Trước đây mọi tệp đều vẽ bằng thẻ ảnh, nên VIDEO KHÔNG HIỆN
+                      RA GÌ — cán bộ chỉ thấy ô trống, tưởng bà con không gửi.
+                      Component này phân biệt ảnh với video và cho bấm mở to. */}
+                  <KhuTepDinhKem tep={data.images} />
                 </>
               )}
             </div>

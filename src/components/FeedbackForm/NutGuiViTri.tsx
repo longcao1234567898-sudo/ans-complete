@@ -14,6 +14,7 @@
  *    nhà thì gửi nhầm toạ độ nhà mình — vừa sai thông tin vừa lộ chỗ ở.
  */
 import { useState } from 'react';
+import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { MapPin, Loader2, X, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function NutGuiViTri({ viTri, onChange }: Props) {
+  const { t } = useNgonNgu();
   const [dangLay, setDangLay] = useState(false);
   /* Sai số đang đo được — hiện cho bà con thấy máy đang dò tốt dần lên. */
   const [doChinhXac, setDoChinhXac] = useState<number | null>(null);
@@ -122,7 +124,7 @@ export default function NutGuiViTri({ viTri, onChange }: Props) {
         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-            Đã đính kèm vị trí vụ việc
+            {t('vt.daDinhKemVi')}
           </p>
           <p className="mt-0.5 text-xs text-emerald-700 dark:text-emerald-200">
             {viTri.lat}, {viTri.lng}
@@ -134,7 +136,7 @@ export default function NutGuiViTri({ viTri, onChange }: Props) {
             rel="noopener noreferrer"
             className="mt-1 inline-block text-xs font-semibold text-emerald-700 underline dark:text-emerald-300"
           >
-            Xem thử trên bản đồ
+            {t('vt.xemThuTrenBan')}
           </a>
         </div>
         <button
@@ -155,18 +157,20 @@ export default function NutGuiViTri({ viTri, onChange }: Props) {
       <button
         type="button"
         onClick={layViTri}
+        data-hd="nut-vi-tri"
         disabled={dangLay}
         className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-primary-300 bg-white px-4 py-2.5 text-sm font-bold text-primary-700 transition hover:bg-primary-50 disabled:opacity-60 dark:border-primary-700 dark:bg-slate-800 dark:text-primary-300"
       >
         {dangLay ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
         {dangLay
-          ? (doChinhXac ? `Đang dò... sai số ${doChinhXac}m` : 'Đang lấy vị trí...')
-          : 'Gửi vị trí nơi xảy ra vụ việc'}
+          ? (doChinhXac
+              ? t('vt.dangDo').replace('{m}', String(doChinhXac))
+              : t('vt.dangLay'))
+          : t('f1.sendLocation')}
       </button>
       <p className="mt-1.5 text-xs leading-snug text-slate-500 dark:text-slate-400">
-        Không bắt buộc. Giúp cán bộ tìm đúng chỗ, khỏi phải dò hỏi.
-        <b className="text-slate-600 dark:text-slate-300"> Chỉ bấm khi bà con đang đứng tại nơi
-        xảy ra sự việc</b> — bấm ở nhà thì gửi nhầm vị trí nhà mình.
+        {t('vt.khongBatBuocGiup')}
+        <b className="text-slate-600 dark:text-slate-300"> {t('vt.chiBamKhiBa')}</b> {t('vt.bamONhaThi')}
       </p>
     </div>
   );
