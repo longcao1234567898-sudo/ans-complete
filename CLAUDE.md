@@ -58,9 +58,10 @@ grep -rnoE "router\.(get|post|put|patch|delete)\(" server/src/routes | wc -l   #
 5. **Allow-list, không deny-list.** Tên cột `ORDER BY`, loại file upload, origin CORS: liệt kê cái được phép.
 6. **Mọi giới hạn đếm phải atomic.** `SELECT COUNT` rồi `INSERT` là sai — lách được bằng request song song.
 7. **Một bug một commit.** Không gộp. Không chạy formatter toàn dự án chung với commit vá lỗi.
-8. **Không tự chấm bài mình.** Phiên đã fix một lỗi **không được** là phiên xác nhận lỗi đó đã fix xong.
+8. **Không tự chấm bài mình.** Phiên đã fix một lỗi **không được** là phiên xác nhận lỗi đó đã fix xong. **Khi nào bắt buộc mở phiên RETEST độc lập** — ba điều cùng đúng: (a) thay đổi nhằm đóng một lỗ hổng, (b) người kết luận "xong" trùng người viết bản vá, (c) vá hụt thì hậu quả không hoàn tác được. Bốn dấu hiệu buộc retest kể cả ngoài kế hoạch: commit từ bên ngoài chạm file đang có BUG mở · "toàn bộ test pass" mà không nói test nào đỏ trước khi vá · bản vá chạm nhiều file hơn phạm vi lỗi · lỗ hổng bị đóng như tác dụng phụ. Chi tiết: [QUY-TRINH §2.1](docs/QUY-TRINH-LAM-VIEC.md).
 9. **Không sửa ngoài phạm vi.** Thấy vấn đề khác → ghi vào [docs/NO-KY-THUAT.md](docs/NO-KY-THUAT.md) hoặc mở BUG mới. Không tiện tay sửa.
 10. **Không đưa lỗ hổng đang mở lên GitHub.** Chi tiết lỗ hổng sống chỉ nằm trong `buglogs/` (đã gitignore). Tài liệu công khai chỉ nhắc **mã** `BUG-xxx`.
+11. **Kiểm lệch nhánh trước khi đọc mã.** `git fetch origin` rồi `git rev-list --left-right --count HEAD...origin/master`. Lệch → hợp nhất trước, rà soát sau. Ba phiên P01–P03 đã rà soát trên một bản mã lỗi thời 19 commit vì thiếu bước này. Sau mỗi merge, chạy `git check-ignore -v buglogs/BUG-LOG.md` — luật giữ `buglogs/` ở máy đã từng bị xoá một lần trong một commit không liên quan.
 
 ## Làm việc theo phiên
 
@@ -75,7 +76,16 @@ Mỗi phiên Claude có **một loại** và **một mục tiêu đóng được
 | `TINH-NANG` | Thêm/sửa tính năng kèm test | Đụng bản vá bảo mật đang mở |
 | `TAI-LIEU` | Viết, sửa, đồng bộ tài liệu | Sửa code |
 
-**Mở phiên:** `/bat-dau-phien` · **Đóng phiên:** `/ket-thuc-phien` · **Kiểm độc lập:** `/phien-retest BUG-xxx`
+| Lệnh | Dùng khi |
+|---|---|
+| `/bat-dau-phien` | Mở phiên bất kỳ loại nào |
+| `/phien-ra-soat <nhóm>` | Mở phiên `RA-SOAT` cho một nhóm hạng mục |
+| `/phien-fix BUG-xxx` | Mở phiên `FIX` cho một lỗi |
+| `/phien-retest BUG-xxx` | Kiểm độc lập — **phải là phiên Claude hoàn toàn mới** |
+| `/ket-thuc-phien` | Đóng phiên |
+
+Skill của Anthropic bổ trợ, không thay thế: `/security-review` cuối phiên `FIX` và `TINH-NANG`;
+`/code-review` khi bản vá đụng nhiều file. Giới hạn của chúng: [QUY-TRINH §14](docs/QUY-TRINH-LAM-VIEC.md).
 
 `FIX(BUG-X)` và `RETEST(BUG-X)` **bắt buộc là hai phiên khác nhau**. Nếu người dùng yêu cầu
 retest ngay trong phiên vừa fix, hãy từ chối và giải thích: phiên vừa bỏ công sửa đang ở
@@ -86,6 +96,7 @@ trạng thái cần chứng minh mình làm đúng, nên sẽ đọc diff của 
 
 | Xem gì | Ở đâu |
 |---|---|
+| Cách điều khiển quy trình (cho **người**) | [docs/SO-TAY-NGUOI-LAP-TRINH.md](docs/SO-TAY-NGUOI-LAP-TRINH.md) |
 | Đang làm tới đâu | [docs/TIEN-DO.md](docs/TIEN-DO.md) |
 | Nợ kỹ thuật đã biết | [docs/NO-KY-THUAT.md](docs/NO-KY-THUAT.md) |
 | Quyết định kiến trúc | [docs/adr/](docs/adr/) |
