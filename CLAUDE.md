@@ -96,6 +96,7 @@ trạng thái cần chứng minh mình làm đúng, nên sẽ đọc diff của 
 
 | Xem gì | Ở đâu |
 |---|---|
+| **Bản đồ toàn bộ tài liệu** | [docs/README.md](docs/README.md) — vào đây trước khi đi tìm tệp nào đó |
 | Cách điều khiển quy trình (cho **người**) | [docs/SO-TAY-NGUOI-LAP-TRINH.md](docs/SO-TAY-NGUOI-LAP-TRINH.md) |
 | Đang làm tới đâu | [docs/TIEN-DO.md](docs/TIEN-DO.md) |
 | Nợ kỹ thuật đã biết | [docs/NO-KY-THUAT.md](docs/NO-KY-THUAT.md) |

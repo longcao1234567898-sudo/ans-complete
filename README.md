@@ -22,9 +22,12 @@ ans-complete/
 │  └─ utils/               constants, security.ts (lá chắn nội dung), mockData.ts
 ├─ server/                Backend (Node + Express + MySQL), xem server/README.md
 ├─ database/              Schema + migration SQL (xem mục Database bên dưới)
-├─ docs/adr/               Quyết định kiến trúc (Architecture Decision Records)
-└─ docs/CHANGELOG-BAO-MAT.md   Nhật ký đợt vá bảo mật lớn 2026-08-03
+└─ docs/                  Tài liệu — bắt đầu ở docs/README.md (bản đồ)
 ```
+
+**Tài liệu bắt đầu từ đâu:** [docs/README.md](docs/README.md) là bản đồ, nói tệp nào làm việc
+gì và bạn nên đọc gì trước tuỳ vai trò. Người sắp làm việc với Claude trên repo này đọc
+[docs/SO-TAY-NGUOI-LAP-TRINH.md](docs/SO-TAY-NGUOI-LAP-TRINH.md).
 
 ## Công nghệ
 **Frontend**: React 18 + TypeScript + Vite · Tailwind CSS · Framer Motion · TanStack React Query · React Router · react-leaflet/Leaflet (bản đồ) · recharts (biểu đồ) · xlsx (xuất báo cáo) · html5-qrcode + qrcode.react (QR) · react-markdown · react-hot-toast
