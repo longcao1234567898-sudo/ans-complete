@@ -16,6 +16,7 @@ và [`/ket-thuc-phien`](../.claude/commands/ket-thuc-phien.md). Quy trình: [QUY
 | P01 | 2026-09-10 | `KHAO-SAT` | Điền hết dấu `?` trong ba bảng endpoint A/B/C của §1.1, lưu `kiem-ke-endpoint.md` | **XONG** | `d8d11a9` | `e667152` | Không còn phần nào của mục tiêu. Ba bảng A/B/C đã đầy đủ, đối chiếu xong ba biến thể máy chủ (không lệch — vì dùng chung router). Ghi 3 điểm nghi ngờ vào `buglogs/` cho P04/P05/P08. **Còn lại của D1 (cố ý ngoài phạm vi):** sơ đồ thành phần + bên thứ ba, và danh sách biến môi trường thật trên Render — hai ô chưa tích ở §1.3. |
 | P02 | 2026-09-10 | `KHAO-SAT` | Vẽ 5 luồng dữ liệu nhạy cảm + điền cột “Thực thi ở đâu” cho 18 giới hạn nghiệp vụ (§2.2) | **XONG** | `c02088d` | `0b63885` `de159e1` `563a614` `42e7b18` | Không còn phần nào của mục tiêu. 5 luồng lưu ở `kiem-thu-bao-mat/luong-du-lieu-nhay-cam.md`; bảng §2.2 đầy đủ, thêm dòng thứ 19 (giới hạn video) mà bản kiểm kê cũ thiếu. Ghi 5 điểm nghi ngờ vào `buglogs/` cho P03/P04/P06; ghi ND-013. **Ba đính chính cho tài liệu gốc** (phiên sau đừng tra lại): §2.1 luồng 3 mô tả sai — nội dung tố giác **không** gửi sang Gemini; §2.2 dẫn nguồn giới hạn OTP về một bản chết; §2.2 dẫn sai số dòng giới hạn body. **Còn lại của D1 (cố ý ngoài phạm vi, nguyên từ P01):** sơ đồ thành phần + bên thứ ba, và biến môi trường thật trên Render — hai ô chưa tích ở §1.3. |
 | P03 | 2026-09-10 | `RA-SOAT` | Rà soát nhóm 1 — xác thực & phiên đăng nhập (12 mục kiểm) | **XONG** | `1f6f9cd` | `8619a35` `cfb035d` `73aa5cf` `9736336` `3dcee4a` | Không còn phần nào của mục tiêu: 12/12 mục kiểm có kết quả. Mở **BUG-001** (Critical), **BUG-002** (High), **BUG-003**, **BUG-004** (Medium) — chi tiết ở `buglogs/`, tài liệu công khai chỉ ghi mã. Bốn mục đạt: 1.1, 1.8, 1.9, 1.12. Ghi ND-014, ND-015, ND-016; đóng ND-013 (đã xem xét đúng hẹn, xác nhận là mã chết, còn lại là việc dọn). Xác nhận **BUG-001 bằng script chạy thật**, không chỉ đọc mã — script lưu trong `buglogs/`. **Ba việc cố ý để lại:** (1) mục 1.8 kết luận bằng đọc mã, chưa kiểm cờ cookie trên staging HTTPS thật; (2) chưa xác nhận được biến môi trường thật trên Render — điều kiện quyết định mức độ thật của BUG-002, và là ô còn trống ở §1.3 mà **ba phiên liên tiếp** đều vướng, nên hỏi thẳng người vận hành; (3) không lập ma trận quyền — có chạm danh sách route thiếu `authorize()` nhưng **chỉ để đo tác động BUG-001**, ma trận đầy đủ vẫn là việc của P04. ⚠️ **P04 nên đọc BUG-001 trước khi bắt đầu.** |
+| P04 | 2026-09-23 | `TAI-LIEU` | Hợp nhất nhánh đã rẽ, dựng lại kế hoạch audit trên mã mới, nâng cấp quy trình để sự cố không lặp | **XONG** | `30d8240` | `991a837` `5321a03` `35b3194` `c17dd4e` `ea30937` `61149c2` `4d31a6e` `31c548d` `0732e96` `6f561e5` `191c30c` | Không còn phần nào của mục tiêu. **Phát hiện chính:** nhánh GitHub đã rẽ khỏi máy từ `d8d11a9` — 13 commit ở máy, 19 trên GitHub. Ba phiên P01–P03 vì vậy đã rà soát trên bản mã lỗi thời (66 endpoint lúc kiểm, thực tế 78). Merge sạch, 339/339 test, build 0 lỗi. **Sự cố nặng nhất:** commit `76ee015` của nhánh kia đã xoá luật `.gitignore` giữ `buglogs/` ở máy, kèm một thay đổi không liên quan; cùng lúc `COMMIT.txt` (chứa `git add . && git push`) quay lại. Đã khôi phục luật và gỡ lại hai tệp đó. **Nợ đã sống lại và trả lại:** ND-002 (số test cứng trong README), ND-011 (COMMIT.txt). **Nợ mới:** ND-017, ND-018, ND-019. **Quy trình thêm:** luật khi nào bắt buộc mở phiên RETEST độc lập (§2.1), trọng tài subagent (§2.2), làm việc song song (§13), skill Anthropic (§14), bước kiểm lệch nhánh trong `/bat-dau-phien`, hai lệnh mới `/phien-ra-soat` và `/phien-fix`, và sổ tay cho người lập trình. **Phiên sau:** P05 và P06 là hai phiên RETEST, **phải mở bằng phiên Claude hoàn toàn mới**. |
 
 <!--
 Dòng mẫu để copy:
@@ -29,6 +30,16 @@ Dòng mẫu để copy:
 > (`152704e` cũ) đã được gộp vào lịch sử mới — `git diff 152704e HEAD` cho kết quả rỗng.
 > Giữ nguyên SHA cũ ở dòng P00 vì đó là bản ghi của phiên khác; ghi chú này để phiên sau
 > không mất công tra một SHA đã biến mất.
+
+> ⚠️ **P01, P02, P03 phải làm lại — không phải vì làm sai, mà vì làm trên nền sai.**
+> Cả ba rà soát trên bản mã ở máy trong khi bản đang chạy đã đi tiếp 19 commit. Giữ lại:
+> 4 BUG đã mở, phương pháp, checklist, danh sách biến thể của từng BUG, ba đính chính tài
+> liệu của P02. Làm lại: ba bảng kiểm kê endpoint, 5 sơ đồ luồng dữ liệu, kết luận 12 mục
+> kiểm nhóm 1. Chi tiết và thứ tự mới:
+> [kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md](kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md).
+>
+> Nguyên nhân gốc đã được vá bằng quy trình, không chỉ bằng lời hứa: `/bat-dau-phien` giờ có
+> bước 2 chạy `git fetch` và dừng phiên khi phát hiện lệch nhánh.
 
 ## Trạng thái dùng được
 
@@ -49,10 +60,12 @@ Dòng mẫu để copy:
 | Đợt vá bảo mật khẩn cấp | ✅ Xong 2026-08-03 | [CHANGELOG-BAO-MAT.md](CHANGELOG-BAO-MAT.md) |
 | Kế hoạch kiểm thử bảo mật 12 ngày | 📋 Đã lập 2026-09-09 | [kiem-thu-bao-mat/](kiem-thu-bao-mat/) |
 | Quy trình làm việc theo phiên | ✅ Xong 2026-09-10 | Phiên P00 |
-| GĐ1 — Kiểm kê hệ thống | ✅ Xong 2026-09-10 | P01–P02. Còn hai ô §1.3 chưa tích (sơ đồ thành phần, biến môi trường thật trên Render) |
-| GĐ2 — Rà soát 8 nhóm | 🔄 Đang chạy | Nhóm 1 xong (P03). Còn nhóm 2–8 → P04–P10 |
-| GĐ3 — Fix theo ưu tiên | ⏳ Chưa bắt đầu | Số phiên tuỳ số lỗi tìm được |
+| Hợp nhất nhánh + nâng cấp quy trình | ✅ Xong 2026-09-23 | Phiên P04 |
+| GĐ0 — Gỡ hai ẩn số đang treo | ⏳ Chưa bắt đầu | P05 và P06, hai phiên RETEST, **phải là phiên Claude mới** |
+| GĐ1 — Kiểm kê hệ thống | ⚠️ Phải làm lại | P01–P02 làm trên mã lỗi thời. Làm lại ở P07–P08, kèm bề mặt tấn công mới |
+| GĐ2 — Rà soát 8 nhóm | ⚠️ Phải làm lại | Nhóm 1 (P03) làm lại ở P09. Nhóm 2–8 → P10–P16 |
+| GĐ3 — Fix theo ưu tiên | ⏳ Chưa bắt đầu | Số phiên tuỳ số lỗi tìm được. Mở bằng `/phien-fix` |
 | GĐ4 — Retest độc lập | ⏳ Chưa bắt đầu | Mỗi BUG một phiên `/phien-retest` |
-| GĐ5 — Báo cáo tổng kết | ⏳ Chưa bắt đầu | |
+| GĐ5 — Báo cáo tổng kết | ⏳ Chưa bắt đầu | Mục "Bài học" có sẵn số liệu thật từ sự cố lệch nhánh 2026-09-23 |
 
 Kế hoạch phiên chi tiết cho đợt audit: [kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md](kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md)
