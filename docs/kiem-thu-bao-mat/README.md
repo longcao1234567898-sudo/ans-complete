@@ -22,48 +22,63 @@ Codebase phần lớn do AI sinh ra. Bốn nhóm rủi ro đặc trưng của co
 lỗ hổng mới, sửa sai chỗ, hoặc vá triệu chứng chứ không vá gốc rễ. Vì vậy **Giai đoạn 4
 (retest độc lập) là bắt buộc**, và người/AI đã fix **không được** tự đóng lỗi của mình.
 
-## 2. Timeline tổng quan (12 ngày làm việc)
+## 2. Đang ở đâu, việc tiếp theo là gì
 
-| Ngày làm việc | Ngày dương lịch | Giai đoạn | Đầu ra bắt buộc |
-|---|---|---|---|
-| D1 | Thứ 5, 10/09/2026 | GĐ1 — Kiểm kê | Bản đồ hệ thống, danh sách endpoint |
-| D2 | Thứ 6, 11/09/2026 | GĐ1 — Kiểm kê | Sơ đồ luồng dữ liệu nhạy cảm, danh sách giới hạn nghiệp vụ |
-| — | 12–13/09 | *Nghỉ cuối tuần* | — |
-| D3 | Thứ 2, 14/09/2026 | GĐ2 — Rà soát | Nhóm 1–2: Auth/Session, Authorization (IDOR) |
-| D4 | Thứ 3, 15/09/2026 | GĐ2 — Rà soát | Nhóm 3–4: Injection/XSS/SSRF/Upload, Bảo vệ dữ liệu |
-| D5 | Thứ 4, 16/09/2026 | GĐ2 — Rà soát | Nhóm 5–6: API security, Business logic & giới hạn |
-| D6 | Thứ 5, 17/09/2026 | GĐ2 — Rà soát | Nhóm 7–8: Hạ tầng/secrets, Scalability + chốt Bug Log |
-| D7 | Thứ 6, 18/09/2026 | GĐ3 — Fix | Xử lý toàn bộ **Critical** |
-| — | 19–20/09 | *Nghỉ cuối tuần* | — |
-| D8 | Thứ 2, 21/09/2026 | GĐ3 — Fix | Xử lý **High** |
-| D9 | Thứ 3, 22/09/2026 | GĐ3 — Fix | Xử lý **Medium/Low** + hoàn tất Security Decision Log |
-| D10 | Thứ 4, 23/09/2026 | GĐ4 — Retest | Retest Critical/High (độc lập) |
-| D11 | Thứ 5, 24/09/2026 | GĐ4 — Retest | Retest Medium/Low + regression toàn hệ thống |
-| D12 | Thứ 6, 25/09/2026 | GĐ5 — Báo cáo | Báo cáo tổng kết + bộ slide thuyết trình |
+> **Bảng lịch 12 ngày làm việc (D1–D12, 10/09 → 25/09) đã được gỡ bỏ ngày 2026-09-23.**
+> Nó giả định mỗi ngày xong một giai đoạn. Thực tế: 13 ngày được 3 phiên, và cả 3 phải làm
+> lại vì chạy trên một bản mã đã lỗi thời. Giữ một cái lịch mà ai cũng biết là sai thì tệ
+> hơn là không có lịch. Thay bằng **mốc theo phiên**, vì phiên mới là đơn vị thực thi thật.
 
-**Điều kiện thoát (exit criteria) — không được bỏ qua:**
-- Không còn lỗi `Critical` hoặc `High` ở trạng thái mở.
+**Nguồn sự thật về tiến độ là [TIEN-DO.md](../TIEN-DO.md), không phải tệp này.**
+Tệp này chỉ nói đợt audit gồm những giai đoạn nào và đang ở giai đoạn nào.
+
+| Giai đoạn | Tình trạng | Việc |
+|---|---|---|
+| **GĐ0 — Gỡ hai ẩn số** | ⏳ Chưa bắt đầu | Hai phiên `RETEST`: một cho BUG-001, một cho BUG-003. Mỗi phiên là một **cửa sổ Claude mới** |
+| **GĐ1 — Kiểm kê** | ⚠️ Phải làm lại | Kiểm kê trên mã đã hợp nhất, kèm bề mặt tấn công mới |
+| **GĐ2 — Rà soát 8 nhóm** | ⚠️ Phải làm lại | Tám phiên `/phien-ra-soat` |
+| **GĐ3 — Fix** | ⏳ Chưa bắt đầu | Số phiên tuỳ số lỗi. `/phien-fix BUG-xxx` |
+| **GĐ4 — Retest độc lập** | ⏳ Chưa bắt đầu | Mỗi BUG một cửa sổ Claude mới |
+| **GĐ5 — Báo cáo** | ⏳ Chưa bắt đầu | Một phiên `TAI-LIEU` |
+
+### Việc tiếp theo, cụ thể
+
+**Mở một cửa sổ Claude hoàn toàn mới rồi gõ `/phien-retest BUG-001`.**
+
+Vì sao là việc này chứ không phải kiểm kê lại: BUG-001 mức `Critical` đang **không rõ trạng
+thái**. Một thay đổi nhắm vào chuyện khác có thể đã chặn nó như tác dụng phụ, và chưa ai xác
+minh. Không nên bỏ công kiểm kê endpoint trong khi chưa biết người ngoài có đọc được danh
+tính người tố giác hay không. Việc này cũng rẻ: script kiểm chứng đã có sẵn.
+
+Vì sao phải là cửa sổ mới: xem [QUY-TRINH-LAM-VIEC.md §2.1](../QUY-TRINH-LAM-VIEC.md).
+
+**Điều kiện thoát của cả đợt** (không đổi):
+- Không còn lỗi `Critical` hoặc `High` ở trạng thái mở hoặc không rõ.
 - Mọi lỗi đã đóng đều có kết quả retest do **người/AI khác với người fix** ghi nhận.
-- Mọi fix Critical/High đều có một Security Decision Log tương ứng.
-- `cd server && npm test` xanh toàn bộ; `npm run build` (frontend) không lỗi TypeScript.
+- Mọi fix `Critical`/`High` đều có một Security Decision Log tương ứng.
+- `cd server && npm test` xanh toàn bộ; `npm run build` không lỗi TypeScript.
 
-Nếu D11 phát sinh lỗi mới do fix gây ra → quay lại GĐ3, đẩy lùi GĐ5 sang D13 (28/09).
-Việc trượt lịch phải ghi vào báo cáo, không được giấu.
+## 3. Bản đồ thư mục này
 
-## 3. Mục lục tài liệu
+Ba thư mục con chia theo **loại nội dung**: `phuong-phap/` dạy cách làm, `bieu-mau/` là
+form trống để điền, `ket-qua/` là sản phẩm từng phiên đã làm ra.
+
+> ⚠️ Hai tệp trong `ket-qua/` (`kiem-ke-endpoint.md`, `luong-du-lieu-nhay-cam.md`) là sản
+> phẩm của phiên P01 và P02, **làm trên mã đã lỗi thời**. Đọc để tham khảo cách trình bày,
+> đừng tin nội dung cho tới khi GĐ1 làm lại xong.
 
 | File | Nội dung |
 |---|---|
-| [01-GIAI-DOAN-1-KIEM-KE.md](01-GIAI-DOAN-1-KIEM-KE.md) | Kiểm kê endpoint, luồng dữ liệu, giới hạn nghiệp vụ |
-| [02-GIAI-DOAN-2-RA-SOAT.md](02-GIAI-DOAN-2-RA-SOAT.md) | Checklist rà soát 8 nhóm hạng mục |
-| [03-GIAI-DOAN-3-FIX.md](03-GIAI-DOAN-3-FIX.md) | Quy trình fix theo ưu tiên, kỷ luật commit |
-| [04-GIAI-DOAN-4-RETEST.md](04-GIAI-DOAN-4-RETEST.md) | Retest độc lập — nguyên tắc và checklist |
-| [05-GIAI-DOAN-5-BAO-CAO.md](05-GIAI-DOAN-5-BAO-CAO.md) | Tổng hợp báo cáo, cấu trúc slide |
-| [PHU-LUC-A-MAU-BUG-LOG.md](PHU-LUC-A-MAU-BUG-LOG.md) | Mẫu Bug Log + thang đánh giá mức độ |
-| [PHU-LUC-B-MAU-SECURITY-DECISION-LOG.md](PHU-LUC-B-MAU-SECURITY-DECISION-LOG.md) | Mẫu Security Decision Log |
-| [PHU-LUC-C-BO-TEST-PHONG-THU.md](PHU-LUC-C-BO-TEST-PHONG-THU.md) | Bộ test xác nhận giới hạn không bị lách |
-| [PHU-LUC-D-CONG-CU.md](PHU-LUC-D-CONG-CU.md) | SAST/DAST/dependency scan — lệnh chạy cụ thể |
-| [06-KE-HOACH-THEO-PHIEN.md](06-KE-HOACH-THEO-PHIEN.md) | Bẻ 12 ngày thành phiên Claude P01–P10 + phiên FIX/RETEST |
+| [phuong-phap/1-kiem-ke.md](phuong-phap/1-kiem-ke.md) | Kiểm kê endpoint, luồng dữ liệu, giới hạn nghiệp vụ |
+| [phuong-phap/2-ra-soat.md](phuong-phap/2-ra-soat.md) | Checklist rà soát 8 nhóm hạng mục |
+| [phuong-phap/3-fix.md](phuong-phap/3-fix.md) | Quy trình fix theo ưu tiên, kỷ luật commit |
+| [phuong-phap/4-retest.md](phuong-phap/4-retest.md) | Retest độc lập — nguyên tắc và checklist |
+| [phuong-phap/5-bao-cao.md](phuong-phap/5-bao-cao.md) | Tổng hợp báo cáo, cấu trúc slide |
+| [bieu-mau/bug-log.md](bieu-mau/bug-log.md) | Mẫu Bug Log + thang đánh giá mức độ |
+| [bieu-mau/security-decision-log.md](bieu-mau/security-decision-log.md) | Mẫu Security Decision Log |
+| [phuong-phap/bo-test-phong-thu.md](phuong-phap/bo-test-phong-thu.md) | Bộ test xác nhận giới hạn không bị lách |
+| [phuong-phap/cong-cu.md](phuong-phap/cong-cu.md) | SAST/DAST/dependency scan — lệnh chạy cụ thể |
+| [KE-HOACH.md](KE-HOACH.md) | **Kế hoạch đang chạy** — bẻ từng giai đoạn thành phiên Claude, kèm vùng mã mới phải phủ |
 
 Nhật ký lỗi và nhật ký quyết định nằm ở thư mục `buglogs/`.
 

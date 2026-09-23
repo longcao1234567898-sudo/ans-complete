@@ -56,17 +56,17 @@ người ngoài có đọc được danh tính người tố giác hay không.
 
 | Phiên | Loại | Mục tiêu | Xong khi | Lệnh |
 |---|---|---|---|---|
-| **P05** | `RETEST` | Kiểm chứng BUG-001 — nó còn khai thác được không sau khi mã đã đổi | Chạy script kiểm chứng sẵn có trên mã đã hợp nhất, có output; bốn biến thể trong Bug Log đều có kết luận kèm bằng chứng | `/phien-retest BUG-001` |
-| **P06** | `RETEST` | Kiểm chứng bản vá BUG-003 đến từ ngoài kế hoạch | Ba biến thể (a)(b)(c) đều có kết luận kèm bằng chứng; Phần 3 Bug Log điền xong | `/phien-retest BUG-003` |
+| **GĐ0-a** | `RETEST` | Kiểm chứng BUG-001 — nó còn khai thác được không sau khi mã đã đổi | Chạy script kiểm chứng sẵn có trên mã đã hợp nhất, có output; bốn biến thể trong Bug Log đều có kết luận kèm bằng chứng | `/phien-retest BUG-001` |
+| **GĐ0-b** | `RETEST` | Kiểm chứng bản vá BUG-003 đến từ ngoài kế hoạch | Ba biến thể (a)(b)(c) đều có kết luận kèm bằng chứng; Phần 3 Bug Log điền xong | `/phien-retest BUG-003` |
 
 > ⚠️ **Cả hai phải là phiên Claude hoàn toàn mới.** Phiên đã dựng kế hoạch này biết quá
 > nhiều về hai bản vá đó để làm trọng tài.
 
-**Ghi chú cho P05:** bản vá cho BUG-003 thêm một truy vấn `staff` theo `sub` của token. Vé
+**Ghi chú cho GĐ0-a:** bản vá cho BUG-003 thêm một truy vấn `staff` theo `sub` của token. Vé
 OTP mang `sub` không phải id cán bộ nên **có thể** bị chặn ở đó. Đừng kết luận bằng suy luận,
 chạy script. Và thử biến thể: `sub` trùng một id cán bộ có thật thì sao?
 
-**Ghi chú cho P06:** danh sách biến thể đã có sẵn trong Bug Log. Đọc từ đó, không đọc mô tả
+**Ghi chú cho GĐ0-b:** danh sách biến thể đã có sẵn trong Bug Log. Đọc từ đó, không đọc mô tả
 trong commit. Đặc biệt biến thể (b) hạ vai trò giữa chừng và (c) đăng xuất rồi dùng lại.
 
 Kết quả hai phiên này quyết định thứ tự phần còn lại. `Chưa fix triệt để` → chèn phiên `FIX`
@@ -78,10 +78,10 @@ ngay sau, trước khi đi tiếp.
 
 | Phiên | Loại | Mục tiêu | Xong khi |
 |---|---|---|---|
-| **P07** | `KHAO-SAT` | Kiểm kê lại toàn bộ endpoint, dựng lại ba bảng A/B/C của §1.1 | Số endpoint là **số đếm được**, không chép; mọi route dưới `/api/admin` ghi rõ `authorize()` gì; ba biến thể khởi động đã đối chiếu |
-| **P08** | `KHAO-SAT` | Vẽ lại 5 luồng dữ liệu nhạy cảm, **thêm luồng thứ 6: tải tài liệu đính kèm**; dựng lại bảng giới hạn nghiệp vụ §2.2 | 6 sơ đồ xong; bảng §2.2 đầy đủ cột "Thực thi ở đâu"; có danh sách điểm nghi ngờ chuyển sang GĐ2 |
+| **GĐ1-a** | `KHAO-SAT` | Kiểm kê lại toàn bộ endpoint, dựng lại ba bảng A/B/C của §1.1 | Số endpoint là **số đếm được**, không chép; mọi route dưới `/api/admin` ghi rõ `authorize()` gì; ba biến thể khởi động đã đối chiếu |
+| **GĐ1-b** | `KHAO-SAT` | Vẽ lại 5 luồng dữ liệu nhạy cảm, **thêm luồng thứ 6: tải tài liệu đính kèm**; dựng lại bảng giới hạn nghiệp vụ §2.2 | 6 sơ đồ xong; bảng §2.2 đầy đủ cột "Thực thi ở đâu"; có danh sách điểm nghi ngờ chuyển sang GĐ2 |
 
-**Vùng hoàn toàn mới, chưa từng có trong bản kiểm kê cũ** — P07 và P08 phải phủ hết:
+**Vùng hoàn toàn mới, chưa từng có trong bản kiểm kê cũ** — Hai phiên GĐ1 phải phủ hết:
 
 | Vùng | File | Vì sao đáng chú ý |
 |---|---|---|
@@ -100,18 +100,18 @@ Tám nhóm hạng mục, tám phiên, mở bằng `/phien-ra-soat <nhóm>`.
 
 | Phiên | Nhóm | Mục tiêu | Lưu ý riêng |
 |---|---|---|---|
-| **P09** | 1 | Xác thực & phiên đăng nhập (12 mục) | Làm lại hoàn toàn: `middleware/auth.js` đã đổi. Đọc kết quả P05/P06 trước |
-| **P10** | 2 | **Phân quyền / IDOR** (12 mục) — ưu tiên cao nhất | Ma trận `route × vai trò` phải phủ cả route admin mới. Chuỗi `/assign` rồi `/reveal` phải thử thật |
-| **P11** | 3 | Input validation & injection (13 mục) | ⚠️ Kiểm kỹ ngoại lệ `coNB` vừa thêm vào luật G8 của `khong-duoc-pha.test.js` — đó là một allow-list chống nối chuỗi SQL bị nới ra cho `admin/news.js`. Kèm luồng tải tài liệu |
-| **P12** | 4 | Bảo vệ dữ liệu (10 mục) | ⚠️ Có một điểm nghi về dữ liệu mẫu trong `database/`, chi tiết ghi ở `buglogs/ghi-chu-P04-diem-nghi.md`. Cần **hỏi thẳng người vận hành**, đừng suy đoán |
-| **P13** | 5 | Bảo mật API (12 mục) | Ba biến thể khởi động (ND-010, ND-012) |
-| **P14** | 6 | Business logic & giới hạn (12 mục) + **viết bộ test phòng thủ** | Test ở [PHU-LUC-C](PHU-LUC-C-BO-TEST-PHONG-THU.md). Bộ này là **trọng tài** cho mọi phiên RETEST sau |
-| **P15** | 7 | Hạ tầng & secrets (12 mục) + **chạy công cụ tự động** | Semgrep, `npm audit` (nợ ND-003), soát git history. ⚠️ Soát cả lịch sử xem `.gitignore` còn bị đụng lần nào nữa không |
-| **P16** | 8 | Scalability (8 mục) + **chốt và phân loại Bug Log** | Chốt thứ tự vá. Lập SEC-DEC cho quyết định MFA (nợ ND-015) |
+| **GĐ2-1** | 1 | Xác thực & phiên đăng nhập (12 mục) | Làm lại hoàn toàn: `middleware/auth.js` đã đổi. Đọc kết quả GĐ0 trước |
+| **GĐ2-2** | 2 | **Phân quyền / IDOR** (12 mục) — ưu tiên cao nhất | Ma trận `route × vai trò` phải phủ cả route admin mới. Chuỗi `/assign` rồi `/reveal` phải thử thật |
+| **GĐ2-3** | 3 | Input validation & injection (13 mục) | ⚠️ Kiểm kỹ ngoại lệ `coNB` vừa thêm vào luật G8 của `khong-duoc-pha.test.js` — đó là một allow-list chống nối chuỗi SQL bị nới ra cho `admin/news.js`. Kèm luồng tải tài liệu |
+| **GĐ2-4** | 4 | Bảo vệ dữ liệu (10 mục) | ⚠️ Có một điểm nghi về dữ liệu mẫu trong `database/`, chi tiết ghi ở `buglogs/ghi-chu-P04-diem-nghi.md`. Cần **hỏi thẳng người vận hành**, đừng suy đoán |
+| **GĐ2-5** | 5 | Bảo mật API (12 mục) | Ba biến thể khởi động (ND-010, ND-012) |
+| **GĐ2-6** | 6 | Business logic & giới hạn (12 mục) + **viết bộ test phòng thủ** | Test ở [bộ test phòng thủ](phuong-phap/bo-test-phong-thu.md). Bộ này là **trọng tài** cho mọi phiên RETEST sau |
+| **GĐ2-7** | 7 | Hạ tầng & secrets (12 mục) + **chạy công cụ tự động** | Semgrep, `npm audit` (nợ ND-003), soát git history. ⚠️ Soát cả lịch sử xem `.gitignore` còn bị đụng lần nào nữa không |
+| **GĐ2-8** | 8 | Scalability (8 mục) + **chốt và phân loại Bug Log** | Chốt thứ tự vá. Lập SEC-DEC cho quyết định MFA (nợ ND-015) |
 
 ### Ba câu hỏi nghiệp vụ phải hỏi người vận hành, không tự trả lời
 
-Ba phiên liên tiếp đã vướng vì không hỏi. Hỏi sớm, đừng để tới P15:
+Ba phiên liên tiếp đã vướng vì không hỏi. Hỏi sớm, đừng để tới phiên rà soát nhóm 7:
 
 1. **Biến môi trường thật trên Render là gì?** Cụ thể `TURNSTILE_SECRET_KEY` có được đặt không — nó quyết định mức độ thật của BUG-002. Ô này trống từ P01.
 2. **Khi phát hiện cán bộ tha hoá, chỉ huy có chấp nhận chờ tới 8 giờ không?** Quyết định mức độ đúng của BUG-003 và có nên rút thời hạn phiên truy cập không.
@@ -142,7 +142,7 @@ Lỗi mới phát sinh → mở BUG mới, ghi `Sinh ra bởi: fix của BUG-xxx
 
 ## Giai đoạn 5 — Báo cáo
 
-Một phiên `TAI-LIEU`: báo cáo 7 phần theo [05-GIAI-DOAN-5-BAO-CAO.md](05-GIAI-DOAN-5-BAO-CAO.md).
+Một phiên `TAI-LIEU`: báo cáo 7 phần theo [phuong-phap/5-bao-cao.md](phuong-phap/5-bao-cao.md).
 
 Mục "Bài học" của báo cáo lần này có sẵn hai số liệu thật, đừng bỏ phí:
 - Bảng "Lỗi phát sinh do chính quá trình fix" trong `buglogs/BUG-LOG.md`
@@ -152,27 +152,31 @@ Mục "Bài học" của báo cáo lần này có sẵn hai số liệu thật, 
 
 ## Bảng theo dõi
 
-| Phiên | Loại | Trạng thái | Ghi chú |
-|---|---|---|---|
-| P00 | TAI-LIEU | ✅ | Dựng quy trình |
-| P01 | KHAO-SAT | ⚠️ **Phải làm lại** | Kiểm kê trên mã đã lỗi thời. Làm lại ở P07 |
-| P02 | KHAO-SAT | ⚠️ **Phải làm lại** | Luồng dữ liệu trên mã đã lỗi thời. Làm lại ở P08. Ba đính chính tài liệu vẫn dùng được |
-| P03 | RA-SOAT | ⚠️ **Phải làm lại** | 4 BUG giữ lại. Kết luận 12 mục kiểm làm lại ở P09 |
-| P04 | TAI-LIEU | ✅ | Hợp nhất nhánh, dựng lại kế hoạch này, nâng cấp quy trình |
-| P05 | RETEST | ⏳ | BUG-001 — **phiên Claude mới** |
-| P06 | RETEST | ⏳ | BUG-003 — **phiên Claude mới** |
-| P07 | KHAO-SAT | ⏳ | Kiểm kê lại endpoint |
-| P08 | KHAO-SAT | ⏳ | Luồng dữ liệu + luồng tải tài liệu |
-| P09 | RA-SOAT | ⏳ | Nhóm 1 |
-| P10 | RA-SOAT | ⏳ | Nhóm 2 — nặng nhất |
-| P11 | RA-SOAT | ⏳ | Nhóm 3 — kèm ngoại lệ G8 |
-| P12 | RA-SOAT | ⏳ | Nhóm 4 — kèm dữ liệu mẫu |
-| P13 | RA-SOAT | ⏳ | Nhóm 5 |
-| P14 | RA-SOAT | ⏳ | Nhóm 6 + bộ test phòng thủ |
-| P15 | RA-SOAT | ⏳ | Nhóm 7 + công cụ tự động |
-| P16 | RA-SOAT | ⏳ | Nhóm 8 + chốt Bug Log |
-| P17+ | FIX | ⏳ | Tuỳ số lỗi |
-| … | RETEST | ⏳ | Mỗi BUG một phiên mới |
-| … | TAI-LIEU | ⏳ | Báo cáo tổng kết |
+> **Cột "Phiên nào làm" để trống cho tới khi phiên đó thật sự mở.** Kế hoạch này mô tả
+> *việc gì*, `TIEN-DO.md` ghi *ai làm, khi nào*. Trước đây kế hoạch đặt trước số phiên
+> (P04 là nhóm 2, P05 là nhóm 3…) và phải đánh số lại hai lần chỉ vì có hai phiên phát sinh
+> ngoài dự kiến. Số phiên giờ được cấp lúc mở phiên, không cấp trước.
 
-Trạng thái thật cập nhật ở [../TIEN-DO.md](../TIEN-DO.md); bảng này chỉ là khung dự kiến.
+| Việc | Loại | Trạng thái | Phiên nào làm |
+|---|---|---|---|
+| **GĐ0-a** — kiểm chứng BUG-001 | RETEST | ⏳ | |
+| **GĐ0-b** — kiểm chứng BUG-003 | RETEST | ⏳ | |
+| **GĐ1-a** — kiểm kê lại endpoint | KHAO-SAT | ⏳ | |
+| **GĐ1-b** — luồng dữ liệu + luồng tải tài liệu | KHAO-SAT | ⏳ | |
+| **GĐ2-1** — nhóm 1, xác thực & phiên đăng nhập | RA-SOAT | ⏳ | |
+| **GĐ2-2** — nhóm 2, phân quyền / IDOR | RA-SOAT | ⏳ | |
+| **GĐ2-3** — nhóm 3, input validation & injection | RA-SOAT | ⏳ | |
+| **GĐ2-4** — nhóm 4, bảo vệ dữ liệu | RA-SOAT | ⏳ | |
+| **GĐ2-5** — nhóm 5, bảo mật API | RA-SOAT | ⏳ | |
+| **GĐ2-6** — nhóm 6, business logic + bộ test phòng thủ | RA-SOAT | ⏳ | |
+| **GĐ2-7** — nhóm 7, hạ tầng & secrets + công cụ tự động | RA-SOAT | ⏳ | |
+| **GĐ2-8** — nhóm 8, scalability + chốt Bug Log | RA-SOAT | ⏳ | |
+| **GĐ3** — fix theo ưu tiên | FIX | ⏳ | mỗi lỗi một phiên |
+| **GĐ4** — retest độc lập | RETEST | ⏳ | mỗi lỗi một cửa sổ Claude mới |
+| **GĐ5** — báo cáo tổng kết | TAI-LIEU | ⏳ | |
+
+**Đã làm trước đợt này, phải làm lại:** ba phiên P01, P02, P03 đã chạy GĐ1 và nhóm 1 của
+GĐ2 trên một bản mã lỗi thời. Giữ lại 4 BUG đã mở và danh sách biến thể của chúng; bỏ ba
+bảng kiểm kê, 5 sơ đồ luồng dữ liệu, và kết luận 12 mục kiểm nhóm 1.
+
+Trạng thái thật cập nhật ở [../TIEN-DO.md](../TIEN-DO.md); bảng này chỉ là khung việc.
