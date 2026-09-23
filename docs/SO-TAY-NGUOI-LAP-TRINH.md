@@ -7,6 +7,30 @@ Bạn đọc file này để biết: gõ gì, khi nào, và **làm sao biết Cl
 
 ---
 
+## 0. Phiên tiếp theo nên làm gì
+
+Ba chỗ sau luôn trả lời câu này, theo thứ tự tin cậy giảm dần:
+
+| Hỏi | Xem |
+|---|---|
+| Phiên gần nhất để lại việc gì | [TIEN-DO.md](TIEN-DO.md), cột **Việc còn dở** của dòng cuối cùng |
+| Đợt audit đang ở giai đoạn nào | [kiem-thu-bao-mat/README.md](kiem-thu-bao-mat/README.md) §2 |
+| Việc đó cụ thể gồm những gì | [kiem-thu-bao-mat/KE-HOACH.md](kiem-thu-bao-mat/KE-HOACH.md) |
+
+Không muốn tra: gõ `/bat-dau-phien` và để trống phần việc. Lệnh đó đọc cả ba chỗ trên rồi
+tự đề xuất, và dừng lại hỏi bạn nếu thấy nhánh bị lệch hoặc có phiên treo.
+
+**Ngay lúc này, việc tiếp theo là:** mở một **cửa sổ Claude hoàn toàn mới** rồi gõ
+`/phien-retest BUG-001`. Lý do nó đứng trước cả việc kiểm kê lại nằm ở
+[kiem-thu-bao-mat/README.md](kiem-thu-bao-mat/README.md) §2.
+
+> **Vì sao kế hoạch không ghi sẵn "phiên P07 làm việc này".** Đặt trước số phiên đã phải
+> đánh số lại hai lần chỉ vì có hai phiên phát sinh ngoài dự kiến. Kế hoạch giờ đặt tên việc
+> theo giai đoạn (`GĐ0-a`, `GĐ2-3`…), còn số phiên được cấp lúc phiên thật sự mở và chỉ ghi
+> ở `TIEN-DO.md`. Kế hoạch nói **làm gì**, tiến độ nói **ai làm, khi nào**.
+
+---
+
 ## 1. Việc muốn làm → lệnh phải gõ
 
 | Bạn muốn | Gõ | Phiên loại |
@@ -139,10 +163,11 @@ Không phải lớp nào cũng cần cho mọi lỗi. Biết mình đang bỏ l�
 
 | Cần biết | Ở đâu |
 |---|---|
+| **Bản đồ toàn bộ tài liệu** | [README.md](README.md) |
 | Đang làm tới đâu | [TIEN-DO.md](TIEN-DO.md) |
 | Nợ kỹ thuật đã biết | [NO-KY-THUAT.md](NO-KY-THUAT.md) |
 | Lỗ hổng đang mở | `buglogs/BUG-LOG.md` — chỉ có trên máy |
-| Kế hoạch audit | [kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md](kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md) |
+| Kế hoạch audit | [kiem-thu-bao-mat/KE-HOACH.md](kiem-thu-bao-mat/KE-HOACH.md) |
 | Quy trình đầy đủ | [QUY-TRINH-LAM-VIEC.md](QUY-TRINH-LAM-VIEC.md) |
 | Đợt vá đã xong | [CHANGELOG-BAO-MAT.md](CHANGELOG-BAO-MAT.md) |
 
