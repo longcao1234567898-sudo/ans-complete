@@ -184,8 +184,8 @@ trôi phạm vi, không phải hình thức.
 
 | Đụng vào | Phải cập nhật |
 |---|---|
-| Thêm/xoá endpoint | `docs/kiem-thu-bao-mat/01-GIAI-DOAN-1-KIEM-KE.md`, `server/README.md` |
-| Đổi giới hạn nghiệp vụ (rate limit, quota, kích thước) | Bảng §2.2 của `01-GIAI-DOAN-1-KIEM-KE.md` |
+| Thêm/xoá endpoint | `docs/kiem-thu-bao-mat/phuong-phap/1-kiem-ke.md`, `server/README.md` |
+| Đổi giới hạn nghiệp vụ (rate limit, quota, kích thước) | Bảng §2.2 của `docs/kiem-thu-bao-mat/phuong-phap/1-kiem-ke.md` |
 | Đổi biến môi trường | `.env.example`, `server/.env.example`, `render.yaml`, `README.md` |
 | Đổi schema DB | File `database/nang_cap_vXX.sql` mới + `README.md` (thứ tự import) |
 | Quyết định kiến trúc | ADR mới trong `docs/adr/` |

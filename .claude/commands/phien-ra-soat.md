@@ -5,7 +5,7 @@ description: Mở phiên RA-SOAT cho một nhóm hạng mục — đi tìm lỗ 
 Mở phiên **RA-SOAT** cho: **$ARGUMENTS**
 
 (Tham số là số nhóm, ví dụ `nhóm 2` hoặc `2`. Để trống thì đọc
-`docs/kiem-thu-bao-mat/06-KE-HOACH-THEO-PHIEN.md`, tìm nhóm chưa rà, và đề xuất.)
+`docs/kiem-thu-bao-mat/KE-HOACH.md`, tìm nhóm chưa rà, và đề xuất.)
 
 ---
 
@@ -40,7 +40,7 @@ sau này không biết lỗi được phát hiện trên bản nào.
 ## Bước 2 — Nạp checklist của nhóm
 
 ```bash
-grep -n "Nhóm <N> —" docs/kiem-thu-bao-mat/02-GIAI-DOAN-2-RA-SOAT.md
+grep -n "Nhóm <N> —" docs/kiem-thu-bao-mat/phuong-phap/2-ra-soat.md
 ```
 
 Đọc **toàn bộ** mục kiểm của nhóm trước khi rà mục đầu tiên. Biết trước cả danh sách thì
@@ -80,7 +80,7 @@ chuyện dọn dẹp.
 
 ## Bước 5 — Chấm mức độ theo thang hai trục
 
-Theo `docs/kiem-thu-bao-mat/PHU-LUC-A-MAU-BUG-LOG.md`: **tác động** × **độ dễ khai thác**.
+Theo `docs/kiem-thu-bao-mat/bieu-mau/bug-log.md`: **tác động** × **độ dễ khai thác**.
 
 Một câu hỏi phải trả lời cho mọi lỗi, vì nó quyết định thứ tự vá:
 **lỗi này có dẫn tới lộ danh tính người tố giác không?** Có thì nâng một bậc.

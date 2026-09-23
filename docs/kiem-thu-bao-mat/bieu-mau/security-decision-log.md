@@ -1,7 +1,7 @@
 # Phụ lục B — Mẫu Security Decision Log
 
-Bản gốc để sao chép: [`buglogs/_MAU-SEC-DEC.md`](../../buglogs/_MAU-SEC-DEC.md).
-Bảng tổng hợp: [`buglogs/SECURITY-DECISION-LOG.md`](../../buglogs/SECURITY-DECISION-LOG.md).
+Bản gốc để sao chép: [`buglogs/_MAU-SEC-DEC.md`](../../../buglogs/_MAU-SEC-DEC.md).
+Bảng tổng hợp: [`buglogs/SECURITY-DECISION-LOG.md`](../../../buglogs/SECURITY-DECISION-LOG.md).
 
 **Bắt buộc lập với mọi fix `Critical` và `High`.** Với `Medium/Low` chỉ cần khi phương án
 fix có đánh đổi đáng kể hoặc chạm vào luồng nghiệp vụ.

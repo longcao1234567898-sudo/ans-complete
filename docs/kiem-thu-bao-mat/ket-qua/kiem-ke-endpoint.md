@@ -1,6 +1,6 @@
 # Kiểm kê endpoint — P01 (KHAO-SAT)
 
-Điền đủ các cột còn dấu `?` trong ba bảng ở [01-GIAI-DOAN-1-KIEM-KE.md](01-GIAI-DOAN-1-KIEM-KE.md) §1.1.
+Điền đủ các cột còn dấu `?` trong ba bảng ở [../phuong-phap/1-kiem-ke.md](../phuong-phap/1-kiem-ke.md) §1.1.
 Đối chiếu cả ba biến thể khởi động backend (`index.js`, `may-chu-cong-khai.js`, `may-chu-can-bo.js`
 + `nen-tang.js`) — xem mục "Đối chiếu ba biến thể" ở cuối file.
 
@@ -13,10 +13,10 @@ grep -rnoE "router\.(get|post|put|patch|delete)\(" server/src/routes
 > ⚠️ **File này công khai trên GitHub.** Đây là bảng **kiểm kê** — ghi lớp bảo vệ nào đang
 > gắn ở đâu. Không phải bảng chấm lỗi, và không mô tả điểm yếu chưa vá. Các điểm cần soi kỹ
 > phát hiện trong phiên này nằm ở `buglogs/` (nội bộ, đã gitignore), theo luật 10 trong
-> [CLAUDE.md](../../CLAUDE.md).
+> [CLAUDE.md](../../../CLAUDE.md).
 >
 > Cột "Cần xác minh ở GĐ2" giữ nguyên nội dung gốc — đó là việc của các phiên `RA-SOAT`
-> (P03–P10), không phải việc của phiên kiểm kê này.
+> (các phiên rà soát GĐ2), không phải việc của phiên kiểm kê này.
 
 ---
 
@@ -123,8 +123,8 @@ Phiên này ghi được 3 điểm cần soi kỹ. Vì chúng mô tả chỗ **c
 
 | # | Vùng | Chuyển cho |
 |---|---|---|
-| 1 | Giới hạn tần suất, `routes/tracking.js` | P04 hoặc P05 |
-| 2 | Tính atomic của phép đếm hạn mức, `routes/otp.js` | P08 (gộp với dòng `khieu-nai` đã có ở §2.2) |
+| 1 | Giới hạn tần suất, `routes/tracking.js` | GĐ2-2 hoặc GĐ2-3 |
+| 2 | Tính atomic của phép đếm hạn mức, `routes/otp.js` | GĐ2-6 (gộp với dòng `khieu-nai` đã có ở §2.2) |
 | 3 | Phân quyền theo vai trò dưới `/api/admin` | **P04** (nhóm 2 — ưu tiên cao nhất) |
 
 Cả ba đều là **quan sát từ đọc code tĩnh**, chưa chạy thử, chưa chấm mức độ. Phiên `KHAO-SAT`

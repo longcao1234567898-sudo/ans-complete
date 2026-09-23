@@ -1,7 +1,7 @@
 # Giai đoạn 2 — Rà soát lỗ hổng theo 8 nhóm hạng mục
 
 **Thời gian:** D3–D6 (14/09/2026 – 17/09/2026)
-**Đầu ra:** Bug Log đầy đủ, đã phân loại mức độ nghiêm trọng, nằm ở [`buglogs/`](../../buglogs/).
+**Đầu ra:** Bug Log đầy đủ, đã phân loại mức độ nghiêm trọng, nằm ở [`buglogs/`](../../../buglogs/).
 
 **Quy tắc ghi nhận:** mỗi phát hiện → một file `buglogs/bugs/BUG-xxx.md` + một dòng trong
 `buglogs/BUG-LOG.md`. Không phát hiện gì ở một mục cũng phải tick "đã kiểm, không thấy" —
@@ -26,14 +26,14 @@ Tệp trọng tâm: `server/src/routes/auth.js`, `server/src/lib/token.js`, `ser
 |---|---|---|---|
 | 1.1 | Thuật toán hash mật khẩu, salt, cost factor | Đọc `scripts-create-admin.js` + chỗ gọi `bcrypt.hash`; cost < 10 là quá thấp | ✅ **Đạt.** `bcrypt` cost **12** cho mật khẩu cán bộ (`scripts-create-admin.js:18`, `scripts-them-can-bo.js:114`) — trên ngưỡng 10. `DUMMY_HASH` (`auth.js:27`) cũng cost 12, đúng chủ ý: lệch cost là lộ lại kênh đo thời gian. Mã OTP và mã PIN chat dùng cost 10 — chấp nhận được cho bí mật sống 10–15 phút. |
 | 1.2 | Chính sách khoá tài khoản | 5 lần/15 phút là theo **IP** hay theo **username**? Nếu theo IP: kẻ tấn công đổi IP là dò tiếp; nếu theo username: kẻ khác khoá được tài khoản admin (DoS) | ⚠️ **Có lỗi — [BUG-002]** (High, chi tiết ở `buglogs/`). Đã xác nhận phần **làm đúng**: chặn theo cả IP (5 lần/15 phút, `auth.js:30`) lẫn theo tài khoản (`failed_attempts` → CAPTCHA từ lần thứ 3, `auth.js:117`); **không khoá tài khoản là cố ý và đúng** — khoá được là DoS được cán bộ trực ban (lý do ở `auth.js:57-70`, khoá lại bằng test G5). |
-| 1.3 | MFA cho tài khoản admin | `otplib` đã có trong dependency — đã dùng chưa, hay chỉ cài mà bỏ đó? | ❌ **Chưa dùng.** `otplib@^13.4.1` có trong `server/package.json:27` nhưng **không tệp nào import** — cài rồi bỏ đó, không có MFA cho bất kỳ vai trò nào. Không mở BUG (thiếu tính năng, không phải lỗ hổng khai thác được) → ghi **ND-015** và đề nghị P10 lập SEC-DEC: hệ thống cho phép xem danh tính người tố giác mà chỉ chặn bằng một lớp mật khẩu. |
+| 1.3 | MFA cho tài khoản admin | `otplib` đã có trong dependency — đã dùng chưa, hay chỉ cài mà bỏ đó? | ❌ **Chưa dùng.** `otplib@^13.4.1` có trong `server/package.json:27` nhưng **không tệp nào import** — cài rồi bỏ đó, không có MFA cho bất kỳ vai trò nào. Không mở BUG (thiếu tính năng, không phải lỗ hổng khai thác được) → ghi **ND-015** và đề nghị GĐ2-8 lập SEC-DEC: hệ thống cho phép xem danh tính người tố giác mà chỉ chặn bằng một lớp mật khẩu. |
 | 1.4 | Thời hạn access token | Đọc `lib/token.js`; access token dài hạn = mất token là mất luôn | ⚠️ **Có lỗi — [BUG-003]** (Medium, chi tiết ở `buglogs/`). Số liệu công khai được: `ACCESS_TTL = 8h` (`token.js:78`), `REFRESH_TTL_DAYS = 30` (`token.js:79`). |
 | 1.5 | Rotate refresh token | `/api/auth/refresh` có phát refresh token mới và vô hiệu token cũ không? Không rotate = token bị đánh cắp dùng được mãi | ⚠️ **Có lỗi — [BUG-004]** (Medium, chi tiết ở `buglogs/`). Đường refresh: `auth.js:193-220`. |
 | 1.6 | Revoke khi logout | `/api/auth/logout` chỉ xoá cookie, hay có xoá bản ghi phía server? Chỉ xoá cookie = token vẫn sống | 🟡 **Một phần — [BUG-003]** (Medium, chi tiết ở `buglogs/`). Phần **làm đúng**: logout thu hồi phía máy chủ thật, `UPDATE refresh_tokens SET revoked = TRUE` (`auth.js:227`), không phải chỉ xoá cookie. |
 | 1.7 | Revoke khi đổi mật khẩu | Đổi mật khẩu có đá mọi phiên cũ ra không? | ❌ **Không áp dụng được — hệ thống KHÔNG có đường đổi mật khẩu.** `routes/admin/staff.js` chỉ có `GET /` (liệt kê); không route nào chạm tới `password_hash`. Đổi mật khẩu chỉ làm được bằng script CLI trên máy chủ. Xác nhận điểm nghi số 2 của P02 → ghi **ND-016**. Khi bổ sung đường đổi mật khẩu thì **phải** thu hồi phiên cũ cùng lúc, nếu không sẽ thành lỗ hổng mới. |
-| 1.8 | Cờ cookie | `httpOnly`, `Secure`, `SameSite` trên cookie refresh — kiểm bằng DevTools ở môi trường staging HTTPS | ✅ **Đạt** (đọc mã — chưa kiểm được trên staging HTTPS thật, xem ghi chú P03). `httpOnly: true`, `secure: !CHAY_O_MAY_CA_NHAN` (suy từ `CLIENT_URL`, **không** từ `NODE_ENV` — Render không đặt biến đó), `sameSite: lax`, `path: /api/auth`, 30 ngày (`auth.js:49-55`). Đã khoá bằng test G10. Một điểm nghi về `sameSite: lax` khi frontend và backend khác tên miền → chuyển **P07** (nhóm 5). |
+| 1.8 | Cờ cookie | `httpOnly`, `Secure`, `SameSite` trên cookie refresh — kiểm bằng DevTools ở môi trường staging HTTPS | ✅ **Đạt** (đọc mã — chưa kiểm được trên staging HTTPS thật, xem ghi chú P03). `httpOnly: true`, `secure: !CHAY_O_MAY_CA_NHAN` (suy từ `CLIENT_URL`, **không** từ `NODE_ENV` — Render không đặt biến đó), `sameSite: lax`, `path: /api/auth`, 30 ngày (`auth.js:49-55`). Đã khoá bằng test G10. Một điểm nghi về `sameSite: lax` khi frontend và backend khác tên miền → chuyển **GĐ2-5** (nhóm 5). |
 | 1.9 | Thuật toán JWT | Có chốt cứng `algorithms: ['HS256']` khi verify không? Thiếu → tấn công `alg: none` / nhầm khoá | ✅ **Đạt.** `algorithms: ['HS256']` ghim cứng ở cả ba nơi verify: `token.js:100`, `otp.js:180`, `otp.js:398`. Chú thích tại chỗ giải thích rõ vì sao ghim ngay cả khi thư viện v9 đã chặn `alg:none`. |
-| 1.10 | Luồng OTP | Mã có đủ ngẫu nhiên (`crypto.randomInt`, không `Math.random`)? Có hết hạn? Dùng lại được không? So sánh có timing-safe không? | ⚠️ **Có lỗi — [BUG-001]** (Critical, chi tiết ở `buglogs/`). Phần **làm đúng, đã xác nhận**: mã sinh bằng `crypto.randomInt(100000, 1000000)` (`otp.js:36` — đủ 6 số, không dùng `Math.random`), hết hạn 10 phút, chỉ dùng một lần (`is_used`), sai quá 5 lần thì huỷ, so sánh bằng `bcrypt.compare` (timing-safe), email chỉ lưu dạng băm SHA-256. ⚠️ Đọc `routes/otp.js`, **không** đọc `lib/otp.js` (mã chết — ND-013). Phép đếm hạn mức không atomic đã có ở điểm nghi P01 số 2 → để **P08**, không mở BUG trùng. |
+| 1.10 | Luồng OTP | Mã có đủ ngẫu nhiên (`crypto.randomInt`, không `Math.random`)? Có hết hạn? Dùng lại được không? So sánh có timing-safe không? | ⚠️ **Có lỗi — [BUG-001]** (Critical, chi tiết ở `buglogs/`). Phần **làm đúng, đã xác nhận**: mã sinh bằng `crypto.randomInt(100000, 1000000)` (`otp.js:36` — đủ 6 số, không dùng `Math.random`), hết hạn 10 phút, chỉ dùng một lần (`is_used`), sai quá 5 lần thì huỷ, so sánh bằng `bcrypt.compare` (timing-safe), email chỉ lưu dạng băm SHA-256. ⚠️ Đọc `routes/otp.js`, **không** đọc `lib/otp.js` (mã chết — ND-013). Phép đếm hạn mức không atomic đã có ở điểm nghi P01 số 2 → để **GĐ2-6**, không mở BUG trùng. |
 | 1.11 | Mã ẩn danh | `/api/otp/anon-code` + `/anon-verify` — cùng bộ câu hỏi như 1.10 | ⚠️ **Cùng [BUG-001]** (chi tiết ở `buglogs/`). Phần **làm đúng**: cùng chất lượng mã như 1.10, và khớp theo **mã phiên ngẫu nhiên 24 byte** thay vì theo IP — quyết định đúng, có test G11 canh. Việc hiện mã thẳng trên màn hình là đánh đổi đã ghi rõ trong mã nguồn (`otp.js:198-205`), không tính là lỗi. |
 | 1.12 | Rò rỉ qua thông báo lỗi | Đăng nhập sai: "sai mật khẩu" vs "không tồn tại tài khoản" → dò được username | ✅ **Đạt.** Sai tên và sai mật khẩu dùng **một câu duy nhất** trong mã nguồn (`auth.js:150`), và luôn chạy `bcrypt.compare` với `DUMMY_HASH` khi không tìm thấy tài khoản → không dò được qua nội dung lẫn qua thời gian phản hồi. Đã khoá bằng test G6. Một khác biệt còn lại: tài khoản bị vô hiệu hoá trả `403 "Tài khoản đã bị khoá."` (`auth.js:157`) thay vì 401 — nhưng chỉ tới được nhánh đó khi **đã nhập đúng mật khẩu**, nên không dùng để liệt kê tài khoản. Ghi nhận, không mở BUG. |
 
@@ -110,7 +110,7 @@ Tệp trọng tâm: `server/src/middleware/authorize.js`, toàn bộ `server/src
 
 > Toàn bộ mục này là **kiểm thử phòng thủ**: mục đích là *xác nhận giới hạn không bị lách*,
 > chạy trên staging/local với dữ liệu giả. Chi tiết test case ở
-> [PHU-LUC-C-BO-TEST-PHONG-THU.md](PHU-LUC-C-BO-TEST-PHONG-THU.md).
+> [bo-test-phong-thu.md](bo-test-phong-thu.md).
 
 | # | Hạng mục kiểm | Cách kiểm | Kết quả |
 |---|---|---|---|
@@ -163,6 +163,6 @@ Tệp trọng tâm: `server/src/middleware/authorize.js`, toàn bộ `server/src
 
 - [ ] Mọi ô ☐ ở trên đã có kết quả (kể cả "đã kiểm, không thấy vấn đề")
 - [ ] Mỗi phát hiện có file `buglogs/bugs/BUG-xxx.md` và một dòng trong `buglogs/BUG-LOG.md`
-- [ ] Đã phân loại mức độ theo thang ở [PHU-LUC-A](PHU-LUC-A-MAU-BUG-LOG.md)
-- [ ] Đã chạy đối chiếu công cụ tự động theo [PHU-LUC-D](PHU-LUC-D-CONG-CU.md) và ghi các phát hiện **chỉ công cụ tìm ra** (chứng tỏ AI đã bỏ sót ở đâu)
+- [ ] Đã phân loại mức độ theo thang ở [mẫu Bug Log](../bieu-mau/bug-log.md)
+- [ ] Đã chạy đối chiếu công cụ tự động theo [bảng công cụ](cong-cu.md) và ghi các phát hiện **chỉ công cụ tìm ra** (chứng tỏ AI đã bỏ sót ở đâu)
 - [ ] Thứ tự fix cho GĐ3 đã được thống nhất và ghi lại

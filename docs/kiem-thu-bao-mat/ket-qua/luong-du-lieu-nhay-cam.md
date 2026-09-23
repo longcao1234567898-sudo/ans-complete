@@ -1,7 +1,7 @@
 # Năm luồng dữ liệu nhạy cảm — bản đồ chi tiết
 
 **Phiên:** P02 (`KHAO-SAT`) · **Ngày:** 2026-09-10 · **Mốc:** `c02088d`
-**Đầu ra của:** [01-GIAI-DOAN-1-KIEM-KE.md](01-GIAI-DOAN-1-KIEM-KE.md) §2.1
+**Đầu ra của:** [../phuong-phap/1-kiem-ke.md](../phuong-phap/1-kiem-ke.md) §2.1
 
 > ⚠️ **File này công khai trên GitHub.** Ở đây chỉ mô tả **luồng đi của dữ liệu**.
 > Đánh giá điểm yếu và điểm nghi ngờ nằm trong `buglogs/ghi-chu-P02-diem-nghi.md`
@@ -146,7 +146,7 @@ Form ──> src/utils/security.ts (lá chắn trình duyệt, KHÔNG tính là 
 
 **Còn lại một khoảng hở không nằm ở code:** không có gì ngăn người dân **tự dán** nội dung tố
 giác vào khung trợ lý. Đó là chuyện hướng dẫn sử dụng và lời nhắc trên giao diện, không phải
-chuyện sửa code — ghi ra đây để P06 quyết định có cần cảnh báo trên khung chat hay không.
+chuyện sửa code — ghi ra đây để GĐ2-4 (bảo vệ dữ liệu) quyết định có cần cảnh báo trên khung chat hay không.
 
 ---
 
@@ -216,7 +216,7 @@ Phải tách làm hai bài toán, vì câu trả lời khác hẳn nhau:
 | Dò **bất kỳ** mã nào có thật | với N hồ sơ trong kho: kỳ vọng ≈ 8,875×10⁸ ÷ N lượt | N = 10.000 → ≈ **88.750 lượt** ≈ **2 ngày-IP** |
 
 Bài toán thứ hai mới là bài toán thật, và chi phí của nó **giảm tuyến tính theo số hồ sơ trong
-hệ thống** — dùng càng lâu càng rẻ để dò trúng. Ba biến số cần P05/P08 xác định bằng thực
+hệ thống** — dùng càng lâu càng rẻ để dò trúng. Ba biến số cần GĐ2-3 và GĐ2-6 xác định bằng thực
 nghiệm: hạn mức có khoá đúng theo IP thật không (CGNAT thì nhiều người chung một hạn mức), có
 siết thêm khi tra trượt liên tiếp không, và lượt tra trượt có để lại dấu vết nào không.
 
@@ -231,10 +231,10 @@ Danh sách điểm nghi ngờ cụ thể nằm ở `buglogs/ghi-chu-P02-diem-ngh
 |---|---|
 | **P03** (xác thực) | Không có chức năng đổi mật khẩu; refresh token 30 ngày không xoay vòng; `locked_until` đọc rồi bỏ |
 | **P04** (phân quyền/IDOR) | Ma trận đường giải mã danh tính ở Luồng 2 — từng dòng phải kết luận chủ đích hay bỏ sót |
-| **P05** (input) | Đường ki-ốt không đi qua `sanitizeText` (xem §2.2 dòng "Độ dài nội dung") |
-| **P05/P08** | Entropy mã tra cứu đặt cạnh hạn mức 30/phút — bài toán "dò bất kỳ" ở trên |
-| **P06** (bảo vệ dữ liệu) | Chưa có cơ chế xoay `ENCRYPTION_KEY`; video không tái mã hoá; lời nhắc trên khung trợ lý AI |
-| **P08** (giới hạn) | Giới hạn video 22 MB — đã bổ sung vào §2.2 ở phiên này |
+| **GĐ2-3** (input) | Đường ki-ốt không đi qua `sanitizeText` (xem §2.2 dòng "Độ dài nội dung") |
+| **GĐ2-3 / GĐ2-6** | Entropy mã tra cứu đặt cạnh hạn mức 30/phút — bài toán "dò bất kỳ" ở trên |
+| **GĐ2-4** (bảo vệ dữ liệu) | Chưa có cơ chế xoay `ENCRYPTION_KEY`; video không tái mã hoá; lời nhắc trên khung trợ lý AI |
+| **GĐ2-6** (giới hạn) | Giới hạn video 22 MB — đã bổ sung vào §2.2 ở phiên này |
 
 ---
 

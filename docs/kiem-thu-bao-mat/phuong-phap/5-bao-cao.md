@@ -18,7 +18,7 @@ Lưu tại `buglogs/BAO-CAO-TONG-KET-2026-09-25.md`.
 
 ### Phần 2 — Phương pháp
 - Chuẩn tham chiếu: OWASP ASVS, OWASP Top 10, CWE.
-- 8 nhóm hạng mục đã rà (dẫn sang [02-GIAI-DOAN-2-RA-SOAT.md](02-GIAI-DOAN-2-RA-SOAT.md)).
+- 8 nhóm hạng mục đã rà (dẫn sang [2-ra-soat.md](2-ra-soat.md)).
 - Công cụ tự động đã dùng và kết quả đối chiếu.
 - **Nêu rõ giới hạn của đợt kiểm thử**: cái gì *không* nằm trong phạm vi (ví dụ: chưa
   pentest hạ tầng nhà cung cấp, chưa kiểm thử vật lý thiết bị kiosk, chưa audit bên thứ ba).
@@ -107,5 +107,5 @@ kết thúc bằng "hệ thống đã an toàn" — không ai nói được câu
 - [ ] Bộ slide đủ: 3 slide mở đầu + 1 slide/lỗi Critical-High + slide kết
 - [ ] Bug Log và Security Decision Log đã khoá, không còn ô trống
 - [ ] Roadmap bảo trì đã có người chịu trách nhiệm và ngày cụ thể
-- [ ] Cập nhật [docs/CHANGELOG-BAO-MAT.md](../CHANGELOG-BAO-MAT.md) với đợt rà soát này
+- [ ] Cập nhật [docs/CHANGELOG-BAO-MAT.md](../../CHANGELOG-BAO-MAT.md) với đợt rà soát này
 - [ ] Cập nhật mục "Việc còn tồn đọng" trong `README.md` cho khớp thực tế sau đợt fix

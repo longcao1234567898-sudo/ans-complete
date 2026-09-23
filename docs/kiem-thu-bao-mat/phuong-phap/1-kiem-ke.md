@@ -98,7 +98,7 @@ trong code do AI sinh ra thường chính là chỗ thiếu kiểm tra quyền.
 | Cloudflare Turnstile | CAPTCHA | Không | Có verify **phía server** không, hay chỉ frontend |
 
 ### 1.3 Đầu ra D1
-- [x] Bảng endpoint đã điền đủ (không còn `?`) — lưu tại [kiem-ke-endpoint.md](kiem-ke-endpoint.md) (phiên P01)
+- [x] Bảng endpoint đã điền đủ (không còn `?`) — lưu tại [../ket-qua/kiem-ke-endpoint.md](../ket-qua/kiem-ke-endpoint.md) (phiên P01)
 - [ ] Sơ đồ thành phần + bên thứ ba
 - [ ] Danh sách biến môi trường thật đang dùng trên Render, đối chiếu `server/.env.example`
 
@@ -156,6 +156,6 @@ Mỗi luồng vẽ theo mẫu:
 3. Đổi tham số trong request (`deviceId`, `staffId`, `assigned_to`, `status`, `security_level`) có lách được không?
 
 ### 2.3 Đầu ra D2
-- [x] 5 sơ đồ luồng dữ liệu nhạy cảm — lưu tại [luong-du-lieu-nhay-cam.md](luong-du-lieu-nhay-cam.md) (phiên P02)
+- [x] 5 sơ đồ luồng dữ liệu nhạy cảm — lưu tại [../ket-qua/luong-du-lieu-nhay-cam.md](../ket-qua/luong-du-lieu-nhay-cam.md) (phiên P02)
 - [x] Bảng giới hạn nghiệp vụ đã điền cột "Thực thi ở đâu" — §2.2 ở trên (phiên P02)
-- [x] Danh sách điểm nghi ngờ sơ bộ → `buglogs/ghi-chu-P02-diem-nghi.md` (nội bộ); bảng phân việc cho P03–P08 ở cuối [luong-du-lieu-nhay-cam.md](luong-du-lieu-nhay-cam.md)
+- [x] Danh sách điểm nghi ngờ sơ bộ → `buglogs/ghi-chu-P02-diem-nghi.md` (nội bộ); bảng phân việc cho các phiên GĐ2 ở cuối [../ket-qua/luong-du-lieu-nhay-cam.md](../ket-qua/luong-du-lieu-nhay-cam.md)
