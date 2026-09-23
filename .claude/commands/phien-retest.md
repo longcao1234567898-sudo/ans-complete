@@ -33,6 +33,44 @@ vấn đề cấu trúc, không phải vấn đề cố gắng hay thiện chí.
 
 ---
 
+## Trường hợp đặc biệt — bản vá đến từ **ngoài** kế hoạch
+
+Đôi khi lỗ hổng bị vá bởi người không biết nó đang nằm trong Bug Log: một commit tính năng
+tiện tay sửa, hoặc một người khác trong nhóm tự phát hiện rồi vá theo cách của họ.
+
+Ca này **cần retest hơn** ca thường, không phải ít hơn. Ba lý do:
+
+- Người vá không có danh sách biến thể trong tay, nên gần như chắc chắn chỉ chặn kịch bản
+  họ tự nghĩ ra.
+- Không có test đỏ trước khi vá, nên không ai biết bản vá có thật sự chạm đúng chỗ không.
+- Bản vá nằm lẫn trong một commit làm nhiều việc khác, nên không revert riêng được.
+
+Thêm hai bước so với quy trình thường:
+
+1. **Tách phần liên quan ra khỏi commit gộp.** `git show <SHA> -- <file>` thay vì đọc cả
+   commit. Ghi rõ trong Bug Log Phần 3 là bản vá **không có commit riêng**, vì đó là thứ
+   ảnh hưởng tới khả năng lùi về sau.
+2. **Đối chiếu từng biến thể trong Bug Log với bản vá.** Không giả định biến thể nào đã
+   được xử lý. Khả năng cao là danh sách chỉ được đáp ứng một phần — và một phần thì kết
+   luận là `Chưa fix triệt để`, không phải `Fixed`.
+
+Nếu lỗ hổng bị đóng như **tác dụng phụ** của một thay đổi nhắm vào chuyện khác, ghi rõ điều
+đó vào Phần 3 kèm chữ **"vá tình cờ"**. Bản vá tình cờ không có ai bảo vệ nó: lần refactor
+sau người ta gỡ ra mà không biết mình đang gỡ một lớp bảo vệ. Kết luận `Fixed` cho một bản
+vá tình cờ **phải** kèm một việc theo sau — thêm test canh, hoặc thêm chú thích tại chỗ.
+
+---
+
+## Mức độ độc lập — ghi đúng vào Phần 3
+
+| Mức | Nghĩa | Đủ cho |
+|---|---|---|
+| **Mạnh** | Phiên Claude mới, chưa từng đọc cuộc hội thoại của phiên vá | Mọi mức độ, bắt buộc với `Critical` và `High` |
+| **Nhẹ** | Subagent trọng tài trong phiên vá (`/phien-fix` bước 5) | Chỉ `Medium`, `Low`, hoặc sàng sơ bộ |
+
+Lệnh này luôn là **mức mạnh**. Nếu bạn đang chạy nó trong chính phiên đã vá, nó không còn
+là mức mạnh nữa — quay lại phần điều kiện tiên quyết ở trên.
+
 ## Bước 1 — Nạp ngữ cảnh tối thiểu
 
 ```bash
