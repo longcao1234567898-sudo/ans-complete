@@ -103,7 +103,7 @@ Tám nhóm hạng mục, tám phiên, mở bằng `/phien-ra-soat <nhóm>`.
 | **P09** | 1 | Xác thực & phiên đăng nhập (12 mục) | Làm lại hoàn toàn: `middleware/auth.js` đã đổi. Đọc kết quả P05/P06 trước |
 | **P10** | 2 | **Phân quyền / IDOR** (12 mục) — ưu tiên cao nhất | Ma trận `route × vai trò` phải phủ cả route admin mới. Chuỗi `/assign` rồi `/reveal` phải thử thật |
 | **P11** | 3 | Input validation & injection (13 mục) | ⚠️ Kiểm kỹ ngoại lệ `coNB` vừa thêm vào luật G8 của `khong-duoc-pha.test.js` — đó là một allow-list chống nối chuỗi SQL bị nới ra cho `admin/news.js`. Kèm luồng tải tài liệu |
-| **P12** | 4 | Bảo vệ dữ liệu (10 mục) | ⚠️ Kiểm dữ liệu mẫu trong `database/thiet_lap_chanh_hiep.sql`: nó gắn họ tên và số điện thoại vào các tin tố giác ma tuý, cờ bạc, bạo lực gia đình, và đang nằm công khai trên GitHub. Xác định là dữ liệu bịa hay thật — **hỏi thẳng người vận hành**, đừng suy đoán |
+| **P12** | 4 | Bảo vệ dữ liệu (10 mục) | ⚠️ Có một điểm nghi về dữ liệu mẫu trong `database/`, chi tiết ghi ở `buglogs/ghi-chu-P04-diem-nghi.md`. Cần **hỏi thẳng người vận hành**, đừng suy đoán |
 | **P13** | 5 | Bảo mật API (12 mục) | Ba biến thể khởi động (ND-010, ND-012) |
 | **P14** | 6 | Business logic & giới hạn (12 mục) + **viết bộ test phòng thủ** | Test ở [PHU-LUC-C](PHU-LUC-C-BO-TEST-PHONG-THU.md). Bộ này là **trọng tài** cho mọi phiên RETEST sau |
 | **P15** | 7 | Hạ tầng & secrets (12 mục) + **chạy công cụ tự động** | Semgrep, `npm audit` (nợ ND-003), soát git history. ⚠️ Soát cả lịch sử xem `.gitignore` còn bị đụng lần nào nữa không |
@@ -115,7 +115,7 @@ Ba phiên liên tiếp đã vướng vì không hỏi. Hỏi sớm, đừng đ�
 
 1. **Biến môi trường thật trên Render là gì?** Cụ thể `TURNSTILE_SECRET_KEY` có được đặt không — nó quyết định mức độ thật của BUG-002. Ô này trống từ P01.
 2. **Khi phát hiện cán bộ tha hoá, chỉ huy có chấp nhận chờ tới 8 giờ không?** Quyết định mức độ đúng của BUG-003 và có nên rút thời hạn phiên truy cập không.
-3. **Dữ liệu trong `thiet_lap_chanh_hiep.sql` là bịa hay thật?** Nếu thật thì đây là sự cố lộ dữ liệu, không phải một mục kiểm.
+3. **Dữ liệu mẫu trong `database/` là bịa hay thật?** Chi tiết câu hỏi ở `buglogs/ghi-chu-P04-diem-nghi.md`. Nếu là dữ liệu thật thì đây là sự cố, không phải một mục kiểm.
 
 ---
 
