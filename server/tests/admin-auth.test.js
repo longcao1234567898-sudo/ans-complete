@@ -92,21 +92,21 @@ test('routes/admin/index.js gắn requireAuth ở TẦNG CHA', async () => {
   );
 });
 
-test('requireAuth: không có header Authorization -> 401 và KHÔNG gọi next', () => {
+test('requireAuth: không có header Authorization -> 401 và KHÔNG gọi next', async () => {
   const res = resGia();
   let daGoiNext = false;
 
-  requireAuth({ headers: {} }, res, () => { daGoiNext = true; });
+  await requireAuth({ headers: {} }, res, () => { daGoiNext = true; });
 
   assert.equal(res.statusCode, 401);
   assert.equal(daGoiNext, false, 'next() bị gọi nghĩa là request đi tiếp tới database');
 });
 
-test('requireAuth: token rác -> 401 và KHÔNG gọi next', () => {
+test('requireAuth: token rác -> 401 và KHÔNG gọi next', async () => {
   const res = resGia();
   let daGoiNext = false;
 
-  requireAuth({ headers: { authorization: 'Bearer khong-phai-token' } }, res, () => { daGoiNext = true; });
+  await requireAuth({ headers: { authorization: 'Bearer khong-phai-token' } }, res, () => { daGoiNext = true; });
 
   assert.equal(res.statusCode, 401);
   assert.equal(daGoiNext, false);
@@ -120,8 +120,46 @@ test('requireAuth: token hợp lệ -> gắn req.staff và gọi next', async ()
   const res = resGia();
   let daGoiNext = false;
 
-  requireAuth(req, res, () => { daGoiNext = true; });
+  /* requireAuth giờ là hàm bất đồng bộ vì hỏi cơ sở dữ liệu tài khoản còn
+     hoạt động không — phải chờ. Giả lập tài khoản đang hoạt động. */
+  const { pool } = await import('../src/db.js');
+  const queryCu = pool.query;
+  pool.query = async () => [[{ is_active: 1 }]];
+  const { xoaDemTrangThai } = await import('../src/middleware/auth.js');
+  xoaDemTrangThai();
+  try {
+    await requireAuth(req, res, () => { daGoiNext = true; });
+  } finally {
+    pool.query = queryCu;
+  }
 
   assert.equal(daGoiNext, true);
   assert.deepEqual(req.staff, { id: 3, username: 'ql', role: 'manager', name: 'Lê C' });
+});
+
+test('requireAuth: tài khoản ĐÃ BỊ KHOÁ -> 401 dù phiên còn hạn', async () => {
+  /* Bài kiểm thử cho lỗ hổng đã vá: trước đây khoá tài khoản xong, người đó
+     vẫn dùng tiếp được tới 8 tiếng bằng phiên đang cầm, vì lớp này chỉ kiểm
+     chữ ký phiên chứ không hỏi cơ sở dữ liệu. Bài này canh để lỗ hổng đó
+     không quay lại. */
+  const { signAccessToken } = await import('../src/lib/token.js');
+  const token = signAccessToken({ id: 7, username: 'bikhoa', role: 'admin', full_name: 'Đã khoá' });
+
+  const req = { headers: { authorization: `Bearer ${token}` } };
+  const res = resGia();
+  let daGoiNext = false;
+
+  const { pool } = await import('../src/db.js');
+  const queryCu = pool.query;
+  pool.query = async () => [[{ is_active: 0 }]];
+  const { xoaDemTrangThai } = await import('../src/middleware/auth.js');
+  xoaDemTrangThai();
+  try {
+    await requireAuth(req, res, () => { daGoiNext = true; });
+  } finally {
+    pool.query = queryCu;
+  }
+
+  assert.equal(res.statusCode, 401, 'tài khoản bị khoá phải bị chặn ngay');
+  assert.equal(daGoiNext, false);
 });
