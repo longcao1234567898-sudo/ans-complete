@@ -161,7 +161,7 @@ Mục "Bài học" của báo cáo lần này có sẵn hai số liệu thật, 
 |---|---|---|---|
 | **GĐ0-a** — kiểm chứng BUG-001 | RETEST | ✅ Xong 2026-09-23 — kết luận `Chưa fix triệt để`, BUG-001 quay lại GĐ3 | P07 |
 | **GĐ0-b** — kiểm chứng BUG-003 | RETEST | ✅ Xong 2026-09-23 — kết luận `Chưa fix triệt để`, BUG-003 quay lại GĐ3 | P08 |
-| **GĐ1-a** — kiểm kê lại endpoint | KHAO-SAT | ⏳ | |
+| **GĐ1-a** — kiểm kê lại endpoint | KHAO-SAT | ✅ Xong 2026-09-23 — 78 route + 2 health = 80 endpoint, ba biến thể đối chiếu | P09 |
 | **GĐ1-b** — luồng dữ liệu + luồng tải tài liệu | KHAO-SAT | ⏳ | |
 | **GĐ2-1** — nhóm 1, xác thực & phiên đăng nhập | RA-SOAT | ⏳ | |
 | **GĐ2-2** — nhóm 2, phân quyền / IDOR | RA-SOAT | ⏳ | |

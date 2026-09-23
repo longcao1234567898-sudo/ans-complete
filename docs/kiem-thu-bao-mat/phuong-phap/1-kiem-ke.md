@@ -7,83 +7,32 @@
 
 ## D1 (10/09) — Kiểm kê bề mặt tấn công
 
-### 1.1 Danh sách endpoint (đã kiểm kê sẵn — nhiệm vụ D1 là **xác minh và điền các cột còn dấu `?`**)
+### 1.1 Danh sách endpoint
 
-Lệnh tái tạo danh sách bất cứ lúc nào:
+> ⚠️ **Bảng chi tiết đã chuyển hẳn sang** [../ket-qua/kiem-ke-endpoint.md](../ket-qua/kiem-ke-endpoint.md).
+> Giữ hai bản (một ở đây, một ở `ket-qua/`) là chính cách bản cũ đã trôi khỏi mã thật —
+> bản này từng ghi 66 endpoint trong khi GitHub đã có 78. Từ P09 trở đi, **chỉ một nguồn**.
+
+Lệnh tái tạo danh sách bất cứ lúc nào (⚠️ lệnh này **không** đếm `GET /api/health` và
+`GET /api/health/schema` — hai endpoint đó gắn bằng `app.get()` ở tầng khởi động, ngoài
+thư mục `routes/`; tổng thật = kết quả lệnh dưới đây **cộng 2**):
 
 ```bash
-grep -rnoE "router\.(get|post|put|patch|delete)\(" server/src/routes
+grep -rnoE "router\.(get|post|put|patch|delete)\(" server/src/routes | wc -l
 ```
 
-#### A. Nhóm công khai — không cần đăng nhập (bề mặt tấn công lớn nhất)
+Kiểm ngày 2026-09-23 (phiên P09): **78** (+ 2 health = **80** endpoint URL riêng biệt).
 
-| # | Method | Đường dẫn | File | Rate limit hiện có | Cần xác minh ở GĐ2 |
-|---|---|---|---|---|---|
-| 1 | GET | `/api/health` | `server/src/index.js` | chung 300/15p | Rò rỉ thông tin phiên bản? |
-| 2 | GET | `/api/health/schema` | `server/src/index.js` | chung 300/15p | Endpoint chẩn đoán — đánh giá mức lộ thông tin ở production |
-| 3 | POST | `/api/otp/send` | `routes/otp.js` | 5 mã/giờ/email | Bơm mail, dò email đã tồn tại |
-| 4 | POST | `/api/otp/verify` | `routes/otp.js` | sai 5 lần huỷ mã | Brute-force mã 6 số |
-| 5 | POST | `/api/otp/anon-code` | `routes/otp.js` | ? | Sinh mã ẩn danh hàng loạt |
-| 6 | POST | `/api/otp/anon-verify` | `routes/otp.js` | ? | Brute-force mã ẩn danh |
-| 7 | POST | `/api/submissions` | `routes/submissions.js` | chặn spam theo thiết bị | Payload 32MB, upload, injection |
-| 8 | GET | `/api/submissions/wards` | `routes/submissions.js` | chung | — |
-| 9 | GET | `/api/submissions/qr-points/:code` | `routes/submissions.js` | chung | Dò mã QR |
-| 10 | POST | `/api/submissions/kiem-tra-khoa` | `routes/submissions.js` | ? | Lộ trạng thái shadow-ban cho kẻ spam |
-| 11 | GET | `/api/tracking/:code` | `routes/tracking.js` | 30/phút | **Brute-force mã tra cứu 6 ký tự** |
-| 12 | POST | `/api/tracking/:code/request-deletion` | `routes/tracking.js` | 30/phút | Xoá dữ liệu của người khác |
-| 13 | POST | `/api/chat/open` | `routes/chat.js` | 5/15p | — |
-| 14 | GET | `/api/chat/messages` | `routes/chat.js` | chung | IDOR đọc hội thoại người khác |
-| 15 | POST | `/api/chat/messages` | `routes/chat.js` | 20/5p | XSS lưu trữ (cán bộ là nạn nhân) |
-| 16 | GET | `/api/news` | `routes/news.js` | chung | — |
-| 17 | POST | `/api/news/:id/xem` | `routes/news.js` | ? | Bơm lượt xem |
-| 18 | GET | `/api/ban-do` | `routes/ban-do.js` | 20/phút | Lộ toạ độ chính xác vụ việc |
-| 19 | GET | `/api/khieu-nai/trang-thai` | `routes/khieu-nai.js` | 10/10p | — |
-| 20 | POST | `/api/khieu-nai` | `routes/khieu-nai.js` | 5/10p | Giới hạn 2 lần/hồ sơ — kiểm tính atomic |
-| 21 | GET | `/api/tts` | `routes/tts.js` | 60/phút | SSRF / lạm dụng quota |
-| 22 | GET | `/api/ai/status` | `routes/ai.js` | 30/5p | — |
-| 23 | POST | `/api/ai/chat` | `routes/ai.js` | 30/5p | **Prompt injection, đốt quota key AI** |
-| 24 | POST | `/api/ai/analyze` | `routes/ai.js` | 30/5p | Như trên |
-| 25 | POST | `/api/ai/moderate-image` | `routes/ai.js` | 30/5p | Upload ảnh độc, đốt quota |
-
-#### B. Nhóm quản trị — dưới `/api/admin`, đi qua `requireAuth`
-
-| # | Method | Đường dẫn | File | `authorize()` | Cần xác minh ở GĐ2 |
-|---|---|---|---|---|---|
-| 26 | GET | `/api/admin/dashboard/stats` | `admin/dashboard.js` | ? | |
-| 27 | GET | `/api/admin/submissions` | `admin/submissions.js` | ? | Lọc/sắp xếp → SQL injection qua `ORDER BY` |
-| 28 | GET | `/api/admin/submissions/:id` | `admin/submissions.js` | ? | IDOR giữa các cán bộ |
-| 29 | POST | `/api/admin/submissions/:id/reveal` | `admin/submissions.js` | `admin`,`manager` + kiểm `assigned_to` | **Điểm nóng nhất hệ thống** |
-| 30 | PATCH | `/api/admin/submissions/:id/status` | `admin/submissions.js` | ? | Cán bộ đổi trạng thái hồ sơ không phụ trách |
-| 31 | PATCH | `/api/admin/submissions/:id/assign` | `admin/submissions.js` | ? | **Tự phân công cho mình rồi gọi `/reveal`** |
-| 32 | PATCH | `/api/admin/submissions/:id/security-level` | `admin/submissions.js` | ? | Hạ mức mật để xem được |
-| 33 | POST | `/api/admin/submissions/:id/review` | `admin/submissions.js` | ? | |
-| 34 | POST | `/api/admin/submissions/:id/mark-spam` | `admin/submissions.js` | ? | Chôn tin báo thật |
-| 35 | GET | `/api/admin/logs` | `admin/logs.js` | ? | Cán bộ thường có đọc được nhật ký không |
-| 36 | GET | `/api/admin/logs/canh-bao` | `admin/logs.js` | ? | |
-| 37 | GET | `/api/admin/staff` | `admin/staff.js` | ? | Lộ danh sách cán bộ |
-| 38 | GET/POST/DELETE | `/api/admin/banned-words`, `/:id` | `admin/banned-words.js` | ? | Gỡ từ cấm để lọt nội dung xấu |
-| 39 | GET/POST/PATCH/DELETE | `/api/admin/qr-points`, `/:id` | `admin/qr-points.js` | ? | |
-| 40 | POST | `/api/admin/kiosk/submit` | `admin/kiosk.js` | ? | Ghi tin "đã xác minh tại trụ sở" giả |
-| 41 | GET/POST/DELETE | `/api/admin/trash`, `/:id/restore`, `/:id`, `/` | `admin/trash.js` | ? | **`DELETE /` xoá sạch thùng rác — ai gọi được?** |
-| 42 | GET/POST/DELETE | `/api/admin/chat/*` (messages, blacklist, trusted-devices, khieu-nai) | `admin/chat.js` | ? | |
-| 43 | GET/POST | `/api/admin/incident-groups`, `/:id`, `/:id/ack` | `admin/incident-groups.js` | ? | |
-| 44 | GET | `/api/admin/reports/{map,summary,details}` | `admin/reports.js` | ? | Xuất hàng loạt dữ liệu nhạy cảm (`LIMIT 2000`) |
-
-#### C. Nhóm xác thực
-
-| # | Method | Đường dẫn | File | Ghi chú cần xác minh |
-|---|---|---|---|---|
-| 45 | POST | `/api/auth/login` | `routes/auth.js` | 5 lần/15 phút — theo IP hay theo username? |
-| 46 | POST | `/api/auth/refresh` | `routes/auth.js` | Cookie `httpOnly` — có rotate token không? |
-| 47 | POST | `/api/auth/logout` | `routes/auth.js` | Có thu hồi refresh token phía server, hay chỉ xoá cookie? |
-| 48 | GET | `/api/auth/me` | `routes/auth.js` | |
+Ba bảng A (công khai, 28 dòng) / B (quản trị, 48 dòng) / C (xác thực, 4 dòng), cột
+`authorize()` cho mọi route `/api/admin`, và đối chiếu chi tiết ba biến thể khởi động
+(`index.js` / `may-chu-cong-khai.js` / `may-chu-can-bo.js` qua `nen-tang.js`) — toàn bộ
+nằm ở [../ket-qua/kiem-ke-endpoint.md](../ket-qua/kiem-ke-endpoint.md).
 
 > **Lưu ý kiến trúc:** ngoài `server/src/index.js` còn có `may-chu-cong-khai.js`, `may-chu-can-bo.js`
 > và `nen-tang.js` — ba biến thể khởi động khác nhau. **Phải kiểm cả ba**: một lớp bảo vệ có ở
 > `index.js` nhưng thiếu ở `nen-tang.js` là lỗ hổng thật nếu production chạy biến thể kia.
-
-**Việc phải làm D1:** điền hết dấu `?`. Mỗi dấu `?` chưa điền là một điểm mù — và điểm mù
-trong code do AI sinh ra thường chính là chỗ thiếu kiểm tra quyền.
+> Đã xác nhận lệch thật ở `BACKEND_VERSION` và ở việc `/api/health/schema` chỉ tồn tại
+> trong `index.js` — chi tiết ở file kết quả.
 
 ### 1.2 Thành phần hệ thống & bên thứ ba
 
@@ -98,7 +47,7 @@ trong code do AI sinh ra thường chính là chỗ thiếu kiểm tra quyền.
 | Cloudflare Turnstile | CAPTCHA | Không | Có verify **phía server** không, hay chỉ frontend |
 
 ### 1.3 Đầu ra D1
-- [x] Bảng endpoint đã điền đủ (không còn `?`) — lưu tại [../ket-qua/kiem-ke-endpoint.md](../ket-qua/kiem-ke-endpoint.md) (phiên P01)
+- [x] Bảng endpoint đã điền đủ (không còn `?`) — lưu tại [../ket-qua/kiem-ke-endpoint.md](../ket-qua/kiem-ke-endpoint.md) (viết lại ở phiên P09 trên mã đã hợp nhất — bản P01 đã lỗi thời, xem ghi chú đầu file kết quả)
 - [ ] Sơ đồ thành phần + bên thứ ba
 - [ ] Danh sách biến môi trường thật đang dùng trên Render, đối chiếu `server/.env.example`
 
