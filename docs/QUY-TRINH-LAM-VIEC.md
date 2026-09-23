@@ -48,24 +48,95 @@ nguyên tắc kiểm độc lập.
 > dung, chạy đúng những test nó biết sẽ pass, và diễn giải kết quả mơ hồ theo hướng có lợi.
 > Đây là vấn đề cấu trúc, không phải vấn đề thiện chí — nên phải giải bằng cấu trúc.
 
+### 2.1 Khi nào **bắt buộc** mở phiên RETEST độc lập
+
+Luật chuyển tiếp số 2 nói `FIX` và `RETEST` phải tách phiên. Nó không nói khi nào thì
+**phải có** một phiên RETEST. Thiếu chỗ đó, bản vá đến từ ngoài kế hoạch sẽ trôi vào
+`master` mà không ai chấm.
+
+Điều kiện kích hoạt **không phải** "vừa có lỗi được vá". Nó là **ai đứng ra chấm đạt**.
+
+Bắt buộc mở phiên RETEST độc lập khi cả **ba** điều sau cùng đúng:
+
+1. Thay đổi nhằm **đóng một lỗ hổng**, không phải thêm tính năng.
+2. Người kết luận "đã xong" **trùng** với người viết bản vá — kể cả khi đó là hai phiên
+   Claude khác nhau nhưng phiên sau đã đọc lời giải thích của phiên trước.
+3. Bản vá hụt thì hậu quả **không hoàn tác được**: lộ danh tính người tố giác, leo quyền,
+   đọc trộm hồ sơ.
+
+#### Bốn dấu hiệu buộc phải retest kể cả khi ngoài kế hoạch
+
+Đây là phần đắt nhất của luật này, vì nó bắt những ca không ai định trước:
+
+| Dấu hiệu | Vì sao | Ví dụ thật trong dự án |
+|---|---|---|
+| Một commit **từ bên ngoài** chạm vào file đang có BUG mở | Người sửa không biết file đó đang nằm trong diện rà soát, nên không sửa theo danh sách biến thể đã ghi | `22a588d` sửa `middleware/auth.js` trong khi BUG-001 và BUG-003 đều trỏ vào file đó |
+| Bản vá kèm câu "toàn bộ test pass" mà **không nói bài test nào đỏ trước khi vá** | Test viết sau bản vá chỉ chứng minh code chạy đúng như tác giả nghĩ, không chứng minh lỗ hổng đã bịt | Commit ghi "339/339 dat" — con số đúng, và không nói gì về ba biến thể mà Bug Log đã liệt kê sẵn |
+| Bản vá chạm **nhiều file hơn phạm vi của lỗi** | Mỗi file thừa là một cơ hội sinh lỗi mới; đây là nguồn lỗi số một khi AI vá lỗi | |
+| Lỗ hổng bị đóng như **tác dụng phụ** của việc khác | Không ai chủ ý, không ai ghi lại, nên lần refactor sau nó mở lại mà không ai biết | Kiểm `is_active` thêm vào cho BUG-003 có thể đã chặn luôn BUG-001 — chưa ai xác nhận |
+
+#### Khi nào **không** cần retest độc lập
+
+Đừng biến luật này thành nghi lễ. Không cần khi: đổi giao diện, đổi văn bản hiển thị,
+thêm tính năng không chạm lớp bảo vệ, refactor đã có test bao phủ sẵn, sửa tài liệu.
+
+#### Hai mức độ độc lập — dùng cái nào
+
+| Mức | Cách làm | Dùng cho | Điểm yếu |
+|---|---|---|---|
+| **Mạnh** | Phiên Claude hoàn toàn mới, chạy `/phien-retest BUG-xxx` | `Critical`, `High`, và mọi ca dính bốn dấu hiệu trên | Tốn một phiên |
+| **Nhẹ** | Subagent làm trọng tài ngay trong phiên (xem §2.2) | `Medium`, `Low`, sàng lọc sơ bộ trước khi gọi mức mạnh | Vẫn do phiên cha ra đề, nên vẫn thừa hưởng điểm mù của phiên cha |
+
+Mức nhẹ **không thay thế** mức mạnh cho `Critical` và `High`. Nó là lớp sàng đầu, để mức
+mạnh không phải tốn phiên vào những bản vá hỏng lộ liễu.
+
+### 2.2 Subagent làm trọng tài độc lập trong phiên
+
+Một subagent khởi động **không có ký ức** về phiên cha: không thấy cuộc hội thoại, không
+thấy lời giải thích của người vừa vá, chỉ thấy đúng những gì đề bài đưa cho. Về mặt ngữ
+cảnh, đó là độc lập thật.
+
+Chỗ nó **không** độc lập: phiên cha là người ra đề. Phiên cha bỏ sót biến thể nào thì
+subagent cũng không được giao biến thể đó.
+
+Cách dùng để bù điểm yếu ấy:
+
+- **Lấy đề bài từ Bug Log, không từ trí nhớ phiên cha.** Chép nguyên kịch bản khai thác
+  và danh sách biến thể trong `buglogs/bugs/BUG-xxx.md` vào đề bài.
+- **Không kể cho subagent nghe bản vá làm gì.** Chỉ đưa: mã lỗi, kịch bản gốc, phạm vi
+  diff, và câu hỏi "lỗ hổng này còn khai thác được không".
+- **Hỏi kết luận có bằng chứng.** Kết luận không kèm output lệnh không được tính.
+- **Ghi rõ trong Bug Log Phần 3 là mức độ độc lập `nhẹ`** — để báo cáo tổng kết không
+  nhầm nó với một phiên retest thật.
+
+
 ## 3. Vòng đời một phiên
 
 ```
 /bat-dau-phien  ────────►  [làm việc]  ────────►  /ket-thuc-phien
       │                                                  │
       ├─ 1. Đọc TIEN-DO.md + NO-KY-THUAT.md              ├─ 1. Đối chiếu việc làm vs mục tiêu
-      ├─ 2. ⚠️ Phát hiện phiên bỏ dở                     ├─ 2. ⚠️ Cổng DoD (7 mục)
-      ├─ 3. Kiểm môi trường chạy được                    ├─ 3. Commit từng việc một
-      ├─ 4. Xác định loại phiên                          ├─ 4. Cập nhật TIEN-DO.md
-      ├─ 5. Kiểm Definition of Ready                     ├─ 5. Cập nhật tài liệu (bảng §6)
-      ├─ 6. Cảnh báo nợ / luật / rủi ro                  ├─ 6. Ghi nợ kỹ thuật phát sinh
-      ├─ 7. Đề xuất kế hoạch phiên                       ├─ 7. Ghi việc còn dở
-      └─ 8. ⚠️ Ghi ĐANG CHẠY vào TIEN-DO                 └─ 8. Chốt phiên
+      ├─ 2. ⚠️ Kiểm lệch nhánh thượng nguồn              ├─ 2. ⚠️ Cổng DoD (7 mục)
+      ├─ 3. ⚠️ Phát hiện phiên bỏ dở                     ├─ 3. Commit từng việc một
+      ├─ 4. Kiểm môi trường chạy được                    ├─ 4. Cập nhật TIEN-DO.md
+      ├─ 5. Xác định loại phiên                          ├─ 5. Cập nhật tài liệu (bảng §6)
+      ├─ 6. Kiểm Definition of Ready                     ├─ 6. Ghi nợ kỹ thuật phát sinh
+      ├─ 7. Cảnh báo nợ / luật / rủi ro                  ├─ 7. Ghi việc còn dở
+      ├─ 8. Đề xuất kế hoạch phiên                       └─ 8. Chốt phiên
+      └─ 9. ⚠️ Ghi ĐANG CHẠY vào TIEN-DO
 ```
 
-**Hai bước có dấu ⚠️ ở đầu là quan trọng nhất**, vì chúng xử lý failure mode phổ biến nhất:
-phiên đứt giữa chừng. Ghi trạng thái ở **đầu** phiên chứ không phải cuối — nếu chỉ ghi lúc
-kết thúc thì đúng những phiên hỏng lại là những phiên không để lại dấu vết.
+**Ba bước có dấu ⚠️ ở đầu là quan trọng nhất**, vì chúng xử lý ba failure mode đã thật sự
+xảy ra trong dự án này:
+
+| Bước | Failure mode nó chặn | Đã xảy ra chưa |
+|---|---|---|
+| 2. Kiểm lệch nhánh | Rà soát trên một bản mã không còn là bản đang chạy | **Rồi** — P01, P02, P03 đều rà trên bản đã lỗi thời 19 commit |
+| 3. Phát hiện phiên bỏ dở | Mở phiên mới đè lên phiên treo, mất dấu việc dở | Chưa |
+| 9. Ghi `ĐANG CHẠY` ngay | Phiên đứt giữa chừng không để lại dấu vết | Chưa |
+
+Ghi trạng thái ở **đầu** phiên chứ không phải cuối — nếu chỉ ghi lúc kết thúc thì đúng
+những phiên hỏng lại là những phiên không để lại dấu vết.
 
 ## 4. Definition of Ready — điều kiện vào phiên
 
@@ -227,3 +298,103 @@ chứ không để tới cuối phiên mới phát hiện.
 **Một phiên nên dài bao nhiêu?**
 Đo bằng mục tiêu chứ không đo bằng thời gian: một mục tiêu đóng được. Nếu tới giữa phiên thấy
 mục tiêu quá lớn, dừng lại, đóng phiên với trạng thái `XONG MỘT PHẦN`, ghi rõ phần còn lại.
+
+## 13. Làm việc song song với người khác trên cùng repo
+
+Quy trình này ban đầu giả định **một người, nhiều phiên**. Giả định đó đã sai một lần và
+tốn ba phiên rà soát.
+
+### Chuyện đã xảy ra
+
+Ngày 2026-09-10, phiên P00 đóng ở commit `d8d11a9`. Từ đó hai nhánh đi song song mà không
+bên nào biết:
+
+| | Ở máy | Trên GitHub |
+|---|---|---|
+| Nội dung | 13 commit tài liệu audit P01–P03 | 19 commit tính năng và vá bảo mật |
+| Chạm vào | `docs/` | `src/`, `server/`, `database/` |
+| Push chưa | Chưa | Rồi |
+
+Hậu quả, phát hiện ngày 2026-09-23:
+
+1. **Bảng kiểm kê endpoint của P01 sai.** 66 endpoint lúc kiểm, 78 lúc phát hiện.
+2. **BUG-003 đã bị vá bởi người không biết nó là BUG-003** — không có test đỏ trước, không
+   có SEC-DEC, và theo chính danh sách biến thể trong Bug Log thì mới đóng được một trong ba.
+3. **BUG-001 mức Critical có thể đã bị vá tình cờ** — tác dụng phụ của bản vá trên, không ai
+   chủ ý và không ai ghi lại.
+4. **Luật `.gitignore` giữ `buglogs/` ở máy bị xoá** trong một commit thêm bộ đếm lượt truy
+   cập. Cùng lúc `COMMIT.txt` chứa `git add . && git push` quay trở lại. Hai thứ đó gặp nhau
+   là toàn bộ nhật ký lỗ hổng chưa vá lên GitHub công khai.
+
+Điểm 4 là điểm đáng sợ nhất, vì không ai cố ý và không ai nhận ra.
+
+### Luật rút ra
+
+1. **Mọi phiên bắt đầu bằng `git fetch` và đối chiếu.** Đã đưa thành bước 2 của `/bat-dau-phien`.
+2. **Lệch nhánh thì hợp nhất trước, rà soát sau.** Không có ngoại lệ. Rà soát trên bản cũ
+   không phải là rà soát chậm, nó là rà soát vứt đi.
+3. **Merge, không rebase, không force-push.** Nhánh kia đã public; viết lại lịch sử chung là
+   chuyện khác hẳn (§8).
+4. **Sau mỗi lần merge, kiểm ba thứ trước khi làm gì tiếp:**
+
+```bash
+git check-ignore -v buglogs/BUG-LOG.md            # luat gitignore con khong
+git diff --stat <diem-re>..origin/master -- server/ database/   # ben kia cham gi
+git log --oneline <diem-re>..origin/master --grep="va\|lo hong\|bao mat"  # co va bao mat khong
+```
+
+5. **Bản vá bảo mật đến từ ngoài kế hoạch phải đi qua RETEST** — §2.1, bốn dấu hiệu.
+
+### Nếu người kia cũng dùng Claude
+
+Thì bên đó cũng nên chạy quy trình này, hoặc tối thiểu là ba điều: một việc một commit,
+không `git add .`, và không đụng `.gitignore` chung với việc khác. Gửi cho họ
+[SO-TAY-NGUOI-LAP-TRINH.md](SO-TAY-NGUOI-LAP-TRINH.md).
+
+Nếu không thoả thuận được, thì coi mọi commit từ bên đó là **mã chưa được kiểm**, và rà soát
+nó như rà soát mã của người lạ. Tốn công hơn, nhưng đó là cái giá của việc không thoả thuận.
+
+## 14. Dùng skill bảo mật do Anthropic phát hành
+
+Claude Code có sẵn vài skill rà soát không phải do dự án này viết. Chúng **bổ sung**, không
+thay thế, quy trình phiên ở trên.
+
+| Skill | Làm gì | Chỗ hợp trong quy trình này |
+|---|---|---|
+| `/security-review` | Rà soát bảo mật phần thay đổi đang chờ trên nhánh hiện tại | Chạy ở cuối phiên `FIX` và phiên `TINH-NANG`, trước khi commit. Nó đọc diff bằng một danh sách khác với danh sách của dự án, nên bắt được thứ checklist mình bỏ sót |
+| `/code-review` | Rà lỗi đúng-sai và chỗ rườm rà trong diff, nhiều mức công sức | Chạy khi bản vá đụng nhiều file. Mức `high` trở lên chịu khó báo cả thứ chưa chắc |
+| `/code-review ultra` | Rà nhiều tác nhân, chạy trên cloud | Dùng cho bản vá `Critical`. **Người dùng tự gõ**, Claude không tự khởi động được |
+
+### Giới hạn phải biết trước khi tin
+
+- **Chúng không biết mô hình đe doạ của dự án này.** Không skill nào biết rằng tài sản cần
+  bảo vệ nhất ở đây là danh tính người tố giác, hay rằng có ba biến thể khởi động backend
+  phải kiểm cả ba. Checklist trong `docs/kiem-thu-bao-mat/` mới biết.
+- **Chúng đọc diff, không đọc Bug Log.** Nên chúng không biết danh sách biến thể cần thử của
+  BUG-xxx, và không kết luận được "bản vá này đã đóng hết biến thể chưa".
+- **Chạy trong phiên đã vá thì vẫn là cùng một phiên.** `/security-review` gọi trong phiên
+  `FIX` không đạt mức độc lập mạnh. Nó dùng một checklist khác, thế là tốt, nhưng không
+  thay thế `/phien-retest`.
+- Riêng `/code-review ultra` chạy tách hẳn trên cloud nên **đạt mức độc lập mạnh** — đây là
+  ngoại lệ duy nhất, và đổi lại là tốn phí.
+
+### Thứ tự đề nghị cho một bản vá `Critical`
+
+```
+/phien-fix BUG-xxx
+   ├─ test đỏ trước
+   ├─ vá
+   ├─ trọng tài subagent          (độc lập nhẹ)
+   └─ /security-review            (checklist khác, cùng phiên)
+        │
+        ▼
+   [đóng phiên, mở phiên Claude MỚI]
+        │
+        ▼
+/phien-retest BUG-xxx             (độc lập mạnh — bắt buộc)
+   └─ người dùng tự chạy /code-review ultra nếu muốn thêm một lớp
+```
+
+Ba lớp đó bắt ba loại lỗi khác nhau: subagent bắt lỗi lộ liễu, `/security-review` bắt lỗi
+ngoài checklist của dự án, `/phien-retest` bắt lỗi "vá không hết biến thể". Bỏ lớp nào cũng
+được, miễn là biết mình đang bỏ lớp nào.
