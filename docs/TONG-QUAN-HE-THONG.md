@@ -106,7 +106,7 @@ Khoá theo **mã thiết bị**, không khoá theo IP.
 | Chặn ngầm | Thiết bị bị khoá vẫn gửi được, vẫn thấy báo thành công; đơn gắn `is_spam=1`, không vào hàng chờ |
 | Khoá thường | 24 giờ |
 | Khoá tái phạm | 3 lần tin rác **liên tiếp** trong 30 ngày → khoá 30 ngày |
-| Dọn theo lô | Đánh dấu tin rác thì các đơn cùng thiết bị trong 24 giờ trước cũng vào Thùng rác |
+| Dọn theo lô | Đánh dấu tin rác thì các đơn cùng thiết bị **và cùng loại** (ẩn danh / có tên) trong 24 giờ trước cũng vào Thùng rác |
 | Khoá IP | Chỉ là đường lui khi đơn không có mã thiết bị, thời hạn 2 giờ |
 
 Bốn ràng buộc an toàn được khoá bằng test:
