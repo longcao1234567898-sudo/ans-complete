@@ -58,7 +58,7 @@ for (const cot of ['ip_address', 'user_agent', 'sender_phone_hash', 'content_has
 const COT_GIAO_DIEN_CAN = [
   's.id', 's.tracking_code', 's.original_content', 's.ai_processed_content',
   's.status', 's.urgency', 's.is_anonymous', 's.is_flagged',
-  's.sender_name', 's.sender_phone', 's.sender_email',
+  's.sender_name', 's.sender_phone', 'AS co_email',
   's.created_at', 's.deadline_at', 's.assigned_to',
   's.rejection_reason', 's.resolution_note',
 ];
@@ -68,6 +68,18 @@ for (const cot of COT_GIAO_DIEN_CAN) {
     assert.ok(truyVanChiTiet.includes(cot), `Thiếu ${cot} -> trang chi tiết hiện undefined`);
   });
 }
+
+/* BUG-010: email chỉ được lấy dưới dạng cờ (IS NOT NULL), không lấy cột trần.
+   Lấy cột trần là mở đường cho route giải mã rồi trả cho mọi cán bộ. */
+test('truy vấn chi tiết KHÔNG chọn cột s.sender_email trần', () => {
+  /* Gỡ đúng biểu thức được phép, rồi cấm MỌI lần nhắc tới cột — kể cả không
+     tiền tố `s.` (MySQL vẫn hiểu `sender_email` trần vì chỉ bảng submissions có cột này). */
+  const sql = boComment(truyVanChiTiet).replace(/\(\s*s\.sender_email\s+IS\s+NOT\s+NULL\s*\)\s+AS\s+co_email/i, '');
+  assert.ok(
+    !/sender_email/i.test(sql),
+    'Chỉ được lấy (s.sender_email IS NOT NULL) AS co_email — email đầy đủ chỉ ra qua /reveal'
+  );
+});
 
 test('vẫn lấy đủ các cột JOIN mà giao diện cần', () => {
   for (const bidanh of ['category_code', 'category_name', 'sla_days', 'assigned_name', 'resolved_by_name', 'ward_name']) {

@@ -248,7 +248,8 @@ export interface SubmissionDetail extends SubmissionRow {
   /** Mã thiết bị đã gửi đơn — rỗng với đơn gửi trước khi có tính năng chặn spam */
   device_id?: string | null;
   sender_phone: string;
-  sender_email: string | null;
+  /** Hồ sơ có email hay không. Email đầy đủ chỉ lấy được qua revealIdentity (có ghi nhật ký). */
+  co_email: boolean;
   rejection_reason: string | null;
   resolution_note: string | null;
   resolved_by_name: string | null;

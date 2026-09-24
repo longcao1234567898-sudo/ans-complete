@@ -188,7 +188,9 @@ export default function AdminSubmissionDetailPage() {
               <div className="space-y-2 text-sm">
                 <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-500" /> {revealed?.sender_name ?? data.sender_name}</p>
                 <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-500" /> {revealed?.sender_phone ?? data.sender_phone}</p>
-                {(revealed?.sender_email ?? data.sender_email) && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-500" /> {revealed?.sender_email ?? data.sender_email}</p>}
+                {revealed
+                  ? revealed.sender_email && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-500" /> {revealed.sender_email}</p>
+                  : data.co_email && <p className="flex items-center gap-2 text-slate-500 dark:text-slate-400"><Mail className="h-4 w-4 text-slate-500" /> <span className="italic">Có email — bấm “Xem danh tính” để xem</span></p>}
                 <p className="flex items-center gap-2 text-slate-500"><Clock className="h-4 w-4" /> {formatDateTime(data.created_at)}</p>
                 {data.ward_name && <p className="text-xs text-slate-500">Địa bàn: <span className="font-semibold text-slate-600 dark:text-slate-300">{data.ward_name}</span></p>}
               </div>

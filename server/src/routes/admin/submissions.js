@@ -286,7 +286,13 @@ router.get('/:id', async (req, res) => {
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
               s.category_id, s.status, s.urgency, ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"} s.is_anonymous,
               s.is_flagged, s.flag_reason,
-              s.sender_name, s.sender_phone, s.sender_email,
+              s.sender_name, s.sender_phone,
+              /* Email: CHỈ lấy cờ có/không, KHÔNG lấy cột. Trang chi tiết chỉ
+                 cần biết để hiện dòng thư; email đầy đủ chỉ ra qua /reveal (ba
+                 lớp + nhật ký). Từng lấy cột rồi giải mã trả nguyên văn cho mọi
+                 cán bộ (BUG-010). Không che bằng maskName được: email không có
+                 khoảng trắng là MỘT từ, maskName giữ nguyên từ đầu tiên. */
+              (s.sender_email IS NOT NULL) AS co_email,
               s.created_at, s.updated_at, s.deadline_at, s.resolved_at,
               s.assigned_to, s.resolved_by, s.reviewed_by, s.reviewed_at,
               s.rejection_reason, s.resolution_note, s.ward_id,
@@ -332,7 +338,7 @@ router.get('/:id', async (req, res) => {
       ...row,
       sender_name: row.is_anonymous ? '🕶️ Người gửi ẩn danh' : maskName(decrypt(row.sender_name)),
       sender_phone: row.is_anonymous ? '(không cung cấp)' : maskPhone(decrypt(row.sender_phone)),
-      sender_email: row.sender_email ? decrypt(row.sender_email) : null,
+      co_email: Boolean(row.co_email),
       is_masked: true,
       ...slaOf(row),
       images,
