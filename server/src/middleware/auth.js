@@ -15,6 +15,7 @@
  * gần như tức thì, đủ dài để không làm chậm hệ thống.
  */
 import { verifyAccessToken } from '../lib/token.js';
+import { laCanBoHopLe } from './authorize.js';
 import { pool } from '../db.js';
 
 const HAN_DEM_MS = 30_000;
@@ -57,7 +58,16 @@ export async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
   }
 
-  if (!(await conHoatDong(Number(payload.sub)))) {
+  /* Kiểm hình dạng vé TRƯỚC khi hỏi cơ sở dữ liệu (BUG-001). verifyAccessToken
+     đã chặn vé không mang dấu cán bộ; đây là lớp thứ hai cho nhiều router con
+     chỉ dựa vào requireAuth mà không gọi authorize(). Không dựa vào truy vấn
+     is_active để loại vé lạ: nó từng chặn được vé OTP chỉ vì `WHERE id = NaN`
+     làm MySQL báo lỗi — tai nạn, không phải kiểm tra. */
+  if (!laCanBoHopLe({ id: payload.sub, role: payload.role })) {
+    return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.' });
+  }
+
+  if (!(await conHoatDong(payload.sub))) {
     return res.status(401).json({ error: 'Tài khoản đã bị khoá. Liên hệ quản trị viên.' });
   }
 
