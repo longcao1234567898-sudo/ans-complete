@@ -260,18 +260,33 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId }) {
    người ĐỌC VÀ QUYẾT ĐỊNH. Máy quét đè lên quyết định của người là sai — có
    thể xoá mất một vụ việc đang điều tra dở. Chỉ quét đơn CÒN NGUYÊN trong
    hàng chờ: mới nhận hoặc chờ kiểm duyệt, chưa ai đụng tới.
+
+   ⚠️ CHỈ DỌN ĐƠN CÙNG LOẠI (ẩn danh / có tên) VỚI ĐƠN BỊ ĐÁNH DẤU (BUG-014).
+   Dọn theo lô là GOM ĐƠN THEO MÁY rồi đưa cả nhóm vào thùng rác cùng một giây,
+   cùng một người xoá. Cán bộ đánh rác một đơn có tên là thấy ngay đơn ẩn danh
+   nào của cùng người đó bị cuốn theo — tự tay nối đơn tố giác với danh tính.
+   Lý do ghi vào đơn bị cuốn cũng KHÔNG được trỏ tới hồ sơ gây ra việc dọn, vì
+   trang chi tiết trả lý do đó cho mọi cán bộ.
+   Đánh đổi đã chấp nhận: kẻ phá hoại trộn đơn tên giả với đơn ẩn danh thì mỗi
+   lần bấm chỉ dọn được một loại. Máy vẫn bị khoá như cũ.
    ============================================================================ */
 
 /** Cửa sổ dọn: 24 giờ trước thời điểm đơn bị đánh dấu */
 const CUA_SO_DON_DEP_GIO = 24;
 
 /**
- * Đưa vào thùng rác các đơn khác cùng thiết bị gửi trong 24 giờ trước đó.
+ * Đưa vào thùng rác các đơn khác CÙNG LOẠI, cùng thiết bị gửi trong 24 giờ trước đó.
  *
+ * @param {boolean} anDanh đơn bị đánh dấu có ẩn danh không — BẮT BUỘC. Không
+ *   nói rõ thì không dọn gì: dọn nhầm loại là nối đơn ẩn danh với danh tính.
  * @returns số đơn đã dọn
  */
-export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo }) {
+export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo, anDanh }) {
   if (!deviceId) return 0;
+  if (typeof anDanh !== 'boolean') {
+    console.error('[chặn spam] dọn theo lô bị gọi thiếu cờ anDanh — không dọn gì');
+    return 0;
+  }
   try {
     const [kq] = await pool.query(
       `UPDATE submissions
@@ -284,10 +299,13 @@ export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo
           AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
           /* CHỈ đơn chưa ai đụng tới — xem phần chú thích ở trên */
           AND status IN ('pending_review','received')
-          AND assigned_to IS NULL`,
+          AND assigned_to IS NULL
+          /* CHỈ đơn cùng loại. is_anonymous cho phép NULL: không rõ thì coi là
+             ẩn danh, để không bao giờ bị cuốn theo một đơn có tên. */
+          AND (COALESCE(is_anonymous, 1) <> 0) = ?`,
       [staffId || null,
        lyDo || `Dọn theo lô: cùng thiết bị với một đơn bị đánh dấu tin rác`,
-       deviceId, boQuaId || 0, CUA_SO_DON_DEP_GIO]
+       deviceId, boQuaId || 0, CUA_SO_DON_DEP_GIO, anDanh ? 1 : 0]
     );
     const soDon = kq?.affectedRows || 0;
     if (soDon > 0) {

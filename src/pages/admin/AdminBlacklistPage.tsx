@@ -72,14 +72,12 @@ export default function AdminBlacklistPage() {
 
   const tatCaGoc = data ?? [];
 
-  /* TÌM KIẾM trong danh sách khoá. Khi bà con gọi lên nói "tôi không gửi được",
-     cán bộ cần tra nhanh mã thiết bị hoặc địa chỉ mạng đó có trong danh sách
-     không, thay vì cuộn tay qua hàng chục dòng. Tìm cả trong lý do khoá. */
+  /* TÌM KIẾM trong danh sách khoá, theo lý do khoá. Không tìm theo mã máy/địa
+     chỉ: máy chủ cố ý không trả mã (BUG-014), và người dân cũng không nhìn thấy
+     mã máy của mình để đọc cho cán bộ. */
   const q = tuKhoa.trim().toLowerCase();
   const tatCa = q
-    ? tatCaGoc.filter((x) =>
-        x.identifier.toLowerCase().includes(q) ||
-        (x.reason || '').toLowerCase().includes(q))
+    ? tatCaGoc.filter((x) => (x.reason || '').toLowerCase().includes(q))
     : tatCaGoc;
 
   const thietBi = tatCa.filter((x) => x.kind === 'device');
@@ -100,7 +98,6 @@ export default function AdminBlacklistPage() {
         <table className="w-full text-left text-xs">
           <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
             <tr>
-              <th className="py-2 pr-3 font-semibold">{loai === 'device' ? 'Mã thiết bị' : 'Địa chỉ IP'}</th>
               <th className="py-2 pr-3 font-semibold">Lý do</th>
               <th className="py-2 pr-3 font-semibold">Người khoá</th>
               <th className="py-2 pr-3 font-semibold">Thời hạn</th>
@@ -110,12 +107,6 @@ export default function AdminBlacklistPage() {
           <tbody>
             {ds.map((x) => (
               <tr key={x.id} className="border-b border-slate-100 dark:border-slate-800">
-                <td className="py-2.5 pr-3">
-                  <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    {/* Chỉ hiện 12 ký tự đầu — đủ để phân biệt, không cần phơi cả mã */}
-                    {loai === 'device' ? `${x.identifier.slice(0, 12)}…` : x.identifier}
-                  </code>
-                </td>
                 <td className="py-2.5 pr-3 text-slate-600 dark:text-slate-300">
                   {x.reason || '—'}
                 </td>
@@ -175,7 +166,7 @@ export default function AdminBlacklistPage() {
             type="text"
             value={tuKhoa}
             onChange={(e) => setTuKhoa(e.target.value)}
-            placeholder="Tìm theo mã thiết bị, địa chỉ IP hoặc lý do khoá..."
+            placeholder="Tìm theo lý do khoá..."
             className="min-h-[36px] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-slate-100"
           />
           {tuKhoa && (

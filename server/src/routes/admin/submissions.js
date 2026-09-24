@@ -302,13 +302,17 @@ router.get('/:id', async (req, res) => {
               ${(await coCotToaDoAd()) ? 's.incident_lat, s.incident_lng,' : 'NULL AS incident_lat, NULL AS incident_lng,'}
               s.identity_erased, s.identity_erased_at, s.deleted_at,
               s.incident_group_id,
-              /* Mã thiết bị: chuỗi NGẪU NHIÊN do trình duyệt tự sinh, KHÔNG
-                 suy ra được ai. Cần ở đây để giao diện biết hồ sơ có khoá được
-                 máy gửi không.
+              /* Mã thiết bị: CHỈ lấy cờ có/không, KHÔNG lấy giá trị. Từng mã
+                 đơn lẻ là chuỗi ngẫu nhiên, nhưng nó sống mãi trong trình duyệt
+                 nên hai hồ sơ cùng mã là hai đơn từ cùng một máy — đơn tố giác
+                 ẩn danh nối được với đơn có tên của cùng người gửi (BUG-014).
+                 Giao diện chỉ cần biết có khoá được máy không; mark-spam và
+                 review tự đọc mã phía máy chủ theo id hồ sơ. Trả băm hay một
+                 khúc của mã cũng nối được y hệt — không làm.
                  (Chú thích cố ý KHÔNG nhắc tên các cột nhạy cảm — bài kiểm thử
                   admin-detail-columns quét nguyên văn chuỗi SQL này, nhắc tên
                   chúng ở đây sẽ làm test báo đỏ oan.) */
-              s.device_id,
+              (s.device_id IS NOT NULL) AS co_ma_thiet_bi,
               c.code AS category_code, c.name AS category_name, c.sla_days,
               st.full_name AS assigned_name, rb.full_name AS resolved_by_name,
               w.name AS ward_name
@@ -339,6 +343,7 @@ router.get('/:id', async (req, res) => {
       sender_name: row.is_anonymous ? '🕶️ Người gửi ẩn danh' : maskName(decrypt(row.sender_name)),
       sender_phone: row.is_anonymous ? '(không cung cấp)' : maskPhone(decrypt(row.sender_phone)),
       co_email: Boolean(row.co_email),
+      co_ma_thiet_bi: Boolean(row.co_ma_thiet_bi),
       is_masked: true,
       ...slaOf(row),
       images,
@@ -595,6 +600,8 @@ router.post('/:id/review', async (req, res) => {
         boQuaId: req.params.id,
         staffId: req.staff.id,
         lyDo: 'Dọn theo lô cùng thiết bị với một tin bị đánh dấu rác ở hàng chờ',
+        /* is_anonymous cho phép NULL: không rõ thì coi là ẩn danh */
+        anDanh: rows[0].is_anonymous == null || Number(rows[0].is_anonymous) !== 0,
       });
       await khoaThietBi(pool, {
         deviceId: rows[0].device_id,
@@ -654,7 +661,7 @@ router.post('/:id/mark-spam', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT status, device_id, ip_address, tracking_code FROM submissions WHERE id = ? AND deleted_at IS NULL',
+      'SELECT status, is_anonymous, device_id, ip_address FROM submissions WHERE id = ? AND deleted_at IS NULL',
       [id]
     );
     if (rows.length === 0) {
@@ -687,17 +694,21 @@ router.post('/:id/mark-spam', async (req, res) => {
       /* Dọn cả loạt đơn cùng thiết bị trong 24 giờ trước — kẻ rải tin rác
          hiếm khi gửi đúng một đơn. Chỉ đưa vào thùng rác (giữ 7 ngày) và
          không đụng đơn cán bộ đã xử lý; xem chú thích trong chan-spam.js. */
+      /* Lý do dọn và lý do khoá KHÔNG ghi mã hồ sơ. Lý do dọn nằm trong đơn bị
+         cuốn và ra ở trang chi tiết; lý do khoá ra ở danh sách khoá — trỏ tới hồ
+         sơ nào là nối hồ sơ đó với các đơn/khiếu nại cùng máy (BUG-014). */
       soDonDaDon = await donDonCungThietBi(pool, {
         deviceId: don.device_id,
         boQuaId: id,
         staffId: req.staff?.id || null,
-        lyDo: `Dọn theo lô cùng thiết bị với hồ sơ ${don.tracking_code}`,
+        lyDo: 'Dọn theo lô cùng thiết bị với một hồ sơ bị đánh dấu tin rác',
+        anDanh: don.is_anonymous == null || Number(don.is_anonymous) !== 0,
       });
 
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
-        lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
+        lyDo: `Tin rác${lyDo ? ': ' + lyDo : ''}`,
       });
       if (daKhoa) kieuKhoa = 'thiết bị';
 
@@ -717,7 +728,7 @@ router.post('/:id/mark-spam', async (req, res) => {
       daKhoa = await khoaIpThuCong(pool, {
         ip: don.ip_address,
         staffId: req.staff?.id || null,
-        lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
+        lyDo: `Tin rác${lyDo ? ': ' + lyDo : ''}`,
       });
       if (daKhoa) kieuKhoa = 'địa chỉ mạng';
     }

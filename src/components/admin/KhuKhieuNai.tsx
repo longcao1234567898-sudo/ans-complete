@@ -107,9 +107,6 @@ export default function KhuKhieuNai() {
                 {k.kind === 'device' ? <Smartphone className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
                 {k.kind === 'device' ? 'Thiết bị' : 'Địa chỉ mạng'}
               </span>
-              <span className="font-mono text-xs text-slate-500">
-                {k.identifier.length > 20 ? k.identifier.slice(0, 20) + '…' : k.identifier}
-              </span>
               {!k.con_bi_khoa && k.status === 'cho_xu_ly' && (
                 <span className="rounded-lg bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                   Khoá đã tự hết hạn

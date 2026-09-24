@@ -405,7 +405,7 @@ export default function AdminSubmissionDetailPage() {
                        KHÔNG tự làm, vì nhà mạng di động cho hàng trăm thuê bao
                        chung một IP, khoá nhầm là chặn oan cả vùng. */
                     let khoaIp = false;
-                    if (!data?.device_id) {
+                    if (!data?.co_ma_thiet_bi) {
                       khoaIp = window.confirm(
                         'Hồ sơ này KHÔNG CÓ mã thiết bị (gửi trước khi hệ thống có tính năng).\n\n'
                         + 'Bấm OK để khoá ĐỊA CHỈ MẠNG của người gửi trong 2 giờ.\n\n'

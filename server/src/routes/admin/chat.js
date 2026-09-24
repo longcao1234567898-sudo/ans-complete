@@ -125,15 +125,22 @@ router.post('/:id/messages', async (req, res) => {
    ========================================================================== */
 /* MỞ CHO MỌI VAI TRÒ CÁN BỘ (bỏ authorize).
 
-   Danh sách khoá chỉ chứa mã thiết bị ngẫu nhiên và địa chỉ mạng — không có
-   danh tính, không có nội dung tin. Cán bộ cơ sở cần xem để biết vì sao bà con
-   gọi lên nói "tôi không gửi được", và để đối chiếu khi có khiếu nại.
+   Cán bộ cơ sở cần xem để biết vì sao bà con gọi lên nói "tôi không gửi
+   được". Việc GỠ khoá vẫn giữ chốt admin/manager ở route delete bên dưới —
+   xem thì ai cũng xem được, nhưng quyết định gỡ là của lãnh đạo.
 
-   Việc GỠ khoá vẫn giữ chốt admin/manager ở route delete bên dưới — xem thì ai
-   cũng xem được, nhưng quyết định gỡ là của lãnh đạo. */
+   ⚠️ KHÔNG TRẢ MÃ MÁY / ĐỊA CHỈ (identifier) — liệt kê cột, không SELECT *.
+   Từng mã đơn lẻ không nói lên ai, nhưng cùng mã đó đứng ở khiếu nại mở khoá
+   (thường ký tên thật) — đối chiếu hai danh sách là biết người ký tên kia bị
+   khoá vì đơn nào, kể cả đơn tố giác ẩn danh (BUG-014). Gỡ khoá đi theo id.
+   Người dân không nhìn thấy mã máy của mình, nên tra theo mã cũng không phục
+   vụ ai. */
 router.get('/blacklist', async (_req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM vw_blacklist_active');
+    const [rows] = await pool.query(
+      `SELECT id, kind, reason, created_at, expires_at, nguoi_khoa, con_lai_phut
+         FROM vw_blacklist_active`
+    );
     res.json(rows);
   } catch (err) {
     console.error('Đọc danh sách khoá lỗi:', err.message);
@@ -257,9 +264,20 @@ router.get('/khieu-nai', async (req, res) => {
     /* GẮN KÈM CÁC Ý KIẾN BỊ ĐÁNH DẤU RÁC của chính thiết bị/địa chỉ đang khiếu
        nại. Cán bộ cần thấy NGAY người này đã gửi gì mới quyết định được: nếu
        toàn tin rác thật thì từ chối, nếu là tin báo nghiêm túc bị đánh nhầm
-       thì gỡ khoá. Không có thông tin này thì cán bộ quyết định mò. */
+       thì gỡ khoá. Không có thông tin này thì cán bộ quyết định mò.
+
+       ⚠️ KHÔNG MỘT DẤU VẾT NÀO CỦA ĐƠN ẨN DANH, KHÔNG TRẢ MÃ MÁY (BUG-014).
+       Danh sách này là một NHÓM ĐƠN CÙNG MÁY, đặt cạnh lời khiếu nại mà bà con
+       hay ký tên và số điện thoại. Đơn ẩn danh lọt vào nhóm — dưới dạng mã, nội
+       dung, hay chỉ một con số đếm — là nói cho mọi cán bộ biết người ký tên kia
+       từng dùng kênh ẩn danh, và thu hẹp được còn vài đơn trong thùng rác.
+       Mã máy/địa chỉ (identifier) chỉ dùng để truy vấn ở đây, không trả ra:
+       cùng mã đó đứng ở danh sách khoá cạnh lý do khoá, là khoá nối thứ hai.
+       Xử lý khiếu nại đi theo id, không cần mã.
+       Đánh đổi đã chấp nhận (SEC-DEC-005): máy chỉ có đơn ẩn danh bị đánh rác
+       thì cán bộ xét khiếu nại chỉ bằng lời trình bày. */
     const ketQua = [];
-    for (const r of rows) {
+    for (const { identifier, ...r } of rows) {
       let tinLienQuan = [];
       try {
         const [tin] = await pool.query(
@@ -269,9 +287,11 @@ router.get('/khieu-nai', async (req, res) => {
             WHERE s.deleted_at IS NULL
               AND (s.is_spam = 1 OR s.status = 'spam')
               AND (s.device_id = ? OR s.ip_address = ?)
+              /* = 0 chứ không phải <> 1: cột cho phép NULL, không rõ thì coi là ẩn danh */
+              AND s.is_anonymous = 0
             ORDER BY s.created_at DESC
             LIMIT 5`,
-          [r.kind === 'device' ? r.identifier : null, r.kind === 'ip' ? r.identifier : null]
+          [r.kind === 'device' ? identifier : null, r.kind === 'ip' ? identifier : null]
         );
         tinLienQuan = tin;
       } catch (e) {
