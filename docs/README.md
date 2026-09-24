@@ -28,6 +28,8 @@ docs/
 │                                 và làm sao biết Claude đang đi chệch
 ├── QUY-TRINH-LAM-VIEC.md        CHO CLAUDE: quy trình đầy đủ, 6 loại phiên,
 │                                 luật retest độc lập, cổng chặn trước commit
+├── tep-nhay-cam-da-soat.txt     Allow-list của mục 8 cổng chặn: tệp đã soát,
+│                                 ghim theo nội dung. Chỉ thêm khi người vận hành duyệt
 │
 ├── TONG-QUAN-HE-THONG.md        Hệ thống này là gì, gồm những phần nào
 ├── adr/                         Quyết định kiến trúc, mỗi quyết định một tệp

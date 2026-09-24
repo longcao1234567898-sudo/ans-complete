@@ -113,11 +113,17 @@ Thấy file lạ trong `--stat` là tín hiệu rõ nhất của trôi phạm vi
 **Một lệnh nữa, chạy trước mỗi lần push** — nó soát cả cây tệp chứ không chỉ soát thay đổi:
 
 ```bash
-git ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -v "\.env\.example"
+git -c core.quotePath=false ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -vE "(^|/)\.env\.example$" | while IFS= read -r f; do echo "$(git rev-parse ":$f") $f"; done | grep -vxFf <(grep -v "^#" docs/tep-nhay-cam-da-soat.txt | tr -d "\r")
 ```
 
 In ra dòng nào là có tệp nhạy cảm đang bị git theo dõi. `.gitignore` không cứu được, vì luật
 ignore chỉ áp dụng cho tệp **chưa** được theo dõi. Phải `git rm --cached`.
+
+Hai tệp đã soát và bạn đã duyệt (`.env.production`, `server/ca.pem`) nằm trong
+[tep-nhay-cam-da-soat.txt](tep-nhay-cam-da-soat.txt), ghim theo nội dung. Lệnh in lại một trong
+hai tệp đó nghĩa là **nội dung đã đổi**, cần đọc lại trước khi duyệt hash mới. Claude không
+được tự thêm dòng vào tệp đó khi chưa có bạn duyệt. Luật đầy đủ ở
+[QUY-TRINH §5](QUY-TRINH-LAM-VIEC.md).
 
 **Không bao giờ để lọt:**
 - `git add .` — luôn `git add` từng file

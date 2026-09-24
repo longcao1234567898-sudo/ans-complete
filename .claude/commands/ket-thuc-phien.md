@@ -45,8 +45,12 @@ Tám mục. **Thiếu bất kỳ mục nào → không commit.**
 | 8 | **Không tệp nhạy cảm nào đang bị theo dõi** | Chạy lệnh ở ngay dưới — phải không in ra dòng nào |
 
 ```bash
-git ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -v "\.env\.example"
+git -c core.quotePath=false ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -vE "(^|/)\.env\.example$" | while IFS= read -r f; do echo "$(git rev-parse ":$f") $f"; done | grep -vxFf <(grep -v "^#" docs/tep-nhay-cam-da-soat.txt | tr -d "\r")
 ```
+
+Tệp khớp mẫu mà **đã soát và được duyệt** thì nằm trong allow-list
+[docs/tep-nhay-cam-da-soat.txt](../../docs/tep-nhay-cam-da-soat.txt), ghim theo **blob hash**:
+nội dung tệp đổi thì hash đổi, cổng đỏ lại. Luật thêm dòng ghi ở đầu tệp đó và ở QUY-TRINH §5.
 
 **Vì sao mục 8 tồn tại.** Bảy mục đầu chỉ soát **diff** của phiên hiện tại. Một tệp đã bị
 `git add` từ lâu thì không bao giờ xuất hiện trong diff nào nữa, nên nó vô hình với cả bảy
@@ -58,6 +62,10 @@ Ngày 2026-09-23 phát hiện một bản sao lưu toàn bộ cơ sở dữ li�
 
 Lệnh in ra bất kỳ dòng nào → **dừng, không commit**, mở Bug Log. Gỡ bằng `git rm --cached`,
 không phải bằng cách thêm luật vào `.gitignore`.
+
+Nếu tin tệp đó vô hại: **không commit kèm ngoại lệ**. Soát toàn bộ nội dung, xin người vận hành
+duyệt, rồi thêm dòng vào allow-list trong một commit riêng. Không bao giờ nới regex thay cho việc
+đó. Ngoại lệ ghi tay mỗi phiên chính là thứ ND-020 đã gỡ: cổng đỏ thường trực dạy người ta bỏ qua cổng.
 
 **Bảng dấu hiệu đáng ngờ khi đọc diff** (mục 3):
 

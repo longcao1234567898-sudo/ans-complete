@@ -167,7 +167,7 @@ trôi phạm vi, không phải hình thức.
 | 8 | **Không tệp nhạy cảm nào đang bị theo dõi** | Lệnh ở ngay dưới — phải không in ra dòng nào |
 
 ```bash
-git ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -v "\.env\.example"
+git -c core.quotePath=false ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -vE "(^|/)\.env\.example$" | while IFS= read -r f; do echo "$(git rev-parse ":$f") $f"; done | grep -vxFf <(grep -v "^#" docs/tep-nhay-cam-da-soat.txt | tr -d "\r")
 ```
 
 **Không đủ 8 mục → không commit.** Ghi lý do vào `TIEN-DO.md` với trạng thái `KHÔNG COMMIT`.
@@ -181,6 +181,27 @@ là vô hình với chúng. `.gitignore` cũng không cứu: luật ignore **ch�
 Ngày 2026-09-23, khi quét an toàn trước lần push đầu tiên, phát hiện một bản sao lưu toàn bộ
 cơ sở dữ liệu đã nằm công khai trên GitHub đúng theo đường đó. Nó sống sót qua năm phiên vì
 không phiên nào nhìn ra ngoài diff của chính mình. Chi tiết: BUG-005 trong `buglogs/`.
+
+**Allow-list tệp đã soát** — [tep-nhay-cam-da-soat.txt](tep-nhay-cam-da-soat.txt). Có hai tệp
+khớp mẫu mà vô hại theo thiết kế và không gỡ được (`.env.production` cho Netlify, `server/ca.pem`
+cho kết nối DB). Trước khi có allow-list, hai tệp này làm mục 8 đỏ thường trực, hai phiên liền
+phải commit kèm ngoại lệ ghi tay (ND-020). Một cổng lúc nào cũng đỏ sẽ dạy người ta bỏ qua nó,
+nên tới lúc nó báo một tệp nguy hiểm thật thì cũng bị bỏ qua theo quán tính.
+
+- **Ghim theo blob hash trong chỉ mục, không theo tên.** Cái được duyệt là nội dung đã soát.
+  Ai thêm một khoá vào tệp đã duyệt thì hash đổi và cổng đỏ lại. Ghim theo tên thì tệp đã duyệt
+  một lần sẽ thành chỗ giấu an toàn mãi mãi. Dùng hash trong chỉ mục, không băm tệp trên đĩa,
+  vì tệp trên đĩa đổi theo `core.autocrlf` còn blob hash thì giống nhau trên mọi máy.
+- **Thêm hoặc cập nhật một dòng cần đủ ba điều:** đã đọc toàn bộ nội dung ở đúng phiên bản đó ·
+  người vận hành duyệt · dòng chú thích ghi lý do, người duyệt, ngày, phiên. Làm trong **commit
+  riêng**, không gộp với việc làm tệp đó đổi hash.
+- **Không nới regex** thay cho việc thêm dòng (luật 5). Không commit kèm "ngoại lệ đã duyệt":
+  thấy tệp vô hại thì đưa vào allow-list, thấy tệp nguy hiểm thì gỡ bằng `git rm --cached`.
+- **Mất tệp allow-list thì cổng đỏ**, không xanh: `grep` không có mẫu nào để loại thì in hết.
+- `core.quotePath=false` là để tên tệp có dấu không bị Git bọc ngoặc kép. Không có nó thì
+  `thư-mục/.env` in ra thành `"th\306\260-m\341\273\245c/.env"` và trượt neo `$` của mẫu.
+  Lệnh cũ (trước P16) bỏ lọt đúng ca này, và cả `.env.example.bak`, vì loại mọi đường dẫn
+  *chứa* chuỗi `.env.example`. Cả hai đã kiểm bằng clone tạm.
 
 ### 5.1 Bảng dấu hiệu đáng ngờ khi đọc diff
 
