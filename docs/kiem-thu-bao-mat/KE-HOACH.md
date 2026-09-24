@@ -164,7 +164,7 @@ Mục "Bài học" của báo cáo lần này có sẵn hai số liệu thật, 
 | **GĐ1-a** — kiểm kê lại endpoint | KHAO-SAT | ✅ Xong 2026-09-23 — 78 route + 2 health = 80 endpoint, ba biến thể đối chiếu | P09 |
 | **GĐ1-b** — luồng dữ liệu + luồng tải tài liệu | KHAO-SAT | ⏳ | |
 | **GĐ2-1** — nhóm 1, xác thực & phiên đăng nhập | RA-SOAT | ✅ Xong 2026-09-24 — 12/12 mục có kết quả, mở BUG-006 (Low) + BUG-007 (Medium) | P18 |
-| **GĐ2-2** — nhóm 2, phân quyền / IDOR | RA-SOAT | ⏳ | |
+| **GĐ2-2** — nhóm 2, phân quyền / IDOR | RA-SOAT | 🟡 Xong một phần 2026-09-24 — 12/12 mục có kết quả, mở BUG-008..013; hồ sơ BUG-010..013 chưa đủ | P19 |
 | **GĐ2-3** — nhóm 3, input validation & injection | RA-SOAT | ⏳ | |
 | **GĐ2-4** — nhóm 4, bảo vệ dữ liệu | RA-SOAT | ⏳ | |
 | **GĐ2-5** — nhóm 5, bảo mật API | RA-SOAT | ⏳ | |
