@@ -21,8 +21,10 @@ server/ca.pem
 DIEN-SAN-*.txt
 MAU-*env*.txt
 
-# Bản sao lưu cơ sở dữ liệu — chứa toàn bộ dữ liệu người dân
-server/sao-luu/
+# Bản sao lưu cơ sở dữ liệu — chứa toàn bộ dữ liệu người dân.
+# Không neo vào server/: chặn thư mục sao-luu/ ở MỌI độ sâu, phòng khi bản
+# sao lưu bị sinh hay chép ra chỗ khác (BUG-005).
+sao-luu/
 *.sql.bak
 
 # ============================================================

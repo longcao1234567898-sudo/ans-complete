@@ -2,9 +2,9 @@
  * SAO LƯU TOÀN BỘ DATABASE RA FILE SQL
  * ============================================================================
  *
- * Dùng:  cd server && node scripts-sao-luu.js
+ * Dùng:  cd server && node scripts-sao-luu.js   (đứng ở thư mục nào cũng được)
  *
- * Tạo file sao-luu/hop_thu_an_ninh_so_<ngày-giờ>.sql chứa ĐẦY ĐỦ: bảng, dữ
+ * Tạo file server/sao-luu/hop_thu_an_ninh_so_<ngày-giờ>.sql chứa ĐẦY ĐỦ: bảng, dữ
  * liệu, view, thủ tục, hàm, trigger. Nạp lại file đó là dựng lại được y nguyên
  * database ở bất kỳ đâu.
  *
@@ -18,8 +18,7 @@ import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pool } from './src/db.js';
-
-const THU_MUC = 'sao-luu';
+import { THU_MUC_SAO_LUU as THU_MUC, kiemDichSaoLuu } from './dich-sao-luu.js';
 
 /** Đổi một giá trị bất kỳ thành dạng viết được vào câu SQL. */
 function raSql(v) {
@@ -57,12 +56,13 @@ try {
   const [[{ db }]] = await pool.query('SELECT DATABASE() AS db');
   console.log(`Database: ${db}\n`);
 
-  fs.mkdirSync(THU_MUC, { recursive: true });
   const p = (n) => String(n).padStart(2, '0');
   const d = new Date();
   const ten = `${db}_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`
             + `_${p(d.getHours())}${p(d.getMinutes())}.sql`;
   const duongDan = path.join(THU_MUC, ten);
+  kiemDichSaoLuu(duongDan);
+  fs.mkdirSync(THU_MUC, { recursive: true });
   const out = fs.createWriteStream(duongDan, { encoding: 'utf8' });
   const ghi = (s) => out.write(s + '\n');
 
