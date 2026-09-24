@@ -88,8 +88,8 @@ Form gửi ý kiến ──HTTPS──> POST /api/submissions
 
 | Điểm gọi `decrypt()` | Route | Quyền | Che? | Ghi log? |
 |---|---|---|---|---|
-| `admin/submissions.js:390-392` | `POST /submissions/:id/reveal` | `admin`,`manager` **+** phải là người được phân công (trừ `admin`) | Không — trả đầy đủ, có chủ đích | **Có** |
-| `admin/submissions.js:333-335` | `GET /submissions/:id` | chỉ `requireAuth` | Tên `maskName`, SĐT `maskPhone` | Không |
+| `admin/submissions.js:396-398` | `POST /submissions/:id/reveal` | `admin`,`manager` **+** phải là người được phân công (trừ `admin`) | Không — trả đầy đủ, có chủ đích | **Có** |
+| `admin/submissions.js:339-340` | `GET /submissions/:id` | chỉ `requireAuth` | Tên `maskName`, SĐT `maskPhone`. Email **không được chọn lên** — câu SELECT chỉ lấy cờ `(sender_email IS NOT NULL) AS co_email` (`:295`), nên không có gì để giải mã (BUG-010, đã retest `Fixed`) | Không |
 | `admin/submissions.js:266` | `GET /submissions` (danh sách) | chỉ `requireAuth` | `maskName` | Không |
 | `admin/dashboard.js:142` | `GET /dashboard/stats` | chỉ `requireAuth` | `maskName` | Không |
 | `admin/reports.js:231` | `GET /reports/details` | `admin`,`manager` | `maskName` | Không |
@@ -103,7 +103,8 @@ Form gửi ý kiến ──HTTPS──> POST /api/submissions
   Đổi `ENCRYPTION_KEY` là mọi bản ghi cũ trả về `[Dữ liệu hỏng hoặc sai khoá]` (`crypto.js:119`).
 - *Ngoài `/reveal` còn đường nào giải mã được?* → **có, bốn đường** (bảng trên). Bốn đường đó
   đều đi qua `maskName`/`maskPhone` trước khi trả. **Một trong bốn cần P04 xem lại kỹ** —
-  chi tiết ở `buglogs/ghi-chu-P02-diem-nghi.md`.
+  chi tiết ở `buglogs/ghi-chu-P02-diem-nghi.md`. *(Cập nhật 2026-09-24: điểm nghi đó thành
+  BUG-010, đã vá ở `4ca8a33` và retest `Fixed`; số dòng trong bảng đã đồng bộ theo bản vá.)*
 
 ---
 
