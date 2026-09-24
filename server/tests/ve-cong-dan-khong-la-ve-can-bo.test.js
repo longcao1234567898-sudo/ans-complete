@@ -26,7 +26,7 @@ import { datBienMoiTruongHopLe, resGia, TEST_JWT_SECRET } from './helpers-test.j
 
 datBienMoiTruongHopLe();
 
-const { signAccessToken, verifyAccessToken } = await import('../src/lib/token.js');
+const { signAccessToken, verifyAccessToken, JWT_SECRET } = await import('../src/lib/token.js');
 const { requireAuth, xoaDemTrangThai } = await import('../src/middleware/auth.js');
 const { authorize } = await import('../src/middleware/authorize.js');
 const { default: adminRouter } = await import('../src/routes/admin/index.js');
@@ -99,6 +99,53 @@ describe('BUG-001 — requireAuth chặn vé công dân KỂ CẢ khi DB báo id
     assert.equal(daGoiNext, true);
     assert.deepEqual(req.staff, { id: ID_CAN_BO, username: 'canbo', role: 'handler', name: 'Cán Bộ' });
   });
+});
+
+describe('BUG-001 — lớp 2 trong requireAuth: vé ĐÃ QUA lớp 1 nhưng sub/role hỏng -> 401', () => {
+  /* Mọi vé ở khối trên đều thiếu `aud` nên bị verifyAccessToken chặn từ lớp 1,
+     không vé nào chạm tới kiểm laCanBoHopLe trong requireAuth. Retest P15 gỡ
+     riêng lớp 2 thì 380/380 vẫn xanh: một lớp bảo vệ không ai canh. Khối này
+     đưa vào vé MANG ĐÚNG aud cán bộ, tức là mô phỏng ngày có một nơi cấp vé
+     công dân lỡ gắn aud đó (một khoá ký cả hai loại vé, SEC-DEC-003).
+
+     aud và khoá lấy từ mã sản phẩm, không chép tay: chép tay thì mã đổi aud
+     mà test vẫn ký aud cũ, vé bị lớp 1 chặn, test xanh vì sai lý do. Ca nào
+     cũng tự khẳng định trước là lớp 1 CHO QUA — nếu không thì ca đó không
+     chứng minh gì cho lớp 2. */
+  const AUD_CAN_BO = jwt.decode(
+    signAccessToken({ id: ID_CAN_BO, username: 'canbo', role: 'handler', full_name: 'Cán Bộ' }),
+  ).aud;
+  const kyCoAud = (payload) => jwt.sign({ ...payload, aud: AUD_CAN_BO }, JWT_SECRET, { expiresIn: '1h' });
+
+  const VE_QUA_LOP_1 = {
+    'vé OTP email mang aud cán bộ (không sub, không role)':
+      { emailHash: 'a'.repeat(64), purpose: 'submit' },
+    'vé chat mang aud cán bộ, sub trùng id cán bộ, không role':
+      { sub: ID_CAN_BO, purpose: 'chat_reporter' },
+    'sub đúng, thiếu role': { sub: ID_CAN_BO, username: 'x', name: 'X' },
+    'sub dạng chuỗi "3"': { sub: String(ID_CAN_BO), username: 'x', role: 'admin', name: 'X' },
+    'sub = 0': { sub: 0, username: 'x', role: 'admin', name: 'X' },
+    'sub âm': { sub: -ID_CAN_BO, username: 'x', role: 'admin', name: 'X' },
+    'sub số thực': { sub: ID_CAN_BO + 0.5, username: 'x', role: 'admin', name: 'X' },
+    'role ngoài danh sách vai trò': { sub: ID_CAN_BO, username: 'x', role: 'superadmin', name: 'X' },
+    'role sai hoa thường': { sub: ID_CAN_BO, username: 'x', role: 'Admin', name: 'X' },
+  };
+
+  test('tiền đề: aud lấy được từ signAccessToken', () => {
+    assert.equal(typeof AUD_CAN_BO, 'string');
+    assert.ok(AUD_CAN_BO.length > 0);
+  });
+
+  for (const [ten, payload] of Object.entries(VE_QUA_LOP_1)) {
+    test(`${ten} -> lớp 1 cho qua, requireAuth vẫn 401, KHÔNG gọi next`, async () => {
+      const ve = kyCoAud(payload);
+      assert.doesNotThrow(() => verifyAccessToken(ve), 'vé bị lớp 1 chặn thì ca này không canh được lớp 2');
+      const { req, res, daGoiNext } = await quaRequireAuth(ve);
+      assert.equal(res.statusCode, 401);
+      assert.equal(daGoiNext, false, 'next() bị gọi nghĩa là requireAuth nhận vé không phải của cán bộ');
+      assert.equal(req.staff, undefined);
+    });
+  }
 });
 
 describe('BUG-001 biến thể (c) — authorize() không tham số phải tự đứng vững', () => {
