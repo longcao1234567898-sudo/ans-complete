@@ -64,6 +64,8 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v8.sql            #    Q
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v9.sql            #    Tăng cường bảo mật đăng nhập cán bộ
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v10.sql           #    Mã QR định vị hiện trường
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v11.sql           # 3. Gộp sự kiện trùng lặp (nhiều người báo 1 vụ)
+# nang_cap_v12.sql … nang_cap_v18.sql: chạy lần lượt theo số (chưa liệt kê từng tệp ở đây — ND-006)
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v19.sql           #    Khoá chống spam tách theo loại đơn — chạy TRƯỚC khi cập nhật mã máy chủ
 ```
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 

@@ -1,7 +1,10 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
 import { layIpThat, ghiNhatKy } from '../../lib/helpers.js';
-import { khoaThietBi, khoaIpThuCong, xetKhoaTaiPham, donDonCungThietBi } from '../../lib/chan-spam.js';
+import {
+  khoaThietBi, khoaIpThuCong, xetKhoaTaiPham, donDonCungThietBi,
+  xetDonGayKhoa, laDonAnDanh, GHI_CHU_KHONG_TINH_TAI_PHAM,
+} from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
@@ -521,7 +524,7 @@ router.post('/:id/review', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT status, is_anonymous, device_id FROM submissions WHERE id = ?', [req.params.id]
+      'SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ?', [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (rows[0].status !== 'pending_review') {
@@ -529,6 +532,25 @@ router.post('/:id/review', async (req, res) => {
     }
 
     const newStatus = action === 'approve' ? 'received' : 'spam';
+
+    /* ĐƠN NÀY CÓ ĐƯỢC GÂY KHOÁ KHÔNG (BUG-015) — hỏi TRƯỚC khi ghi lịch sử lần
+       này. Hàng chờ có thể chứa đơn bị chặn ngầm (đơn có ảnh nghi ngờ được đổi
+       sang 'pending_review' lúc nhận) và đơn được khôi phục; xem xetDonGayKhoa. */
+    const xet = action === 'spam'
+      ? await xetDonGayKhoa(pool, rows[0])
+      : { gayKhoa: false, khongTinhTaiPham: false };
+    const gayKhoa = xet.gayKhoa && Boolean(rows[0].device_id);
+
+    /* Đơn chặn ngầm: dòng lịch sử mang GHI_CHU_KHONG_TINH_TAI_PHAM là dấu để
+       xetKhoaTaiPham KHÔNG đếm đơn này về sau. Ghi TRƯỚC và KHÔNG nuốt lỗi —
+       khác lệ ở dưới, vì đánh rác mà thiếu dấu là đơn chặn ngầm thành "quyết
+       định cán bộ", đẩy máy lên khoá 30 ngày. Không ghi được thì không đánh rác. */
+    if (xet.khongTinhTaiPham) {
+      await pool.query(
+        'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
+        [req.params.id, 'pending_review', 'spam', GHI_CHU_KHONG_TINH_TAI_PHAM, req.staff.id]
+      );
+    }
 
     // "Tin rác" -> đưa vào THÙNG RÁC (xoá mềm), giữ 7 ngày để còn khôi phục được.
     // "Duyệt"    -> chuyển sang danh sách xử lý bình thường.
@@ -562,7 +584,8 @@ router.post('/:id/review', async (req, res) => {
        hình kiểm duyệt.
        ====================================================================== */
     try {
-      await pool.query(
+      /* Đơn chặn ngầm đã có dòng lịch sử ghi ở trên — không ghi hai lần */
+      if (!xet.khongTinhTaiPham) await pool.query(
         'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
         [req.params.id, 'pending_review', newStatus,
          action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
@@ -594,23 +617,26 @@ router.post('/:id/review', async (req, res) => {
        ====================================================================== */
     let soDonDaDon = 0;
     let taiPham = false;
-    if (action === 'spam' && rows[0].device_id) {
+    if (gayKhoa) {
+      /* Khoá, dọn và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015) */
+      const anDanh = laDonAnDanh(rows[0].is_anonymous);
       soDonDaDon = await donDonCungThietBi(pool, {
         deviceId: rows[0].device_id,
         boQuaId: req.params.id,
         staffId: req.staff.id,
         lyDo: 'Dọn theo lô cùng thiết bị với một tin bị đánh dấu rác ở hàng chờ',
-        /* is_anonymous cho phép NULL: không rõ thì coi là ẩn danh */
-        anDanh: rows[0].is_anonymous == null || Number(rows[0].is_anonymous) !== 0,
+        anDanh,
       });
       await khoaThietBi(pool, {
         deviceId: rows[0].device_id,
         staffId: req.staff.id,
         lyDo: 'Tin rác — đánh dấu tại hàng chờ kiểm duyệt',
+        anDanh,
       });
       const kq = await xetKhoaTaiPham(pool, {
         deviceId: rows[0].device_id,
         staffId: req.staff.id,
+        anDanh,
       });
       taiPham = kq.taiPham;
     }
@@ -661,13 +687,32 @@ router.post('/:id/mark-spam', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT status, is_anonymous, device_id, ip_address FROM submissions WHERE id = ? AND deleted_at IS NULL',
+      'SELECT id, status, is_anonymous, device_id, ip_address, is_spam, reviewed_by FROM submissions WHERE id = ? AND deleted_at IS NULL',
       [id]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Không tìm thấy hồ sơ, hoặc hồ sơ đã ở trong thùng rác.' });
     }
     const don = rows[0];
+    /* Khoá, dọn và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015) */
+    const anDanh = laDonAnDanh(don.is_anonymous);
+
+    /* ĐƠN NÀY CÓ ĐƯỢC GÂY KHOÁ KHÔNG (BUG-015) — hỏi TRƯỚC khi ghi lịch sử lần
+       này. Đọc từ dữ liệu của đơn, không từ status; xem xetDonGayKhoa. */
+    const { gayKhoa, khongTinhTaiPham } = await xetDonGayKhoa(pool, don);
+
+    /* Đơn chặn ngầm: dòng lịch sử mang GHI_CHU_KHONG_TINH_TAI_PHAM là dấu để
+       xetKhoaTaiPham KHÔNG đếm đơn này về sau (lý do cán bộ gõ vẫn lưu ở
+       rejection_reason). Ghi TRƯỚC và KHÔNG nuốt lỗi: không ghi được dấu thì
+       không đánh rác — đánh rác mà thiếu dấu là đơn chặn ngầm thành "quyết định
+       cán bộ", đẩy máy lên khoá 30 ngày. */
+    const ghiLichSu = () => pool.query(
+      `INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by)
+       VALUES (?, ?, 'spam', ?, ?)`,
+      [id, don.status, khongTinhTaiPham ? GHI_CHU_KHONG_TINH_TAI_PHAM : (lyDo || 'Đánh dấu tin rác'),
+       req.staff?.id || null]
+    );
+    if (khongTinhTaiPham) await ghiLichSu();
 
     await pool.query(
       `UPDATE submissions
@@ -678,11 +723,7 @@ router.post('/:id/mark-spam', async (req, res) => {
       [req.staff?.id || null, lyDo || 'Cán bộ đánh dấu tin rác', id]
     );
 
-    await pool.query(
-      `INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by)
-       VALUES (?, ?, 'spam', ?, ?)`,
-      [id, don.status, lyDo || 'Đánh dấu tin rác', req.staff?.id || null]
-    ).catch(() => {});
+    if (!khongTinhTaiPham) await ghiLichSu().catch(() => {});
 
     /* Khoá thiết bị. Bọc riêng vì lỗi ở đây không được làm hỏng việc đánh dấu
        đã thành công — thà không khoá được còn hơn để hồ sơ nửa vời. */
@@ -690,7 +731,9 @@ router.post('/:id/mark-spam', async (req, res) => {
     let kieuKhoa = '';
     let soDonDaDon = 0;
     let taiPham = false;
-    if (don.device_id) {
+    if (!gayKhoa) {
+      /* Đơn vẫn vào thùng rác như trên; chỉ không khoá, không dọn, không đếm */
+    } else if (don.device_id) {
       /* Dọn cả loạt đơn cùng thiết bị trong 24 giờ trước — kẻ rải tin rác
          hiếm khi gửi đúng một đơn. Chỉ đưa vào thùng rác (giữ 7 ngày) và
          không đụng đơn cán bộ đã xử lý; xem chú thích trong chan-spam.js. */
@@ -702,13 +745,14 @@ router.post('/:id/mark-spam', async (req, res) => {
         boQuaId: id,
         staffId: req.staff?.id || null,
         lyDo: 'Dọn theo lô cùng thiết bị với một hồ sơ bị đánh dấu tin rác',
-        anDanh: don.is_anonymous == null || Number(don.is_anonymous) !== 0,
+        anDanh,
       });
 
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
         lyDo: `Tin rác${lyDo ? ': ' + lyDo : ''}`,
+        anDanh,
       });
       if (daKhoa) kieuKhoa = 'thiết bị';
 
@@ -717,6 +761,7 @@ router.post('/:id/mark-spam', async (req, res) => {
       const kqTaiPham = await xetKhoaTaiPham(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
+        anDanh,
       });
       taiPham = kqTaiPham.taiPham;
       if (taiPham) { daKhoa = true; kieuKhoa = 'thiết bị'; }
@@ -729,6 +774,7 @@ router.post('/:id/mark-spam', async (req, res) => {
         ip: don.ip_address,
         staffId: req.staff?.id || null,
         lyDo: `Tin rác${lyDo ? ': ' + lyDo : ''}`,
+        anDanh,
       });
       if (daKhoa) kieuKhoa = 'địa chỉ mạng';
     }
@@ -751,7 +797,10 @@ router.post('/:id/mark-spam', async (req, res) => {
          việc: cán bộ bấm một nút, năm hồ sơ biến mất khỏi hàng chờ, không ai
          hiểu vì sao. Nói ra thì cán bộ còn biết đường vào Thùng rác kiểm lại
          nếu thấy con số lạ. */
-      ghiChu: (!daKhoa
+      ghiChu: (!gayKhoa
+        ? 'Đã đánh dấu tin rác. Không khoá thêm: hồ sơ này đã bị chặn từ lúc nhận, '
+          + 'hoặc đã từng bị đánh dấu tin rác trước đây — mỗi hồ sơ chỉ gây khoá một lần.'
+        : !daKhoa
         ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị lẫn địa chỉ mạng nên không khoá được.'
         : kieuKhoa === 'thiết bị'
           ? (taiPham

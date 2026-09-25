@@ -16,6 +16,14 @@
  * ⚠️ KHÔNG cần đăng nhập (người bị khoá thì làm gì có tài khoản).
  * ⚠️ GIỚI HẠN 2 LẦN mỗi thiết bị/địa chỉ, nếu không chính kẻ phá lại dùng
  *    khiếu nại để quấy cán bộ.
+ *
+ * ⚠️ CHỈ KHIẾU NẠI ĐƯỢC KHOÁ LOẠI CÓ TÊN (BUG-015, SEC-DEC-005).
+ * Khoá tách theo loại đơn. Khiếu nại thường ký tên và số điện thoại; một khiếu
+ * nại có tên về khoá LOẠI ẨN DANH là tự nói với cán bộ "tôi là người đã gửi các
+ * đơn ẩn danh kia". Nên khoá loại ẩn danh không có đường khiếu nại (nó tự hết
+ * hạn; việc gấp gọi 113), và ở đây không đọc tới nó — kể cả để trả lời "máy có
+ * bị khoá không": trả lời có là giao diện hiện ô khiếu nại, và mỗi khiếu nại
+ * lại ngầm nói máy này đang bị khoá loại ẩn danh.
  */
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -48,11 +56,13 @@ router.get('/trang-thai', gioiHan, async (req, res) => {
   const ip = layIpThat(req);
 
   try {
-    /* Đang bị khoá vì cái gì? Có thể bị khoá thiết bị, khoá địa chỉ, hoặc cả hai. */
+    /* Đang bị khoá vì cái gì? Có thể bị khoá thiết bị, khoá địa chỉ, hoặc cả hai.
+       CHỈ KHOÁ LOẠI CÓ TÊN — xem chú thích ở đầu tệp. */
     const [khoa] = await pool.query(
       `SELECT kind, identifier, reason, expires_at FROM blacklists
         WHERE expires_at > NOW()
           AND kind IN ('device','ip')
+          AND loai_don = 'co_ten'
           AND ((kind = 'device' AND identifier = ?) OR (kind = 'ip' AND identifier = ?))`,
       [deviceId || null, ip]
     );
@@ -108,10 +118,12 @@ router.post('/', gioiHan, async (req, res) => {
   }
 
   try {
+    /* CHỈ KHOÁ LOẠI CÓ TÊN — xem chú thích ở đầu tệp */
     const [khoa] = await pool.query(
       `SELECT kind, identifier FROM blacklists
         WHERE expires_at > NOW()
           AND kind IN ('device','ip')
+          AND loai_don = 'co_ten'
           AND ((kind = 'device' AND identifier = ?) OR (kind = 'ip' AND identifier = ?))`,
       [deviceId || null, ip]
     );

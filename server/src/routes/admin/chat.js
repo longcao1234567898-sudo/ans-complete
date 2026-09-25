@@ -250,9 +250,14 @@ router.get('/khieu-nai', async (req, res) => {
       `SELECT a.id, a.identifier, a.kind, a.content, a.status,
               a.created_at, a.handled_at, a.handler_note,
               s.full_name AS handled_by_name,
-              /* Còn đang bị khoá thật không — khoá có thể đã tự hết hạn */
+              /* Còn đang bị khoá thật không — khoá có thể đã tự hết hạn.
+                 CHỈ KHOÁ LOẠI CÓ TÊN (BUG-015): khiếu nại chỉ gắn với loại đó
+                 (xem routes/khieu-nai.js). Đếm cả loại ẩn danh thì cờ này còn
+                 bật sau khi khoá có tên đã gỡ — tức là nói người ký tên này
+                 đang bị khoá kênh ẩn danh. */
               (SELECT COUNT(*) FROM blacklists b
                 WHERE b.kind = a.kind AND b.identifier = a.identifier
+                  AND b.loai_don = 'co_ten'
                   AND b.expires_at > NOW()) AS con_bi_khoa
          FROM unlock_appeals a
          LEFT JOIN staff s ON s.id = a.handled_by
@@ -332,9 +337,12 @@ router.post('/khieu-nai/:id/xu-ly', authorize('admin', 'manager'), async (req, r
     if (quyetDinh === 'go_khoa') {
       /* Gỡ khoá THẬT khỏi danh sách chặn — không chỉ đổi trạng thái khiếu nại,
          vì đổi trạng thái mà không gỡ thì bà con vẫn không gửi được tin, còn
-         cán bộ tưởng đã xong. */
+         cán bộ tưởng đã xong.
+         CHỈ GỠ KHOÁ LOẠI CÓ TÊN (BUG-015). Gỡ cả loại ẩn danh thì dòng khoá ẩn
+         danh biến khỏi danh sách khoá đúng lúc xử lý một khiếu nại ký tên — cán
+         bộ nhìn hai màn hình là nối được. Khoá ẩn danh tự hết hạn. */
       await pool.query(
-        `DELETE FROM blacklists WHERE kind = ? AND identifier = ?`,
+        `DELETE FROM blacklists WHERE kind = ? AND identifier = ? AND loai_don = 'co_ten'`,
         [don.kind, don.identifier]
       );
     }

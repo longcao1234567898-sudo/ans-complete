@@ -59,7 +59,7 @@ function sangSqlite(sql) {
     (_m, huong, n, dv) => `datetime('now', '${huong.toUpperCase() === 'ADD' ? '+' : '-'}' || ${n} || ' ${dv.toLowerCase()}s')`);
   const i = s.search(/ON DUPLICATE KEY UPDATE/i);
   if (i > -1) {
-    s = s.slice(0, i) + 'ON CONFLICT(identifier, kind) DO UPDATE SET'
+    s = s.slice(0, i) + 'ON CONFLICT(identifier, kind, loai_don) DO UPDATE SET'
       + s.slice(i + 'ON DUPLICATE KEY UPDATE'.length).replace(/VALUES\((\w+)\)/g, 'excluded.$1');
   }
   return s;
@@ -89,8 +89,10 @@ function dungCsdl() {
     `CREATE TABLE submission_images (submission_id INT, image_url TEXT, mime_type TEXT, moderation_status TEXT)`,
     `CREATE TABLE status_history (submission_id INT, old_status TEXT, new_status TEXT, note TEXT, changed_at TEXT, changed_by INT)`,
     `CREATE TABLE staff_activity_logs (staff_id INT, action TEXT, target_type TEXT, target_id TEXT, details TEXT, ip_address TEXT)`,
-    `CREATE TABLE blacklists (id INTEGER PRIMARY KEY, identifier TEXT, kind TEXT, reason TEXT, created_by INT,
-       created_at TEXT DEFAULT CURRENT_TIMESTAMP, expires_at TEXT, UNIQUE (identifier, kind))`,
+    /* Lược đồ SAU database/nang_cap_v19.sql (khoá tách theo loại đơn, BUG-015) */
+    `CREATE TABLE blacklists (id INTEGER PRIMARY KEY, identifier TEXT, kind TEXT,
+       loai_don TEXT NOT NULL DEFAULT 'khong_ro', reason TEXT, created_by INT,
+       created_at TEXT DEFAULT CURRENT_TIMESTAMP, expires_at TEXT, UNIQUE (identifier, kind, loai_don))`,
     /* Bản SQLite của view trong database/nang_cap_v12.sql — cùng cột, cùng điều kiện */
     `CREATE VIEW vw_blacklist_active AS
        SELECT b.id, b.identifier, b.kind, b.reason, b.created_at, b.expires_at,
@@ -231,6 +233,8 @@ function poolGhiLai(hang) {
     if (/SELECT is_active FROM staff/i.test(sql)) return [[{ is_active: 1 }]];
     if (/FROM submissions WHERE id = \?/i.test(sql)) return [[hang]];
     if (/FROM blacklists/i.test(sql)) return [[]];
+    /* donDuocGayKhoa (BUG-015): đơn chưa từng bị cán bộ đánh rác */
+    if (/FROM status_history/i.test(sql)) return [[]];
     if (/SELECT status\s+FROM submissions/i.test(sql)) return [[]];
     return [{ affectedRows: 1 }];
   };
@@ -395,7 +399,9 @@ for (const [ten, cb] of [['handler', HANDLER], ['admin', ADMIN]]) {
 
 test('N1 khiếu nại vẫn xử lý được theo id sau khi bỏ mã máy khỏi response (gỡ khoá thật)', { skip: BO_QUA }, async () => {
   mayGuiHonHop();
-  await goi(HANDLER, 'POST', '/submissions/21/mark-spam', {});
+  /* Đơn CÓ TÊN gây khoá: từ BUG-015 khiếu nại chỉ gắn với khoá loại có tên —
+     khiếu nại ký tên về khoá loại ẩn danh là tự khai danh tính (khieu-nai.js). */
+  await goi(HANDLER, 'POST', '/submissions/20/mark-spam', {});
   themKhieuNai(1);
   const ds = await goi(ADMIN, 'GET', '/chat/khieu-nai');
   assert.equal(ds.body[0].con_bi_khoa, true);

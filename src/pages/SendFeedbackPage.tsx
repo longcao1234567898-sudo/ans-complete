@@ -20,6 +20,7 @@ import AIAnalysis from '../components/FeedbackForm/AIAnalysis';
 import CategorySelect from '../components/FeedbackForm/CategorySelect';
 import ContactInfo from '../components/FeedbackForm/ContactInfo';
 import ManHinhBiKhoa from '../components/FeedbackForm/ManHinhBiKhoa';
+import KhieuNaiMoKhoa from '../components/FeedbackForm/KhieuNaiMoKhoa';
 import Confirmation from '../components/FeedbackForm/Confirmation';
 import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -306,6 +307,12 @@ export default function SendFeedbackPage() {
         <ManHinhBiKhoa conLaiPhut={biKhoa.conLaiPhut ?? 60} />
       ) : (
       <>
+        {/* KHIẾU NẠI MỞ KHOÁ — đặt trên biểu mẫu (BUG-015). Máy chủ không còn
+            báo khoá qua /kiem-tra-khoa (xem routes/submissions.js), nên màn hình
+            khoá ở trên không còn hiện và đây là lối khiếu nại duy nhất. Component
+            tự ẩn khi máy không bị khoá loại có tên — khoá loại ẩn danh không có
+            đường khiếu nại, xem routes/khieu-nai.js. */}
+        {!submission && <KhieuNaiMoKhoa />}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={step}

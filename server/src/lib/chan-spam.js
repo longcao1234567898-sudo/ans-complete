@@ -31,9 +31,43 @@
  *   · Cán bộ gỡ khoá được bất cứ lúc nào
  * Không lưu đơn thì mất luôn tin báo thật của người bị oan — hại hơn nhiều so
  * với việc để lọt vài đơn rác.
+ *
+ * ---------------------------------------------------------------------------
+ * KHOÁ TÁCH THEO LOẠI ĐƠN: ẨN DANH / CÓ TÊN (BUG-015, SEC-DEC-005)
+ *
+ * Khoá do đơn loại nào gây ra thì CHỈ chặn đơn loại đó. Trước đây một khoá
+ * chặn mọi loại, và đó là đường lộ người tố giác: cán bộ đánh rác một đơn có
+ * tên của ông P là khoá máy của P; tố giác ẩn danh P gửi sau đó bị chặn ngầm,
+ * nằm trong danh sách nghi rác, tạo sau giờ khoá. Ít máy bị khoá thì đơn đó
+ * gần như chắc chắn là của P. Chiều ngược lại cũng vậy.
+ *
+ * Đánh đổi đã chấp nhận: kẻ phá hoại gửi cả hai loại thì cán bộ phải bấm "Tin
+ * rác" thêm một lần mới khoá được loại còn lại. Các lớp khác không đổi.
+ *
+ * Không nói rõ loại đơn thì KHÔNG KHOÁ và KHÔNG CHẶN — đoán sai loại là mở lại
+ * đúng đường lộ ở trên. Dòng khoá cũ (trước nang_cap_v19.sql) mang 'khong_ro'
+ * nên không chặn gì.
  */
 
 import { layIpThat } from './helpers.js';
+
+/**
+ * Giá trị cột blacklists.loai_don cho một đơn. Không phải boolean thì trả null
+ * — bên gọi phải coi null là "không khoá, không chặn".
+ */
+function loaiDon(anDanh) {
+  if (typeof anDanh !== 'boolean') return null;
+  return anDanh ? 'an_danh' : 'co_ten';
+}
+
+/**
+ * Đơn có tính là ẩn danh không, từ giá trị cột submissions.is_anonymous.
+ * Cột cho phép NULL: không rõ thì coi là ẩn danh — cùng quy ước với dọn theo lô,
+ * để một đơn không rõ loại không bao giờ gây khoá lên kênh có tên.
+ */
+export function laDonAnDanh(isAnonymous) {
+  return isAnonymous == null || Number(isAnonymous) !== 0;
+}
 
 /* Thời hạn khoá — cố ý ngắn, xem phần đánh đổi ở trên */
 const KHOA_THIET_BI_GIO = 24;
@@ -58,12 +92,19 @@ export function layMaThietBi(req) {
 }
 
 /**
- * Kiểm tra thiết bị hoặc IP có đang bị khoá không.
+ * Kiểm tra thiết bị hoặc IP có đang bị khoá cho ĐÚNG LOẠI ĐƠN sắp gửi không.
  *
+ * @param {boolean} anDanh đơn sắp gửi có ẩn danh không — BẮT BUỘC, xem phần
+ *   "khoá tách theo loại đơn" ở đầu tệp.
  * @returns {Promise<{biKhoa: boolean, ly_do: string}>}
  */
-export async function kiemTraBiKhoa(pool, { deviceId, ip }) {
+export async function kiemTraBiKhoa(pool, { deviceId, ip, anDanh }) {
   if (!deviceId && !ip) return { biKhoa: false, ly_do: '' };
+  const loai = loaiDon(anDanh);
+  if (!loai) {
+    console.error('[chặn spam] kiểm khoá bị gọi thiếu cờ anDanh — không chặn');
+    return { biKhoa: false, ly_do: '' };
+  }
 
   try {
     /* THIẾT BỊ TIN CẬY được miễn trừ trước mọi thứ.
@@ -93,10 +134,11 @@ export async function kiemTraBiKhoa(pool, { deviceId, ip }) {
     const [rows] = await pool.query(
       `SELECT kind, reason FROM blacklists
         WHERE expires_at > NOW()
+          AND loai_don = ?
           AND (   (kind = 'device' AND identifier = ?)
                OR (kind = 'ip'     AND identifier = ?) )
         LIMIT 1`,
-      [deviceId || null, ip || null]
+      [loai, deviceId || null, ip || null]
     );
     if (rows.length === 0) return { biKhoa: false, ly_do: '' };
     return { biKhoa: true, ly_do: `${rows[0].kind}: ${rows[0].reason || 'không ghi lý do'}` };
@@ -130,10 +172,18 @@ export async function laThietBiTinCay(pool, deviceId) {
  * Khoá một thiết bị. Gọi khi cán bộ đánh dấu đơn là tin giả.
  *
  * Dùng ON DUPLICATE KEY để gia hạn nếu đã khoá trước đó — kẻ phá hoại bị bắt
- * lần hai thì đồng hồ tính lại từ đầu.
+ * lần hai thì đồng hồ tính lại từ đầu. "Bắt lần hai" phải là một ĐƠN KHÁC: bên
+ * gọi kiểm bằng xetDonGayKhoa, xem ở đó.
+ *
+ * @param {boolean} anDanh đơn gây khoá có ẩn danh không — BẮT BUỘC.
  */
-export async function khoaThietBi(pool, { deviceId, staffId, lyDo }) {
+export async function khoaThietBi(pool, { deviceId, staffId, lyDo, anDanh }) {
   if (!deviceId) return false;
+  const loai = loaiDon(anDanh);
+  if (!loai) {
+    console.error('[chặn spam] khoá thiết bị bị gọi thiếu cờ anDanh — không khoá');
+    return false;
+  }
   /* Thiết bị tin cậy (kiosk, máy dùng chung) KHÔNG bao giờ bị khoá tự động.
      Xem chú thích trong kiemTraBiKhoa. */
   if (await laThietBiTinCay(pool, deviceId)) {
@@ -142,13 +192,13 @@ export async function khoaThietBi(pool, { deviceId, staffId, lyDo }) {
   }
   try {
     await pool.query(
-      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
-       VALUES (?, 'device', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+      `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+       VALUES (?, 'device', ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
        ON DUPLICATE KEY UPDATE
          reason     = VALUES(reason),
          created_by = VALUES(created_by),
          expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [deviceId, lyDo || 'Cán bộ đánh dấu tin giả', staffId || null,
+      [deviceId, loai, lyDo || 'Cán bộ đánh dấu tin giả', staffId || null,
        KHOA_THIET_BI_GIO, KHOA_THIET_BI_GIO]
     );
     console.warn(`[chặn spam] khoá thiết bị ${deviceId.slice(0, 8)}… trong ${KHOA_THIET_BI_GIO} giờ`);
@@ -157,6 +207,66 @@ export async function khoaThietBi(pool, { deviceId, staffId, lyDo }) {
     console.error('[chặn spam] khoá thiết bị lỗi:', err.message);
     return false;
   }
+}
+
+/**
+ * Ghi chú CỐ ĐỊNH của dòng status_history đánh dấu "cán bộ đánh rác một đơn bị
+ * chặn ngầm lúc nhận". xetKhoaTaiPham đọc đúng chuỗi này để KHÔNG đếm đơn đó.
+ * Viết một nơi, đọc một nơi — đổi chữ thì cả hai đổi theo.
+ */
+export const GHI_CHU_KHONG_TINH_TAI_PHAM =
+  'Đánh dấu tin rác — đơn bị chặn ngầm lúc nhận, không tính tái phạm';
+
+/**
+ * Lần đánh rác này có được kéo theo hậu quả theo thiết bị (dọn theo lô, khoá,
+ * xét tái phạm) không. Đơn vẫn bị đánh rác và vào thùng rác như thường; chỉ
+ * phần hậu quả lên MÁY là bị bỏ. Một đơn chỉ gây khoá MỘT lần (BUG-015).
+ *
+ * KHÔNG gây khoá nếu một trong các điều sau đúng — mỗi điều đọc từ DỮ LIỆU CỦA
+ * CHÍNH ĐƠN, không từ trạng thái hiện tại (status bị ghi đè được: đơn chặn ngầm
+ * có ảnh nghi ngờ bị đổi sang 'pending_review' lúc nhận):
+ *
+ *   · is_spam = 1. Cờ này bật khi đơn bị CHẶN NGẦM lúc nhận, hoặc khi đơn đã bị
+ *     mark-spam / dọn theo lô. Khôi phục khỏi thùng rác KHÔNG gỡ nó. Chặn ngầm:
+ *     máy đã bị khoá lúc đơn tới, đơn không nói thêm gì về máy — cho nó gây
+ *     khoá là gia hạn khoá mãi được và đẩy lên 30 ngày. Đã bị đánh rác: khôi
+ *     phục rồi đánh rác lại là làm mới khoá 24 giờ, lặp mỗi ngày là dập kênh
+ *     của một người vô thời hạn chỉ bằng một đơn.
+ *   · Đơn đang chờ duyệt mà đã có reviewed_by: đã qua kiểm duyệt, bị đưa vào
+ *     thùng rác, rồi được khôi phục về hàng chờ. Đường /review không bật
+ *     is_spam nên cần dấu này.
+ *   · Có dòng status_history 'spam' do cán bộ ghi — lớp thứ ba, cho đường nào
+ *     sau này đưa đơn về mà không để lại hai dấu trên.
+ *
+ * khongTinhTaiPham: đơn bị chặn ngầm lúc nhận (is_spam = 1 mà chưa từng có
+ * quyết định rác của cán bộ). Route PHẢI ghi dòng lịch sử với
+ * GHI_CHU_KHONG_TINH_TAI_PHAM trước khi đánh rác, để xetKhoaTaiPham loại nó ra.
+ *
+ * Phải gọi TRƯỚC khi route ghi dòng status_history của lần đánh rác hiện tại.
+ * Lỗi truy vấn -> không khoá: khoá thiếu một lần nhẹ hơn khoá oan vô hạn.
+ *
+ * @param {{id, is_spam, status, reviewed_by}} don hàng đơn đọc TRƯỚC khi đánh rác
+ */
+export async function xetDonGayKhoa(pool, don) {
+  const daChan = Number(don.is_spam) === 1;
+  const daQuaKiemDuyet = don.status === 'pending_review' && don.reviewed_by != null;
+  let daTungDanhRac;
+  try {
+    const [rows] = await pool.query(
+      `SELECT 1 FROM status_history
+        WHERE submission_id = ? AND new_status = 'spam' AND changed_by IS NOT NULL
+        LIMIT 1`,
+      [don.id]
+    );
+    daTungDanhRac = rows.length > 0;
+  } catch (err) {
+    console.error('[chặn spam] không đọc được lịch sử đơn — không khoá:', err.message);
+    return { gayKhoa: false, khongTinhTaiPham: daChan };
+  }
+  return {
+    gayKhoa: !daChan && !daQuaKiemDuyet && !daTungDanhRac,
+    khongTinhTaiPham: daChan && !daTungDanhRac,
+  };
 }
 
 /* ============================================================================
@@ -188,11 +298,20 @@ const KHOA_TAI_PHAM_GIO = 30 * 24;
  * Xét xem thiết bị có tái phạm không; nếu có thì khoá dài hạn.
  *
  * Trả về { taiPham, soLan } để route báo lại cho cán bộ biết.
+ *
+ * @param {boolean} anDanh loại của đơn vừa bị đánh rác — BẮT BUỘC. Chỉ đếm và
+ *   chỉ khoá trong đúng loại đó: hai đơn ẩn danh rác cộng một đơn có tên rác
+ *   không phải "ba lần" của loại nào.
  */
-export async function xetKhoaTaiPham(pool, { deviceId, staffId }) {
+export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
   if (!deviceId) return { taiPham: false, soLan: 0 };
   /* Thiết bị tin cậy không bao giờ bị khoá, kể cả tái phạm. */
   if (await laThietBiTinCay(pool, deviceId)) return { taiPham: false, soLan: 0 };
+  const loai = loaiDon(anDanh);
+  if (!loai) {
+    console.error('[chặn spam] xét tái phạm bị gọi thiếu cờ anDanh — không khoá');
+    return { taiPham: false, soLan: 0 };
+  }
   try {
     /* Lấy BA quyết định gần nhất của cán bộ với thiết bị này.
 
@@ -203,19 +322,28 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId }) {
        ⚠️ Không đếm đơn bị chặn ngầm (is_spam = 1 do máy tự gắn khi thiết bị
        đang bị khoá). Đó là máy tự gắn chứ không phải cán bộ xem rồi kết luận;
        gộp vào thì một lần khoá 24 giờ tự đẻ ra chuỗi ba lần, khoá tiếp một
-       tháng — thiết bị bị khoá oan leo thang mà không ai bấm nút nào cả. */
+       tháng — thiết bị bị khoá oan leo thang mà không ai bấm nút nào cả.
+       Cán bộ đánh rác TAY một đơn chặn ngầm thì deleted_by có giá trị, nhưng
+       đơn vẫn không được đếm (BUG-015): route ghi status_history với ghi chú
+       GHI_CHU_KHONG_TINH_TAI_PHAM cho đúng trường hợp này (xem xetDonGayKhoa),
+       và câu dưới loại nó ra. */
     const [rows] = await pool.query(
       `SELECT status
          FROM submissions
         WHERE device_id = ?
           AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+          /* Chỉ đơn cùng loại. is_anonymous NULL coi là ẩn danh (laDonAnDanh). */
+          AND (COALESCE(is_anonymous, 1) <> 0) = ?
           AND (
-                (status = 'spam' AND deleted_by IS NOT NULL)
+                (status = 'spam' AND deleted_by IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM status_history h
+                                   WHERE h.submission_id = submissions.id
+                                     AND h.new_status = 'spam' AND h.note = ?))
              OR  status IN ('received','processing','resolved','rejected')
               )
         ORDER BY COALESCE(reviewed_at, updated_at, created_at) DESC
         LIMIT ?`,
-      [deviceId, CUA_SO_TAI_PHAM_NGAY, NGUONG_TAI_PHAM]
+      [deviceId, CUA_SO_TAI_PHAM_NGAY, anDanh ? 1 : 0, GHI_CHU_KHONG_TINH_TAI_PHAM, NGUONG_TAI_PHAM]
     );
 
     const đủSốLần = rows.length >= NGUONG_TAI_PHAM;
@@ -225,13 +353,13 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId }) {
     }
 
     await pool.query(
-      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
-       VALUES (?, 'device', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+      `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+       VALUES (?, 'device', ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
        ON DUPLICATE KEY UPDATE
          reason     = VALUES(reason),
          created_by = VALUES(created_by),
          expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [deviceId,
+      [deviceId, loai,
        `Tái phạm: ${NGUONG_TAI_PHAM} lần tin rác liên tiếp trong ${CUA_SO_TAI_PHAM_NGAY} ngày`,
        staffId || null, KHOA_TAI_PHAM_GIO, KHOA_TAI_PHAM_GIO]
     );
@@ -300,6 +428,10 @@ export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo
           /* CHỈ đơn chưa ai đụng tới — xem phần chú thích ở trên */
           AND status IN ('pending_review','received')
           AND assigned_to IS NULL
+          /* KHÔNG cuốn đơn bị chặn ngầm (BUG-015). Đơn chặn ngầm có ảnh nghi ngờ
+             mang 'pending_review'; cuốn vào là nó thành "cán bộ đánh rác"
+             (deleted_by có giá trị) và được đếm tái phạm, đẩy máy lên 30 ngày. */
+          AND COALESCE(is_spam, 0) = 0
           /* CHỈ đơn cùng loại. is_anonymous cho phép NULL: không rõ thì coi là
              ẩn danh, để không bao giờ bị cuốn theo một đơn có tên. */
           AND (COALESCE(is_anonymous, 1) <> 0) = ?`,
@@ -329,18 +461,27 @@ export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo
  * Dùng khi nào: hồ sơ gửi TRƯỚC khi hệ thống có tính năng mã thiết bị, hoặc
  * người gửi tắt localStorage. Không có đường lui này thì cán bộ bấm "Tin rác"
  * mà chẳng chặn được gì — kẻ phá hoại gửi tiếp ngay.
+ *
+ * @param {boolean} anDanh đơn gây khoá có ẩn danh không — BẮT BUỘC. Khoá IP
+ *   chặn cả vùng thuê bao; chặn chéo loại thì tố giác ẩn danh của cả vùng đó
+ *   rơi vào nghi rác chỉ vì một đơn có tên.
  */
-export async function khoaIpThuCong(pool, { ip, staffId, lyDo }) {
+export async function khoaIpThuCong(pool, { ip, staffId, lyDo, anDanh }) {
   if (!ip) return false;
+  const loai = loaiDon(anDanh);
+  if (!loai) {
+    console.error('[chặn spam] khoá IP bị gọi thiếu cờ anDanh — không khoá');
+    return false;
+  }
   try {
     await pool.query(
-      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
-       VALUES (?, 'ip', ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+      `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+       VALUES (?, 'ip', ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
        ON DUPLICATE KEY UPDATE
          reason     = VALUES(reason),
          created_by = VALUES(created_by),
          expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [ip, (lyDo || 'Cán bộ đánh dấu tin rác') + ' (hồ sơ không có mã thiết bị)',
+      [ip, loai, (lyDo || 'Cán bộ đánh dấu tin rác') + ' (hồ sơ không có mã thiết bị)',
        staffId || null, KHOA_IP_GIO, KHOA_IP_GIO]
     );
     console.warn(`[chặn spam] khoá IP ${ip} trong ${KHOA_IP_GIO} giờ — hồ sơ không có mã thiết bị`);
@@ -370,9 +511,17 @@ export async function goKhoa(pool, id) {
  *
  * Ngưỡng đặt cao (3 đơn rác từ 3 thiết bị khác nhau trong 1 giờ) và thời hạn
  * khoá ngắn (2 giờ) để hạn chế tối đa việc chặn oan cả vùng thuê bao.
+ *
+ * @param {boolean} anDanh loại của đơn vừa bị chặn — BẮT BUỘC. Chỉ đếm và chỉ
+ *   khoá trong đúng loại đó.
  */
-export async function xetKhoaIp(pool, ip) {
+export async function xetKhoaIp(pool, ip, { anDanh } = {}) {
   if (!ip) return false;
+  const loai = loaiDon(anDanh);
+  if (!loai) {
+    console.error('[chặn spam] xét khoá IP bị gọi thiếu cờ anDanh — không khoá');
+    return false;
+  }
   try {
     const [rows] = await pool.query(
       `SELECT COUNT(*) AS so_don, COUNT(DISTINCT device_id) AS so_thiet_bi
@@ -380,8 +529,9 @@ export async function xetKhoaIp(pool, ip) {
         WHERE ip_address = ?
           AND is_spam = 1
           AND device_id IS NOT NULL
+          AND (COALESCE(is_anonymous, 1) <> 0) = ?
           AND created_at > DATE_SUB(NOW(), INTERVAL ? HOUR)`,
-      [ip, CUA_SO_XET_GIO]
+      [ip, anDanh ? 1 : 0, CUA_SO_XET_GIO]
     );
     const { so_don: soDon, so_thiet_bi: soThietBi } = rows[0] || {};
     if (Number(soDon) < NGUONG_SO_DON_RAC || Number(soThietBi) < NGUONG_SO_THIET_BI) {
@@ -389,10 +539,10 @@ export async function xetKhoaIp(pool, ip) {
     }
 
     await pool.query(
-      `INSERT INTO blacklists (identifier, kind, reason, created_by, expires_at)
-       VALUES (?, 'ip', ?, NULL, DATE_ADD(NOW(), INTERVAL ? HOUR))
+      `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+       VALUES (?, 'ip', ?, ?, NULL, DATE_ADD(NOW(), INTERVAL ? HOUR))
        ON DUPLICATE KEY UPDATE expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [ip, `Tự động: ${soDon} đơn rác từ ${soThietBi} thiết bị trong ${CUA_SO_XET_GIO} giờ`,
+      [ip, loai, `Tự động: ${soDon} đơn rác từ ${soThietBi} thiết bị trong ${CUA_SO_XET_GIO} giờ`,
        KHOA_IP_GIO, KHOA_IP_GIO]
     );
     console.warn(`[chặn spam] khoá IP ${ip} trong ${KHOA_IP_GIO} giờ — ${soDon} đơn rác / ${soThietBi} thiết bị`);
@@ -412,7 +562,10 @@ export async function xetKhoaIp(pool, ip) {
 export async function xetTruocKhiNhan(pool, req) {
   const deviceId = layMaThietBi(req);
   const ip = layIpThat(req);
-  const { biKhoa, ly_do } = await kiemTraBiKhoa(pool, { deviceId, ip });
+  /* Cùng một biểu thức với routes/submissions.js (isAnonymous) — hai nơi đọc
+     từ cùng một trường thì không thể lệch nhau về loại đơn. */
+  const anDanh = req?.body?.isAnonymous === true;
+  const { biKhoa, ly_do } = await kiemTraBiKhoa(pool, { deviceId, ip, anDanh });
 
   if (biKhoa) {
     console.warn(`[chặn spam] chặn ngầm một đơn — ${ly_do}`);
