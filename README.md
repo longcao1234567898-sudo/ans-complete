@@ -66,6 +66,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v10.sql           #    M
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v11.sql           # 3. Gộp sự kiện trùng lặp (nhiều người báo 1 vụ)
 # nang_cap_v12.sql … nang_cap_v18.sql: chạy lần lượt theo số (chưa liệt kê từng tệp ở đây — ND-006)
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v19.sql           #    Khoá chống spam tách theo loại đơn — chạy TRƯỚC khi cập nhật mã máy chủ
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v20.sql           #    Dọn dấu vết dọn theo lô và mã hồ sơ trong lý do cũ — sao lưu trước, không đảo ngược được
 ```
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 
