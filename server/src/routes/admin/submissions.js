@@ -385,7 +385,12 @@ router.post('/:id/reveal', authorize('admin', 'manager'), async (req, res) => {
 
     /* Chỉ admin, hoặc cán bộ ĐƯỢC PHÂN CÔNG hồ sơ này, mới xem được danh tính.
        Không có bước này thì một manager vẫn tra được danh tính của MỌI người
-       tố giác trong hệ thống, kể cả hồ sơ mình không hề phụ trách. */
+       tố giác trong hệ thống, kể cả hồ sơ mình không hề phụ trách.
+
+       ⚠️ Lớp này chỉ đứng được chừng nào manager không tự ghi được
+       assigned_to trỏ vào mình hay đồng cấp (BUG-008). Luật đó nằm ở
+       DUOC_GIAO_CHO của /assign. Thêm bất kỳ đường nào khác ghi assigned_to
+       (giao theo lô, tự động giao...) thì phải đi qua cùng luật. */
     if (req.staff.role !== 'admin' && rows[0].assigned_to !== req.staff.id) {
       return res.status(403).json({
         error: 'Chỉ cán bộ được phân công xử lý ý kiến này mới xem được danh tính.',
@@ -467,11 +472,60 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+/* AI ĐƯỢC GIAO HỒ SƠ CHO AI (BUG-008, SEC-DEC-007) — allow-list theo vai trò.
+
+   Phân công không chỉ là giao việc: nó quyết định ai lọt qua lớp 2 của
+   /reveal. Trước đây manager giao được cho BẤT KỲ AI, kể cả chính mình — tức
+   tự mở cửa /reveal cho mình (tự giao, xem danh tính, giao trả lại người cũ),
+   hoặc hai manager giao chéo cho nhau. Người bị kiểm và người ghi dữ liệu để
+   kiểm không được là một.
+
+   Nên chỉ admin — vai trò vốn đã xem được mọi danh tính — mới giao hồ sơ cho
+   người /reveal được (admin, manager). Manager chỉ giao cho handler, vai trò
+   không bao giờ /reveal được (H1). Không vai trò nào tự nới được phạm vi xem
+   danh tính của mình hay của đồng cấp.
+
+   Đánh đổi đã chấp nhận: manager muốn tự nhận một hồ sơ phải nhờ admin giao.
+   Vai trò người nhận đọc từ CSDL lúc giao; ai bị nâng vai trò bằng tay SAU đó
+   thì mang theo các hồ sơ đang giữ (rủi ro ghi ở SEC-DEC-007). */
+const DUOC_GIAO_CHO = {
+  admin: ['admin', 'manager', 'handler'],
+  manager: ['handler'],
+};
+
 /** PATCH /api/admin/submissions/:id/assign — phân công cán bộ (admin/manager) */
 router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
   const { staffId } = req.body || {};
+
+  /* Chỉ nhận số nguyên dương, hoặc null để bỏ giao. mysql2 định dạng tham số
+     phía client: "3" và [3] đều thành 3, true thành 1 — nên kiểu lạ không được
+     tới câu UPDATE, kể cả khi người gửi là admin. */
+  if (staffId !== null && !(Number.isInteger(staffId) && staffId > 0)) {
+    return res.status(400).json({ error: 'Mã cán bộ không hợp lệ.' });
+  }
+
   try {
-    await pool.query('UPDATE submissions SET assigned_to = ? WHERE id = ?', [staffId || null, req.params.id]);
+    if (staffId !== null) {
+      const [nguoiNhan] = await pool.query('SELECT role, is_active FROM staff WHERE id = ?', [staffId]);
+      if (nguoiNhan.length === 0 || !nguoiNhan[0].is_active) {
+        return res.status(400).json({ error: 'Cán bộ không tồn tại hoặc đã bị khoá.' });
+      }
+      if (!(DUOC_GIAO_CHO[req.staff.role] || []).includes(nguoiNhan[0].role)) {
+        /* Ghi lại lần thử: manager thử giao hồ sơ cho lãnh đạo (kể cả chính
+           mình) là dấu hiệu đáng xem, dù đã bị chặn. Tên hành động riêng để
+           không lẫn với một lần giao thành công. */
+        await pool.query(
+          'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
+          [req.staff.id, 'assign_denied', 'submission', req.params.id,
+           JSON.stringify({ assignedTo: staffId, role: nguoiNhan[0].role }), layIpThat(req)]
+        );
+        return res.status(403).json({
+          error: 'Chỉ quản trị viên được giao hồ sơ cho lãnh đạo. Bạn chỉ giao được cho cán bộ xử lý.',
+        });
+      }
+    }
+
+    await pool.query('UPDATE submissions SET assigned_to = ? WHERE id = ?', [staffId, req.params.id]);
     await pool.query(
       'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details) VALUES (?,?,?,?,?)',
       [req.staff.id, 'assign', 'submission', req.params.id, JSON.stringify({ assignedTo: staffId })]

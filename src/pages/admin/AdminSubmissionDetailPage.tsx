@@ -228,11 +228,18 @@ export default function AdminSubmissionDetailPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
               >
                 <option value="">— Chưa phân công —</option>
-                {staffList?.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.full_name} ({st.open_count} việc đang mở)
-                  </option>
-                ))}
+                {/* Manager chỉ giao được cho cán bộ xử lý (BUG-008) — backend
+                    chặn, ở đây chỉ để khỏi hiện lựa chọn chắc chắn bị từ chối.
+                    Người đang phụ trách vẫn hiện (không chọn lại được) để ô
+                    không trông như "chưa phân công". */}
+                {staffList
+                  ?.filter((st) => staff?.role !== 'manager' || st.role === 'handler' || st.id === data.assigned_to)
+                  .map((st) => (
+                    <option key={st.id} value={st.id}
+                      disabled={staff?.role === 'manager' && st.role !== 'handler'}>
+                      {st.full_name} ({st.open_count} việc đang mở)
+                    </option>
+                  ))}
               </select>
               {data.assigned_name && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
