@@ -105,16 +105,16 @@ Khoá theo **mã thiết bị**, không khoá theo IP.
 |---|---|
 | Chặn ngầm | Thiết bị bị khoá vẫn gửi được, vẫn thấy báo thành công; đơn gắn `is_spam=1`, không vào hàng chờ |
 | Khoá thường | 24 giờ |
-| Khoá tái phạm | 3 lần tin rác **liên tiếp** trong 30 ngày → khoá 30 ngày |
-| Dọn theo lô | Đánh dấu tin rác thì các đơn cùng thiết bị **và cùng loại** (ẩn danh / có tên) trong 24 giờ trước cũng vào Thùng rác |
+| Khoá tái phạm | 3 lần tin rác **liên tiếp** trong 30 ngày → khoá 30 ngày. Mỗi lần là **một cú bấm của cán bộ trên chính đơn đó** |
+| Một cú bấm, một đơn | "Tin rác" chỉ tác động đúng đơn được bấm. Không còn dọn theo lô các đơn khác cùng thiết bị (SEC-DEC-008) |
 | Khoá IP | Chỉ là đường lui khi đơn không có mã thiết bị, thời hạn 2 giờ |
 
-Bốn ràng buộc an toàn được khoá bằng test:
+Các ràng buộc an toàn được khoá bằng test:
 
 - Khoá **luôn có hạn**, không bao giờ vĩnh viễn — mã thiết bị đổi chủ được (máy tiệm net, điện thoại mượn).
 - Tái phạm đếm **liên tiếp** chứ không cộng dồn — xen giữa một đơn được duyệt là chuỗi đứt. Cộng dồn thì người gửi nhiều tin báo thật, lỡ ba tin bị đánh nhầm, cũng mất kênh tố giác.
 - Không đếm đơn bị chặn ngầm — đó là máy tự gắn, không phải cán bộ kết luận. Gộp vào thì một lần khoá 24 giờ tự đẻ ra chuỗi ba lần rồi leo lên khoá một tháng mà không ai bấm nút nào.
-- Dọn theo lô **không đụng** đơn đang xử lý, đã giải quyết, hoặc đã phân công — đó là những đơn đã có người đọc và quyết định.
+- Một cú "Tin rác" **không đụng** đơn nào khác cùng thiết bị. Bỏ dọn theo lô: xem SEC-DEC-008 (BUG-018).
 
 ---
 
