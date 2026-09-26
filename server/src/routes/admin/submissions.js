@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { layIpThat, ghiNhatKy } from '../../lib/helpers.js';
 import {
-  khoaThietBi, khoaIpThuCong, xetKhoaTaiPham, donDonCungThietBi,
+  khoaThietBi, khoaIpThuCong, xetKhoaTaiPham,
   xetDonGayKhoa, laDonAnDanh, GHI_CHU_KHONG_TINH_TAI_PHAM,
 } from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
@@ -666,25 +666,20 @@ router.post('/:id/review', async (req, res) => {
     }
 
     /* ======================================================================
-       ĐÁNH DẤU TIN RÁC Ở HÀNG CHỜ CŨNG PHẢI DỌN VÀ KHOÁ
+       ĐÁNH DẤU TIN RÁC Ở HÀNG CHỜ CŨNG PHẢI KHOÁ
 
-       Trước đây chỉ đường /:id/spam mới dọn và khoá, còn nút "Đánh dấu tin
-       rác" ngay tại màn hình kiểm duyệt thì chỉ đổi trạng thái một đơn. Hai
-       nút mang cùng một cái tên mà làm hai việc khác nhau — cán bộ dùng nút ở
-       hàng chờ (nút hay dùng nhất) lại là nút yếu nhất.
+       Trước đây chỉ đường /:id/mark-spam mới khoá, còn nút "Đánh dấu tin rác"
+       ngay tại màn hình kiểm duyệt thì chỉ đổi trạng thái. Hai nút mang cùng
+       một cái tên mà làm hai việc khác nhau — cán bộ dùng nút ở hàng chờ (nút
+       hay dùng nhất) lại là nút yếu nhất.
+
+       Cả hai nút chỉ tác động ĐÚNG ĐƠN được bấm, không dọn theo lô (BUG-018):
+       xem chú thích "KHÔNG CÒN DỌN THEO LÔ" trong lib/chan-spam.js.
        ====================================================================== */
-    let soDonDaDon = 0;
     let taiPham = false;
     if (gayKhoa) {
-      /* Khoá, dọn và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015) */
+      /* Khoá và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015) */
       const anDanh = laDonAnDanh(rows[0].is_anonymous);
-      soDonDaDon = await donDonCungThietBi(pool, {
-        deviceId: rows[0].device_id,
-        boQuaId: req.params.id,
-        staffId: req.staff.id,
-        lyDo: 'Dọn theo lô cùng thiết bị với một tin bị đánh dấu rác ở hàng chờ',
-        anDanh,
-      });
       await khoaThietBi(pool, {
         deviceId: rows[0].device_id,
         staffId: req.staff.id,
@@ -702,15 +697,11 @@ router.post('/:id/review', async (req, res) => {
     res.json({
       ok: true,
       taiPham,
-      soDonDaDon,
-      message: (action === 'approve'
+      message: action === 'approve'
         ? 'Đã duyệt — ý kiến được đưa vào quy trình xử lý.'
         : taiPham
           ? 'Đã đánh dấu là tin rác. Thiết bị bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
-          : 'Đã đánh dấu là tin rác.')
-        + (soDonDaDon > 0
-            ? ` Đã đưa thêm ${soDonDaDon} tin cùng thiết bị (gửi trong 24 giờ trước) vào Thùng rác.`
-            : ''),
+          : 'Đã đánh dấu là tin rác.',
     });
   } catch (err) {
     console.error('Lỗi kiểm duyệt:', err.message);
@@ -787,25 +778,14 @@ router.post('/:id/mark-spam', async (req, res) => {
        đã thành công — thà không khoá được còn hơn để hồ sơ nửa vời. */
     let daKhoa = false;
     let kieuKhoa = '';
-    let soDonDaDon = 0;
     let taiPham = false;
     if (!gayKhoa) {
-      /* Đơn vẫn vào thùng rác như trên; chỉ không khoá, không dọn, không đếm */
+      /* Đơn vẫn vào thùng rác như trên; chỉ không khoá, không đếm */
     } else if (don.device_id) {
-      /* Dọn cả loạt đơn cùng thiết bị trong 24 giờ trước — kẻ rải tin rác
-         hiếm khi gửi đúng một đơn. Chỉ đưa vào thùng rác (giữ 7 ngày) và
-         không đụng đơn cán bộ đã xử lý; xem chú thích trong chan-spam.js. */
-      /* Lý do dọn và lý do khoá KHÔNG ghi mã hồ sơ. Lý do dọn nằm trong đơn bị
-         cuốn và ra ở trang chi tiết; lý do khoá ra ở danh sách khoá — trỏ tới hồ
-         sơ nào là nối hồ sơ đó với các đơn/khiếu nại cùng máy (BUG-014). */
-      soDonDaDon = await donDonCungThietBi(pool, {
-        deviceId: don.device_id,
-        boQuaId: id,
-        staffId: req.staff?.id || null,
-        lyDo: 'Dọn theo lô cùng thiết bị với một hồ sơ bị đánh dấu tin rác',
-        anDanh,
-      });
-
+      /* Chỉ tác động ĐÚNG ĐƠN này, không dọn các đơn khác cùng máy (BUG-018):
+         xem chú thích "KHÔNG CÒN DỌN THEO LÔ" trong lib/chan-spam.js. */
+      /* Lý do khoá KHÔNG ghi mã hồ sơ: nó ra ở danh sách khoá — trỏ tới hồ sơ
+         nào là nối hồ sơ đó với các đơn/khiếu nại cùng máy (BUG-014). */
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
@@ -850,12 +830,9 @@ router.post('/:id/mark-spam', async (req, res) => {
          có tính năng này thì không có mã thiết bị -> chỉ đánh dấu được thôi. */
       kieuKhoa,
       taiPham,
-      soDonDaDon,
-      /* Nói rõ ĐÃ DỌN BAO NHIÊU ĐƠN. Quét theo lô mà im lặng là kiểu giấu
-         việc: cán bộ bấm một nút, năm hồ sơ biến mất khỏi hàng chờ, không ai
-         hiểu vì sao. Nói ra thì cán bộ còn biết đường vào Thùng rác kiểm lại
-         nếu thấy con số lạ. */
-      ghiChu: (!gayKhoa
+      /* Phản hồi không được thay đổi theo số đơn khác cùng máy: nó là phép thử
+         "người này còn gửi đơn nào nữa không" (BUG-018, biến thể D8). */
+      ghiChu: !gayKhoa
         ? 'Đã đánh dấu tin rác. Không khoá thêm: hồ sơ này đã bị chặn từ lúc nhận, '
           + 'hoặc đã từng bị đánh dấu tin rác trước đây — mỗi hồ sơ chỉ gây khoá một lần.'
         : !daKhoa
@@ -865,10 +842,7 @@ router.post('/:id/mark-spam', async (req, res) => {
               ? 'Đã đánh dấu tin rác. Thiết bị này bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
               : 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.')
           : 'Đã đánh dấu tin rác. Hồ sơ không có mã thiết bị nên khoá theo địa chỉ mạng '
-            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.')
-        + (soDonDaDon > 0
-            ? ` Đã đưa thêm ${soDonDaDon} hồ sơ cùng thiết bị (gửi trong 24 giờ trước) vào Thùng rác — khôi phục được trong 7 ngày.`
-            : ''),
+            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.',
     });
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);

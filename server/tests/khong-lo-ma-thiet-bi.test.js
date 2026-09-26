@@ -11,7 +11,8 @@
  *   · GET /submissions/:id — từng trả nguyên văn device_id cho mọi cán bộ
  *   · GET /chat/khieu-nai  — gom các đơn bị đánh rác CÙNG MÁY vào một nhóm
  *   · GET /chat/blacklist  — mã máy thô + lý do khoá ghi mã hồ sơ (N1)
- *   · dọn theo lô          — ghi mã hồ sơ gây khoá vào đơn bị cuốn, cuốn cả đơn khác loại (N2, N3)
+ *   · dọn theo lô          — ghi mã hồ sơ gây khoá vào đơn bị cuốn, cuốn cả đơn khác loại (N2, N3);
+ *                            đã gỡ hẳn (BUG-018), test nay canh "không cuốn đơn nào"
  *
  * Câu SQL của route chạy NGUYÊN VĂN trên engine SQL thật (node:sqlite) — engine
  * tự quyết cột nào trả về, không giả lập phép chiếu bằng regex. Bài học P23:
@@ -352,23 +353,21 @@ for (const [ten, duong, body, cungLoai, khacLoai] of [
   ['mark-spam đơn ẨN DANH', '/submissions/21/mark-spam', {}, 22, [20, 23]],
   ['review spam đơn ẨN DANH', '/submissions/21/review', { action: 'spam' }, 22, [20, 23]],
 ]) {
-  test(`N2/N3 ${ten} -> dọn theo lô chỉ cuốn đơn CÙNG LOẠI, không ghi mã hồ sơ nào vào đơn bị cuốn`, { skip: BO_QUA }, async () => {
+  test(`N2/N3 ${ten} -> không đơn nào khác cùng máy bị cuốn theo, cùng loại hay khác loại (BUG-018)`, { skip: BO_QUA }, async () => {
     mayGuiHonHop();
     const r = await goi(HANDLER, 'POST', duong, body);
     assert.equal(r.status, 200, r.text);
-    /* Không hồi quy: vẫn dọn đơn cùng loại cùng máy */
-    assert.ok(hang(cungLoai).deleted_at, `Đơn cùng loại #${cungLoai} cùng máy không được dọn — hỏng tính năng dọn theo lô`);
-    /* N3: đơn khác loại không bị cuốn -> thùng rác không có cặp ẩn danh/có tên xoá cùng một giây */
-    for (const id of khacLoai) {
-      assert.equal(hang(id).deleted_at, null, `Đơn khác loại #${id} bị cuốn theo — thùng rác nối được hai đơn`);
+    /* Mỗi cú bấm chỉ tác động đúng một đơn (SEC-DEC-008 M-D). Trước đây dọn
+       theo lô cuốn đơn CÙNG loại (N3 chỉ cấm khác loại); nay không cuốn đơn nào
+       -> thùng rác không có nhóm đơn cùng máy xoá cùng một giây, và không đơn
+       nào mang lý do dọn trỏ tới hồ sơ khác (N2) vì không còn lý do dọn. */
+    for (const id of [cungLoai, ...khacLoai]) {
+      const h = hang(id);
+      assert.equal(h.deleted_at, null, `Đơn #${id} cùng máy bị cuốn theo — thùng rác nối được các đơn`);
+      assert.equal(h.deleted_by, null, `Đơn #${id} mang dấu người xoá`);
+      assert.notEqual(h.status, 'spam', `Đơn #${id} bị đổi sang tin rác`);
+      assert.equal(h.rejection_reason ?? null, null, `Đơn #${id} mang lý do: "${h.rejection_reason}"`);
     }
-    /* N2: lý do ghi vào đơn bị cuốn không trỏ tới hồ sơ nào */
-    const lyDo = hang(cungLoai).rejection_reason || '';
-    for (const ma of ['COTEN20', 'ANDANH21', 'ANDANH22', 'COTEN23']) {
-      assert.ok(!lyDo.includes(ma), `rejection_reason của #${cungLoai} trỏ tới hồ sơ ${ma}: "${lyDo}"`);
-    }
-    const chiTiet = await goi(HANDLER, 'GET', `/submissions/${cungLoai}`);
-    assert.ok(!/(COTEN|ANDANH)2\d/.test(chiTiet.body.rejection_reason || ''), 'GET /:id của đơn bị cuốn trỏ tới hồ sơ khác');
     /* Không hồi quy: máy vẫn bị khoá */
     assert.ok(db.prepare(`SELECT 1 FROM blacklists WHERE kind = 'device' AND identifier = ?`).get(MA_MAY), 'Không khoá máy');
   });

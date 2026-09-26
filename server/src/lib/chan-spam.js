@@ -62,7 +62,7 @@ function loaiDon(anDanh) {
 
 /**
  * Đơn có tính là ẩn danh không, từ giá trị cột submissions.is_anonymous.
- * Cột cho phép NULL: không rõ thì coi là ẩn danh — cùng quy ước với dọn theo lô,
+ * Cột cho phép NULL: không rõ thì coi là ẩn danh — cùng quy ước với xét tái phạm,
  * để một đơn không rõ loại không bao giờ gây khoá lên kênh có tên.
  */
 export function laDonAnDanh(isAnonymous) {
@@ -218,17 +218,17 @@ export const GHI_CHU_KHONG_TINH_TAI_PHAM =
   'Đánh dấu tin rác — đơn bị chặn ngầm lúc nhận, không tính tái phạm';
 
 /**
- * Lần đánh rác này có được kéo theo hậu quả theo thiết bị (dọn theo lô, khoá,
- * xét tái phạm) không. Đơn vẫn bị đánh rác và vào thùng rác như thường; chỉ
- * phần hậu quả lên MÁY là bị bỏ. Một đơn chỉ gây khoá MỘT lần (BUG-015).
+ * Lần đánh rác này có được kéo theo hậu quả theo thiết bị (khoá, xét tái phạm)
+ * không. Đơn vẫn bị đánh rác và vào thùng rác như thường; chỉ phần hậu quả lên
+ * MÁY là bị bỏ. Một đơn chỉ gây khoá MỘT lần (BUG-015).
  *
  * KHÔNG gây khoá nếu một trong các điều sau đúng — mỗi điều đọc từ DỮ LIỆU CỦA
  * CHÍNH ĐƠN, không từ trạng thái hiện tại (status bị ghi đè được: đơn chặn ngầm
  * có ảnh nghi ngờ bị đổi sang 'pending_review' lúc nhận):
  *
  *   · is_spam = 1. Cờ này bật khi đơn bị CHẶN NGẦM lúc nhận, hoặc khi đơn đã bị
- *     mark-spam / dọn theo lô. Khôi phục khỏi thùng rác KHÔNG gỡ nó. Chặn ngầm:
- *     máy đã bị khoá lúc đơn tới, đơn không nói thêm gì về máy — cho nó gây
+ *     mark-spam (hoặc bị cuốn theo lô, trước BUG-018). Khôi phục khỏi thùng
+ *     rác KHÔNG gỡ nó. Chặn ngầm: máy đã bị khoá lúc đơn tới, đơn không nói thêm gì về máy — cho nó gây
  *     khoá là gia hạn khoá mãi được và đẩy lên 30 ngày. Đã bị đánh rác: khôi
  *     phục rồi đánh rác lại là làm mới khoá 24 giờ, lặp mỗi ngày là dập kênh
  *     của một người vô thời hạn chỉ bằng một đơn.
@@ -319,14 +319,25 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
        lý. Đơn còn nằm chờ chưa ai đụng tới thì chưa nói lên điều gì, đưa vào
        đếm sẽ làm chuỗi sai lệch.
 
+       ⚠️ MỘT ĐƠN RÁC CHỈ LÀ MỘT QUYẾT ĐỊNH KHI CÁN BỘ TỰ BẤM TRÊN CHÍNH ĐƠN ĐÓ
+       (BUG-018, SEC-DEC-008 M-D). Bằng chứng là dòng status_history 'spam' có
+       changed_by — chỉ review và mark-spam ghi dòng này, mỗi cú bấm một dòng
+       trên đúng đơn được bấm. KHÔNG đếm theo deleted_by: dọn theo lô trước đây
+       cũng đặt deleted_by cho các đơn nó cuốn, nên một cú bấm hiện ra thành
+       "ba lần liên tiếp" và khoá 30 ngày kênh có tên của một người. Đơn bị cuốn
+       từ trước bản vá không có dòng lịch sử đó -> không được đếm.
+       Đánh đổi: CSDL chưa chạy va_loi_duyet_tin_an_danh.sql (ENUM thiếu 'spam')
+       thì route không ghi được dòng lịch sử, nên cú bấm thật cũng không được
+       đếm — tái phạm yếu đi, nhưng không bao giờ khoá 30 ngày mà thiếu bằng
+       chứng. Khoá 24 giờ vẫn chạy.
+
        ⚠️ Không đếm đơn bị chặn ngầm (is_spam = 1 do máy tự gắn khi thiết bị
        đang bị khoá). Đó là máy tự gắn chứ không phải cán bộ xem rồi kết luận;
        gộp vào thì một lần khoá 24 giờ tự đẻ ra chuỗi ba lần, khoá tiếp một
        tháng — thiết bị bị khoá oan leo thang mà không ai bấm nút nào cả.
-       Cán bộ đánh rác TAY một đơn chặn ngầm thì deleted_by có giá trị, nhưng
-       đơn vẫn không được đếm (BUG-015): route ghi status_history với ghi chú
-       GHI_CHU_KHONG_TINH_TAI_PHAM cho đúng trường hợp này (xem xetDonGayKhoa),
-       và câu dưới loại nó ra. */
+       Cán bộ đánh rác TAY một đơn chặn ngầm thì có dòng lịch sử, nhưng đơn
+       vẫn không được đếm (BUG-015): route ghi dòng đó với ghi chú
+       GHI_CHU_KHONG_TINH_TAI_PHAM (xem xetDonGayKhoa), và câu dưới loại nó ra. */
     const [rows] = await pool.query(
       `SELECT status
          FROM submissions
@@ -335,7 +346,10 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
           /* Chỉ đơn cùng loại. is_anonymous NULL coi là ẩn danh (laDonAnDanh). */
           AND (COALESCE(is_anonymous, 1) <> 0) = ?
           AND (
-                (status = 'spam' AND deleted_by IS NOT NULL
+                (status = 'spam'
+                  AND EXISTS (SELECT 1 FROM status_history h
+                               WHERE h.submission_id = submissions.id
+                                 AND h.new_status = 'spam' AND h.changed_by IS NOT NULL)
                   AND NOT EXISTS (SELECT 1 FROM status_history h
                                    WHERE h.submission_id = submissions.id
                                      AND h.new_status = 'spam' AND h.note = ?))
@@ -372,83 +386,19 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
 }
 
 /* ============================================================================
-   DỌN ĐƠN CÙNG THIẾT BỊ TRONG 24 GIỜ TRƯỚC ĐÓ
+   KHÔNG CÒN DỌN THEO LÔ (BUG-018, SEC-DEC-008 M-D)
 
-   Kẻ rải tin rác hiếm khi gửi đúng một đơn. Cán bộ bắt được một đơn thì thường
-   còn cả loạt nằm trong hàng chờ. Quét luôn 24 giờ trước đó đỡ cho cán bộ phải
-   mở từng đơn mà bấm.
-
-   ⚠️ ĐƯA VÀO THÙNG RÁC, KHÔNG XOÁ HẲN.
-   Thùng rác giữ 7 ngày, khôi phục được. Quét theo lô kiểu này chắc chắn sẽ có
-   lúc quét nhầm — máy dùng chung, hoặc một đơn thật gửi xen giữa loạt rác. Xoá
-   hẳn thì mất luôn tin báo thật mà không ai biết đường lấy lại.
-
-   ⚠️ KHÔNG ĐỤNG ĐƠN CÁN BỘ ĐÃ XỬ LÝ.
-   Đơn đang xử lý, đã giải quyết, hoặc đã phân công cho ai đó là đơn đã có
-   người ĐỌC VÀ QUYẾT ĐỊNH. Máy quét đè lên quyết định của người là sai — có
-   thể xoá mất một vụ việc đang điều tra dở. Chỉ quét đơn CÒN NGUYÊN trong
-   hàng chờ: mới nhận hoặc chờ kiểm duyệt, chưa ai đụng tới.
-
-   ⚠️ CHỈ DỌN ĐƠN CÙNG LOẠI (ẩn danh / có tên) VỚI ĐƠN BỊ ĐÁNH DẤU (BUG-014).
-   Dọn theo lô là GOM ĐƠN THEO MÁY rồi đưa cả nhóm vào thùng rác cùng một giây,
-   cùng một người xoá. Cán bộ đánh rác một đơn có tên là thấy ngay đơn ẩn danh
-   nào của cùng người đó bị cuốn theo — tự tay nối đơn tố giác với danh tính.
-   Lý do ghi vào đơn bị cuốn cũng KHÔNG được trỏ tới hồ sơ gây ra việc dọn, vì
-   trang chi tiết trả lý do đó cho mọi cán bộ.
-   Đánh đổi đã chấp nhận: kẻ phá hoại trộn đơn tên giả với đơn ẩn danh thì mỗi
-   lần bấm chỉ dọn được một loại. Máy vẫn bị khoá như cũ.
+   Trước đây mỗi cú "Tin rác" còn đưa vào thùng rác mọi đơn cùng máy, cùng loại,
+   gửi trong 24 giờ trước. Đã GỠ, đừng thêm lại:
+     · Một cú bấm thành "ba lần liên tiếp": các đơn bị cuốn mang deleted_by của
+       cán bộ, xét tái phạm đếm chúng -> kênh có tên của một nhân chứng gửi ba
+       đơn trong ngày bị chặn ngầm 30 ngày chỉ bằng một cú bấm.
+     · Đơn thật bị cuốn nằm trong thùng rác, tự xoá vĩnh viễn sau 7 ngày.
+     · Thùng rác hiện "nhiều đơn cùng giây, cùng người xoá" — nhóm đơn cùng máy.
+   Mỗi cú bấm nay chỉ tác động đúng một đơn. Đánh đổi: kẻ phá gửi nhiều đơn có
+   tên thì cán bộ bấm từng đơn — máy đã bị khoá 24 giờ ngay từ cú đầu, và giới
+   hạn 5 đơn/giờ theo IP vẫn chạy.
    ============================================================================ */
-
-/** Cửa sổ dọn: 24 giờ trước thời điểm đơn bị đánh dấu */
-const CUA_SO_DON_DEP_GIO = 24;
-
-/**
- * Đưa vào thùng rác các đơn khác CÙNG LOẠI, cùng thiết bị gửi trong 24 giờ trước đó.
- *
- * @param {boolean} anDanh đơn bị đánh dấu có ẩn danh không — BẮT BUỘC. Không
- *   nói rõ thì không dọn gì: dọn nhầm loại là nối đơn ẩn danh với danh tính.
- * @returns số đơn đã dọn
- */
-export async function donDonCungThietBi(pool, { deviceId, boQuaId, staffId, lyDo, anDanh }) {
-  if (!deviceId) return 0;
-  if (typeof anDanh !== 'boolean') {
-    console.error('[chặn spam] dọn theo lô bị gọi thiếu cờ anDanh — không dọn gì');
-    return 0;
-  }
-  try {
-    const [kq] = await pool.query(
-      `UPDATE submissions
-          SET status = 'spam', is_spam = 1,
-              deleted_at = NOW(), deleted_by = ?,
-              rejection_reason = ?
-        WHERE device_id = ?
-          AND id <> ?
-          AND deleted_at IS NULL
-          AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-          /* CHỈ đơn chưa ai đụng tới — xem phần chú thích ở trên */
-          AND status IN ('pending_review','received')
-          AND assigned_to IS NULL
-          /* KHÔNG cuốn đơn bị chặn ngầm (BUG-015). Đơn chặn ngầm có ảnh nghi ngờ
-             mang 'pending_review'; cuốn vào là nó thành "cán bộ đánh rác"
-             (deleted_by có giá trị) và được đếm tái phạm, đẩy máy lên 30 ngày. */
-          AND COALESCE(is_spam, 0) = 0
-          /* CHỈ đơn cùng loại. is_anonymous cho phép NULL: không rõ thì coi là
-             ẩn danh, để không bao giờ bị cuốn theo một đơn có tên. */
-          AND (COALESCE(is_anonymous, 1) <> 0) = ?`,
-      [staffId || null,
-       lyDo || `Dọn theo lô: cùng thiết bị với một đơn bị đánh dấu tin rác`,
-       deviceId, boQuaId || 0, CUA_SO_DON_DEP_GIO, anDanh ? 1 : 0]
-    );
-    const soDon = kq?.affectedRows || 0;
-    if (soDon > 0) {
-      console.warn(`[chặn spam] dọn ${soDon} đơn cùng thiết bị ${deviceId.slice(0, 8)}… trong ${CUA_SO_DON_DEP_GIO} giờ`);
-    }
-    return soDon;
-  } catch (err) {
-    console.error('[chặn spam] dọn đơn cùng thiết bị lỗi:', err.message);
-    return 0;
-  }
-}
 
 /**
  * Khoá theo ĐỊA CHỈ IP — chỉ dùng khi hồ sơ không có mã thiết bị.

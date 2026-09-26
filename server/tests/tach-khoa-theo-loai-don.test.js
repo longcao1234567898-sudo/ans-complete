@@ -465,15 +465,19 @@ test('N1 — đơn chặn ngầm có ảnh bị đánh rác tay (review/mark-spa
   assert.ok(khoaCon('co_ten').gio <= 24.1, `khoá ${khoaCon('co_ten').gio.toFixed(1)} giờ`);
 });
 
-test('N1c — dọn theo lô không cuốn đơn chặn ngầm, nên chúng không thành quyết định cán bộ', { skip: BO_QUA }, async () => {
+test('N1c — cú bấm trên một đơn không cuốn đơn chặn ngầm cùng máy, nên chúng không thành quyết định cán bộ', { skip: BO_QUA }, async () => {
   dungCsdl();
   themDon(1, { an: 0, tao: luc(300) });
   await canBo('POST', '/submissions/1/mark-spam', { reason: 'x' });
   themDonChanNgamCoAnh(11, { an: 0, tao: luc(200) });
   themDonChanNgamCoAnh(12, { an: 0, tao: luc(100) });
   themDon(13, { an: 0, tao: luc(5) });
+  const truoc = db.prepare('SELECT id, status, deleted_at FROM submissions WHERE id <> 13 ORDER BY id').all().map((x) => ({ ...x }));
   const r = await canBo('POST', '/submissions/13/mark-spam', { reason: 'x' });
-  assert.equal(r.body?.soDonDaDon, 0, 'dọn theo lô cuốn đơn chặn ngầm');
+  assert.equal(r.status, 200, r.text);
+  /* SEC-DEC-008 M-D: dọn theo lô đã gỡ — khẳng định rộng hơn "soDonDaDon = 0" cũ */
+  const sau = db.prepare('SELECT id, status, deleted_at FROM submissions WHERE id <> 13 ORDER BY id').all().map((x) => ({ ...x }));
+  assert.deepEqual(sau, truoc, 'cú bấm trên đơn 13 đổi status/deleted_at của đơn khác');
   assert.notEqual(r.body?.taiPham, true);
 });
 
