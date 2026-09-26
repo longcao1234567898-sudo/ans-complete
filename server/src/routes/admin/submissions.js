@@ -447,6 +447,10 @@ router.patch('/:id/status', async (req, res) => {
             `UPDATE submissions
              SET sender_name = NULL, sender_phone = NULL, sender_phone_hash = NULL,
                  sender_email = NULL, ip_address = NULL, user_agent = NULL,
+                 /* Mã máy là dấu nối: giữ nó thì đơn đã xoá danh tính vẫn nối
+                    được với đơn có tên cùng máy (BUG-014, SEC-DEC-008). Cùng danh
+                    sách cột với routes/tracking.js — sửa một nơi thì sửa cả hai. */
+                 device_id = NULL,
                  identity_erased = TRUE, identity_erased_at = NOW()
              WHERE id = ?`,
             [req.params.id]
