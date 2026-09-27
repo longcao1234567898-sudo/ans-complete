@@ -120,7 +120,7 @@ Dự án từng trải qua một đợt vá bảo mật khẩn cấp lớn (2026
 - **Fail-safe, không fail-open**: thiếu khoá bí mật → server từ chối khởi động, không âm thầm chạy với giá trị mặc định yếu.
 - IP người dùng chỉ tin từ `req.ip` (đã qua `trust proxy`), không bao giờ tin header client tự đặt.
 - SĐT/email băm bằng HMAC + pepper (biến môi trường, không nằm trong DB) — không phải SHA-256 trần.
-- Danh tính người tố giác chỉ `admin` hoặc cán bộ **được phân công đúng hồ sơ đó** mới xem được, mọi lượt xem đều ghi log.
+- Danh tính người tố giác chỉ `admin` (Trưởng) xem được, hoặc `manager` (Phó) được Trưởng **giao đúng hồ sơ đó**; cán bộ xử lý không bao giờ xem được. Mọi lượt xem đều ghi log. Vai trò ứng với ai ngoài đời: [docs/adr/002-mo-hinh-vai-tro-cap-xa.md](docs/adr/002-mo-hinh-vai-tro-cap-xa.md).
 - Access token cán bộ giữ trong RAM (không `localStorage`/`sessionStorage`); phiên khôi phục qua cookie refresh `httpOnly`.
 - Hệ thống giả định **một đơn vị/một database** — xem [docs/adr/001-pham-vi-du-lieu-theo-don-vi.md](docs/adr/001-pham-vi-du-lieu-theo-don-vi.md) trước khi gộp nhiều xã/phường dùng chung một database.
 - Kiểm chứng: `cd server && npm test` (không cần MySQL).
