@@ -280,9 +280,20 @@ async function chupManHinh(ghiChu, ids) {
 
 async function soHaiKichBan(kichBan) {
   const ket = {};
-  for (const [ten, mayDau] of [['cung_may', MAY_HOA], ['khac_may', MAY_KHAC]]) {
-    dungCsdl();
-    ket[ten] = chuanHoa(await kichBan(mayDau));
+  /* Route tính deadline_at bằng Date.now() THẬT: hạn của hai đơn khi trùng giây,
+     khi không, tuỳ lúc chạy — nhãn GIO_n lệch giữa hai kịch bản, test đỏ chập
+     chờn mà không do máy (ND-037). Ghim Date.now theo đồng hồ ảo thay vì bỏ
+     deadline_at khỏi phép so: hạn mà phụ thuộc máy thì vẫn phải bắt được. Giữ
+     nguyên độ lệch một ngày của GOC_DONG_HO để thời gian chờ không 429 oan. */
+  const dateNowThat = Date.now;
+  Date.now = () => dongHo + 24 * 3600_000;
+  try {
+    for (const [ten, mayDau] of [['cung_may', MAY_HOA], ['khac_may', MAY_KHAC]]) {
+      dungCsdl();
+      ket[ten] = chuanHoa(await kichBan(mayDau));
+    }
+  } finally {
+    Date.now = dateNowThat;
   }
   assert.equal(ket.cung_may.length, ket.khac_may.length);
   for (let i = 0; i < ket.cung_may.length; i++) {
