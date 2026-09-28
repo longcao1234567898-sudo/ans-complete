@@ -255,8 +255,10 @@ router.get('/khieu-nai', async (req, res) => {
                  (xem routes/khieu-nai.js). Đếm cả loại ẩn danh thì cờ này còn
                  bật sau khi khoá có tên đã gỡ — tức là nói người ký tên này
                  đang bị khoá kênh ẩn danh. */
+              /* Chỉ khoá THIẾT BỊ: không còn khoá theo địa chỉ mạng (BUG-016),
+                 dòng kind = 'ip' còn sót không chặn ai nên không phải "còn khoá" */
               (SELECT COUNT(*) FROM blacklists b
-                WHERE b.kind = a.kind AND b.identifier = a.identifier
+                WHERE b.kind = 'device' AND b.kind = a.kind AND b.identifier = a.identifier
                   AND b.loai_don = 'co_ten'
                   AND b.expires_at > NOW()) AS con_bi_khoa
          FROM unlock_appeals a
@@ -291,12 +293,14 @@ router.get('/khieu-nai', async (req, res) => {
              FROM submissions s
             WHERE s.deleted_at IS NULL
               AND (s.is_spam = 1 OR s.status = 'spam')
-              AND (s.device_id = ? OR s.ip_address = ?)
+              /* Chỉ ghép theo máy: khiếu nại cũ loại địa chỉ mạng (trước BUG-016)
+                 không ghép theo IP — cùng IP 4G là hàng trăm thuê bao khác nhau */
+              AND s.device_id = ?
               /* = 0 chứ không phải <> 1: cột cho phép NULL, không rõ thì coi là ẩn danh */
               AND s.is_anonymous = 0
             ORDER BY s.created_at DESC
             LIMIT 5`,
-          [r.kind === 'device' ? identifier : null, r.kind === 'ip' ? identifier : null]
+          [r.kind === 'device' ? identifier : null]
         );
         tinLienQuan = tin;
       } catch (e) {

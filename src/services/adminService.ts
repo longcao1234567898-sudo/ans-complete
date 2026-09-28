@@ -678,9 +678,9 @@ export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
   adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
 
 /** Đánh dấu tin rác + khoá thiết bị đã gửi (24 giờ) */
-export const markSpam = (id: number, reason?: string, khoaIp?: boolean): Promise<{
+export const markSpam = (id: number, reason?: string): Promise<{
   ok: boolean; coMaThietBi: boolean; cachKhoa: string; ghiChu: string;
 }> => adminFetch(`/api/admin/submissions/${id}/mark-spam`, {
   method: 'POST',
-  body: JSON.stringify({ reason: reason || '', khoaIp: khoaIp === true }),
+  body: JSON.stringify({ reason: reason || '' }),
 });

@@ -1,20 +1,15 @@
 /**
- * TRANG DANH SÁCH KHOÁ — thiết bị và địa chỉ IP
+ * TRANG DANH SÁCH KHOÁ — thiết bị
  * ============================================================================
  *
- * VÌ SAO CHIA LÀM HAI NHÓM:
+ *   THIẾT BỊ — do cán bộ đánh dấu tin rác một đơn có tên, khoá 24 giờ.
  *
- *   THIẾT BỊ — do cán bộ đánh dấu tin rác, khoá 24 giờ.
- *              Đây là cách khoá CHÍNH, chính xác tới từng máy.
- *
- *   ĐỊA CHỈ IP — hệ thống TỰ khoá, 2 giờ, chỉ khi phát hiện cùng một IP có
- *              từ 3 đơn rác trở lên từ 3 thiết bị khác nhau trong 1 giờ.
- *              Dấu hiệu kẻ phá hoại xoá bộ nhớ trình duyệt để đổi mã thiết bị.
- *
- * ⚠️ VÌ SAO KHOÁ IP PHẢI RẤT DÈ DẶT:
- * Nhà mạng di động Việt Nam dùng CGNAT — hàng trăm thuê bao chung một IP công
- * cộng. Khoá một IP là khoá oan cả vùng thuê bao, mà bà con ở quê phần lớn vào
- * bằng 4G. Nên ngưỡng đặt cao và thời hạn chỉ 2 giờ.
+ *   ĐỊA CHỈ MẠNG — KHÔNG CÒN KHOÁ (BUG-016, SEC-DEC-008 G1). Nhà mạng di động
+ *              dùng CGNAT: hàng trăm thuê bao chung một IP, khoá là chặn oan
+ *              cả vùng. Mục này chỉ còn để hiện dòng cũ do phiên bản trước để
+ *              lại (không chặn ai) cho tới khi chạy nang_cap_v23.sql. Đừng viết
+ *              lại lời hứa "hệ thống khoá IP" ở đây — cán bộ tin là đã khoá thì
+ *              không dùng biện pháp khác (đúng hậu quả của BUG-016).
  *
  * Trang này để cán bộ NHÌN THẤY và GỠ được. Khoá ngầm mà không ai xem lại được
  * thì đến lúc chặn oan người thật cũng không ai biết mà sửa.
@@ -89,7 +84,7 @@ export default function AdminBlacklistPage() {
         <p className="rounded-xl border border-dashed border-slate-300 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
           {loai === 'device'
             ? 'Chưa khoá thiết bị nào. Khoá được tạo khi cán bộ bấm "Tin rác" trên một hồ sơ.'
-            : 'Chưa khoá địa chỉ IP nào. Hệ thống chỉ tự khoá khi phát hiện nhiều thiết bị cùng gửi tin rác từ một IP.'}
+            : 'Không có dòng nào.'}
         </p>
       );
     }
@@ -154,7 +149,7 @@ export default function AdminBlacklistPage() {
         <ShieldOff className="h-5 w-5 text-slate-400" /> Danh sách khoá
       </h1>
       <p className="mb-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-        Thiết bị và địa chỉ bị chặn tạm thời vì gửi tin rác. Khoá <b>luôn có hạn</b>,
+        Thiết bị bị chặn tạm thời vì gửi tin rác. Khoá <b>luôn có hạn</b>,
         không bao giờ vĩnh viễn — máy ở tiệm net hay điện thoại mượn của người thân
         có thể đổi chủ.
       </p>
@@ -215,18 +210,18 @@ export default function AdminBlacklistPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-700 dark:bg-slate-900">
             <h2 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
               <Globe className="h-4 w-4 text-slate-500" />
-              Địa chỉ IP bị khoá
+              Địa chỉ mạng (dòng cũ)
               <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                 {ip.length}
               </span>
             </h2>
             <p className="mb-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-              Hệ thống <b>tự khoá 2 giờ</b> khi thấy cùng một IP có từ 3 đơn rác trở lên,
-              gửi từ 3 thiết bị khác nhau, trong vòng 1 giờ — dấu hiệu kẻ phá hoại xoá
-              bộ nhớ trình duyệt để đổi mã thiết bị.
+              Hệ thống <b>không còn khoá theo địa chỉ mạng</b>: nhà mạng di động cho hàng
+              trăm thuê bao dùng chung một địa chỉ, khoá là chặn oan cả vùng. Hồ sơ không
+              có mã thiết bị bị đánh dấu tin rác thì không khoá gì.
               <br />
-              <b>Rất dè dặt</b> vì nhà mạng di động cho hàng trăm thuê bao dùng chung
-              một IP; khoá nhầm là chặn oan cả vùng.
+              Dòng nào còn hiện ở đây là do phiên bản cũ để lại và <b>không chặn ai</b>;
+              gỡ được, hoặc chạy <code>nang_cap_v23.sql</code> để dọn.
             </p>
             {bang(ip, 'ip')}
           </section>

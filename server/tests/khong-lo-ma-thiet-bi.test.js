@@ -297,8 +297,10 @@ for (const [kind, identifier] of [['device', MA_MAY], ['ip', IP_BAM]]) {
       assert.equal(r.status, 200);
       const [k] = r.body;
       assert.ok(k, 'Không thấy khiếu nại');
-      /* Đơn có tên vẫn hiện — cán bộ cần thấy người này đã gửi gì mới quyết được */
-      assert.deepEqual(k.tinLienQuan.map((t) => t.tracking_code), ['COTEN10']);
+      /* Đơn có tên vẫn hiện — cán bộ cần thấy người này đã gửi gì mới quyết được.
+         Khiếu nại cũ loại địa chỉ mạng: không ghép theo IP nữa (BUG-016 — cùng IP
+         4G là hàng trăm thuê bao), nên nhóm rỗng. Đổi kỳ vọng ở P42, Loc duyệt. */
+      assert.deepEqual(k.tinLienQuan.map((t) => t.tracking_code), kind === 'device' ? ['COTEN10'] : []);
       /* Đơn ẩn danh: không id, không mã tra cứu, không trích nội dung */
       for (const chuoi of ['ANDANH11', 'Tố giác ổ đánh bạc']) {
         assert.ok(!r.text.includes(chuoi), `Khiếu nại lộ đơn ẩn danh cùng máy: "${chuoi}"`);
@@ -392,10 +394,14 @@ for (const [ten, cb] of [['handler', HANDLER], ['admin', ADMIN]]) {
     assert.equal(d0.status, 200, d0.text);
     const d = await goi(HANDLER, 'POST', '/submissions/20/mark-spam', { reason: 'bịa' });
     assert.equal(d.status, 200, d.text);
-    /* Máy không có mã -> khoá theo địa chỉ; cũng không được ghi mã hồ sơ */
+    /* Máy không có mã -> không khoá gì (BUG-016, SEC-DEC-008 G1). Dòng khoá địa
+       chỉ mà mã cũ để lại được chèn thẳng (Loc duyệt đổi, P42): danh sách vẫn
+       phải có nó, và vẫn không được lộ địa chỉ hay mã hồ sơ */
     themDon(30, { an: 0, ma: 'COTEN30', may: null, ip: 'ip-khong-ma-may', status: 'received', assigned: null });
     const d2 = await goi(HANDLER, 'POST', '/submissions/30/mark-spam', {});
     assert.equal(d2.status, 200, d2.text);
+    db.prepare(`INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+      VALUES ('ip-khong-ma-may', 'ip', 'co_ten', 'Tin rác (hồ sơ không có mã thiết bị)', 4, datetime(NOW(), '+2 hours'))`).run();
 
     const r = await goi(cb, 'GET', '/chat/blacklist');
     assert.equal(r.status, 200);

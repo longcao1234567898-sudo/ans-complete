@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { layIpThat, ghiNhatKy } from '../../lib/helpers.js';
 import {
-  khoaThietBi, khoaIpThuCong, xetKhoaTaiPham,
+  khoaThietBi, xetKhoaTaiPham,
   xetDonGayKhoa, laDonAnDanh, GHI_CHU_KHONG_TINH_TAI_PHAM,
 } from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
@@ -728,8 +728,8 @@ router.post('/:id/review', async (req, res) => {
 router.post('/:id/mark-spam', async (req, res) => {
   const id = Number(req.params.id);
   const lyDo = String(req.body?.reason || '').trim().slice(0, 200);
-  /* Cán bộ chủ động chọn khoá IP khi hồ sơ không có mã thiết bị */
-  const khoaIp = req.body?.khoaIp === true;
+  /* Không đọc cờ khoaIp: không còn khoá theo IP (BUG-016, SEC-DEC-008 G1).
+     Giao diện cũ còn gửi cờ này thì máy chủ bỏ qua. */
 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
@@ -737,7 +737,7 @@ router.post('/:id/mark-spam', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT id, status, is_anonymous, device_id, ip_address, is_spam, reviewed_by FROM submissions WHERE id = ? AND deleted_at IS NULL',
+      'SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ? AND deleted_at IS NULL',
       [id]
     );
     if (rows.length === 0) {
@@ -782,9 +782,8 @@ router.post('/:id/mark-spam', async (req, res) => {
     let taiPham = false;
     if (anDanh) {
       /* Đơn ẩn danh (kể cả is_anonymous NULL): không khoá máy, không khoá mạng,
-         không đếm tái phạm (BUG-017, SEC-DEC-008 M-B). Nhánh khoá IP bên dưới
-         KHÔNG được chạy cho nó dù hồ sơ không có mã máy — mà từ nay đơn ẩn danh
-         nào cũng không có mã máy. */
+         không đếm tái phạm (BUG-017, SEC-DEC-008 M-B). Khoá IP không còn ở
+         đâu nữa (BUG-016), nên hồ sơ không mã máy cũng không có đường lui nào. */
     } else if (!gayKhoa) {
       /* Đơn vẫn vào thùng rác như trên; chỉ không khoá, không đếm */
     } else if (don.device_id) {
@@ -809,19 +808,10 @@ router.post('/:id/mark-spam', async (req, res) => {
       });
       taiPham = kqTaiPham.taiPham;
       if (taiPham) { daKhoa = true; kieuKhoa = 'thiết bị'; }
-    } else if (don.ip_address) {
-      /* ĐƯỜNG LUI: hồ sơ gửi trước khi có tính năng mã thiết bị, hoặc người
-         gửi tắt localStorage. Khoá theo IP với thời hạn ngắn hơn (2 giờ) vì
-         có thể chặn oan người dùng chung IP nhà mạng.
-         Không có đường lui này thì cán bộ bấm "Tin rác" mà chẳng chặn được gì. */
-      daKhoa = await khoaIpThuCong(pool, {
-        ip: don.ip_address,
-        staffId: req.staff?.id || null,
-        lyDo: `Tin rác${lyDo ? ': ' + lyDo : ''}`,
-        anDanh,
-      });
-      if (daKhoa) kieuKhoa = 'địa chỉ mạng';
     }
+    /* Hồ sơ không có mã máy: KHÔNG khoá gì, kể cả theo IP (BUG-016, SEC-DEC-008
+       G1) — khoá IP chặn ngầm cả vùng thuê bao dùng chung địa chỉ. Phản hồi báo
+       đúng sự thật cho cán bộ, không hứa một cú khoá không xảy ra. */
 
     await pool.query(
       `INSERT INTO staff_activity_logs (staff_id, action, target_id, ip_address)
@@ -846,14 +836,13 @@ router.post('/:id/mark-spam', async (req, res) => {
         : !gayKhoa
         ? 'Đã đánh dấu tin rác. Không khoá thêm: hồ sơ này đã bị chặn từ lúc nhận, '
           + 'hoặc đã từng bị đánh dấu tin rác trước đây — mỗi hồ sơ chỉ gây khoá một lần.'
+        : !don.device_id
+        ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị nên không khoá.'
         : !daKhoa
-        ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị lẫn địa chỉ mạng nên không khoá được.'
-        : kieuKhoa === 'thiết bị'
-          ? (taiPham
-              ? 'Đã đánh dấu tin rác. Thiết bị này bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
-              : 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.')
-          : 'Đã đánh dấu tin rác. Hồ sơ không có mã thiết bị nên khoá theo địa chỉ mạng '
-            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.',
+        ? 'Đã đánh dấu tin rác. Không khoá được thiết bị này.'
+        : taiPham
+          ? 'Đã đánh dấu tin rác. Thiết bị này bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
+          : 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.',
     });
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);

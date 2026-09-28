@@ -2,12 +2,13 @@
  * KHIẾU NẠI MỞ KHOÁ — cho người bị khoá nhầm.
  * ============================================================================
  *
- * VÌ SAO CẦN: hệ thống tự khoá thiết bị hoặc địa chỉ mạng khi phát hiện gửi tin
+ * VÌ SAO CẦN: hệ thống khoá thiết bị khi cán bộ đánh dấu một đơn có tên là tin
  * rác. Nhưng máy khoá nhầm là chuyện có thật:
  *   - Bà con dùng chung máy ở tiệm net, ở nhà văn hoá
- *   - Mạng di động Việt Nam cấp phát chung địa chỉ cho rất nhiều thuê bao, một
- *     người phá là cả vùng chịu chung
  *   - Cán bộ đánh nhầm một tin thật thành tin rác
+ *
+ * ⚠️ KHÔNG CÒN KHOÁ THEO ĐỊA CHỈ MẠNG (BUG-016, SEC-DEC-008 G1) nên ở đây chỉ
+ * đọc khoá THIẾT BỊ. Dòng kind = 'ip' còn sót trong CSDL không hiện ô khiếu nại.
  *
  * Không có đường khiếu nại thì người bị oan mất hẳn kênh báo tin cho công an mà
  * không hiểu vì sao, cũng không biết kêu ai. Đó là hỏng đúng mục đích của cả hệ
@@ -53,18 +54,17 @@ const gioiHan = rateLimit({
  * đã dùng hết lượt chưa. */
 router.get('/trang-thai', gioiHan, async (req, res) => {
   const deviceId = String(req.query.deviceId || '').trim().slice(0, 64);
-  const ip = layIpThat(req);
 
   try {
-    /* Đang bị khoá vì cái gì? Có thể bị khoá thiết bị, khoá địa chỉ, hoặc cả hai.
-       CHỈ KHOÁ LOẠI CÓ TÊN — xem chú thích ở đầu tệp. */
+    /* Máy có đang bị khoá không. CHỈ KHOÁ THIẾT BỊ LOẠI CÓ TÊN — xem chú thích
+       ở đầu tệp. */
     const [khoa] = await pool.query(
       `SELECT kind, identifier, reason, expires_at FROM blacklists
         WHERE expires_at > NOW()
-          AND kind IN ('device','ip')
+          AND kind = 'device'
           AND loai_don = 'co_ten'
-          AND ((kind = 'device' AND identifier = ?) OR (kind = 'ip' AND identifier = ?))`,
-      [deviceId || null, ip]
+          AND identifier = ?`,
+      [deviceId || null]
     );
 
     if (khoa.length === 0) {
@@ -122,10 +122,10 @@ router.post('/', gioiHan, async (req, res) => {
     const [khoa] = await pool.query(
       `SELECT kind, identifier FROM blacklists
         WHERE expires_at > NOW()
-          AND kind IN ('device','ip')
+          AND kind = 'device'
           AND loai_don = 'co_ten'
-          AND ((kind = 'device' AND identifier = ?) OR (kind = 'ip' AND identifier = ?))`,
-      [deviceId || null, ip]
+          AND identifier = ?`,
+      [deviceId || null]
     );
 
     if (khoa.length === 0) {
@@ -153,8 +153,8 @@ router.post('/', gioiHan, async (req, res) => {
       return res.status(409).json({ error: 'Khiếu nại trước của bà con đang được xem xét, vui lòng chờ.' });
     }
 
-    /* Ghi khiếu nại cho TỪNG đối tượng đang khoá. Bị khoá cả thiết bị lẫn địa
-       chỉ thì gỡ một cái vẫn chưa vào được, nên cán bộ phải thấy đủ. */
+    /* Ghi khiếu nại cho TỪNG dòng khoá đang khớp (nay chỉ còn khoá thiết bị —
+       không còn khoá địa chỉ mạng, BUG-016). */
     for (const k of khoa) {
       await pool.query(
         `INSERT INTO unlock_appeals (identifier, kind, content, device_id, ip_address)

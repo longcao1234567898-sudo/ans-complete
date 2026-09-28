@@ -75,7 +75,7 @@ export default function KhuKhieuNai() {
 
       <p className="mb-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
         Bà con bị khoá nhầm gửi khiếu nại về đây. Máy có thể khoá nhầm khi nhiều người
-        dùng chung một điện thoại, hoặc nhà mạng cấp chung địa chỉ cho nhiều nhà.
+        dùng chung một điện thoại, hoặc cán bộ đánh nhầm một tin thật thành tin rác.
       </p>
 
       {thongBao && (

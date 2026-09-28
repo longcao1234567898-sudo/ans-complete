@@ -407,31 +407,21 @@ export default function AdminSubmissionDetailPage() {
                        laDonAnDanh ở máy chủ: NULL coi là ẩn danh; MySQL trả
                        TINYINT dạng số nên so bằng Number, không so với false. */
                     const anDanh = data?.is_anonymous == null || Number(data.is_anonymous) !== 0;
+                    /* Không còn khoá theo địa chỉ mạng (BUG-016): hồ sơ không có
+                       mã máy thì không khoá gì — nói trước, không hứa suông. */
                     const ly = window.prompt(
                       (anDanh
                         ? 'Đánh dấu TIN RÁC. Tố giác ẩn danh không khoá máy hay mạng của người gửi.\n\n'
-                        : 'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n')
+                        : data?.co_ma_thiet_bi
+                        ? 'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
+                        : 'Đánh dấu TIN RÁC. Hồ sơ này không có mã thiết bị nên không khoá.\n\n')
                       + 'Hồ sơ vào thùng rác, giữ 7 ngày, khôi phục được nếu bấm nhầm.\n\n'
                       + 'Lý do (không bắt buộc):'
                     );
                     if (ly === null) return;   // bấm Huỷ
-                    /* Hồ sơ gửi TRƯỚC khi có mã thiết bị thì không khoá được máy.
-                       Hỏi cán bộ có muốn khoá địa chỉ mạng thay thế không —
-                       KHÔNG tự làm, vì nhà mạng di động cho hàng trăm thuê bao
-                       chung một IP, khoá nhầm là chặn oan cả vùng. */
-                    let khoaIp = false;
-                    if (!anDanh && !data?.co_ma_thiet_bi) {
-                      khoaIp = window.confirm(
-                        'Hồ sơ này KHÔNG CÓ mã thiết bị (gửi trước khi hệ thống có tính năng).\n\n'
-                        + 'Bấm OK để khoá ĐỊA CHỈ MẠNG của người gửi trong 2 giờ.\n\n'
-                        + '⚠️ Lưu ý: nhà mạng di động cho hàng trăm thuê bao dùng chung một địa chỉ. '
-                        + 'Khoá có thể ảnh hưởng người khác trong cùng vùng.\n\n'
-                        + 'Bấm Cancel để chỉ đánh dấu tin rác, không khoá gì.'
-                      );
-                    }
                     setDangDanhDauRac(true);
                     try {
-                      const kq = await markSpam(submissionId, ly, khoaIp);
+                      const kq = await markSpam(submissionId, ly);
                       toast.success(kq.ghiChu, { duration: 6000 });
                       navigate('/quan-tri/y-kien');
                     } catch (e) {

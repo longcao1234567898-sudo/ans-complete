@@ -12,7 +12,16 @@
  * huỷ theo IP, khiến người này xin mã thì mã của người kia mất hiệu lực.
  *
  * Nên khoá theo MÃ THIẾT BỊ do trình duyệt tự sinh, lưu trong máy người dùng.
- * IP chỉ là lớp dự phòng, và chỉ kích hoạt khi có bằng chứng rõ ràng.
+ * KHÔNG CÓ KHOÁ THEO IP Ở BẤT KỲ ĐÂU (BUG-016, SEC-DEC-008 G1). Từng có một lớp
+ * "dự phòng" khoá IP 2 giờ khi hồ sơ không có mã máy, cộng một luật tự khoá IP
+ * (3 đơn rác / 3 máy / 1 giờ). Lớp đó chưa từng có tác dụng — lưu IP đã băm,
+ * kiểm bằng IP thô — mà cán bộ vẫn được báo "đã khoá". Sửa cho chạy thì một cú
+ * bấm lên đơn gửi qua 4G chặn ngầm cả vùng thuê bao. Nên gỡ hẳn: không tạo dòng
+ * kind = 'ip', không đọc dòng kind = 'ip'. Hồ sơ không có mã máy bị đánh rác thì
+ * không khoá gì, và cán bộ được báo đúng như vậy. IP (đã băm) chỉ còn dùng cho
+ * giới hạn tần suất ở routes/submissions.js: 5 đơn/giờ, 2 đơn ẩn danh/ngày,
+ * thời gian chờ, chặn trùng — các lớp đó trả 429 thẳng cho người gửi, không chặn
+ * ngầm ai. Đừng thêm lại khoá IP mà không có SEC-DEC mới.
  *
  * ---------------------------------------------------------------------------
  * VÌ SAO CHẶN NGẦM CHỨ KHÔNG BÁO THẲNG:
@@ -63,8 +72,6 @@
  * hàng chờ kiểm duyệt. Khoá máy vốn không chặn được người mở tab ẩn danh.
  */
 
-import { layIpThat } from './helpers.js';
-
 /**
  * Giá trị cột blacklists.loai_don cho một đơn ĐƯỢC PHÉP kéo theo hậu quả lên
  * máy/mạng. Chỉ đơn có tên (anDanh === false) -> 'co_ten'. Còn lại -> null, và
@@ -92,20 +99,14 @@ export function laDonAnDanh(isAnonymous) {
 
 /* Thời hạn khoá — cố ý ngắn, xem phần đánh đổi ở trên */
 const KHOA_THIET_BI_GIO = 24;
-const KHOA_IP_GIO = 2;
-
-/* Luật dự phòng theo IP: bao nhiêu đơn rác từ bao nhiêu thiết bị khác nhau
-   trong bao lâu thì mới khoá IP. Đặt cao để không đụng người dùng bình thường. */
-const NGUONG_SO_DON_RAC = 3;
-const NGUONG_SO_THIET_BI = 3;
-const CUA_SO_XET_GIO = 1;
 
 /** Mã thiết bị hợp lệ: UUID v4 do trình duyệt sinh bằng crypto.randomUUID() */
 const DANG_MA_THIET_BI = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Lấy mã thiết bị từ yêu cầu, có kiểm tra dạng.
- * Trả về chuỗi rỗng nếu không hợp lệ — khi đó chỉ còn lớp IP bảo vệ.
+ * Trả về chuỗi rỗng nếu không hợp lệ — khi đó không khoá được gì, chỉ còn giới
+ * hạn tần suất theo IP (đã băm) ở route nhận đơn.
  */
 export function layMaThietBi(req) {
   const id = String(req?.body?.deviceId || '').trim().toLowerCase();
@@ -113,14 +114,16 @@ export function layMaThietBi(req) {
 }
 
 /**
- * Kiểm tra thiết bị hoặc IP có đang bị khoá cho ĐÚNG LOẠI ĐƠN sắp gửi không.
+ * Kiểm tra thiết bị có đang bị khoá cho ĐÚNG LOẠI ĐƠN sắp gửi không.
+ * Không nhận IP: không còn khoá theo IP (xem đầu tệp). Dòng kind = 'ip' còn sót
+ * trong CSDL (trước nang_cap_v23.sql) không chặn ai.
  *
  * @param {boolean} anDanh đơn sắp gửi có ẩn danh không — BẮT BUỘC, xem phần
  *   "khoá tách theo loại đơn" ở đầu tệp.
  * @returns {Promise<{biKhoa: boolean, ly_do: string}>}
  */
-export async function kiemTraBiKhoa(pool, { deviceId, ip, anDanh }) {
-  if (!deviceId && !ip) return { biKhoa: false, ly_do: '' };
+export async function kiemTraBiKhoa(pool, { deviceId, anDanh }) {
+  if (!deviceId) return { biKhoa: false, ly_do: '' };
   /* Đơn ẩn danh không bao giờ bị chặn ngầm — kể cả khi CSDL còn sót dòng khoá
      'an_danh' của mã cũ (phòng thủ hai lớp cho nang_cap_v22.sql) */
   const loai = loaiDonChiuKhoa(anDanh, 'kiểm khoá');
@@ -155,10 +158,9 @@ export async function kiemTraBiKhoa(pool, { deviceId, ip, anDanh }) {
       `SELECT kind, reason FROM blacklists
         WHERE expires_at > NOW()
           AND loai_don = ?
-          AND (   (kind = 'device' AND identifier = ?)
-               OR (kind = 'ip'     AND identifier = ?) )
+          AND kind = 'device' AND identifier = ?
         LIMIT 1`,
-      [loai, deviceId || null, ip || null]
+      [loai, deviceId]
     );
     if (rows.length === 0) return { biKhoa: false, ly_do: '' };
     return { biKhoa: true, ly_do: `${rows[0].kind}: ${rows[0].reason || 'không ghi lý do'}` };
@@ -414,101 +416,10 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
    hạn 5 đơn/giờ theo IP vẫn chạy.
    ============================================================================ */
 
-/**
- * Khoá theo ĐỊA CHỈ IP — chỉ dùng khi hồ sơ không có mã thiết bị.
- *
- * ⚠️ ĐÂY LÀ ĐƯỜNG LUI, KHÔNG PHẢI CÁCH CHÍNH.
- * Nhà mạng di động dùng CGNAT nên khoá IP có thể chặn oan người khác. Vì vậy:
- *   · Thời hạn NGẮN HƠN nhiều so với khoá thiết bị (2 giờ thay vì 24 giờ)
- *   · Ghi rõ lý do để cán bộ biết đây là khoá diện rộng mà cân nhắc gỡ sớm
- *
- * Dùng khi nào: hồ sơ gửi TRƯỚC khi hệ thống có tính năng mã thiết bị, hoặc
- * người gửi tắt localStorage. Không có đường lui này thì cán bộ bấm "Tin rác"
- * mà chẳng chặn được gì — kẻ phá hoại gửi tiếp ngay.
- *
- * @param {boolean} anDanh đơn gây khoá có ẩn danh không — BẮT BUỘC. Khoá IP
- *   chặn cả vùng thuê bao; chặn chéo loại thì tố giác ẩn danh của cả vùng đó
- *   rơi vào nghi rác chỉ vì một đơn có tên. Đơn ẩn danh không khoá IP (M-B).
- */
-export async function khoaIpThuCong(pool, { ip, staffId, lyDo, anDanh }) {
-  if (!ip) return false;
-  const loai = loaiDonChiuKhoa(anDanh, 'khoá IP');
-  if (!loai) return false;
-  try {
-    await pool.query(
-      `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
-       VALUES (?, 'ip', ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
-       ON DUPLICATE KEY UPDATE
-         reason     = VALUES(reason),
-         created_by = VALUES(created_by),
-         expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [ip, loai, (lyDo || 'Cán bộ đánh dấu tin rác') + ' (hồ sơ không có mã thiết bị)',
-       staffId || null, KHOA_IP_GIO, KHOA_IP_GIO]
-    );
-    console.warn(`[chặn spam] khoá IP ${ip} trong ${KHOA_IP_GIO} giờ — hồ sơ không có mã thiết bị`);
-    return true;
-  } catch (err) {
-    console.error('[chặn spam] khoá IP lỗi:', err.message);
-    return false;
-  }
-}
-
 /** Gỡ khoá — cán bộ dùng khi biết chặn oan */
 export async function goKhoa(pool, id) {
   const [kq] = await pool.query('DELETE FROM blacklists WHERE id = ?', [id]);
   return kq.affectedRows > 0;
-}
-
-/**
- * LUẬT DỰ PHÒNG THEO IP.
- *
- * Kẻ phá hoại tinh ranh sẽ xoá bộ nhớ trình duyệt sau mỗi lần bị khoá, để có
- * mã thiết bị mới. Khoá theo thiết bị lúc đó vô hiệu.
- *
- * Dấu hiệu nhận ra: cùng MỘT địa chỉ IP mà có NHIỀU mã thiết bị khác nhau
- * cùng gửi đơn rác trong thời gian ngắn. Người dùng bình thường không có kiểu
- * hành vi đó — kể cả khi dùng chung IP nhà mạng, họ cũng không cùng lúc bị
- * đánh dấu tin giả.
- *
- * Ngưỡng đặt cao (3 đơn rác từ 3 thiết bị khác nhau trong 1 giờ) và thời hạn
- * khoá ngắn (2 giờ) để hạn chế tối đa việc chặn oan cả vùng thuê bao.
- *
- * @param {boolean} anDanh loại của đơn vừa bị chặn — BẮT BUỘC. Chỉ đếm và chỉ
- *   khoá trong đúng loại đó. Đơn ẩn danh không khoá IP (M-B).
- */
-export async function xetKhoaIp(pool, ip, { anDanh } = {}) {
-  if (!ip) return false;
-  const loai = loaiDonChiuKhoa(anDanh, 'xét khoá IP');
-  if (!loai) return false;
-  try {
-    const [rows] = await pool.query(
-      `SELECT COUNT(*) AS so_don, COUNT(DISTINCT device_id) AS so_thiet_bi
-         FROM submissions
-        WHERE ip_address = ?
-          AND is_spam = 1
-          AND device_id IS NOT NULL
-          AND (COALESCE(is_anonymous, 1) <> 0) = ?
-          AND created_at > DATE_SUB(NOW(), INTERVAL ? HOUR)`,
-      [ip, anDanh ? 1 : 0, CUA_SO_XET_GIO]
-    );
-    const { so_don: soDon, so_thiet_bi: soThietBi } = rows[0] || {};
-    if (Number(soDon) < NGUONG_SO_DON_RAC || Number(soThietBi) < NGUONG_SO_THIET_BI) {
-      return false;
-    }
-
-    await pool.query(
-      `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
-       VALUES (?, 'ip', ?, ?, NULL, DATE_ADD(NOW(), INTERVAL ? HOUR))
-       ON DUPLICATE KEY UPDATE expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [ip, loai, `Tự động: ${soDon} đơn rác từ ${soThietBi} thiết bị trong ${CUA_SO_XET_GIO} giờ`,
-       KHOA_IP_GIO, KHOA_IP_GIO]
-    );
-    console.warn(`[chặn spam] khoá IP ${ip} trong ${KHOA_IP_GIO} giờ — ${soDon} đơn rác / ${soThietBi} thiết bị`);
-    return true;
-  } catch (err) {
-    console.error('[chặn spam] xét khoá IP lỗi:', err.message);
-    return false;
-  }
 }
 
 /**
@@ -526,8 +437,7 @@ export async function xetTruocKhiNhan(pool, req) {
      sao CSDL nối tố giác với đơn có tên cùng máy — mã máy không chỉ ra ai, nó
      chỉ nói "hai đơn cùng một máy", và đó chính là điều cần giấu. */
   const deviceId = anDanh ? '' : layMaThietBi(req);
-  const ip = layIpThat(req);
-  const { biKhoa, ly_do } = await kiemTraBiKhoa(pool, { deviceId, ip, anDanh });
+  const { biKhoa, ly_do } = await kiemTraBiKhoa(pool, { deviceId, anDanh });
 
   if (biKhoa) {
     console.warn(`[chặn spam] chặn ngầm một đơn — ${ly_do}`);

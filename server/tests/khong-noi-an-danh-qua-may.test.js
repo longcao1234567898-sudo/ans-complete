@@ -466,29 +466,31 @@ for (const khoaIp of [true, false]) {
   });
 }
 
-test('N-6 — giao diện: hộp hỏi "khoá địa chỉ mạng?" không hiện cho đơn ẩn danh', async () => {
+/* Sau BUG-016 (SEC-DEC-008 G1) không còn hộp hỏi "khoá địa chỉ mạng?" cho loại
+   đơn nào — đổi từ "hộp hỏi không hiện cho đơn ẩn danh" (Loc duyệt, P42) */
+test('N-6 — giao diện: không còn hộp hỏi "khoá địa chỉ mạng?"; lời nhắc đơn ẩn danh nói không khoá máy hay mạng', async () => {
   const trang = await readFile(new URL('../../src/pages/admin/AdminSubmissionDetailPage.tsx', import.meta.url), 'utf8');
-  const i = trang.indexOf('khoaIp = window.confirm(');
-  assert.ok(i > -1, 'không tìm thấy hộp hỏi khoá địa chỉ mạng');
-  /* Điều kiện ngay trước hộp hỏi phải loại đơn ẩn danh */
-  const truoc = trang.slice(0, i);
-  const dieuKien = truoc.slice(truoc.lastIndexOf('if ('));
-  assert.match(dieuKien, /!\s*anDanh\b|is_anonymous/, 'hộp hỏi khoá địa chỉ mạng không xét đơn ẩn danh');
-  if (/anDanh/.test(dieuKien)) {
-    /* Suy ra "ẩn danh" đúng quy ước laDonAnDanh: NULL là ẩn danh, và MySQL trả
-       TINYINT dạng số — so `!== false` thì đơn có tên (0) cũng thành ẩn danh */
-    const dinhNghia = truoc.match(/const anDanh\s*=\s*([^;]+);/)?.[1] || '';
-    assert.match(dinhNghia, /is_anonymous\s*==\s*null/, `anDanh không coi NULL là ẩn danh: ${dinhNghia}`);
-    assert.match(dinhNghia, /Number\(\s*data\??\.is_anonymous\s*\)\s*!==\s*0/, `anDanh không so theo số: ${dinhNghia}`);
-  }
+  assert.equal(trang.indexOf('khoaIp'), -1, 'còn hộp hỏi / cờ khoá địa chỉ mạng');
+  const i = trang.indexOf("'Đánh dấu TIN RÁC. Tố giác ẩn danh không khoá máy hay mạng của người gửi");
+  assert.ok(i > -1, 'lời nhắc khi đánh rác đơn ẩn danh không còn nói "không khoá máy hay mạng"');
+  /* Suy ra "ẩn danh" đúng quy ước laDonAnDanh: NULL là ẩn danh, và MySQL trả
+     TINYINT dạng số — so `!== false` thì đơn có tên (0) cũng thành ẩn danh */
+  const dinhNghia = trang.slice(0, i).match(/const anDanh\s*=\s*([^;]+);/)?.[1] || '';
+  assert.match(dinhNghia, /is_anonymous\s*==\s*null/, `anDanh không coi NULL là ẩn danh: ${dinhNghia}`);
+  assert.match(dinhNghia, /Number\(\s*data\??\.is_anonymous\s*\)\s*!==\s*0/, `anDanh không so theo số: ${dinhNghia}`);
 });
 
-test('N-7 — luật khoá IP tự động không bắn với đơn ẩn danh (3 đơn chặn ngầm từ 3 máy cùng IP)', { skip: BO_QUA }, async () => {
+/* Đổi ở P42 (Loc duyệt): không gọi xetKhoaIp nữa — hàm đã gỡ cùng BUG-016. Đi
+   qua route nhận đơn thật: đơn ẩn danh thứ tư cùng IP tới sau 3 đơn chặn ngầm */
+test('N-7 — 3 tố giác ẩn danh chặn ngầm từ 3 máy cùng IP, tố giác thứ tư tới qua route: không dòng khoá nào, không bị chặn ngầm', { skip: BO_QUA }, async () => {
   dungCsdl();
+  assert.equal(chanSpam.xetKhoaIp, undefined, 'luật khoá IP tự động vẫn còn trong thư viện');
   const may = ['a1b2c3d4-0000-4000-8000-000000000001', 'a1b2c3d4-0000-4000-8000-000000000002', 'a1b2c3d4-0000-4000-8000-000000000003'];
-  may.forEach((m, i) => themDon(30 + i, { an: 1, may: m, ip: IP_THO, status: 'spam', spam: 1, tao: luc(5) }));
-  await chanSpam.xetKhoaIp(pool, IP_THO, { anDanh: true });
-  assert.deepEqual(dongKhoa(), [], 'luật khoá IP tự động khoá mạng vì tố giác ẩn danh');
+  may.forEach((m, i) => themDon(30 + i, { an: 1, may: m, ip: IP_THO, status: 'spam', spam: 1, tao: luc(20) }));
+  const don = await guiDon(donAnDanh(TO_GIAC_1, MAY_KHAC));
+  assert.equal(don.is_spam, 0, 'tố giác ẩn danh bị chặn ngầm theo mạng');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(dongKhoa(), [], 'khoá mạng vì tố giác ẩn danh');
 });
 
 /* ======================================================================== */
@@ -500,7 +502,7 @@ test('N-14 — mọi hàm khoá/đếm trong lib/chan-spam.js với anDanh = tru
   for (const id of [1, 2, 3]) themDon(id, { an: 1, status: 'spam', tao: luc(100 - id) });
   assert.equal(await chanSpam.khoaThietBi(pool, { deviceId: MAY_HOA, staffId: 4, lyDo: 'x', anDanh: true }), false);
   assert.equal((await chanSpam.xetKhoaTaiPham(pool, { deviceId: MAY_HOA, staffId: 4, anDanh: true })).taiPham, false);
-  assert.equal(await chanSpam.khoaIpThuCong(pool, { ip: IP_THO, staffId: 4, lyDo: 'x', anDanh: true }), false);
+  /* Dòng khoaIpThuCong bỏ ở P42 (Loc duyệt): hàm đã gỡ cùng BUG-016 */
   assert.deepEqual(dongKhoa(), []);
   db.exec(`INSERT INTO blacklists (identifier, kind, loai_don, reason, expires_at) VALUES
            ('${MAY_HOA}', 'device', 'an_danh', 'x', datetime(NOW(), '+1 days')),

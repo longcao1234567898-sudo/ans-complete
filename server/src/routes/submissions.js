@@ -8,7 +8,7 @@ import {
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
-import { xetTruocKhiNhan, xetKhoaIp } from '../lib/chan-spam.js';
+import { xetTruocKhiNhan } from '../lib/chan-spam.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -397,14 +397,6 @@ router.post('/', async (req, res) => {
         ...(coCotToaDo ? [viTriLat, viTriLng] : []),
       ]
     );
-
-    /* Đơn vừa lưu bị chặn ngầm -> xét xem có nên khoá luôn cả IP không.
-       Chỉ khoá khi cùng một IP có nhiều THIẾT BỊ KHÁC NHAU cùng gửi đơn rác —
-       dấu hiệu kẻ phá hoại xoá bộ nhớ trình duyệt để đổi mã thiết bị.
-       Bọc riêng vì lỗi ở đây không được làm hỏng việc đã gửi thành công. */
-    if (chanNgam) {
-      xetKhoaIp(pool, ip, { anDanh: isAnonymous }).catch(() => { /* bỏ qua */ });
-    }
 
     // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
     // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không

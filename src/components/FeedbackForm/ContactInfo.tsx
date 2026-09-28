@@ -311,8 +311,8 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
           thêm là một chỗ bỏ cuộc — mà đây lại là bước KHÔNG bảo vệ được gì:
           mã hiện ngay trên màn hình chính máy đang gửi, ai cũng chép lại được.
 
-          Việc chống người máy đã có Turnstile lo, chống spam đã có khoá thiết
-          bị và khoá địa chỉ mạng lo. Thêm một lớp gõ lại số chỉ làm khó bà con
+          Việc chống người máy đã có Turnstile lo, chống spam đã có giới hạn số
+          đơn theo địa chỉ mạng và hàng chờ duyệt lo. Thêm một lớp gõ lại số chỉ làm khó bà con
           thật chứ không cản được người phá. */}
 
       {!anon && (

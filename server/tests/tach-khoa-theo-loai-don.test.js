@@ -258,30 +258,37 @@ test('R3 — khoá tái phạm 30 ngày sinh từ đơn có tên không chặn �
   assert.equal((await nhan(false)).chanNgam, true);
 });
 
-test('R4 — khoá IP tay (khoaIpThuCong) qua đơn có tên không chặn đơn ẩn danh cùng IP', { skip: BO_QUA }, async () => {
+/* SEC-DEC-008 #4 (G1): không còn khoá IP. Ba test R4 dưới đây thay cho ba test
+   khẳng định khoá IP có tác dụng với đúng loại — tính chất chúng canh (khoá do
+   đơn có tên gây ra không chặn đơn ẩn danh cùng IP) nay khẳng định chặt hơn:
+   không chặn loại nào. Đủ biến thể ở tests/bo-khoa-ip.test.js. */
+test('R4 — dòng khoá IP loại có tên còn sót không chặn đơn nào cùng IP; khoaIpThuCong không còn', { skip: BO_QUA }, async () => {
   dungCsdl();
-  /* Gọi thẳng với IP thô: giả lập trạng thái sau khi BUG-016 được vá */
-  await khoaIpThuCong(pool, { ip: IP_THO, staffId: 4, lyDo: 'x', anDanh: false });
+  assert.equal(khoaIpThuCong, undefined, 'khoaIpThuCong vẫn được export');
+  /* Dữ liệu mã cũ để lại — dạng thô, đúng dạng mà nhánh kiểm cũ so */
+  db.prepare(`INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+    VALUES (?, 'ip', 'co_ten', 'x', 4, ?)`).run(IP_THO, luc(-120));
   assert.equal((await nhanDon(true)).chanNgam, false, 'khoá IP từ đơn có tên chặn đơn ẩn danh cùng IP');
-  assert.equal((await nhanDon(false)).chanNgam, true);
+  assert.equal((await nhanDon(false)).chanNgam, false, 'khoá IP vẫn chặn đơn có tên cùng IP');
 });
 
-test('R4 — mark-spam khoaIp ghi khoá IP đúng loại đơn gây khoá', { skip: BO_QUA }, async () => {
+test('R4 — mark-spam đơn có tên không mã máy, có cờ khoaIp: không ghi dòng khoá IP, không báo khoá địa chỉ mạng', { skip: BO_QUA }, async () => {
   dungCsdl();
   themDon(1, { an: 0, may: null });
   const r = await canBo('POST', '/submissions/1/mark-spam', { reason: 'x', khoaIp: true });
   assert.equal(r.status, 200);
-  const dong = db.prepare(`SELECT loai_don FROM blacklists WHERE kind = 'ip'`).get();
-  assert.equal(dong?.loai_don, 'co_ten');
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM blacklists WHERE kind = 'ip'`).get().n, 0);
+  assert.doesNotMatch(r.body.ghiChu, /địa chỉ mạng/i);
 });
 
-test('R4 — luật tự động xetKhoaIp chỉ khoá đúng loại đơn đang bị chặn', { skip: BO_QUA }, async () => {
+test('R4 — 3 đơn có tên chặn ngầm từ 3 máy cùng IP: không có luật tự khoá IP, không dòng khoá IP', { skip: BO_QUA }, async () => {
   dungCsdl();
+  assert.equal(xetKhoaIp, undefined, 'xetKhoaIp vẫn được export');
   const may = ['a1b2c3d4-0000-4000-8000-000000000001', 'a1b2c3d4-0000-4000-8000-000000000002', 'a1b2c3d4-0000-4000-8000-000000000003'];
   may.forEach((m, i) => themDonChanNgam(30 + i, { an: 0, may: m, ip: IP_THO }));
-  await xetKhoaIp(pool, IP_THO, { anDanh: false });
-  assert.equal((await nhanDon(true)).chanNgam, false, 'khoá IP tự động từ đơn có tên chặn đơn ẩn danh');
-  assert.equal((await nhanDon(false)).chanNgam, true, 'luật khoá IP tự động phải còn tác dụng với đúng loại');
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM blacklists WHERE kind = 'ip'`).get().n, 0);
+  assert.equal((await nhanDon(true)).chanNgam, false);
+  assert.equal((await nhanDon(false)).chanNgam, false);
 });
 
 /* SEC-DEC-008 #3: NULL = ẩn danh = không hậu quả theo máy */

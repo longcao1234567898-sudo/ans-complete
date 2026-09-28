@@ -2,9 +2,8 @@
  * KhieuNaiMoKhoa — cho người bị khoá nhầm trình bày để cán bộ xem lại.
  *
  * VÌ SAO CẦN: máy khoá nhầm là chuyện có thật — bà con dùng chung máy ở tiệm
- * net hay nhà văn hoá, mạng di động cấp phát chung địa chỉ cho rất nhiều thuê
- * bao nên một người phá thì cả vùng chịu, hoặc cán bộ đánh nhầm tin thật thành
- * tin rác. Không có đường khiếu nại thì người bị oan mất hẳn kênh báo tin cho
+ * net hay nhà văn hoá, hoặc cán bộ đánh nhầm tin thật thành tin rác. (Không
+ * còn khoá theo địa chỉ mạng — BUG-016 — nên chỉ còn khoá thiết bị.) Không có đường khiếu nại thì người bị oan mất hẳn kênh báo tin cho
  * công an mà không hiểu vì sao, cũng không biết kêu ai.
  *
  * Giới hạn 2 lần mỗi thiết bị — máy chủ chặn, ở đây chỉ hiện cho biết còn mấy
