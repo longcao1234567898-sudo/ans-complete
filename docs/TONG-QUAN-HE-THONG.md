@@ -107,7 +107,7 @@ Khoá theo **mã thiết bị**, không khoá theo IP.
 | Khoá thường | 24 giờ |
 | Khoá tái phạm | 3 lần tin rác **liên tiếp** trong 30 ngày → khoá 30 ngày. Mỗi lần là **một cú bấm của cán bộ trên chính đơn đó** |
 | Một cú bấm, một đơn | "Tin rác" chỉ tác động đúng đơn được bấm. Không còn dọn theo lô các đơn khác cùng thiết bị (SEC-DEC-008) |
-| Khoá IP | Chỉ là đường lui khi đơn không có mã thiết bị, thời hạn 2 giờ |
+| Khoá IP | **Không có** (SEC-DEC-008). Đơn không có mã thiết bị bị đánh rác thì không khoá gì. Chỉ còn giới hạn số đơn theo IP đã băm (giờ, ngày, thời gian chờ, chặn trùng) |
 
 Các ràng buộc an toàn được khoá bằng test:
 
