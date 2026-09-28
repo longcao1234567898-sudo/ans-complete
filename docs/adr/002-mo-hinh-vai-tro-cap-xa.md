@@ -52,7 +52,7 @@ vi xem danh tính của mình.
 |---|---|
 | Thường | Mọi cán bộ |
 | Mật | **Chỉ Trưởng và người được Trưởng giao** hồ sơ đó |
-| Cần bảo vệ | *Chưa chốt* — quyết định cùng lúc với phần triển khai |
+| Cần bảo vệ | Trưởng, Phó, và người được giao hồ sơ đó *(Loc chốt 2026-09-28, P44)* |
 
 - Chỉ Trưởng đặt hoặc hạ mức Mật.
 - Mức Mật **hẹp hơn** mô tả cũ ("chỉ lãnh đạo") một cách cố ý: ở cấp xã, một tố giác có thể nhắm
@@ -98,6 +98,7 @@ Ghi lại để phiên sau không bàn lại từ đầu.
 
 - Không đổi cơ sở dữ liệu vai trò. Công việc còn lại, theo thứ tự:
   1. Triển khai chính sách cấp độ bảo mật ở mục 3 (chốt mức Cần bảo vệ trước khi viết mã).
+     *Đã triển khai ở P44 (BUG-009, `8fe31c4`), chờ RETEST độc lập.*
   2. Giao theo lô (mục 4) — phiên `TINH-NANG`.
   3. *Đề xuất, chưa chốt:* bắt buộc nhập lý do khi xem danh tính; chỉ lãnh đạo được đóng hồ sơ
      (nghiệm thu). Người vận hành quyết trước khi mở phiên.
