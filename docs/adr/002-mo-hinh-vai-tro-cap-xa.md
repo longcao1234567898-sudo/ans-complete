@@ -98,7 +98,7 @@ Ghi lại để phiên sau không bàn lại từ đầu.
 
 - Không đổi cơ sở dữ liệu vai trò. Công việc còn lại, theo thứ tự:
   1. Triển khai chính sách cấp độ bảo mật ở mục 3 (chốt mức Cần bảo vệ trước khi viết mã).
-     *Đã triển khai ở P44 (BUG-009, `8fe31c4`), chờ RETEST độc lập.*
+     *Đã triển khai ở P44 (BUG-009, `8fe31c4`); RETEST độc lập P45 kết luận `Fixed`.*
   2. Giao theo lô (mục 4) — phiên `TINH-NANG`.
   3. *Đề xuất, chưa chốt:* bắt buộc nhập lý do khi xem danh tính; chỉ lãnh đạo được đóng hồ sơ
      (nghiệm thu). Người vận hành quyết trước khi mở phiên.
