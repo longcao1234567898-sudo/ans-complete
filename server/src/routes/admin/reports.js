@@ -7,6 +7,7 @@ import { pool } from '../../db.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
 import { authorize } from '../../middleware/authorize.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
+import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 
@@ -198,6 +199,10 @@ router.get('/details', async (req, res) => {
     const from = req.query.from || '2000-01-01';
     const to = req.query.to || '2100-01-01';
 
+    /* Chỉ lãnh đạo mới tới được đây, nhưng lãnh đạo chưa chắc được đọc hồ sơ
+       Mật: manager chỉ đọc hồ sơ Mật Trưởng giao cho mình (BUG-009). Tệp xuất
+       là đường rò lớn nhất — phải cùng phạm vi với trang chi tiết. */
+    const phamVi = await dieuKienXem(req.staff);
     const [rows] = await pool.query(
       `SELECT s.tracking_code, s.status, s.is_anonymous, s.created_at, s.deadline_at,
               s.ai_processed_content, s.original_content, s.sender_name,
@@ -208,9 +213,10 @@ router.get('/details', async (req, res) => {
        LEFT JOIN staff st     ON st.id = s.assigned_to
        WHERE s.created_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)
          AND s.status NOT IN ('spam')
+         AND ${phamVi.sql}
        ORDER BY s.created_at DESC
        LIMIT 2000`,
-      [from, to]
+      [from, to, ...phamVi.params]
     );
 
     const STATUS_VN = {

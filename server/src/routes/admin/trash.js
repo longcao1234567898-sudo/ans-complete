@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import { layIpThat } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
+import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 
@@ -46,10 +47,12 @@ async function donRacQuaHan() {
 }
 
 /** GET /api/admin/trash — danh sách tin trong thùng rác */
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
     const autoDeleted = await donRacQuaHan();
 
+    /* Vào thùng rác không làm hồ sơ Mật hết Mật (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff);
     const [rows] = await pool.query(
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
               s.is_anonymous, s.created_at, s.deleted_at,
@@ -60,9 +63,10 @@ router.get('/', async (_req, res) => {
        LEFT JOIN staff st ON st.id = s.deleted_by
        LEFT JOIN categories c ON c.id = s.category_id
        WHERE s.deleted_at IS NOT NULL
+         AND ${phamVi.sql}
        ORDER BY s.deleted_at DESC
        LIMIT 200`,
-      [GIU_NGAY]
+      [GIU_NGAY, ...phamVi.params]
     );
 
     res.json({
@@ -113,9 +117,10 @@ router.get('/', async (_req, res) => {
 /** POST /api/admin/trash/:id/restore — khôi phục về hàng chờ kiểm duyệt */
 router.post('/:id/restore', async (req, res) => {
   try {
+    const phamVi = await dieuKienXem(req.staff, '');   // BUG-009
     const [rows] = await pool.query(
-      'SELECT id, is_anonymous FROM submissions WHERE id = ? AND deleted_at IS NOT NULL',
-      [req.params.id]
+      `SELECT id, is_anonymous FROM submissions WHERE id = ? AND deleted_at IS NOT NULL AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Không tìm thấy tin trong thùng rác (có thể đã bị xoá hẳn).' });

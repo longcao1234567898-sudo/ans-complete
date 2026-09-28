@@ -9,14 +9,15 @@ import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
+import {
+  dieuKienXem, capDoSql, bieuThucCapDo, nhomXemDuoc, CAP_DO_HOP_LE, MUC_CHI_TRUONG,
+} from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 router.use(requireAuth);
 
-/* Cột security_level chỉ có sau khi chạy nang_cap_v14.sql. Kiểm tra MỘT lần rồi
-   nhớ kết quả, để truy vấn danh sách/chi tiết không sập nếu database chưa nâng
-   cấp — cột chưa có thì coi mọi tin là 'thuong'. Thà thiếu tính năng phân loại
-   còn hơn cả danh sách ý kiến trắng trơn vì thiếu một cột. */
+/* Cấp độ bảo mật (cột security_level, nang_cap_v14.sql): mọi đường đọc/ghi hồ
+   sơ ở tệp này AND với dieuKienXem() — xem lib/pham-vi-ho-so.js (BUG-009). */
 /* Cột toạ độ vụ việc chỉ có sau khi chạy nang_cap_v16.sql. Kiểm một lần rồi
    nhớ, để trang chi tiết không sập khi database chưa nâng cấp. */
 let _coCotToaDoAd = null;
@@ -33,22 +34,6 @@ async function coCotToaDoAd() {
     _coCotToaDoAd = false;
   }
   return _coCotToaDoAd;
-}
-
-let _coCotMat = null;
-async function coCotCapDoMat() {
-  if (_coCotMat !== null) return _coCotMat;
-  try {
-    const [r] = await pool.query(
-      `SELECT 1 FROM information_schema.columns
-        WHERE table_schema = DATABASE() AND table_name = 'submissions'
-          AND column_name = 'security_level' LIMIT 1`
-    );
-    _coCotMat = r.length > 0;
-  } catch {
-    _coCotMat = false;
-  }
-  return _coCotMat;
 }
 
 /** Tính tình trạng hạn xử lý (SLA) */
@@ -226,6 +211,12 @@ router.get('/', async (req, res) => {
     where.push('s.assigned_to = ?');
     params.push(Number(canBo));
   }
+  /* PHẠM VI THEO CẤP ĐỘ (BUG-009). Nằm trong `where` chung nên trang dữ liệu,
+     total và ô tìm kiếm cùng chỉ thấy hồ sơ được xem — hồ sơ bị ẩn mà vẫn đếm
+     vào total khi "khớp" từ khoá là để lộ nó tồn tại. */
+  const phamVi = await dieuKienXem(req.staff);
+  where.push(phamVi.sql);
+  params.push(...phamVi.params);
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   try {
@@ -247,7 +238,7 @@ router.get('/', async (req, res) => {
                            AND m.read_by_staff = 0), 0) AS tin_chua_doc,
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
-              ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"}
+              ${await capDoSql('s')} AS security_level,
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
@@ -279,6 +270,8 @@ router.get('/', async (req, res) => {
 /** GET /api/admin/submissions/:id — chi tiết (danh tính CHE SẴN, muốn xem đủ phải bấm nút) */
 router.get('/:id', async (req, res) => {
   try {
+    /* Hồ sơ ngoài phạm vi trả 404 y như không tồn tại (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff);
     const [rows] = await pool.query(
       /* Liệt kê cột TƯỜNG MINH, KHÔNG dùng SELECT s.* — trước đây s.* kéo theo cả
          ip_address, user_agent, content_hash, sender_phone_hash rồi spread thẳng
@@ -287,7 +280,7 @@ router.get('/:id', async (req, res) => {
          giác — đường lộ danh tính thật, không cần chờ lộ database.
          Thêm cột mới vào bảng thì phải cân nhắc rồi mới thêm vào đây. */
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
-              s.category_id, s.status, s.urgency, ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"} s.is_anonymous,
+              s.category_id, s.status, s.urgency, ${await capDoSql('s')} AS security_level, s.is_anonymous,
               s.is_flagged, s.flag_reason,
               s.sender_name, s.sender_phone,
               /* Email: CHỈ lấy cờ có/không, KHÔNG lấy cột. Trang chi tiết chỉ
@@ -324,8 +317,8 @@ router.get('/:id', async (req, res) => {
        LEFT JOIN staff st ON s.assigned_to = st.id
        LEFT JOIN staff rb ON s.resolved_by = rb.id
        LEFT JOIN wards w ON s.ward_id = w.id
-       WHERE s.id = ?`,
-      [req.params.id]
+       WHERE s.id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
 
@@ -347,6 +340,9 @@ router.get('/:id', async (req, res) => {
       sender_phone: row.is_anonymous ? '(không cung cấp)' : maskPhone(decrypt(row.sender_phone)),
       co_email: Boolean(row.co_email),
       co_ma_thiet_bi: Boolean(row.co_ma_thiet_bi),
+      /* Chỉ trỏ tới nhóm người xem mở được. Nhóm chứa hồ sơ bị ẩn trả 404 —
+         trỏ tới nó là báo "có hồ sơ tương tự bạn không được xem" (BUG-009) */
+      incident_group_id: (await nhomXemDuoc(req.staff, row.incident_group_id)) ? row.incident_group_id : null,
       is_masked: true,
       ...slaOf(row),
       images,
@@ -374,9 +370,13 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/:id/reveal', authorize('admin', 'manager'), async (req, res) => {
   try {
+    /* Ngoài phạm vi cấp độ thì 404, không 403 — 403 là xác nhận hồ sơ tồn tại
+       (BUG-009). Lớp 2 bên dưới vẫn đứng riêng: xem được nội dung chưa có
+       nghĩa là được xem danh tính. */
+    const phamVi = await dieuKienXem(req.staff, '');
     const [rows] = await pool.query(
-      'SELECT assigned_to, sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ?',
-      [req.params.id]
+      `SELECT assigned_to, sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (rows[0].is_anonymous) {
@@ -426,6 +426,16 @@ router.patch('/:id/status', async (req, res) => {
     return res.status(400).json({ error: 'Vui lòng nhập lý do từ chối.' });
   }
   try {
+    /* Không xem được thì không sửa được (BUG-009). Thủ tục CALL không nhận
+       điều kiện phạm vi nên kiểm bằng một câu riêng ngay trước — đánh đổi ghi
+       ở SEC-DEC-009. */
+    const phamVi = await dieuKienXem(req.staff, '');
+    const [thay] = await pool.query(
+      `SELECT id FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
+    );
+    if (thay.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+
     await pool.query('CALL update_submission_status(?,?,?,?,?)', [
       req.params.id, status, note || null, rejectionReason || null, req.staff.id,
     ]);
@@ -509,6 +519,26 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
   }
 
   try {
+    /* HỒ SƠ MẬT: CHỈ ADMIN GIAO HAY BỎ GIAO (BUG-009, chính sách P38 #2).
+       Người được giao đọc được hồ sơ Mật (lib/pham-vi-ho-so.js). Nếu manager
+       giao được thì "người admin giao" thành "người manager chọn" — lách thẳng
+       dòng Mật, vì manager giao được cho handler (SEC-DEC-007). */
+    const laTruong = req.staff.role === 'admin';
+    const phamVi = await dieuKienXem(req.staff, '');
+    const mucSql = await capDoSql('');
+    const [hoSo] = await pool.query(
+      `SELECT ${mucSql} AS muc FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
+    );
+    if (hoSo.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (!laTruong && hoSo[0].muc === MUC_CHI_TRUONG) {
+      await ghiNhatKy(pool, req, {
+        hanhDong: 'assign_denied', loaiDoiTuong: 'submission', doiTuongId: req.params.id,
+        chiTiet: { assignedTo: staffId, lyDo: 'ho_so_mat' },
+      });
+      return res.status(403).json({ error: 'Chỉ Trưởng Công an xã được phân công hồ sơ Mật.' });
+    }
+
     if (staffId !== null) {
       const [nguoiNhan] = await pool.query('SELECT role, is_active FROM staff WHERE id = ?', [staffId]);
       if (nguoiNhan.length === 0 || !nguoiNhan[0].is_active) {
@@ -529,7 +559,16 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
       }
     }
 
-    await pool.query('UPDATE submissions SET assigned_to = ? WHERE id = ?', [staffId, req.params.id]);
+    /* Kiểm mức lần nữa NGAY TRONG câu ghi: admin nâng hồ sơ lên Mật giữa câu
+       SELECT trên và câu này thì lần giao của manager không được lọt vào. */
+    const [kq] = await pool.query(
+      `UPDATE submissions SET assigned_to = ?
+        WHERE id = ? AND (? = 1 OR ${mucSql} <> 'mat')`,
+      [staffId, req.params.id, laTruong ? 1 : 0]
+    );
+    if (!kq.affectedRows) {
+      return res.status(409).json({ error: 'Cấp độ hồ sơ vừa thay đổi. Tải lại trang rồi thử lại.' });
+    }
     await pool.query(
       'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details) VALUES (?,?,?,?,?)',
       [req.staff.id, 'assign', 'submission', req.params.id, JSON.stringify({ assignedTo: staffId })]
@@ -544,22 +583,59 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
 /** PATCH /api/admin/submissions/:id/security-level — đặt cấp độ bảo mật (admin/manager)
  *
  * Ba mức: thuong / can_bao_ve / mat. Chỉ lãnh đạo được đổi, vì đây là quyết
- * định nghiệp vụ ảnh hưởng tới việc ai được xem tin. Ghi nhật ký đầy đủ. */
+ * định nghiệp vụ ảnh hưởng tới việc ai được xem tin. Ghi nhật ký đầy đủ.
+ *
+ * MỨC MẬT CHỈ ADMIN ĐẶT HOẶC HẠ (BUG-009, ADR-002 §3). Manager hạ được thì hạ
+ * xuống, cho một cán bộ đọc, rồi nhờ nâng lại — Mật không còn chặn được ai;
+ * mà ở cấp xã, tố giác Mật có thể nhắm vào chính Phó trưởng. */
 router.patch('/:id/security-level', authorize('admin', 'manager'), async (req, res) => {
   const { level } = req.body || {};
-  const hopLe = ['thuong', 'can_bao_ve', 'mat'];
-  if (!hopLe.includes(level)) return res.status(400).json({ error: 'Cấp độ không hợp lệ.' });
+  if (!CAP_DO_HOP_LE.includes(level)) return res.status(400).json({ error: 'Cấp độ không hợp lệ.' });
+  const laTruong = req.staff.role === 'admin';
+  if (!laTruong && level === MUC_CHI_TRUONG) {
+    return res.status(403).json({ error: 'Chỉ Trưởng Công an xã được đặt mức Mật.' });
+  }
   try {
-    const [kq] = await pool.query(
-      'UPDATE submissions SET security_level = ? WHERE id = ?',
-      [level, req.params.id]
+    const phamVi = await dieuKienXem(req.staff, '');
+    /* Route này ghi vào cột security_level nên đọc thẳng cột, không qua lượt
+       dò cột: dò lỗi thoáng qua mà thay mức bằng hằng 'mat' thì câu UPDATE dưới
+       tưởng hồ sơ "đã Mật sẵn" và bỏ qua việc gỡ người được giao. */
+    const mucSql = bieuThucCapDo('');
+    const [hoSo] = await pool.query(
+      `SELECT ${mucSql} AS muc, assigned_to FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
-    if (!kq.affectedRows) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (hoSo.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (!laTruong && hoSo[0].muc === MUC_CHI_TRUONG) {
+      return res.status(403).json({ error: 'Chỉ Trưởng Công an xã được hạ mức Mật.' });
+    }
+
+    /* NÂNG LÊN MẬT THÌ GỠ NGƯỜI ĐANG ĐƯỢC GIAO (chính sách P38 #2): người đó có
+       thể do manager chọn, mà người được giao thì đọc được hồ sơ Mật. Hồ sơ đã
+       Mật sẵn thì giữ nguyên, để không gỡ người Trưởng vừa giao. "Mật sẵn" tính
+       theo mức đã chuẩn hoá (mucSql), khớp với cách máy chủ phân quyền và với
+       nang_cap_v24.sql — mức lạ ('' , NULL) đã được v24 gỡ giao.
+       ⚠️ assigned_to đứng TRƯỚC security_level: MySQL gán từ trái sang phải,
+       cột sau đọc giá trị MỚI của cột trước — đảo lại thì CASE luôn thấy 'mat'.
+       Manager: điều kiện mức nằm ngay trong câu ghi, không lọt khi admin nâng
+       mức giữa câu SELECT trên và câu này. */
+    const [kq] = await pool.query(
+      `UPDATE submissions
+          SET assigned_to = CASE WHEN ? = 'mat' AND ${mucSql} <> 'mat'
+                                 THEN NULL ELSE assigned_to END,
+              security_level = ?
+        WHERE id = ? AND (? = 1 OR security_level IN ('thuong', 'can_bao_ve'))`,
+      [level, level, req.params.id, laTruong ? 1 : 0]
+    );
+    if (!kq.affectedRows) {
+      return res.status(409).json({ error: 'Cấp độ hồ sơ vừa thay đổi. Tải lại trang rồi thử lại.' });
+    }
+    const goGiao = level === MUC_CHI_TRUONG && hoSo[0].muc !== MUC_CHI_TRUONG && hoSo[0].assigned_to != null;
     await ghiNhatKy(pool, req, {
       hanhDong: 'set_security_level',
       loaiDoiTuong: 'submission',
       doiTuongId: req.params.id,
-      chiTiet: { level },
+      chiTiet: { level, tuMuc: hoSo[0].muc, ...(goGiao ? { goPhanCong: hoSo[0].assigned_to } : {}) },
     });
     res.json({ ok: true, message: 'Đã cập nhật cấp độ bảo mật.' });
   } catch (err) {
@@ -581,8 +657,10 @@ router.post('/:id/review', async (req, res) => {
   }
 
   try {
+    const phamVi = await dieuKienXem(req.staff, '');   // BUG-009
     const [rows] = await pool.query(
-      'SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ?', [req.params.id]
+      `SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (rows[0].status !== 'pending_review') {
@@ -736,9 +814,10 @@ router.post('/:id/mark-spam', async (req, res) => {
   }
 
   try {
+    const phamVi = await dieuKienXem(req.staff, '');   // BUG-009
     const [rows] = await pool.query(
-      'SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ? AND deleted_at IS NULL',
-      [id]
+      `SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ? AND deleted_at IS NULL AND ${phamVi.sql}`,
+      [id, ...phamVi.params]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Không tìm thấy hồ sơ, hoặc hồ sơ đã ở trong thùng rác.' });

@@ -9,13 +9,16 @@
 -- độ mật" mà quy định nhà nước yêu cầu.
 --
 -- Ba mức, đặt tên theo cách hành chính quen thuộc:
---   thuong        — tin thường, mọi cán bộ được phân công đều xem
---   can_bao_ve    — cần bảo vệ, chỉ người phụ trách + lãnh đạo
---   mat           — mật, chỉ lãnh đạo (admin/manager)
+--   thuong        — tin thường, mọi cán bộ đều xem
+--   can_bao_ve    — cần bảo vệ, chỉ người được giao + lãnh đạo (admin/manager)
+--   mat           — mật, chỉ Trưởng (admin) và người Trưởng giao. Phó trưởng
+--                   (manager) KHÔNG xem, trừ khi được Trưởng giao — cố ý hẹp hơn
+--                   "chỉ lãnh đạo": ở cấp xã, tố giác có thể nhắm vào chính Phó
 --
 -- Mặc định 'thuong' để tin cũ và tin mới không khai báo vẫn chạy bình thường.
--- Việc siết quyền xem theo cấp độ làm ở tầng ứng dụng (route), không ở SQL,
--- để linh hoạt đổi chính sách mà không phải sửa cấu trúc bảng.
+-- Việc siết quyền xem theo cấp độ làm ở tầng ứng dụng: MỘT hàm dùng chung ở
+-- server/src/lib/pham-vi-ho-so.js (BUG-009, ADR-002 §3). Hồ sơ đã Mật trước khi
+-- có hàm đó: chạy nang_cap_v24.sql để gỡ phân công cũ.
 -- ============================================================================
 
 ALTER TABLE submissions

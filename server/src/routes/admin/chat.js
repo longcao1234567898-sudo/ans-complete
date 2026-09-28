@@ -14,6 +14,7 @@ import { authorize } from '../../middleware/authorize.js';
 import { sanitizeText } from '../../lib/security.js';
 import { goKhoa } from '../../lib/chan-spam.js';
 import { layIpThat } from '../../lib/helpers.js';
+import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -35,9 +36,11 @@ router.get('/:id/messages', async (req, res) => {
   }
 
   try {
+    /* Hồ sơ ngoài phạm vi cấp độ: 404 y như không tồn tại (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff, '');
     const [[don]] = await pool.query(
-      'SELECT status, is_anonymous FROM submissions WHERE id = ? LIMIT 1',
-      [id]
+      `SELECT status, is_anonymous FROM submissions WHERE id = ? AND ${phamVi.sql} LIMIT 1`,
+      [id, ...phamVi.params]
     );
     if (!don) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
 
@@ -85,9 +88,12 @@ router.post('/:id/messages', async (req, res) => {
   }
 
   try {
+    /* Chặn GỬI cùng phạm vi với đọc (BUG-009): không xem được hồ sơ Mật thì
+       cũng không được nhắn cho người tố giác của nó dưới danh nghĩa công an. */
+    const phamVi = await dieuKienXem(req.staff, '');
     const [[don]] = await pool.query(
-      'SELECT status FROM submissions WHERE id = ? LIMIT 1',
-      [id]
+      `SELECT status FROM submissions WHERE id = ? AND ${phamVi.sql} LIMIT 1`,
+      [id, ...phamVi.params]
     );
     if (!don) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
 
@@ -283,6 +289,8 @@ router.get('/khieu-nai', async (req, res) => {
        Xử lý khiếu nại đi theo id, không cần mã.
        Đánh đổi đã chấp nhận (SEC-DEC-005): máy chỉ có đơn ẩn danh bị đánh rác
        thì cán bộ xét khiếu nại chỉ bằng lời trình bày. */
+    /* Tin liên quan cũng là nội dung hồ sơ: chỉ hồ sơ trong phạm vi (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff);
     const ketQua = [];
     for (const { identifier, ...r } of rows) {
       let tinLienQuan = [];
@@ -298,9 +306,10 @@ router.get('/khieu-nai', async (req, res) => {
               AND s.device_id = ?
               /* = 0 chứ không phải <> 1: cột cho phép NULL, không rõ thì coi là ẩn danh */
               AND s.is_anonymous = 0
+              AND ${phamVi.sql}
             ORDER BY s.created_at DESC
             LIMIT 5`,
-          [r.kind === 'device' ? identifier : null]
+          [r.kind === 'device' ? identifier : null, ...phamVi.params]
         );
         tinLienQuan = tin;
       } catch (e) {

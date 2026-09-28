@@ -216,11 +216,14 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
                  một biến boolean (req.query.chuaXem === '1'). Không có dữ liệu
                  người dùng nào lọt vào câu lệnh. */
               || /^chiChuaXem \? 'AND g\.acknowledged = FALSE' : ''$/.test(bieuThuc)
-              /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
-                 security_level có tồn tại chưa (coCotCapDoMat, đọc từ
-                 information_schema, không phải dữ liệu người dùng). Cột chưa có
-                 thì thay bằng hằng 'thuong'. Không ký tự người dùng nào lọt vào. */
-              || /^\(await coCotCapDoMat\(\)\) \? "?'s\.security_level,'"? : /.test(bieuThuc)
+              /* Phạm vi xem theo cấp độ bảo mật (BUG-009, lib/pham-vi-ho-so.js).
+                 phamVi.sql là MỆNH ĐỀ dựng từ hằng trong lib; giá trị duy nhất
+                 (mã cán bộ) đi qua dấu ? ở phamVi.params. capDoSql() / mucSql
+                 là biểu thức cột dựng từ hằng — tên cột và ba mức viết sẵn,
+                 bí danh bảng do route truyền hằng 's' hoặc ''. */
+              || bieuThuc === 'phamVi.sql'
+              || bieuThuc === 'mucSql'
+              || /^await capDoSql\('s?'\)$/.test(bieuThuc)
               /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
                  toạ độ vụ việc đã tồn tại chưa (coCotToaDo, đọc từ
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa

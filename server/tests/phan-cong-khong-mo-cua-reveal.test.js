@@ -58,8 +58,11 @@ function dungCsdl() {
   db = new sqlite.DatabaseSync(':memory:');
   for (const q of [
     `CREATE TABLE staff (id INT PRIMARY KEY, full_name TEXT, role TEXT, is_active INT DEFAULT 1)`,
+    /* security_level: cột có từ nang_cap_v14.sql. Thiếu cột thì máy chủ coi mọi
+       hồ sơ là Mật (BUG-009, fail-safe) và trả 404 trước khi tới luật phân công
+       mà tệp này kiểm — nên lược đồ giả phải có cột như CSDL thật. */
     `CREATE TABLE submissions (id INTEGER PRIMARY KEY, sender_name TEXT, sender_phone TEXT,
-       sender_email TEXT, is_anonymous INT, assigned_to INT)`,
+       sender_email TEXT, is_anonymous INT, assigned_to INT, security_level TEXT DEFAULT 'thuong')`,
     `CREATE TABLE staff_activity_logs (staff_id INT, action TEXT, target_type TEXT, target_id TEXT,
        details TEXT, ip_address TEXT)`,
     `INSERT INTO staff VALUES (1, 'Trưởng công an', 'admin', 1), (2, 'Phó An', 'manager', 1),
@@ -67,7 +70,8 @@ function dungCsdl() {
        (5, 'Phó Cường', 'manager', 1), (6, 'Cán bộ đã nghỉ', 'handler', 0)`,
   ]) db.exec(q);
 
-  const them = db.prepare('INSERT INTO submissions VALUES (?,?,?,?,?,?)');
+  const them = db.prepare(`INSERT INTO submissions
+    (id, sender_name, sender_phone, sender_email, is_anonymous, assigned_to) VALUES (?,?,?,?,?,?)`);
   // #10: có tên, admin đã giao cho Phó An
   them.run(10, encrypt('Nguyễn Thị Người Tố Giác'), encrypt('0987654321'), encrypt('ntg@example.com'), 0, MGR_A.id);
   // #11: có tên, CHƯA TỪNG giao cho ai — biến thể (e), tình huống phổ biến nhất

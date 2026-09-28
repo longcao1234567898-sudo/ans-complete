@@ -287,7 +287,9 @@ export default function AdminSubmissionDetailPage() {
             )}
 
             {/* CẤP ĐỘ BẢO MẬT — chỉ lãnh đạo (admin/manager) được đổi.
-                Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký. */}
+                Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký.
+                Mức Mật chỉ Trưởng (admin) đặt hoặc hạ: khoá nút ở đây chỉ cho
+                dễ dùng, máy chủ tự chặn (BUG-009, lib/pham-vi-ho-so.js). */}
             {laLanhDao && (
               <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
                 <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
@@ -298,17 +300,19 @@ export default function AdminSubmissionDetailPage() {
                 </p>
                 <div className="flex flex-col gap-2">
                   {([
-                    ['thuong', 'Thường', 'Mọi cán bộ được phân công đều xem'],
-                    ['can_bao_ve', 'Cần bảo vệ', 'Chỉ người phụ trách và lãnh đạo'],
-                    ['mat', 'Mật', 'Chỉ lãnh đạo'],
+                    ['thuong', 'Thường', 'Mọi cán bộ đều xem'],
+                    ['can_bao_ve', 'Cần bảo vệ', 'Chỉ lãnh đạo và người được giao'],
+                    ['mat', 'Mật', 'Chỉ Trưởng và người Trưởng giao'],
                   ] as const).map(([giaTri, ten, moTa]) => {
                     const dangChon = (data.security_level || 'thuong') === giaTri;
+                    const chiTruong = staff?.role !== 'admin'
+                      && (giaTri === 'mat' || data.security_level === 'mat');
                     return (
                       <button
                         key={giaTri}
                         type="button"
-                        onClick={() => !dangChon && capDoMutation.mutate(giaTri)}
-                        disabled={capDoMutation.isPending || dangChon}
+                        onClick={() => !dangChon && !chiTruong && capDoMutation.mutate(giaTri)}
+                        disabled={capDoMutation.isPending || dangChon || chiTruong}
                         className={`rounded-xl border-2 p-3 text-left transition ${
                           dangChon
                             ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
