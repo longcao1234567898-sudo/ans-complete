@@ -243,8 +243,10 @@ function poolGhiLai(hang) {
 }
 const khoaMay = (ds) => ds.filter((t) => /INSERT INTO blacklists/i.test(t.sql) && /'device'/.test(t.sql));
 
+/* Hồ sơ CÓ TÊN (is_anonymous 0): từ BUG-017 (SEC-DEC-008 M-B) đơn ẩn danh — và
+   đơn không nói loại, vốn coi là ẩn danh — không khoá máy nào */
 test('(b) POST /:id/mark-spam vẫn khoá ĐÚNG máy của hồ sơ', async () => {
-  const ds = poolGhiLai({ status: 'processing', device_id: MA_MAY, ip_address: IP_BAM, tracking_code: 'MA11' });
+  const ds = poolGhiLai({ status: 'processing', is_anonymous: 0, device_id: MA_MAY, ip_address: IP_BAM, tracking_code: 'MA11' });
   const r = await goi(HANDLER, 'POST', '/submissions/11/mark-spam', { reason: 'bịa đặt' });
   assert.equal(r.status, 200);
   assert.equal(khoaMay(ds).length, 1, 'Không khoá thiết bị');
@@ -253,7 +255,8 @@ test('(b) POST /:id/mark-spam vẫn khoá ĐÚNG máy của hồ sơ', async () 
 });
 
 test('(b) POST /:id/review spam vẫn khoá ĐÚNG máy của hồ sơ', async () => {
-  const ds = poolGhiLai({ status: 'pending_review', is_anonymous: 1, device_id: MA_MAY });
+  /* Đơn có tên nằm hàng chờ được (có ảnh nghi ngờ) */
+  const ds = poolGhiLai({ status: 'pending_review', is_anonymous: 0, device_id: MA_MAY });
   const r = await goi(HANDLER, 'POST', '/submissions/11/review', { action: 'spam' });
   assert.equal(r.status, 200);
   assert.equal(khoaMay(ds).length, 1, 'Không khoá thiết bị');
@@ -368,18 +371,29 @@ for (const [ten, duong, body, cungLoai, khacLoai] of [
       assert.notEqual(h.status, 'spam', `Đơn #${id} bị đổi sang tin rác`);
       assert.equal(h.rejection_reason ?? null, null, `Đơn #${id} mang lý do: "${h.rejection_reason}"`);
     }
-    /* Không hồi quy: máy vẫn bị khoá */
-    assert.ok(db.prepare(`SELECT 1 FROM blacklists WHERE kind = 'device' AND identifier = ?`).get(MA_MAY), 'Không khoá máy');
+    const dongKhoa = db.prepare(`SELECT 1 FROM blacklists WHERE kind = 'device' AND identifier = ?`).get(MA_MAY);
+    if (/CÓ TÊN/.test(ten)) {
+      /* Không hồi quy: đơn có tên vẫn khoá máy */
+      assert.ok(dongKhoa, 'Không khoá máy');
+    } else {
+      /* BUG-017 (SEC-DEC-008 M-B): đơn ẩn danh không khoá máy nào */
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM blacklists').get().n, 0, 'Đánh rác tố giác ẩn danh tạo dòng khoá');
+    }
   });
 }
 
 for (const [ten, cb] of [['handler', HANDLER], ['admin', ADMIN]]) {
-  test(`N1 ${ten} xem danh sách khoá sau khi đánh rác một đơn ẩn danh -> không mã máy, không mã hồ sơ`, { skip: BO_QUA }, async () => {
+  /* Dòng khoá dựng bằng đơn CÓ TÊN: từ BUG-017 (SEC-DEC-008 M-B) đánh rác đơn ẩn
+     danh không tạo dòng khoá nào. Vẫn đánh rác tố giác ẩn danh 21 để kiểm nó
+     không để lại dấu nào ở danh sách. */
+  test(`N1 ${ten} xem danh sách khoá sau khi đánh rác đơn có tên và tố giác ẩn danh -> không mã máy, không mã hồ sơ`, { skip: BO_QUA }, async () => {
     mayGuiHonHop();
-    const d = await goi(HANDLER, 'POST', '/submissions/21/mark-spam', { reason: 'bịa' });
+    const d0 = await goi(HANDLER, 'POST', '/submissions/21/mark-spam', { reason: 'bịa' });
+    assert.equal(d0.status, 200, d0.text);
+    const d = await goi(HANDLER, 'POST', '/submissions/20/mark-spam', { reason: 'bịa' });
     assert.equal(d.status, 200, d.text);
     /* Máy không có mã -> khoá theo địa chỉ; cũng không được ghi mã hồ sơ */
-    themDon(30, { an: 1, ma: 'ANDANH30', may: null, ip: 'ip-khong-ma-may', status: 'pending_review', assigned: null });
+    themDon(30, { an: 0, ma: 'COTEN30', may: null, ip: 'ip-khong-ma-may', status: 'received', assigned: null });
     const d2 = await goi(HANDLER, 'POST', '/submissions/30/mark-spam', {});
     assert.equal(d2.status, 200, d2.text);
 
@@ -390,7 +404,7 @@ for (const [ten, cb] of [['handler', HANDLER], ['admin', ADMIN]]) {
       assert.equal(dong.identifier, undefined, 'Danh sách khoá trả mã máy/địa chỉ — nối được với khiếu nại');
       assert.ok(dong.id && dong.kind, 'Vẫn phải có id (để gỡ) và loại khoá');
     }
-    for (const chuoi of ['ANDANH21', 'ANDANH30', 'ip-khong-ma-may', ...cacKhuc(MA_MAY)]) {
+    for (const chuoi of ['ANDANH21', 'COTEN20', 'COTEN30', 'ip-khong-ma-may', ...cacKhuc(MA_MAY)]) {
       assert.ok(!r.text.includes(chuoi), `Danh sách khoá lộ "${chuoi}"`);
     }
   });

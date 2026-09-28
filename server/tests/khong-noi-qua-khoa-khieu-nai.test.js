@@ -248,6 +248,16 @@ function pKhieuNai() {
 
 /* Dòng khoá do đơn `id` gây ra — test biết, cán bộ thì tự suy bằng J2 (giờ khoá
    trùng giờ xoá ở thùng rác, người khoá trùng người xoá). */
+/* Dòng khoá loại ẩn danh mà khoaThietBi của mã TRƯỚC BUG-017 ghi khi review=spam
+   một tố giác. Từ SEC-DEC-008 M-B mã không ghi nó nữa (nang_cap_v22.sql và lượt tự
+   dọn xoá dòng cũ); các ca M1(1) chèn thẳng để canh phòng thủ hai lớp: dòng đó
+   có sót lại thì khiếu nại ký tên vẫn không được đổi theo nó. OR IGNORE: trên mã
+   cũ route đã tự ghi dòng này. */
+function khoaAnDanhCu(may) {
+  db.prepare(`INSERT OR IGNORE INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
+    VALUES (?, 'device', 'an_danh', 'Tin rác — đánh dấu tại hàng chờ kiểm duyệt', 4, datetime(NOW(), '+24 hours'))`).run(may);
+}
+
 function dongKhoaCuaDon(anDanh, may) {
   return db.prepare(`SELECT id FROM blacklists WHERE kind = 'device' AND identifier = ? AND loai_don IN (?, 'khong_ro')`)
     .get(may, anDanh ? 'an_danh' : 'co_ten');
@@ -280,10 +290,11 @@ test('M1(1) — cờ "còn bị khoá" của khiếu nại: gỡ tay dòng khoá
     themDon(2, { an: 1, may: mayB, status: 'pending_review', tao: luc(60) });
     await canBo('POST', '/submissions/1/mark-spam', { reason: 'bịa đặt' });
     await canBo('POST', '/submissions/2/review', { action: 'spam' });
+    khoaAnDanhCu(mayB);
     pKhieuNai();
     const buoc = [await chupManHinh('trước khi gỡ dòng khoá của B')];
     const dong = dongKhoaCuaDon(true, mayB);
-    assert.ok(dong, 'review=spam B phải tạo dòng khoá loại ẩn danh');
+    assert.ok(dong, 'dữ liệu dựng sai — phải có dòng khoá loại ẩn danh của B');
     buoc.push(pick(await quanTri('DELETE', `/chat/blacklist/${dong.id}`), 'gỡ dòng khoá của B'));
     buoc.push(await chupManHinh('sau khi gỡ dòng khoá của B'));
     return buoc;
@@ -296,6 +307,7 @@ test('M1(1) — dòng khoá của B hết hạn tự nhiên → khiếu nại c�
     themDon(2, { an: 1, may: mayB, status: 'pending_review', tao: luc(60) });
     await canBo('POST', '/submissions/1/mark-spam', { reason: 'bịa đặt' });
     await canBo('POST', '/submissions/2/review', { action: 'spam' });
+    khoaAnDanhCu(mayB);
     pKhieuNai();
     const buoc = [await chupManHinh('trước khi khoá của B hết hạn')];
     db.prepare(`UPDATE blacklists SET expires_at = datetime(NOW(), '-1 minutes') WHERE id = ?`)

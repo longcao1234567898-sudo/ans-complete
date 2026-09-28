@@ -401,8 +401,16 @@ export default function AdminSubmissionDetailPage() {
                   type="button"
                   disabled={dangDanhDauRac}
                   onClick={async () => {
+                    /* Tố giác ẩn danh không khoá máy hay mạng của người gửi
+                       (BUG-017) — máy chủ đã chặn, ở đây chỉ để không hứa
+                       với cán bộ một việc sẽ không xảy ra. Cùng quy ước với
+                       laDonAnDanh ở máy chủ: NULL coi là ẩn danh; MySQL trả
+                       TINYINT dạng số nên so bằng Number, không so với false. */
+                    const anDanh = data?.is_anonymous == null || Number(data.is_anonymous) !== 0;
                     const ly = window.prompt(
-                      'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
+                      (anDanh
+                        ? 'Đánh dấu TIN RÁC. Tố giác ẩn danh không khoá máy hay mạng của người gửi.\n\n'
+                        : 'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n')
                       + 'Hồ sơ vào thùng rác, giữ 7 ngày, khôi phục được nếu bấm nhầm.\n\n'
                       + 'Lý do (không bắt buộc):'
                     );
@@ -412,7 +420,7 @@ export default function AdminSubmissionDetailPage() {
                        KHÔNG tự làm, vì nhà mạng di động cho hàng trăm thuê bao
                        chung một IP, khoá nhầm là chặn oan cả vùng. */
                     let khoaIp = false;
-                    if (!data?.co_ma_thiet_bi) {
+                    if (!anDanh && !data?.co_ma_thiet_bi) {
                       khoaIp = window.confirm(
                         'Hồ sơ này KHÔNG CÓ mã thiết bị (gửi trước khi hệ thống có tính năng).\n\n'
                         + 'Bấm OK để khoá ĐỊA CHỈ MẠNG của người gửi trong 2 giờ.\n\n'

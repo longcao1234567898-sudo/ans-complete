@@ -103,15 +103,40 @@ export async function xoaMaMayDonDaXoaDanhTinh(pool) {
 }
 
 /**
- * Một lượt dọn đủ mọi dấu nối — cùng bốn việc với nang_cap_v21.sql, để thứ tự
- * "chạy tệp nâng cấp rồi mới cập nhật mã" không để lại khoảng hở nào. Lỗi thì
- * ném ra cho bên gọi ghi log.
+ * Xoá mã máy trên đơn ẩn danh (is_anonymous khác 0 hoặc NULL) và mọi dòng khoá
+ * loại ẩn danh — hai việc của database/nang_cap_v22.sql (BUG-017, SEC-DEC-008
+ * M-B). Mã hiện tại không ghi hai thứ này nữa; câu dưới dọn phần mã cũ ghi, kể
+ * cả trong khoảng giữa lúc chạy v22 và lúc cập nhật mã. Không đụng is_spam hay
+ * trusted_device.
+ *
+ * @returns {{ soDonAnDanh: number, soKhoaAnDanh: number }}
+ */
+export async function xoaDauNoiDonAnDanh(pool) {
+  const [don] = await pool.query(
+    `UPDATE submissions
+        SET device_id = NULL, updated_at = updated_at
+      WHERE COALESCE(is_anonymous, 1) <> 0
+        AND device_id IS NOT NULL`
+  );
+  const [khoa] = await pool.query(
+    `DELETE FROM blacklists
+      WHERE kind IN ('device', 'ip')
+        AND loai_don = 'an_danh'`
+  );
+  return { soDonAnDanh: don?.affectedRows || 0, soKhoaAnDanh: khoa?.affectedRows || 0 };
+}
+
+/**
+ * Một lượt dọn đủ mọi dấu nối — cùng các việc với nang_cap_v21.sql và
+ * nang_cap_v22.sql, để thứ tự "chạy tệp nâng cấp rồi mới cập nhật mã" không để
+ * lại khoảng hở nào. Lỗi thì ném ra cho bên gọi ghi log.
  */
 export async function donDauNoi(pool) {
   const soDongKhoa = await xoaDongKhoaVoHieu(pool);
   const soDonDaXoaDanhTinh = await xoaMaMayDonDaXoaDanhTinh(pool);
+  const { soDonAnDanh, soKhoaAnDanh } = await xoaDauNoiDonAnDanh(pool);
   const soDon = await xoaDauNoiQuaHan(pool);
-  return { soDon, soDongKhoa, soDonDaXoaDanhTinh };
+  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh };
 }
 
 /**
@@ -123,10 +148,12 @@ export async function donDauNoi(pool) {
 export function batTuDonDauNoi(pool, { chuKyMs = CHU_KY_MAC_DINH_MS } = {}) {
   const motLuot = async () => {
     try {
-      const { soDon, soDongKhoa, soDonDaXoaDanhTinh } = await donDauNoi(pool);
+      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh } = await donDauNoi(pool);
       if (soDon > 0) console.log(`🧹 Đã xoá dấu nối (mã máy, IP đã băm) của ${soDon} đơn quá ${SO_NGAY_GIU_DAU_NOI} ngày`);
       if (soDongKhoa > 0) console.log(`🧹 Đã xoá ${soDongKhoa} dòng khoá hết hạn / không rõ loại`);
       if (soDonDaXoaDanhTinh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonDaXoaDanhTinh} đơn đã xoá danh tính`);
+      if (soDonAnDanh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonAnDanh} đơn ẩn danh`);
+      if (soKhoaAnDanh > 0) console.log(`🧹 Đã xoá ${soKhoaAnDanh} dòng khoá loại ẩn danh của mã cũ`);
     } catch (err) {
       console.error('🔴 KHÔNG xoá được dấu nối quá hạn — sẽ thử lại chu kỳ sau:', err.message);
     }

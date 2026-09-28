@@ -597,7 +597,10 @@ router.post('/:id/review', async (req, res) => {
     const xet = action === 'spam'
       ? await xetDonGayKhoa(pool, rows[0])
       : { gayKhoa: false, khongTinhTaiPham: false };
-    const gayKhoa = xet.gayKhoa && Boolean(rows[0].device_id);
+    /* Khoá và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015), và đơn ẩn
+       danh — gần như cả hàng chờ này — không khoá gì (BUG-017, M-B) */
+    const anDanh = laDonAnDanh(rows[0].is_anonymous);
+    const gayKhoa = !anDanh && xet.gayKhoa && Boolean(rows[0].device_id);
 
     /* Đơn chặn ngầm: dòng lịch sử mang GHI_CHU_KHONG_TINH_TAI_PHAM là dấu để
        xetKhoaTaiPham KHÔNG đếm đơn này về sau. Ghi TRƯỚC và KHÔNG nuốt lỗi —
@@ -678,8 +681,6 @@ router.post('/:id/review', async (req, res) => {
        ====================================================================== */
     let taiPham = false;
     if (gayKhoa) {
-      /* Khoá và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015) */
-      const anDanh = laDonAnDanh(rows[0].is_anonymous);
       await khoaThietBi(pool, {
         deviceId: rows[0].device_id,
         staffId: req.staff.id,
@@ -779,7 +780,12 @@ router.post('/:id/mark-spam', async (req, res) => {
     let daKhoa = false;
     let kieuKhoa = '';
     let taiPham = false;
-    if (!gayKhoa) {
+    if (anDanh) {
+      /* Đơn ẩn danh (kể cả is_anonymous NULL): không khoá máy, không khoá mạng,
+         không đếm tái phạm (BUG-017, SEC-DEC-008 M-B). Nhánh khoá IP bên dưới
+         KHÔNG được chạy cho nó dù hồ sơ không có mã máy — mà từ nay đơn ẩn danh
+         nào cũng không có mã máy. */
+    } else if (!gayKhoa) {
       /* Đơn vẫn vào thùng rác như trên; chỉ không khoá, không đếm */
     } else if (don.device_id) {
       /* Chỉ tác động ĐÚNG ĐƠN này, không dọn các đơn khác cùng máy (BUG-018):
@@ -832,7 +838,12 @@ router.post('/:id/mark-spam', async (req, res) => {
       taiPham,
       /* Phản hồi không được thay đổi theo số đơn khác cùng máy: nó là phép thử
          "người này còn gửi đơn nào nữa không" (BUG-018, biến thể D8). */
-      ghiChu: !gayKhoa
+      /* Đơn ẩn danh: MỘT câu cố định, không phụ thuộc hồ sơ có mã máy/IP hay
+         từng bị chặn — mọi khác biệt ở đây là một phép thử về người gửi. */
+      ghiChu: anDanh
+        ? 'Đã đánh dấu tin rác. Tố giác ẩn danh không khoá máy hay mạng của người gửi — '
+          + 'chỉ hồ sơ này vào thùng rác.'
+        : !gayKhoa
         ? 'Đã đánh dấu tin rác. Không khoá thêm: hồ sơ này đã bị chặn từ lúc nhận, '
           + 'hoặc đã từng bị đánh dấu tin rác trước đây — mỗi hồ sơ chỉ gây khoá một lần.'
         : !daKhoa

@@ -235,13 +235,16 @@ test('R2 — chiều ngược: review=spam đơn ẨN DANH, đơn CÓ TÊN gửi
   assert.equal(don.status, 'received');
 });
 
-test('R13 — chiều ngược: máy bị khoá loại ẩn danh gửi tiếp đơn ẩn danh vẫn bị chặn ngầm (route thật)', { skip: BO_QUA }, async () => {
+/* SEC-DEC-008 #3 (M-B) lật khẳng định: đây chính là kịch bản chị Hoa — đơn ẩn
+   danh không còn gây khoá, nên tố giác sau không bị chặn ngầm */
+test('R13 — chiều ngược: review=spam tố giác ẩn danh, tố giác ẩn danh tiếp theo cùng máy KHÔNG bị chặn ngầm, 0 dòng khoá (route thật)', { skip: BO_QUA }, async () => {
   dungCsdl();
   themDon(2, { an: 1, status: 'pending_review' });
   await canBo('POST', '/submissions/2/review', { action: 'spam' });
   const don = await guiDon(DON_AN_DANH);
-  assert.equal(don.is_spam, 1);
-  assert.equal(don.status, 'spam');
+  assert.equal(don.is_spam, 0, 'tố giác ẩn danh bị chặn ngầm vì tố giác trước cùng máy bị rác');
+  assert.equal(don.status, 'pending_review');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM blacklists').get().n, 0);
 });
 
 test('R3 — khoá tái phạm 30 ngày sinh từ đơn có tên không chặn đơn ẩn danh', { skip: BO_QUA }, async () => {
@@ -281,12 +284,14 @@ test('R4 — luật tự động xetKhoaIp chỉ khoá đúng loại đơn đang
   assert.equal((await nhanDon(false)).chanNgam, true, 'luật khoá IP tự động phải còn tác dụng với đúng loại');
 });
 
-test('R5 — đơn gây khoá có is_anonymous NULL thì khoá tính là loại ẩn danh', { skip: BO_QUA }, async () => {
+/* SEC-DEC-008 #3: NULL = ẩn danh = không hậu quả theo máy */
+test('R5 — đơn có is_anonymous NULL bị đánh rác thì xử như ẩn danh: không có dòng khoá nào, không chặn loại nào', { skip: BO_QUA }, async () => {
   dungCsdl();
   themDon(1, { an: null });
   await canBo('POST', '/submissions/1/mark-spam', { reason: 'x' });
   assert.equal((await nhan(false)).chanNgam, false, 'không rõ loại mà khoá luôn đơn có tên');
-  assert.equal((await nhan(true)).chanNgam, true);
+  assert.equal((await nhan(true)).chanNgam, false, 'không rõ loại mà khoá theo máy');
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM blacklists').get().n, 0);
 });
 
 test('R6 — /kiem-tra-khoa: chỉ khoá loại có tên thì biểu mẫu vẫn mở, không lộ khoá loại nào', { skip: BO_QUA }, async () => {
@@ -308,7 +313,10 @@ test('R6 — /kiem-tra-khoa: khoá CẢ HAI loại vẫn không báo khoá — m
   themDon(2, { an: 1, status: 'pending_review' });
   await canBo('POST', '/submissions/1/mark-spam', { reason: 'x' });
   await canBo('POST', '/submissions/2/review', { action: 'spam' });
-  assert.ok(khoaCon('co_ten') && khoaCon('an_danh'));
+  /* SEC-DEC-008 #3: review=spam đơn ẩn danh không còn tạo khoá — dựng được khoá
+     có tên, KHÔNG dựng được dòng ẩn danh */
+  assert.ok(khoaCon('co_ten'));
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM blacklists WHERE loai_don = 'an_danh'`).get().n, 0);
   const k = await congKhai('POST', '/kiem-tra-khoa', { deviceId: MAY_P });
   assert.equal(k.body?.biKhoa, false, 'màn hình khoá hiện khi máy bị khoá cả hai loại');
 });
@@ -327,14 +335,16 @@ test('R7 — khôi phục rồi mark-spam lại CÙNG một đơn không làm m�
   assert.ok(don.deleted_at, 'đơn vẫn phải vào thùng rác');
 });
 
-test('R7 — vòng khôi phục + review=spam lại cùng một đơn ẩn danh cũng không làm mới khoá', { skip: BO_QUA }, async () => {
+/* SEC-DEC-008 #3: không còn khoá ẩn danh để làm mới — "không gia hạn" thành
+   "không có gì để gia hạn" */
+test('R7 — vòng khôi phục + review=spam lại cùng một đơn ẩn danh: không có dòng khoá nào sau cả vòng', { skip: BO_QUA }, async () => {
   dungCsdl();
   themDon(2, { an: 1, status: 'pending_review' });
   await canBo('POST', '/submissions/2/review', { action: 'spam' });
   db.exec(`UPDATE blacklists SET expires_at = datetime('now', '+10 minutes')`);
   assert.equal((await canBo('POST', '/trash/2/restore')).status, 200);
   assert.equal((await canBo('POST', '/submissions/2/review', { action: 'spam' })).status, 200);
-  assert.ok(khoaCon('an_danh').gio < 1, `khoá được làm mới: còn ${khoaCon('an_danh').gio.toFixed(1)} giờ`);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM blacklists').get().n, 0, 'đơn ẩn danh gây khoá theo máy');
 });
 
 test('R8 — mark-spam tay đơn đang bị chặn ngầm: không gia hạn khoá, không đẩy lên 30 ngày (b1)', { skip: BO_QUA }, async () => {
@@ -503,7 +513,8 @@ test('N2 — ghi status_history lỗi: khôi phục + mark-spam lại vẫn khô
     'đơn bị đưa vào thùng rác dù thao tác báo lỗi');
 });
 
-test('N2 — ghi status_history lỗi: khôi phục + review=spam lại vẫn không làm mới khoá', { skip: BO_QUA }, async () => {
+/* SEC-DEC-008 #3: như R7 ẩn danh ở trên */
+test('N2 — ghi status_history lỗi: khôi phục + review=spam lại đơn ẩn danh — không có dòng khoá nào sau cả vòng', { skip: BO_QUA }, async () => {
   dungCsdl();
   hongLichSuSpam();
   themDon(2, { an: 1, status: 'pending_review' });
@@ -511,7 +522,7 @@ test('N2 — ghi status_history lỗi: khôi phục + review=spam lại vẫn kh
   db.exec(`UPDATE blacklists SET expires_at = datetime('now', '+10 minutes')`);
   assert.equal((await canBo('POST', '/trash/2/restore')).status, 200);
   assert.equal((await canBo('POST', '/submissions/2/review', { action: 'spam' })).status, 200);
-  assert.ok(khoaCon('an_danh').gio < 1, `khoá được làm mới: còn ${khoaCon('an_danh').gio.toFixed(1)} giờ`);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM blacklists').get().n, 0, 'đơn ẩn danh gây khoá theo máy');
 });
 
 const MGR = { id: 2, username: 'mgr2', role: 'manager', full_name: 'Lãnh đạo' };

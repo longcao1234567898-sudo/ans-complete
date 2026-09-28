@@ -150,9 +150,9 @@ router.post('/', async (req, res) => {
        tuổi và người vùng sâu bỏ cuộc giữa chừng.
 
        Việc chống người máy đã có Turnstile lo (kiểm ở trên, dòng 117), chống
-       spam đã có khoá thiết bị và khoá địa chỉ mạng lo. Ẩn danh cũng đã bị
-       siết bằng hai điều kiện khác: nội dung phải đủ dài (ANON_MIN_LENGTH) và
-       chỉ áp dụng cho nhóm tố giác tội phạm.
+       spam với đơn ẩn danh là giới hạn theo IP lo (không khoá máy — BUG-017).
+       Ẩn danh cũng đã bị siết bằng hai điều kiện khác: nội dung phải đủ dài
+       (ANON_MIN_LENGTH) và chỉ áp dụng cho nhóm tố giác tội phạm.
 
        ⚠️ VẪN NHẬN otpToken nếu trình duyệt cũ còn gửi lên — chỉ là không bắt
        buộc nữa. Bỏ hẳn việc đọc trường này sẽ làm hỏng các phiên đang mở dở. */
@@ -386,8 +386,10 @@ router.post('/', async (req, res) => {
         // Cờ nghi gửi hàng loạt (lớp chống trùng gần đúng phát hiện)
         trungLap.danhDau ? 1 : 0,
         trungLap.ghiChu || null,
-        // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat
-        deviceId || null,
+        // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat.
+        // Đơn ẩn danh KHÔNG mang mã máy (BUG-017, SEC-DEC-008 M-B): xetTruocKhiNhan
+        // đã không đọc nó; chặn thêm ở đây vì đây là chỗ GHI vào CSDL.
+        isAnonymous ? null : (deviceId || null),
         chanNgam ? 1 : 0,
         chatPinHash,
         /* Toạ độ chỉ thêm vào khi database đã có cột — thứ tự phải khớp với

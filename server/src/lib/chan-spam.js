@@ -47,17 +47,38 @@
  * Không nói rõ loại đơn thì KHÔNG KHOÁ và KHÔNG CHẶN — đoán sai loại là mở lại
  * đúng đường lộ ở trên. Dòng khoá cũ (trước nang_cap_v19.sql) mang 'khong_ro'
  * nên không chặn gì.
+ *
+ * ---------------------------------------------------------------------------
+ * ĐƠN ẨN DANH KHÔNG CHỊU HẬU QUẢ NÀO THEO MÁY HAY THEO MẠNG (BUG-017, SEC-DEC-008 M-B)
+ *
+ * Tách theo loại vẫn để lại đường nối ẩn danh↔ẩn danh: chị Hoa chỉ có một điện
+ * thoại, cán bộ C đánh rác tố giác đầu của chị -> máy bị khoá loại ẩn danh -> tố
+ * giác thứ hai bị chặn ngầm, nằm ở nghi rác, tạo sau giờ khoá. C gộp hai đơn lại
+ * là đoán ra người. Nên với đơn ẩn danh: không lưu mã máy, không khoá, không
+ * đếm tái phạm, không khoá IP, không bao giờ bị chặn ngầm. Mọi hàm dưới đây hỏi
+ * loaiDonChiuKhoa — một cửa duy nhất, mặc định từ chối, chỉ mở cho đơn có tên.
+ *
+ * Đánh đổi đã chấp nhận: kẻ rải rác ẩn danh không còn bị khoá máy. Còn lại
+ * Turnstile, giới hạn theo IP (2 đơn ẩn danh/ngày, chờ 10 phút, chặn trùng) và
+ * hàng chờ kiểm duyệt. Khoá máy vốn không chặn được người mở tab ẩn danh.
  */
 
 import { layIpThat } from './helpers.js';
 
 /**
- * Giá trị cột blacklists.loai_don cho một đơn. Không phải boolean thì trả null
- * — bên gọi phải coi null là "không khoá, không chặn".
+ * Giá trị cột blacklists.loai_don cho một đơn ĐƯỢC PHÉP kéo theo hậu quả lên
+ * máy/mạng. Chỉ đơn có tên (anDanh === false) -> 'co_ten'. Còn lại -> null, và
+ * bên gọi phải coi null là "không khoá, không chặn, không đếm":
+ *   · anDanh === true: đơn ẩn danh — cố ý, xem phần M-B ở đầu tệp
+ *   · không phải boolean: bên gọi quên nói loại — ghi log để người sửa biết
+ *
+ * Trước đây ẩn danh trả 'an_danh' và bị khoá riêng loại đó. Đừng thêm lại:
+ * cột loai_don vẫn còn giá trị 'an_danh' chỉ vì dữ liệu cũ, không để ghi mới.
  */
-function loaiDon(anDanh) {
-  if (typeof anDanh !== 'boolean') return null;
-  return anDanh ? 'an_danh' : 'co_ten';
+function loaiDonChiuKhoa(anDanh, viec) {
+  if (anDanh === false) return 'co_ten';
+  if (anDanh !== true) console.error(`[chặn spam] ${viec} bị gọi thiếu cờ anDanh — bỏ qua`);
+  return null;
 }
 
 /**
@@ -100,11 +121,10 @@ export function layMaThietBi(req) {
  */
 export async function kiemTraBiKhoa(pool, { deviceId, ip, anDanh }) {
   if (!deviceId && !ip) return { biKhoa: false, ly_do: '' };
-  const loai = loaiDon(anDanh);
-  if (!loai) {
-    console.error('[chặn spam] kiểm khoá bị gọi thiếu cờ anDanh — không chặn');
-    return { biKhoa: false, ly_do: '' };
-  }
+  /* Đơn ẩn danh không bao giờ bị chặn ngầm — kể cả khi CSDL còn sót dòng khoá
+     'an_danh' của mã cũ (phòng thủ hai lớp cho nang_cap_v22.sql) */
+  const loai = loaiDonChiuKhoa(anDanh, 'kiểm khoá');
+  if (!loai) return { biKhoa: false, ly_do: '' };
 
   try {
     /* THIẾT BỊ TIN CẬY được miễn trừ trước mọi thứ.
@@ -179,11 +199,8 @@ export async function laThietBiTinCay(pool, deviceId) {
  */
 export async function khoaThietBi(pool, { deviceId, staffId, lyDo, anDanh }) {
   if (!deviceId) return false;
-  const loai = loaiDon(anDanh);
-  if (!loai) {
-    console.error('[chặn spam] khoá thiết bị bị gọi thiếu cờ anDanh — không khoá');
-    return false;
-  }
+  const loai = loaiDonChiuKhoa(anDanh, 'khoá thiết bị');
+  if (!loai) return false;
   /* Thiết bị tin cậy (kiosk, máy dùng chung) KHÔNG bao giờ bị khoá tự động.
      Xem chú thích trong kiemTraBiKhoa. */
   if (await laThietBiTinCay(pool, deviceId)) {
@@ -299,19 +316,16 @@ const KHOA_TAI_PHAM_GIO = 30 * 24;
  *
  * Trả về { taiPham, soLan } để route báo lại cho cán bộ biết.
  *
- * @param {boolean} anDanh loại của đơn vừa bị đánh rác — BẮT BUỘC. Chỉ đếm và
- *   chỉ khoá trong đúng loại đó: hai đơn ẩn danh rác cộng một đơn có tên rác
- *   không phải "ba lần" của loại nào.
+ * @param {boolean} anDanh loại của đơn vừa bị đánh rác — BẮT BUỘC. Chỉ đếm đơn
+ *   có tên; đơn ẩn danh không bao giờ tái phạm (M-B). Hai đơn ẩn danh rác cộng
+ *   một đơn có tên rác không phải "ba lần" của loại nào.
  */
 export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
   if (!deviceId) return { taiPham: false, soLan: 0 };
+  const loai = loaiDonChiuKhoa(anDanh, 'xét tái phạm');
+  if (!loai) return { taiPham: false, soLan: 0 };
   /* Thiết bị tin cậy không bao giờ bị khoá, kể cả tái phạm. */
   if (await laThietBiTinCay(pool, deviceId)) return { taiPham: false, soLan: 0 };
-  const loai = loaiDon(anDanh);
-  if (!loai) {
-    console.error('[chặn spam] xét tái phạm bị gọi thiếu cờ anDanh — không khoá');
-    return { taiPham: false, soLan: 0 };
-  }
   try {
     /* Lấy BA quyết định gần nhất của cán bộ với thiết bị này.
 
@@ -414,15 +428,12 @@ export async function xetKhoaTaiPham(pool, { deviceId, staffId, anDanh }) {
  *
  * @param {boolean} anDanh đơn gây khoá có ẩn danh không — BẮT BUỘC. Khoá IP
  *   chặn cả vùng thuê bao; chặn chéo loại thì tố giác ẩn danh của cả vùng đó
- *   rơi vào nghi rác chỉ vì một đơn có tên.
+ *   rơi vào nghi rác chỉ vì một đơn có tên. Đơn ẩn danh không khoá IP (M-B).
  */
 export async function khoaIpThuCong(pool, { ip, staffId, lyDo, anDanh }) {
   if (!ip) return false;
-  const loai = loaiDon(anDanh);
-  if (!loai) {
-    console.error('[chặn spam] khoá IP bị gọi thiếu cờ anDanh — không khoá');
-    return false;
-  }
+  const loai = loaiDonChiuKhoa(anDanh, 'khoá IP');
+  if (!loai) return false;
   try {
     await pool.query(
       `INSERT INTO blacklists (identifier, kind, loai_don, reason, created_by, expires_at)
@@ -463,15 +474,12 @@ export async function goKhoa(pool, id) {
  * khoá ngắn (2 giờ) để hạn chế tối đa việc chặn oan cả vùng thuê bao.
  *
  * @param {boolean} anDanh loại của đơn vừa bị chặn — BẮT BUỘC. Chỉ đếm và chỉ
- *   khoá trong đúng loại đó.
+ *   khoá trong đúng loại đó. Đơn ẩn danh không khoá IP (M-B).
  */
 export async function xetKhoaIp(pool, ip, { anDanh } = {}) {
   if (!ip) return false;
-  const loai = loaiDon(anDanh);
-  if (!loai) {
-    console.error('[chặn spam] xét khoá IP bị gọi thiếu cờ anDanh — không khoá');
-    return false;
-  }
+  const loai = loaiDonChiuKhoa(anDanh, 'xét khoá IP');
+  if (!loai) return false;
   try {
     const [rows] = await pool.query(
       `SELECT COUNT(*) AS so_don, COUNT(DISTINCT device_id) AS so_thiet_bi
@@ -508,13 +516,17 @@ export async function xetKhoaIp(pool, ip, { anDanh } = {}) {
  *
  * @returns {Promise<{chanNgam: boolean, deviceId: string}>}
  *   chanNgam = true -> vẫn lưu đơn và vẫn báo thành công, nhưng gắn is_spam = 1
+ *   deviceId = '' với đơn ẩn danh -> route không có mã máy nào để lưu
  */
 export async function xetTruocKhiNhan(pool, req) {
-  const deviceId = layMaThietBi(req);
-  const ip = layIpThat(req);
   /* Cùng một biểu thức với routes/submissions.js (isAnonymous) — hai nơi đọc
      từ cùng một trường thì không thể lệch nhau về loại đơn. */
   const anDanh = req?.body?.isAnonymous === true;
+  /* Đơn ẩn danh: KHÔNG đọc mã máy (M-B). Lưu nó trên đơn là để người cầm bản
+     sao CSDL nối tố giác với đơn có tên cùng máy — mã máy không chỉ ra ai, nó
+     chỉ nói "hai đơn cùng một máy", và đó chính là điều cần giấu. */
+  const deviceId = anDanh ? '' : layMaThietBi(req);
+  const ip = layIpThat(req);
   const { biKhoa, ly_do } = await kiemTraBiKhoa(pool, { deviceId, ip, anDanh });
 
   if (biKhoa) {

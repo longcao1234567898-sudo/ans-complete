@@ -597,8 +597,11 @@ test('E1 — donDauNoi: xoá mọi dòng khoá thiết bị/IP đã hết hạn 
   dungCsdl();
   dungDongKhoaHonHop();
   const kq = await vongDoi.donDauNoi(pool);
-  assert.deepEqual(conLai(), KY_VONG_CON_LAI);
+  /* BUG-017 (SEC-DEC-008 M-B, Loc duyệt P40): lượt tự dọn còn làm việc của
+     nang_cap_v22.sql — xoá MỌI dòng khoá loại ẩn danh, kể cả dòng còn hạn */
+  assert.deepEqual(conLai(), KY_VONG_CON_LAI.filter((d) => d !== 'con-an-danh'));
   assert.equal(kq.soDongKhoa, 4);
+  assert.equal(kq.soKhoaAnDanh, 1);
 });
 
 test('E2 — v21: xoá mọi dòng khoá thiết bị/IP đã hết hạn (mọi loại đơn), giữ dòng còn hạn và thiết bị tin cậy', { skip: BO_QUA }, async () => {
