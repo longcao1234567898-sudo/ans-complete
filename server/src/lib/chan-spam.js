@@ -109,7 +109,11 @@ const DANG_MA_THIET_BI = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
  * hạn tần suất theo IP (đã băm) ở route nhận đơn.
  */
 export function layMaThietBi(req) {
-  const id = String(req?.body?.deviceId || '').trim().toLowerCase();
+  /* Chỉ nhận chuỗi: String(['<mã>']) cũng ra đúng dạng mã, mà mảng hay object
+     không phải thứ giao diện nào gửi — nhận kiểu lạ là mở thêm đường đi vòng. */
+  const tho = req?.body?.deviceId;
+  if (typeof tho !== 'string') return '';
+  const id = tho.trim().toLowerCase();
   return DANG_MA_THIET_BI.test(id) ? id : '';
 }
 

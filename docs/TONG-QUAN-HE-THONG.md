@@ -107,7 +107,8 @@ Khoá theo **mã thiết bị**, không khoá theo IP.
 | Khoá thường | 24 giờ |
 | Khoá tái phạm | 3 lần tin rác **liên tiếp** trong 30 ngày → khoá 30 ngày. Mỗi lần là **một cú bấm của cán bộ trên chính đơn đó** |
 | Một cú bấm, một đơn | "Tin rác" chỉ tác động đúng đơn được bấm. Không còn dọn theo lô các đơn khác cùng thiết bị (SEC-DEC-008) |
-| Khoá IP | **Không có** (SEC-DEC-008). Đơn không có mã thiết bị bị đánh rác thì không khoá gì. Chỉ còn giới hạn số đơn theo IP đã băm (giờ, ngày, thời gian chờ, chặn trùng) |
+| Bắt buộc mã thiết bị | Đơn **có danh tính** thiếu mã thiết bị (hoặc sai dạng) bị trả 400, kèm lời nhắc gọi 113 (ADR-003 §6). Đơn ẩn danh không cần và không lưu mã máy (BUG-014). Mã do trình duyệt tự sinh nên kẻ cố tình vẫn bịa được — lớp này chỉ đóng đường "không có gì để khoá" |
+| Khoá IP | **Không có** (SEC-DEC-008). Đơn cũ không có mã thiết bị bị đánh rác thì không khoá gì. Chỉ còn giới hạn số đơn theo IP đã băm (giờ, ngày, thời gian chờ, chặn trùng) |
 
 Các ràng buộc an toàn được khoá bằng test:
 

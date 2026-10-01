@@ -8,7 +8,7 @@ import {
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
-import { xetTruocKhiNhan } from '../lib/chan-spam.js';
+import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -177,6 +177,22 @@ router.post('/', async (req, res) => {
       }
 
       if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
+
+      /* MÃ THIẾT BỊ BẮT BUỘC (ADR-003 §6). Nút "Tin rác" khoá đúng máy đã gửi
+         bằng mã này; đơn có tên mà không có mã thì không khoá được gì, một đoạn
+         mã tự động chỉ cần bỏ trường deviceId là gửi tiếp mãi. Giao diện luôn
+         gửi mã (kể cả khi trình duyệt chặn bộ nhớ), nên chỉ yêu cầu dựng tay mới
+         thiếu. Đánh đổi đã biết: mã do trình duyệt tự sinh, kẻ cố tình vẫn bịa
+         được mã mới cho mỗi lần gửi — lớp này chỉ đóng đường "không có gì để
+         khoá"; giới hạn theo mạng và số điện thoại vẫn là lớp chặn chính.
+         Đơn ẩn danh không đi qua đây: không đọc mã máy của đơn ẩn danh (BUG-014). */
+      if (!layMaThietBi(req)) {
+        return res.status(400).json({
+          error: 'Gửi thất bại: trình duyệt chưa cấp được mã thiết bị. Bà con vui lòng tải lại trang '
+            + 'rồi gửi lại, hoặc dùng trình duyệt khác. Vấn đề khẩn cấp xin liên hệ ngay 113.',
+          code: 'THIEU_MA_THIET_BI',
+        });
+      }
 
       /* --------------------------------------------------------------------
          XÁC THỰC EMAIL — TẠM TẮT

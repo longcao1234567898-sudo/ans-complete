@@ -239,8 +239,12 @@ const IP_BAM = hashIdentifier(IP_THO).slice(0, 32);
 const dongIp = () => db.prepare(`SELECT identifier, loai_don FROM blacklists WHERE kind = 'ip'`).all().map((r) => ({ ...r }));
 /* Route nhận đơn gọi luật tự động mà không chờ — đợi nó chạy xong rồi mới đếm */
 const choViecNgam = () => new Promise((r) => setTimeout(r, 50));
-/* Đơn có tên KHÔNG gửi mã máy: gọi thẳng API, hoặc trình duyệt tắt localStorage */
-const coTenKhongMay = () => { const { deviceId: _bo, ...b } = DON_CO_TEN; return b; };
+/* Đơn có tên từ một máy CHƯA TỪNG có dòng khoá nào (mã mới mỗi lần gọi): chỉ
+   còn dòng khoá theo IP là có thể chặn nó, nên bài vẫn thử đúng đường IP.
+   Trước ADR-003 §6 các bài này gửi đơn có tên KHÔNG kèm mã máy; nay máy chủ trả
+   400 cho đơn như thế (bat-buoc-ma-thiet-bi.test.js), đơn có tên không mã máy
+   chỉ còn ở dữ liệu cũ — themDon(..., { may: null }). */
+const coTenMayMoi = () => ({ ...DON_CO_TEN, deviceId: crypto.randomUUID() });
 
 /* Dòng kind='ip' mã cũ để lại, ở CẢ HAI dạng: băm (mark-spam ghi ip_address của
    đơn) và thô (dạng mà các nhánh kiểm đem so) — không dạng nào được chặn gì */
@@ -291,7 +295,7 @@ test("R7' — ô c1 của BUG-015: đánh rác đơn có tên không mã máy (k
   assert.equal(an.is_spam, 0, 'tố giác ẩn danh cùng IP bị chặn ngầm vì một đơn có tên');
   assert.equal(an.status, 'pending_review');
   troiQua(15);
-  const ten = await guiDon(coTenKhongMay());
+  const ten = await guiDon(coTenMayMoi());
   assert.equal(ten.is_spam, 0, 'đơn có tên cùng IP bị chặn ngầm theo địa chỉ mạng');
 });
 
@@ -303,7 +307,7 @@ for (const loaiDon of ['co_ten', 'an_danh', 'khong_ro']) {
   test(`nhận đơn — dòng kind='ip' còn sót (loai_don=${loaiDon}, dạng băm lẫn thô) không chặn ngầm đơn nào cùng IP`, { skip: BO_QUA }, async () => {
     dungCsdl();
     themDongIpCu(loaiDon);
-    const ten = await guiDon(coTenKhongMay());
+    const ten = await guiDon(coTenMayMoi());
     assert.equal(ten.is_spam, 0, 'dòng khoá IP cũ vẫn chặn ngầm đơn có tên');
     troiQua(15);
     const an = await guiDon(donAnDanh(TO_GIAC_1));
@@ -516,7 +520,7 @@ test("R6' — thiết bị tin cậy vẫn miễn khoá; đánh rác đơn có t
 test('không hồi quy — 5 đơn trong giờ từ cùng IP thì đơn thứ sáu bị 429 (giới hạn theo IP băm giữ nguyên)', { skip: BO_QUA }, async () => {
   dungCsdl();
   for (let i = 1; i <= 5; i++) themDon(50 + i, { an: 0, may: null, ip: IP_BAM, tao: luc(30 + i) });
-  const r = await congKhai('POST', '/', coTenKhongMay());
+  const r = await congKhai('POST', '/', coTenMayMoi());
   assert.equal(r.status, 429, r.text);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM submissions').get().n, 5);
 });
