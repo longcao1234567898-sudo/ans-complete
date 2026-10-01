@@ -124,3 +124,5 @@ Những chỗ kế hoạch chưa nói rõ, phiên triển khai đã chọn như 
 | Cảnh báo đột biến với cán bộ | Chỉ hiện khi riêng số tin cán bộ xem được đã chạm ngưỡng | Ngưỡng là số công khai; hiện cảnh báo dưới ngưỡng là lộ có tin bị ẩn (BUG-009) |
 | Vé cổng vào | JWT 6 giờ, không gắn địa chỉ mạng; chưa khai `TURNSTILE_SECRET_KEY` thì không bắt vé | 4G đổi IP liên tục; giữ hành vi cũ khi chưa khai khoá |
 | Chống chụp màn hình | Chữ chìm, làm mờ, chặn in/sao chép, ghi nhật ký phím chụp | Trang web không chặn tuyệt đối được — mục tiêu là răn đe và truy vết |
+| Khung "Xử lý ý kiến" (P47) | Chỉ cho tin đã vào xử lý. Tin chờ sàng lọc và tin ngoài thẩm quyền: máy chủ trả 409 khi đổi trạng thái; bỏ `received` khỏi trạng thái đặt tay | Người vận hành yêu cầu; đổi trạng thái tin chờ sàng lọc là bỏ qua bước sàng lọc. Tin chờ duyệt ẩn danh chưa chặn — ND-042 |
+| Tin ngoài thẩm quyền → tố giác mật (P47) | Không cho (409); lãnh đạo "Chuyển lại xử lý" trước nếu cần | Người vận hành yêu cầu: tin ngoài thẩm quyền chỉ có ba nút của phần đó |
