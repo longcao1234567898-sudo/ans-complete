@@ -78,7 +78,7 @@ export default function AdminDashboardPage() {
           {/* Thẻ số liệu */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard Icon={Inbox} label="Tổng ý kiến" value={data.overview.total_submissions} color="bg-secondary-100 text-secondary-600 dark:bg-secondary-500/20 dark:text-secondary-300" />
-            <StatCard Icon={Clock3} label="Chờ tiếp nhận" value={data.overview.pending_count} color="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300" />
+            <StatCard Icon={Clock3} label="Chờ sàng lọc" value={data.overview.pending_count} color="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300" />
             <StatCard Icon={Loader2} label="Đang xử lý" value={data.overview.processing_count} color="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300" />
             <StatCard Icon={CheckCircle2} label="Đã giải quyết" value={data.overview.resolved_count} color="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300" />
           </div>

@@ -35,7 +35,7 @@ const STATUS_TABS = [
   /* Muốn xem ĐỦ cả 70 — kể cả đã giải quyết, từ chối, chờ kiểm duyệt — thì
      phải gửi status='all'. Máy chủ hỗ trợ sẵn, trước nay giao diện không gọi. */
   { value: 'all', label: 'Tất cả', sla: '', nghiRac: '' },
-  { value: 'received', label: 'Chờ tiếp nhận', sla: '', nghiRac: '' },
+  { value: 'received', label: 'Chờ sàng lọc', sla: '', nghiRac: '' },
   { value: 'processing', label: 'Đang xử lý', sla: '', nghiRac: '' },
   { value: 'resolved', label: 'Đã giải quyết', sla: '', nghiRac: '' },
   { value: 'rejected', label: 'Từ chối', sla: '', nghiRac: '' },

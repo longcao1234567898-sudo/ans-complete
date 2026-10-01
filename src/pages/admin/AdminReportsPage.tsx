@@ -98,7 +98,7 @@ export default function AdminReportsPage() {
       const resolveRate = o.total > 0 ? ((o.resolved / o.total) * 100).toFixed(1) + '%' : '0%';
       XLSX.utils.book_append_sheet(wb, withWidth(XLSX.utils.json_to_sheet([
         { 'Chỉ tiêu': 'Tổng số ý kiến tiếp nhận', 'Số lượng': o.total, 'Tỷ lệ': '100%' },
-        { 'Chỉ tiêu': 'Chờ tiếp nhận', 'Số lượng': o.received, 'Tỷ lệ': pct(o.received) },
+        { 'Chỉ tiêu': 'Chờ sàng lọc', 'Số lượng': o.received, 'Tỷ lệ': pct(o.received) },
         { 'Chỉ tiêu': 'Đang xử lý', 'Số lượng': o.processing, 'Tỷ lệ': pct(o.processing) },
         { 'Chỉ tiêu': 'Đã giải quyết', 'Số lượng': o.resolved, 'Tỷ lệ': pct(o.resolved) },
         { 'Chỉ tiêu': 'Từ chối / chuyển đơn vị', 'Số lượng': o.rejected, 'Tỷ lệ': pct(o.rejected) },
@@ -195,7 +195,7 @@ export default function AdminReportsPage() {
 
   const pieData = data
     ? [
-        { name: 'Chờ tiếp nhận', value: Number(data.overview.received) },
+        { name: 'Chờ sàng lọc', value: Number(data.overview.received) },
         { name: 'Đang xử lý', value: Number(data.overview.processing) },
         { name: 'Đã giải quyết', value: Number(data.overview.resolved) },
         { name: 'Từ chối', value: Number(data.overview.rejected) },
@@ -311,7 +311,7 @@ export default function AdminReportsPage() {
           <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">
             {[
               { label: 'Tổng ý kiến', value: data.overview.total, color: 'text-slate-800 dark:text-slate-100' },
-              { label: 'Chờ tiếp nhận', value: data.overview.received, color: 'text-blue-600' },
+              { label: 'Chờ sàng lọc', value: data.overview.received, color: 'text-blue-600' },
               { label: 'Đang xử lý', value: data.overview.processing, color: 'text-amber-600' },
               { label: 'Đã giải quyết', value: data.overview.resolved, color: 'text-emerald-600' },
               { label: 'Từ chối', value: data.overview.rejected, color: 'text-slate-500' },
