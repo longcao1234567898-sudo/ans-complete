@@ -1,6 +1,6 @@
 /** Chi tiết một ý kiến: thông tin đầy đủ, timeline, và bảng điều khiển đổi trạng thái */
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle, Ban, MapPin } from 'lucide-react';
@@ -11,6 +11,7 @@ import { fetchSubmissionDetail, updateSubmissionStatus,
   fetchStaffList, assignSubmission, revealIdentity, markSpam,
   chuyenVaoToGiacMat, duaRaToGiacMat, sangLoc, xuLyNgoaiThamQuyen, themGhiChuNoiBo } from '../../services/adminService';
 import { laLanhDao } from '../../utils/vaiTro';
+import { duongPhanCuaTin, laDuongPhan, TEN_DUONG } from '../../utils/phanTin';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import AdminChatPanel from '../../components/admin/AdminChatPanel';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
@@ -67,6 +68,12 @@ export default function AdminSubmissionDetailPage() {
   const lanhDao = laLanhDao(staff?.role);
   /* Tin đang ở phần nào quyết định khung nào hiện (xem các khung bên phải) */
   const choSangLoc = Boolean(data?.dang_cho_sang_loc);
+  /* Phần đang chứa tin: menu sáng đúng mục, "Quay lại" về đúng danh sách. Lúc
+     chưa tải xong thì theo trang vừa bấm vào (danh sách gửi kèm state.tu). */
+  const location = useLocation();
+  const tuTrang = (location.state as { tu?: unknown } | null)?.tu;
+  const duongPhan = data ? duongPhanCuaTin(data) : (laDuongPhan(tuTrang) ? tuTrang : undefined);
+  const duongVe = duongPhan ?? '/quan-tri/y-kien';
   const tinNgoaiThamQuyen = Boolean(Number(data?.ngoai_tham_quyen ?? 0));
   const daVaoThungRac = Boolean(data?.deleted_at);
   const hienXuLy = !choSangLoc && !tinNgoaiThamQuyen && !daVaoThungRac;
@@ -151,9 +158,9 @@ export default function AdminSubmissionDetailPage() {
   }
 
   return (
-    <AdminLayout>
-      <Link to="/quan-tri/y-kien" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-primary-600">
-        <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+    <AdminLayout mucDangChon={duongPhan}>
+      <Link to={duongVe} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-primary-600">
+        <ArrowLeft className="h-4 w-4" /> Quay lại {TEN_DUONG[duongVe] ?? 'danh sách'}
       </Link>
 
       {isLoading && <div className="flex items-center gap-2 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Đang tải...</div>}
@@ -594,7 +601,7 @@ export default function AdminSubmissionDetailPage() {
                 <button
                   type="button"
                   disabled={dangDanhDauRac}
-                  onClick={() => danhDauRac('/quan-tri/y-kien')}
+                  onClick={() => danhDauRac(duongVe)}
                   className="flex items-center gap-1.5 rounded-xl border-2 border-slate-400 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                 >
                   <Ban className="h-4 w-4" /> Tin rác
@@ -625,7 +632,7 @@ export default function AdminSubmissionDetailPage() {
                           toast.success(kq.message, { duration: 6000 });
                           qc.invalidateQueries({ queryKey: ['admin-submissions'] });
                           if (laLanhDao(staff?.role)) qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
-                          else navigate('/quan-tri/y-kien');
+                          else navigate(duongVe);
                         } catch (e) {
                           toast.error((e as Error).message || 'Không chuyển được.');
                         }

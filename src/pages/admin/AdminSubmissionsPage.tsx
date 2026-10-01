@@ -8,6 +8,7 @@ import { Search, Loader2, ChevronLeft, ChevronRight, Flag, MessageSquare, UserRo
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/admin/AdminLayout';
+import { DUONG_PHAN } from '../../utils/phanTin';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissions, fetchStaffList, xuatNgoaiThamQuyen, type PhanDanhSach } from '../../services/adminService';
 import { donDong } from '../../utils/excelAnToan';
@@ -470,6 +471,7 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
                 <Link
                   key={s.id}
                   to={`/quan-tri/y-kien/${s.id}`}
+                  state={{ tu: DUONG_PHAN[phan] }}
                   className={`flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}`}
                 >
                   <div className="min-w-0 flex-1">

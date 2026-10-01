@@ -255,6 +255,7 @@ export default function AdminReviewPage() {
 
               <Link
                 to={`/quan-tri/y-kien/${s.id}`}
+                state={{ tu: '/quan-tri/kiem-duyet' }}
                 className="ml-auto text-xs font-semibold text-primary-600 hover:underline dark:text-primary-300"
               >
                 Xem chi tiết →

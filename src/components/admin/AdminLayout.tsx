@@ -83,7 +83,12 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
 ];
 
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+/**
+ * `mucDangChon`: đường của mục menu cần sáng, khi đường dẫn trang không nói đúng
+ * (trang chi tiết tin dùng chung /quan-tri/y-kien/:id cho mọi phần — xem
+ * utils/phanTin.ts). Không truyền thì so theo đường dẫn như cũ.
+ */
+export default function AdminLayout({ children, mucDangChon }: { children: ReactNode; mucDangChon?: string }) {
   const { staff, loading, logout } = useAdminAuth();
   const location = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
@@ -137,8 +142,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
   if (!staff) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname + location.search }} />;
 
-  const dangChon = (to: string, exact: boolean) =>
-    exact ? location.pathname === to : location.pathname.startsWith(to);
+  /* So theo TỪNG ĐOẠN đường dẫn: chỉ startsWith thì đang ở /quan-tri/to-giac-mat
+     mà mục /quan-tri/to-giac cũng sáng — hai mục sáng cùng lúc. */
+  const dangChon = (to: string, exact: boolean) => {
+    if (mucDangChon) return to === mucDangChon;
+    const p = location.pathname;
+    return exact ? p === to : p === to || p.startsWith(`${to}/`);
+  };
 
   /* ---------------------------------------------------------------------
      LỌC THANH ĐIỀU HƯỚNG THEO VAI TRÒ
