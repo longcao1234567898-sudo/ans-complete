@@ -39,6 +39,8 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     throw Object.assign(new Error(data?.error || `Lỗi máy chủ (${res.status})`), {
       status: res.status,
       tuMayChu: Boolean(data?.error),
+      /* Mã lỗi máy chủ (ví dụ CAN_XAC_MINH — vé cổng vào hết hạn) */
+      code: typeof data?.code === 'string' ? data.code : undefined,
     });
   }
   return data as T;

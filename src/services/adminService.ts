@@ -3,6 +3,7 @@
  * Refresh token do backend quản lý qua httpOnly cookie.
  */
 import { hasBackend } from './api';
+import { layVe, veHetHan } from '../utils/veVaoCua';
 
 const API_URL = (
   (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.trim() ||
@@ -93,12 +94,15 @@ export async function login(
   const res = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, captchaToken }),
+    /* veVaoCua: vé cổng vào (ADR-003 việc 23). captchaToken chỉ còn dùng khi
+       máy chủ đòi xác minh thêm sau nhiều lần đăng nhập sai. */
+    body: JSON.stringify({ username, password, captchaToken, veVaoCua: layVe() }),
     credentials: 'include',
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const d = data as { error?: string; canCaptcha?: boolean };
+    const d = data as { error?: string; canCaptcha?: boolean; code?: string };
+    if (d?.code === 'CAN_XAC_MINH') veHetHan();
     throw new LoginError(d?.error || 'Đăng nhập thất bại.', Boolean(d?.canCaptcha));
   }
   const { accessToken, staff } = data as { accessToken: string; staff: StaffInfo };

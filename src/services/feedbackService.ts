@@ -13,6 +13,7 @@ import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
 import { loiGuiDeHieu } from '../utils/loiGui';
+import { layVe, veHetHan } from '../utils/veVaoCua';
 import { prepareImages } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
@@ -160,7 +161,8 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
              Không bấm thì trường này rỗng, máy chủ bỏ qua. */
           viTri: draft.viTri ?? null,
           wardId: draft.contact.wardId ?? null,
-          captchaToken: draft.contact.captchaToken ?? '',
+          /* Vé cổng vào (ADR-003 việc 23) — thay ô xác minh ở form */
+          veVaoCua: layVe(),
           otpToken: draft.contact.otpToken ?? '',
           /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
              Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
@@ -174,6 +176,8 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
         }),
       });
     } catch (e) {
+      /* Vé cổng vào hết hạn -> hiện lại màn hình xác minh; lời máy chủ (có 113) giữ nguyên */
+      if ((e as { code?: string })?.code === 'CAN_XAC_MINH') veHetHan();
       /* Mất mạng, máy chủ sập, tải ảnh lỗi... -> câu cố định có 113, thay cho
          "Failed to fetch". Lời giải thích của máy chủ thì giữ nguyên. */
       console.error('[gửi ý kiến] thất bại:', e instanceof Error ? e.message : e);

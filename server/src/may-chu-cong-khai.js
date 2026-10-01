@@ -22,6 +22,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { taoApp, ganDuoi } from './nen-tang.js';
 
 import authRouter from './routes/auth.js';
+import congVaoRouter from './routes/cong-vao.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
@@ -39,6 +40,8 @@ const PORT = process.env.PORT || 4000;
 
 /* CHỈ route công khai. Không có adminRouter ở đây — đó là điểm mấu chốt. */
 app.use('/api/auth', authRouter);
+/* Cổng vào (ADR-003 việc 23) — vé xác minh cho gửi tin */
+app.use('/api/cong-vao', congVaoRouter);
 app.use('/api/tracking', trackingRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/news', newsRouter);

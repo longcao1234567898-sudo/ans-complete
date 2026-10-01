@@ -3,6 +3,7 @@
  * hiệu ứng chuyển trang mượt mà và gắn các thành phần toàn cục (chat AI, toast).
  */
 import { useEffect } from 'react';
+import CongVao from './components/common/CongVao';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -176,7 +177,10 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AdminAuthProvider>
-            <AppShell />
+            {/* Cổng xác minh "không phải người máy" khi vào web (ADR-003 việc 23) */}
+            <CongVao>
+              <AppShell />
+            </CongVao>
           </AdminAuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

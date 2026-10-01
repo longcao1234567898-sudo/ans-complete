@@ -29,6 +29,7 @@ import { taoApp, ganDuoi, chanTheoIp } from './nen-tang.js';
 import adminRouter from './routes/admin/index.js';
 /* Máy chủ cán bộ vẫn cần route đăng nhập để cán bộ lấy phiên. */
 import authRouter from './routes/auth.js';
+import congVaoRouter from './routes/cong-vao.js';
 
 /* CORS: chỉ cho origin của TRANG CÁN BỘ, khai riêng qua biến ADMIN_CORS_ORIGIN
    — tách khỏi origin trang công khai. Trang cán bộ khi vào nội bộ sẽ có địa chỉ
@@ -43,6 +44,8 @@ const PORT = process.env.ADMIN_PORT || 4001;
 app.use(chanTheoIp(layIpThat));
 
 app.use('/api/auth', authRouter);
+/* Cổng vào (ADR-003 việc 23) — vé xác minh cho đăng nhập cán bộ */
+app.use('/api/cong-vao', congVaoRouter);
 app.use('/api/admin', adminRouter);
 
 ganDuoi(app, errorHandler);

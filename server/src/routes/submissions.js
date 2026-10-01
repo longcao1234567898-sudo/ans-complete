@@ -14,7 +14,7 @@ import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
 import { coCotCo } from '../lib/pham-vi-ho-so.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
-import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
+import { quaCongVao } from '../lib/cong-vao.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
@@ -119,16 +119,11 @@ router.post('/', async (req, res) => {
        nhưng TUYỆT ĐỐI không ghi vào database. */
     const ipHash = hashIdentifier(ip).slice(0, 32);
 
-    // 0) CAPTCHA chống bot
-    const captcha = await verifyTurnstile(body.captchaToken, ip);
-    if (!captcha.ok) return res.status(400).json({ error: captcha.error });
-
-    // ẨN DANH: CAPTCHA là BẮT BUỘC (không cho bỏ qua như ý kiến có danh tính)
-    if (isAnonymous && turnstileEnabled() && !body.captchaToken) {
-      return res.status(400).json({
-        error: 'Gửi ẩn danh bắt buộc phải hoàn tất bước xác minh "Tôi không phải người máy".',
-      });
-    }
+    // 0) CỔNG VÀO: vé xác minh "không phải người máy" (ADR-003 việc 23).
+    //    Mọi tin, có danh tính lẫn ẩn danh. Kiểm ở máy chủ: máy tự động gọi
+    //    thẳng API, không đi qua màn hình xác minh.
+    const cong = await quaCongVao(body, ip);
+    if (!cong.ok) return res.status(403).json({ error: cong.error, code: cong.code });
 
     // 1) Ràng buộc cơ bản
     if (!content) return res.status(400).json({ error: 'Nội dung ý kiến không được để trống.' });
