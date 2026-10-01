@@ -3,9 +3,10 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 
 const router = Router();
-router.use(requireAuth, authorize('admin', 'manager'));
+router.use(requireAuth, authorize(...LANH_DAO));
 
 router.get('/', async (_req, res) => {
   const [rows] = await pool.query('SELECT id, word, word_type, is_active, created_at FROM banned_words ORDER BY created_at DESC');

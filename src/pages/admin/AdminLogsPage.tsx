@@ -78,7 +78,6 @@ const FILTERS = [
   { value: 'reveal_identity', label: 'Xem danh tính' },
   { value: 'export_data', label: 'Xuất dữ liệu' },
   { value: 'view_map', label: 'Xem bản đồ' },
-  { value: 'set_security_level', label: 'Đổi cấp độ mật' },
   { value: 'update_status', label: 'Đổi trạng thái' },
   { value: 'assign', label: 'Phân công' },
   { value: 'assign_denied', label: 'Phân công bị từ chối' },

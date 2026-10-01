@@ -199,8 +199,10 @@ export interface SubmissionRow {
   id: number;
   tracking_code: string;
   urgency?: 'normal' | 'important' | 'urgent';
-  /** Cấp độ bảo mật (v14): thuong/can_bao_ve/mat. Mặc định 'thuong' nếu chưa nâng cấp DB */
-  security_level?: 'thuong' | 'can_bao_ve' | 'mat';
+  /** Tin tố cáo cán bộ / người nhà nước — chỉ lãnh đạo thấy (ADR-003, nang_cap_v26.sql) */
+  to_giac_mat?: number;
+  /** Tin bị đánh dấu ngoài thẩm quyền — chỉ lãnh đạo thấy */
+  ngoai_tham_quyen?: number;
   original_content: string;
   ai_processed_content: string | null;
   category_code: string | null;
@@ -293,13 +295,6 @@ export const assignSubmission = (id: number, staffId: number | null) =>
   adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/assign`, {
     method: 'PATCH',
     body: JSON.stringify({ staffId }),
-  });
-
-/** Đổi cấp độ bảo mật của một ý kiến (chỉ admin/manager). */
-export const setSecurityLevel = (id: number, level: 'thuong' | 'can_bao_ve' | 'mat') =>
-  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/security-level`, {
-    method: 'PATCH',
-    body: JSON.stringify({ level }),
   });
 
 /** Xem danh tính đầy đủ — LƯU Ý: mỗi lần xem đều bị ghi nhật ký */

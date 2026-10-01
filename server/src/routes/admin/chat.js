@@ -11,6 +11,7 @@ import { pool } from '../../db.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 import { sanitizeText } from '../../lib/security.js';
 import { goKhoa } from '../../lib/chan-spam.js';
 import { layIpThat } from '../../lib/helpers.js';
@@ -157,7 +158,7 @@ router.get('/blacklist', async (_req, res) => {
 /* Gỡ khoá — dùng khi biết đã chặn oan.
    Rất cần thiết vì mã thiết bị có thể đổi chủ: máy ở tiệm net, điện thoại
    mượn của người thân. */
-router.delete('/blacklist/:id', authorize('admin', 'manager'), async (req, res) => {
+router.delete('/blacklist/:id', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'Mã không hợp lệ.' });
@@ -185,7 +186,7 @@ router.delete('/blacklist/:id', authorize('admin', 'manager'), async (req, res) 
    Máy kiosk, máy tính bảng ở nhà văn hoá, máy tại điểm hỗ trợ lưu động: nhiều
    người dùng chung một device_id. Đánh dấu tin cậy để một người gửi tin rác
    không khoá cả máy, chặn oan mọi người sau đó. Chỉ admin/manager thao tác. */
-router.get('/trusted-devices', authorize('admin', 'manager'), async (_req, res) => {
+router.get('/trusted-devices', authorize(...LANH_DAO), async (_req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, identifier, reason, created_at
@@ -199,7 +200,7 @@ router.get('/trusted-devices', authorize('admin', 'manager'), async (_req, res) 
   }
 });
 
-router.post('/trusted-devices', authorize('admin', 'manager'), async (req, res) => {
+router.post('/trusted-devices', authorize(...LANH_DAO), async (req, res) => {
   const deviceId = String(req.body?.deviceId || '').trim().toLowerCase();
   const ghiChu = String(req.body?.ghiChu || '').trim().slice(0, 200);
   if (deviceId.length < 8) {
@@ -226,7 +227,7 @@ router.post('/trusted-devices', authorize('admin', 'manager'), async (req, res) 
   }
 });
 
-router.delete('/trusted-devices/:id', authorize('admin', 'manager'), async (req, res) => {
+router.delete('/trusted-devices/:id', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });
   try {
@@ -328,7 +329,7 @@ router.get('/khieu-nai', async (req, res) => {
 
 /** POST /api/admin/chat/khieu-nai/:id/xu-ly — gỡ khoá hoặc từ chối
  *  body: { quyetDinh: 'go_khoa' | 'tu_choi', ghiChu?: string } */
-router.post('/khieu-nai/:id/xu-ly', authorize('admin', 'manager'), async (req, res) => {
+router.post('/khieu-nai/:id/xu-ly', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   const quyetDinh = String(req.body?.quyetDinh || '');
   const ghiChu = String(req.body?.ghiChu || '').trim().slice(0, 255);

@@ -72,6 +72,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v22.sql           #    X
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v23.sql           #    Xoá mọi dòng khoá theo địa chỉ mạng (không còn khoá IP) — chạy TRƯỚC khi cập nhật mã máy chủ, sao lưu trước, không đảo ngược được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v24.sql           #    Gỡ người được giao của hồ sơ mức Mật (Trưởng giao lại) — cần v14; dừng máy chủ, cập nhật mã, chạy tệp, rồi mới khởi động lại; LƯU danh sách tệp in ra; sao lưu trước, không đảo ngược được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v25.sql           #    Bảng giữ chỗ gửi tin — giới hạn đếm atomic (ADR-003 việc 1); chạy trước hay sau khi cập nhật mã đều được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v26.sql           #    Bỏ ba cấp độ bảo mật, thay bằng cờ tố giác mật / ngoài thẩm quyền (ADR-003) — dừng máy chủ, chạy tệp, rồi cập nhật mã; LƯU danh sách in ra; sao lưu trước
 ```
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 

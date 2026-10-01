@@ -54,29 +54,41 @@ test('vai trò lạ (ví dụ tài khoản bị sửa role) -> 403', () => {
 
 /* ===== Khoá việc GẮN middleware vào đúng route ===== */
 
-test("POST /:id/reveal có gắn authorize('admin','manager')", async () => {
+/* ADR-003 §1: mọi chốt lãnh đạo đọc từ MỘT danh sách (lib/vai-tro.js) thay cho
+   chuỗi 'admin', 'manager' rải từng route. Kiểm danh sách đó trước — nó mà lọt
+   'handler' vào thì mọi route dưới đây mở cho cán bộ cùng lúc. */
+test('LANH_DAO đúng hai vai trò lãnh đạo, không có handler', async () => {
+  const { LANH_DAO, laLanhDao } = await import('../src/lib/vai-tro.js');
+  assert.deepEqual([...LANH_DAO].sort(), ['admin', 'manager']);
+  assert.equal(laLanhDao({ role: 'handler' }), false);
+  assert.equal(laLanhDao({ role: 'la-lung' }), false);
+  assert.equal(laLanhDao(null), false);
+  assert.equal(laLanhDao({ role: 'manager' }), true);
+});
+
+test('POST /:id/reveal chỉ cho lãnh đạo (authorize(...LANH_DAO))', async () => {
   const nguon = await readFile(new URL('../src/routes/admin/submissions.js', import.meta.url), 'utf8');
   assert.match(
     nguon,
-    /router\.post\(\s*'\/:id\/reveal'\s*,\s*authorize\(\s*'admin'\s*,\s*'manager'\s*\)/,
-    'Xem danh tính người tố giác không được để handler gọi'
+    /router\.post\(\s*'\/:id\/reveal'\s*,\s*authorize\(\.\.\.LANH_DAO\)/,
+    'Xem danh tính người tố giác không được để cán bộ gọi'
   );
 });
 
-test("router reports gắn authorize('admin','manager') ở tầng router", async () => {
+test('router reports gắn authorize(...LANH_DAO) ở tầng router', async () => {
   const nguon = await readFile(new URL('../src/routes/admin/reports.js', import.meta.url), 'utf8');
   assert.match(
     nguon,
-    /router\.use\(\s*authorize\(\s*'admin'\s*,\s*'manager'\s*\)\s*\)/,
+    /router\.use\(\s*authorize\(\.\.\.LANH_DAO\)\s*\)/,
     'Chốt ở tầng router để endpoint báo cáo thêm mới sau này cũng được bảo vệ'
   );
 });
 
 test('các authorize sẵn có KHÔNG bị xoá mất khi dọn requireAuth trùng lặp', async () => {
   const kiemTra = [
-    ['../src/routes/admin/submissions.js', /'\/:id\/assign',\s*authorize\('admin', 'manager'\)/],
-    ['../src/routes/admin/logs.js', /authorize\('admin', 'manager'\)/],
-    ['../src/routes/admin/banned-words.js', /authorize\('admin', 'manager'\)/],
+    ['../src/routes/admin/submissions.js', /'\/:id\/assign',\s*authorize\(\.\.\.LANH_DAO\)/],
+    ['../src/routes/admin/logs.js', /authorize\(\.\.\.LANH_DAO\)/],
+    ['../src/routes/admin/banned-words.js', /authorize\(\.\.\.LANH_DAO\)/],
   ];
   for (const [duong, mau] of kiemTra) {
     const nguon = await readFile(new URL(duong, import.meta.url), 'utf8');

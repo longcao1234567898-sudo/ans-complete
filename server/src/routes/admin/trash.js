@@ -12,6 +12,7 @@ import { requireAuth } from '../../middleware/auth.js';
 import { layIpThat } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
+import { laLanhDao } from '../../lib/vai-tro.js';
 
 const router = Router();
 
@@ -157,8 +158,8 @@ router.post('/:id/restore', async (req, res) => {
 /** DELETE /api/admin/trash/:id — xoá vĩnh viễn NGAY (không chờ hết 7 ngày) */
 router.delete('/:id', async (req, res) => {
   // Chỉ admin mới được xoá vĩnh viễn — tránh cán bộ thường xoá mất chứng cứ
-  if (req.staff.role !== 'admin') {
-    return res.status(403).json({ error: 'Chỉ quản trị viên mới được xoá vĩnh viễn.' });
+  if (!laLanhDao(req.staff)) {
+    return res.status(403).json({ error: 'Chỉ lãnh đạo mới được xoá vĩnh viễn.' });
   }
 
   try {
@@ -187,8 +188,8 @@ router.delete('/:id', async (req, res) => {
 
 /** DELETE /api/admin/trash — dọn sạch toàn bộ thùng rác (chỉ admin) */
 router.delete('/', async (req, res) => {
-  if (req.staff.role !== 'admin') {
-    return res.status(403).json({ error: 'Chỉ quản trị viên mới được dọn sạch thùng rác.' });
+  if (!laLanhDao(req.staff)) {
+    return res.status(403).json({ error: 'Chỉ lãnh đạo mới được dọn sạch thùng rác.' });
   }
   try {
     const [r] = await pool.query('DELETE FROM submissions WHERE deleted_at IS NOT NULL');

@@ -7,10 +7,11 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 
 const router = Router();
 router.use(requireAuth);
-router.use(authorize('admin', 'manager')); // chỉ lãnh đạo được xem nhật ký
+router.use(authorize(...LANH_DAO)); // chỉ lãnh đạo được xem nhật ký
 
 /** GET /api/admin/logs?action=&page=&limit= */
 router.get('/', async (req, res) => {

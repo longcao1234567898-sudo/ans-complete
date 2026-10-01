@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 import { generateTrackingCode } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 
@@ -26,7 +27,7 @@ router.get('/', async (_req, res) => {
 });
 
 /** POST /api/admin/qr-points — tạo điểm mới (admin/manager) */
-router.post('/', authorize('admin', 'manager'), async (req, res) => {
+router.post('/', authorize(...LANH_DAO), async (req, res) => {
   const name = sanitizeText(req.body?.name, 150);
   const note = sanitizeText(req.body?.note || '', 255);
   const wardId = Number(req.body?.wardId);
@@ -52,7 +53,7 @@ router.post('/', authorize('admin', 'manager'), async (req, res) => {
 });
 
 /** PATCH /api/admin/qr-points/:id — bật/tắt điểm (admin/manager) */
-router.patch('/:id', authorize('admin', 'manager'), async (req, res) => {
+router.patch('/:id', authorize(...LANH_DAO), async (req, res) => {
   try {
     await pool.query('UPDATE qr_points SET is_active = ? WHERE id = ?', [
       req.body?.isActive === false ? 0 : 1,
@@ -65,7 +66,7 @@ router.patch('/:id', authorize('admin', 'manager'), async (req, res) => {
 });
 
 /** DELETE /api/admin/qr-points/:id — xoá hẳn (admin/manager) */
-router.delete('/:id', authorize('admin', 'manager'), async (req, res) => {
+router.delete('/:id', authorize(...LANH_DAO), async (req, res) => {
   try {
     await pool.query('DELETE FROM qr_points WHERE id = ?', [req.params.id]);
     res.json({ ok: true });

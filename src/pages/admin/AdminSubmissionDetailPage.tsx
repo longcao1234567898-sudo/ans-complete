@@ -8,7 +8,8 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import KhuTepDinhKem from '../../components/admin/KhuTepDinhKem';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
-  fetchStaffList, assignSubmission, revealIdentity, markSpam, setSecurityLevel } from '../../services/adminService';
+  fetchStaffList, assignSubmission, revealIdentity, markSpam } from '../../services/adminService';
+import { laLanhDao } from '../../utils/vaiTro';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import AdminChatPanel from '../../components/admin/AdminChatPanel';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
@@ -50,23 +51,12 @@ export default function AdminSubmissionDetailPage() {
   // --- V2: phân công cán bộ ---
   const { data: staffList } = useQuery({ queryKey: ['admin-staff'], queryFn: fetchStaffList });
   const { staff } = useAdminAuth();
-  const laLanhDao = staff?.role === 'admin' || staff?.role === 'manager';
+  const coChiLanhDao = Boolean(data?.to_giac_mat || data?.ngoai_tham_quyen);
 
   const assignMutation = useMutation({
     mutationFn: (staffId: number | null) => assignSubmission(submissionId, staffId),
     onSuccess: (r) => {
       setFeedback(r.message || 'Đã phân công.');
-      qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
-      qc.invalidateQueries({ queryKey: ['admin-submissions'] });
-    },
-    onError: (e: Error) => setFeedback(e.message),
-  });
-
-  /* Đổi cấp độ bảo mật — chỉ lãnh đạo (admin/manager) thấy nút này. */
-  const capDoMutation = useMutation({
-    mutationFn: (level: 'thuong' | 'can_bao_ve' | 'mat') => setSecurityLevel(submissionId, level),
-    onSuccess: (r) => {
-      setFeedback(r.message || 'Đã cập nhật cấp độ bảo mật.');
       qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
       qc.invalidateQueries({ queryKey: ['admin-submissions'] });
     },
@@ -120,11 +110,11 @@ export default function AdminSubmissionDetailPage() {
                 {data.urgency === 'important' && (
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">🟡 Quan trọng</span>
                 )}
-                {data.security_level === 'mat' && (
-                  <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">🔒 MẬT</span>
+                {Boolean(data.to_giac_mat) && (
+                  <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">🔒 TỐ GIÁC MẬT · chỉ lãnh đạo</span>
                 )}
-                {data.security_level === 'can_bao_ve' && (
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">🛡️ Cần bảo vệ</span>
+                {Boolean(data.ngoai_tham_quyen) && (
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">↪ Ngoài thẩm quyền · chỉ lãnh đạo</span>
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-500">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
@@ -228,15 +218,13 @@ export default function AdminSubmissionDetailPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
               >
                 <option value="">— Chưa phân công —</option>
-                {/* Manager chỉ giao được cho cán bộ xử lý (BUG-008) — backend
-                    chặn, ở đây chỉ để khỏi hiện lựa chọn chắc chắn bị từ chối.
-                    Người đang phụ trách vẫn hiện (không chọn lại được) để ô
-                    không trông như "chưa phân công". */}
+                {/* Tin tố giác mật / ngoài thẩm quyền chỉ giao được cho lãnh đạo
+                    (ADR-003 §4) — máy chủ chặn, ở đây chỉ để khỏi hiện lựa chọn
+                    chắc chắn bị từ chối. Người đang phụ trách vẫn hiện. */}
                 {staffList
-                  ?.filter((st) => staff?.role !== 'manager' || st.role === 'handler' || st.id === data.assigned_to)
+                  ?.filter((st) => !coChiLanhDao || laLanhDao(st.role) || st.id === data.assigned_to)
                   .map((st) => (
-                    <option key={st.id} value={st.id}
-                      disabled={staff?.role === 'manager' && st.role !== 'handler'}>
+                    <option key={st.id} value={st.id}>
                       {st.full_name} ({st.open_count} việc đang mở)
                     </option>
                   ))}
@@ -282,50 +270,6 @@ export default function AdminSubmissionDetailPage() {
                   >
                     Chỉ đường tới hiện trường
                   </a>
-                </div>
-              </div>
-            )}
-
-            {/* CẤP ĐỘ BẢO MẬT — chỉ lãnh đạo (admin/manager) được đổi.
-                Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký.
-                Mức Mật chỉ Trưởng (admin) đặt hoặc hạ: khoá nút ở đây chỉ cho
-                dễ dùng, máy chủ tự chặn (BUG-009, lib/pham-vi-ho-so.js). */}
-            {laLanhDao && (
-              <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
-                <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
-                  <Ban className="h-4 w-4 text-rose-600" /> Cấp độ bảo mật
-                </h3>
-                <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-                  Tin nhạy cảm đặt mức cao hơn để hạn chế người xem. Mỗi lần đổi đều được ghi nhật ký.
-                </p>
-                <div className="flex flex-col gap-2">
-                  {([
-                    ['thuong', 'Thường', 'Mọi cán bộ đều xem'],
-                    ['can_bao_ve', 'Cần bảo vệ', 'Chỉ lãnh đạo và người được giao'],
-                    ['mat', 'Mật', 'Chỉ Trưởng và người Trưởng giao'],
-                  ] as const).map(([giaTri, ten, moTa]) => {
-                    const dangChon = (data.security_level || 'thuong') === giaTri;
-                    const chiTruong = staff?.role !== 'admin'
-                      && (giaTri === 'mat' || data.security_level === 'mat');
-                    return (
-                      <button
-                        key={giaTri}
-                        type="button"
-                        onClick={() => !dangChon && !chiTruong && capDoMutation.mutate(giaTri)}
-                        disabled={capDoMutation.isPending || dangChon || chiTruong}
-                        className={`rounded-xl border-2 p-3 text-left transition ${
-                          dangChon
-                            ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
-                            : 'border-slate-200 hover:border-rose-300 dark:border-slate-700'
-                        }`}
-                      >
-                        <span className="block text-sm font-bold text-slate-700 dark:text-slate-200">
-                          {ten} {dangChon && '· đang áp dụng'}
-                        </span>
-                        <span className="block text-xs text-slate-500 dark:text-slate-400">{moTa}</span>
-                      </button>
-                    );
-                  })}
                 </div>
               </div>
             )}

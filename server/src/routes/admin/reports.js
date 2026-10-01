@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 
@@ -26,7 +27,7 @@ const router = Router();
    dòng nội dung, hay /summary cho thấy hiệu suất từng cán bộ. */
 router.get('/map', banDoDiemNong);
 
-router.use(authorize('admin', 'manager'));
+router.use(authorize(...LANH_DAO));
 
 /** GET /api/admin/reports/summary?from=&to= — số liệu tổng hợp để xem + xuất Excel */
 router.get('/summary', async (req, res) => {

@@ -20,6 +20,7 @@ import {
   LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText,
   ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { LANH_DAO, tenVaiTro } from '../../utils/vaiTro';
 
 interface MucDieuHuong {
   to: string;
@@ -43,7 +44,7 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
            xử lý tin rác. Chỉ admin và manager xem được, khớp với phân quyền
            ở máy chủ (authorize('admin','manager')). */
         { to: '/quan-tri/danh-sach-khoa', label: 'Danh sách khoá', Icon: ShieldOff, exact: false,
-          vaiTro: ['admin', 'manager'] },
+          vaiTro: [...LANH_DAO] },
     ],
   },
   {
@@ -65,16 +66,11 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
          Phải KHỚP với authorize(...) ở máy chủ, nếu không cán bộ bấm vào sẽ
          nhận lỗi 403 — trang hiện thông báo lỗi khó hiểu, tưởng hệ thống hỏng. */
       { to: '/quan-tri/nhat-ky', label: 'Nhật ký', Icon: ScrollText, exact: false,
-        vaiTro: ['admin', 'manager'] },
+        vaiTro: [...LANH_DAO] },
     ],
   },
 ];
 
-function tenVaiTro(role: string) {
-  if (role === 'admin') return 'Quản trị viên';
-  if (role === 'manager') return 'Cán bộ quản lý';
-  return 'Cán bộ xử lý';
-}
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { staff, logout } = useAdminAuth();

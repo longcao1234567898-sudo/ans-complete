@@ -18,6 +18,7 @@
 import { Router } from 'express';
 import { pool } from '../../db.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 
@@ -109,7 +110,7 @@ router.get('/:id', async (req, res) => {
 });
 
 /** POST / — đăng tin mới. Chỉ chỉ huy và quản trị. */
-router.post('/', authorize('admin', 'manager'), async (req, res) => {
+router.post('/', authorize(...LANH_DAO), async (req, res) => {
   const d = docDuLieuTin(req.body);
   if (d.loi) return res.status(400).json({ error: d.loi });
   try {
@@ -137,7 +138,7 @@ router.post('/', authorize('admin', 'manager'), async (req, res) => {
 });
 
 /** PUT /:id — sửa tin. Chỉ chỉ huy và quản trị. */
-router.put('/:id', authorize('admin', 'manager'), async (req, res) => {
+router.put('/:id', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });
   const d = docDuLieuTin(req.body);
@@ -171,7 +172,7 @@ router.put('/:id', authorize('admin', 'manager'), async (req, res) => {
  *
  *  Đây là cách "xoá" tin: ẩn khỏi trang người dân nhưng giữ trong database.
  *  Xem chú thích đầu tệp về lý do không xoá hẳn. */
-router.patch('/:id/hien', authorize('admin', 'manager'), async (req, res) => {
+router.patch('/:id/hien', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   const hien = req.body?.hien === true;
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });

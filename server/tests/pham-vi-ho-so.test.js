@@ -1,21 +1,20 @@
 /**
- * BUG-009 — Cấp độ bảo mật hồ sơ phải được THỰC THI ở backend, không chỉ là nhãn.
+ * PHẠM VI XEM HỒ SƠ (ADR-003 §4) — thay bài canh cấp độ bảo mật của BUG-009.
  *
- * Chính sách (Loc chốt P38 + phiên FIX, ADR-002 §3):
- *   thuong      — mọi cán bộ
- *   can_bao_ve  — admin, manager, và người đang được giao hồ sơ
- *   mat         — CHỈ admin và người admin giao (manager không, trừ khi được giao)
- *   không đọc được mức (NULL, giá trị lạ, thiếu cột) — coi là mat
+ * Chính sách (Loc chốt 2026-10-01, ADR-003):
+ *   lãnh đạo (admin, manager)  — mọi hồ sơ
+ *   cán bộ (handler)           — hồ sơ KHÔNG mang cờ to_giac_mat, ngoai_tham_quyen
+ *                                (kể cả khi đang được giao hồ sơ mang cờ)
+ *   cờ không đọc được (NULL)   — coi là CÓ cờ (fail-safe)
  * Người không đủ quyền: không hiện trong danh sách, không tính vào total, truy
  * cập trực tiếp trả 404 như hồ sơ không tồn tại. Chặn cả ĐỌC lẫn GHI.
  *
- * Bảng mong đợi `duocXem` dưới đây viết lại từ bảng chính sách, KHÔNG gọi mã
- * sản phẩm — test không được dùng chính hàm cần kiểm để tính đáp án.
+ * Bảng mong đợi `duocXem` viết lại từ bảng chính sách, KHÔNG gọi mã sản phẩm.
  *
- * Mỗi nhóm test ứng một biến thể trong Bug Log: (a) chi tiết · (b) danh sách
- * với mọi tổ hợp lọc · (c) chat đọc/gửi · (d) bề mặt phụ · (e) thao tác ghi ·
- * (f) can_bao_ve và người phụ trách · (g) NULL/giá trị lạ (thiếu cột: tệp
- * cap-do-bao-mat-thieu-cot.test.js) · (h) đổi mức · (i) hai điểm vào máy chủ.
+ * Giữ nguyên các bề mặt BUG-009 đã canh: (a) chi tiết · (b) danh sách với mọi
+ * tổ hợp lọc · (c) chat đọc/gửi · (d) bề mặt phụ · (e) thao tác ghi · (g) cờ
+ * NULL (thiếu cột: pham-vi-ho-so-thieu-cot.test.js) · (h) route đổi cấp độ đã
+ * gỡ · (i) hai điểm vào máy chủ.
  *
  * Câu SQL của route chạy NGUYÊN VĂN trên node:sqlite qua HTTP thật.
  * Node < 22 -> BỎ QUA (hiện rõ trong output), không âm thầm xanh.
@@ -26,7 +25,7 @@ import { readFile } from 'node:fs/promises';
 import { datBienMoiTruongHopLe } from './helpers-test.js';
 import {
   dungCsdl, goi as goiGoc, ADMIN, MGR, MGR2, H, H2, MOI_CAN_BO,
-} from './gia-lap/csdl-cap-do.js';
+} from './gia-lap/csdl-pham-vi.js';
 
 datBienMoiTruongHopLe();
 
@@ -45,47 +44,41 @@ const goi = (staff, method, duong, body) => goiGoc(adminRouter, signAccessToken,
 /* Dữ liệu                                                                   */
 /* ------------------------------------------------------------------------ */
 
-/* Hồ sơ không phải 'thuong' mang dấu BIMAT-<id> trong nội dung: thấy dấu này ở
-   đâu trong phản hồi của người không đủ quyền là rò. */
+/* Hồ sơ mang cờ có dấu BIMAT-<id> trong nội dung: thấy dấu này ở đâu trong
+   phản hồi của người không đủ quyền là rò.
+   co: 'mat' = to_giac_mat, 'ntq' = ngoai_tham_quyen, 'null' = cờ NULL, null = thường */
 const HO_SO = [
-  { id: 10, muc: 'mat',        giao: null },
-  { id: 11, muc: 'mat',        giao: H2.id },
-  { id: 12, muc: 'mat',        giao: MGR.id },
-  { id: 13, muc: 'mat',        giao: null, spam: 1 },                        // nghi rác
-  { id: 14, muc: 'mat',        giao: null, spam: 1, xoa: true, st: 'spam' }, // thùng rác
-  { id: 15, muc: 'mat',        giao: null, spam: 1, may: 'may-khieu-nai' },  // khiếu nại
-  { id: 16, muc: 'mat',        giao: null, st: 'pending_review', an: 1 },    // hàng chờ
-  { id: 20, muc: 'can_bao_ve', giao: null,   nhom: 2 },
-  { id: 21, muc: 'can_bao_ve', giao: H.id },
-  { id: 30, muc: 'thuong',     giao: null,   nhom: 1 },
-  { id: 31, muc: 'thuong',     giao: H2.id,  nhom: 2 },
-  { id: 32, muc: 'thuong',     giao: null,   nhom: 3 },
-  { id: 33, muc: 'thuong',     giao: null,   nhom: 3 },
-  { id: 40, muc: null,         giao: null },   // NULL — dữ liệu cũ/lạ
-  { id: 41, muc: 'la_lung',    giao: null },   // giá trị ngoài ENUM
-  /* '' — MySQL không nghiêm ngặt lưu giá trị ENUM lạ thành chuỗi rỗng. Coi là
-     Mật; người đang được giao không rõ do ai chọn -> tệp v24 phải gỡ. */
-  { id: 42, muc: '',           giao: H.id },
+  { id: 10, co: 'mat',  giao: null },
+  { id: 11, co: 'mat',  giao: H2.id },                                     // cán bộ được giao vẫn không xem
+  { id: 12, co: 'mat',  giao: MGR.id },
+  { id: 13, co: 'mat',  giao: null, spam: 1 },                            // nghi rác
+  { id: 14, co: 'mat',  giao: null, spam: 1, xoa: true, st: 'spam' },     // thùng rác
+  { id: 15, co: 'mat',  giao: null, spam: 1, may: 'may-khieu-nai' },      // khiếu nại
+  { id: 16, co: 'mat',  giao: null, st: 'pending_review', an: 1 },        // hàng chờ
+  { id: 20, co: 'ntq',  giao: null },
+  { id: 21, co: 'ntq',  giao: H.id },
+  { id: 30, co: null,   giao: null,   nhom: 1 },
+  { id: 31, co: null,   giao: H2.id,  nhom: 2 },
+  { id: 32, co: null,   giao: null,   nhom: 3 },
+  { id: 33, co: null,   giao: null,   nhom: 3 },
+  { id: 40, co: 'null', giao: null },   // to_giac_mat NULL — dữ liệu chép tay/lạ
+  { id: 41, co: 'nullntq', giao: H.id },   // ngoai_tham_quyen NULL
 ];
 HO_SO.find((x) => x.id === 10).nhom = 1;
+HO_SO.find((x) => x.id === 20).nhom = 2;
 
-/* Nhóm sự kiện: đơn đầu tiên là thành viên (routes/submissions.js gán
-   incident_group_id cho cả đơn khớp lẫn đơn mới) */
+/* Nhóm sự kiện: đơn đầu tiên là thành viên */
 const NHOM = [
-  { id: 1, dau: 10, thanhVien: [10, 30] },   // Mật + Thường
-  { id: 2, dau: 20, thanhVien: [20, 31] },   // Cần bảo vệ + Thường
-  { id: 3, dau: 32, thanhVien: [32, 33] },   // toàn Thường
+  { id: 1, dau: 10, thanhVien: [10, 30] },   // Tố giác mật + thường
+  { id: 2, dau: 20, thanhVien: [20, 31] },   // Ngoài thẩm quyền + thường
+  { id: 3, dau: 32, thanhVien: [32, 33] },   // toàn thường
 ];
 
-const chuanMuc = (muc) => (['thuong', 'can_bao_ve', 'mat'].includes(muc) ? muc : 'mat');
-
+const LANH_DAO = ['admin', 'manager'];
 /** Bảng mong đợi — viết từ chính sách, không từ mã */
 function duocXem(staff, hs) {
-  if (staff.role === 'admin') return true;
-  const muc = chuanMuc(hs.muc);
-  if (muc === 'thuong') return true;
-  if (hs.giao === staff.id) return true;
-  return muc === 'can_bao_ve' && staff.role === 'manager';
+  if (LANH_DAO.includes(staff.role)) return true;
+  return hs.co === null;
 }
 const hs = (id) => HO_SO.find((x) => x.id === id);
 const dau = (id) => `BIMAT-${id}`;
@@ -96,13 +89,15 @@ function napDuLieu() {
   db = dungCsdl(sqlite, pool);
   const mai = new Date(Date.now() + 24 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
   const them = db.prepare(`INSERT INTO submissions
-      (id, tracking_code, original_content, category_id, status, urgency, security_level, is_anonymous,
+      (id, tracking_code, original_content, category_id, status, urgency, to_giac_mat, ngoai_tham_quyen, is_anonymous,
        sender_name, sender_phone, deadline_at, assigned_to, is_spam, deleted_at, deleted_by, device_id,
        ward_id, incident_group_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
   for (const h of HO_SO) {
-    const noiDung = h.muc === 'thuong' ? `Phản ánh thường số ${h.id}` : `${dau(h.id)} tố giác đường dây ma tuý ${h.id}`;
-    them.run(h.id, ma(h.id), noiDung, 1, h.st ?? 'processing', 'urgent', h.muc, h.an ?? 0,
+    const noiDung = h.co === null ? `Phản ánh thường số ${h.id}` : `${dau(h.id)} tố cáo cán bộ nhận tiền ${h.id}`;
+    const mat = h.co === 'mat' ? 1 : h.co === 'null' ? null : 0;
+    const ntq = h.co === 'ntq' ? 1 : h.co === 'nullntq' ? null : 0;
+    them.run(h.id, ma(h.id), noiDung, 1, h.st ?? 'processing', 'urgent', mat, ntq, h.an ?? 0,
       h.an ? null : encrypt('Nguyễn Văn An'), h.an ? null : encrypt('0901234567'), mai, h.giao,
       h.spam ?? 0, h.xoa ? '2020-01-01 00:00:00' : null, h.xoa ? ADMIN.id : null, h.may ?? null,
       1, h.nhom ?? null);
@@ -120,7 +115,6 @@ function napDuLieu() {
   db.prepare(`INSERT INTO unlock_appeals (identifier, kind, content) VALUES ('may-khieu-nai', 'device', 'Xin mở khoá')`).run();
 }
 
-const mucHienTai = (id) => db.prepare('SELECT security_level AS m FROM submissions WHERE id = ?').get(id).m;
 const giaoHienTai = (id) => db.prepare('SELECT assigned_to AS g FROM submissions WHERE id = ?').get(id).g;
 const hang = (id) => ({ ...db.prepare('SELECT * FROM submissions WHERE id = ?').get(id) });
 
@@ -128,8 +122,8 @@ const hang = (id) => ({ ...db.prepare('SELECT * FROM submissions WHERE id = ?').
 function khongRo(staff, text, boiCanh) {
   for (const h of HO_SO) {
     if (duocXem(staff, h)) continue;
-    assert.ok(!text.includes(dau(h.id)), `${boiCanh}: ${staff.role}#${staff.id} thấy nội dung hồ sơ ${h.id} (${h.muc})`);
-    assert.ok(!text.includes(ma(h.id)), `${boiCanh}: ${staff.role}#${staff.id} thấy mã hồ sơ ${h.id} (${h.muc})`);
+    assert.ok(!text.includes(dau(h.id)), `${boiCanh}: ${staff.role}#${staff.id} thấy nội dung hồ sơ ${h.id} (${h.co})`);
+    assert.ok(!text.includes(ma(h.id)), `${boiCanh}: ${staff.role}#${staff.id} thấy mã hồ sơ ${h.id} (${h.co})`);
   }
 }
 
@@ -145,22 +139,25 @@ test('(a) GET /submissions/:id — đúng bảng chính sách cho mọi cán b�
     for (const h of HO_SO) {
       const r = await goi(staff, 'GET', `/submissions/${h.id}`);
       if (duocXem(staff, h)) {
-        assert.equal(r.status, 200, `${staff.role}#${staff.id} phải xem được hồ sơ ${h.id} (${h.muc}): ${r.text.slice(0, 200)}`);
+        assert.equal(r.status, 200, `${staff.role}#${staff.id} phải xem được hồ sơ ${h.id} (${h.co}): ${r.text.slice(0, 200)}`);
       } else {
-        assert.equal(r.status, 404, `${staff.role}#${staff.id} KHÔNG được xem hồ sơ ${h.id} (${h.muc}), nhận ${r.status}`);
+        assert.equal(r.status, 404, `${staff.role}#${staff.id} KHÔNG được xem hồ sơ ${h.id} (${h.co}), nhận ${r.status}`);
         assert.deepEqual(r.body, khongCo.body, 'phản hồi hồ sơ bị ẩn phải y hệt hồ sơ không tồn tại');
       }
     }
   }
 });
 
-test('(a)(g) chi tiết trả mức đã chuẩn hoá: NULL / giá trị lạ hiện là mat', { skip: BO_QUA }, async () => {
+test('(a)(g) chi tiết trả cờ đã chuẩn hoá cho lãnh đạo: cờ NULL hiện là 1', { skip: BO_QUA }, async () => {
   napDuLieu();
-  for (const id of [40, 41]) {
-    const r = await goi(ADMIN, 'GET', `/submissions/${id}`);
-    assert.equal(r.status, 200);
-    assert.equal(r.body.security_level, 'mat', `hồ sơ ${id}`);
-  }
+  const a = await goi(ADMIN, 'GET', '/submissions/40');
+  assert.equal(a.status, 200);
+  assert.equal(a.body.to_giac_mat, 1, 'cờ NULL phải báo là CÓ cờ');
+  const b = await goi(MGR, 'GET', '/submissions/41');
+  assert.equal(b.body.ngoai_tham_quyen, 1);
+  const t = await goi(MGR, 'GET', '/submissions/30');
+  assert.equal(t.body.to_giac_mat, 0);
+  assert.equal(t.body.ngoai_tham_quyen, 0);
 });
 
 /* ======================================================================== */
@@ -206,7 +203,7 @@ test('(b) GET /submissions — mọi tổ hợp lọc × mọi trang: chỉ hồ
     for (const loc of TO_HOP_LOC) {
       const { ids, tong, text } = await docHetDanhSach(staff, loc);
       for (const id of ids) {
-        assert.ok(duocXem(staff, hs(id)), `${staff.role}#${staff.id} ${JSON.stringify(loc)}: danh sách lộ hồ sơ ${id} (${hs(id).muc})`);
+        assert.ok(duocXem(staff, hs(id)), `${staff.role}#${staff.id} ${JSON.stringify(loc)}: danh sách lộ hồ sơ ${id} (${hs(id).co})`);
       }
       assert.equal(tong, ids.length, `${staff.role}#${staff.id} ${JSON.stringify(loc)}: total ${tong} ≠ số dòng xem được ${ids.length}`);
       khongRo(staff, text, `danh sách ${JSON.stringify(loc)}`);
@@ -214,13 +211,15 @@ test('(b) GET /submissions — mọi tổ hợp lọc × mọi trang: chỉ hồ
   }
 });
 
-test('(b) chứng test không rỗng: admin tìm "BIMAT" thấy hồ sơ Mật; handler tìm thì total = số hồ sơ mình được xem', { skip: BO_QUA }, async () => {
+test('(b) chứng test không rỗng: lãnh đạo tìm "BIMAT" thấy hồ sơ mang cờ; cán bộ tìm ra 0, kể cả hồ sơ đang giao cho mình', { skip: BO_QUA }, async () => {
   napDuLieu();
-  const a = await docHetDanhSach(ADMIN, { status: 'all', q: 'BIMAT' });
-  assert.ok(a.ids.includes(10) && a.ids.includes(12), 'admin phải thấy hồ sơ Mật khi tìm');
+  for (const lanhDao of [ADMIN, MGR, MGR2]) {
+    const a = await docHetDanhSach(lanhDao, { status: 'all', q: 'BIMAT' });
+    assert.ok(a.ids.includes(10) && a.ids.includes(20), `${lanhDao.role}#${lanhDao.id} phải thấy hồ sơ mang cờ khi tìm`);
+  }
   const h = await docHetDanhSach(H, { status: 'all', q: 'BIMAT' });
-  assert.deepEqual(h.ids.sort(), [21, 42], 'handler H chỉ khớp hai hồ sơ không-thường đang giao cho mình');
-  assert.equal(h.tong, 2);
+  assert.deepEqual(h.ids, [], 'cán bộ không được thấy hồ sơ mang cờ, kể cả hồ sơ 21 đang giao cho mình');
+  assert.equal(h.tong, 0);
 });
 
 /* ======================================================================== */
@@ -239,8 +238,8 @@ test('(c) chat GET/POST: bị ẩn thì 404 và không tin nhắn nào được 
         assert.equal(doc.status, 200, `${staff.role}#${staff.id} đọc chat ${id}`);
         assert.equal(gui.status, 201, `${staff.role}#${staff.id} gửi chat ${id}`);
       } else {
-        assert.equal(doc.status, 404, `${staff.role}#${staff.id} ĐỌC được chat hồ sơ ${id} (${hs(id).muc})`);
-        assert.equal(gui.status, 404, `${staff.role}#${staff.id} GỬI được tin cho người báo hồ sơ ${id} (${hs(id).muc})`);
+        assert.equal(doc.status, 404, `${staff.role}#${staff.id} ĐỌC được chat hồ sơ ${id} (${hs(id).co})`);
+        assert.equal(gui.status, 404, `${staff.role}#${staff.id} GỬI được tin cho người báo hồ sơ ${id} (${hs(id).co})`);
         assert.equal(soTin(id), truoc, 'không được ghi tin nhắn');
         khongRo(staff, doc.text, `chat ${id}`);
       }
@@ -278,8 +277,8 @@ test('(d) nhóm sự kiện: nhóm chứa hồ sơ bị ẩn không hiện ở d
       khongRo(staff, ct.text, `nhóm sự kiện ${n.id} (chi tiết)`);
     }
   }
-  const ad = await goi(ADMIN, 'GET', '/incident-groups');
-  assert.ok(ad.text.includes(dau(10)), 'admin phải thấy trích đoạn');
+  const ad = await goi(MGR, 'GET', '/incident-groups');
+  assert.ok(ad.text.includes(dau(10)), 'lãnh đạo phải thấy trích đoạn');
   assert.equal((await goi(H, 'GET', '/incident-groups/3')).status, 200, 'nhóm toàn hồ sơ thường vẫn mở cho handler');
 });
 
@@ -303,7 +302,7 @@ test('(e) đánh dấu đã xem nhóm bị ẩn: không đổi gì, phản hồi
   const r = await goi(H, 'POST', '/incident-groups/1/ack');
   assert.equal(r.status, khongCo.status);
   assert.deepEqual(r.body, khongCo.body, 'phản hồi không được khác nhóm không tồn tại');
-  assert.equal(daXem(1), 0, 'handler đánh dấu được nhóm chứa hồ sơ Mật -> nhóm biến khỏi bảng điều hành của Trưởng');
+  assert.equal(daXem(1), 0, 'cán bộ đánh dấu được nhóm chứa tin tố giác mật -> nhóm biến khỏi bảng điều hành của lãnh đạo');
   await goi(H, 'POST', '/incident-groups/3/ack');
   assert.equal(daXem(3), 1, 'nhóm handler xem được vẫn đánh dấu được');
 });
@@ -321,8 +320,8 @@ test('(d) bảng điều hành: canGap, recent, nhomTrungLap không lộ; số �
     assert.equal(r.body.dieuHanh.chua_phan_cong, ds.tong,
       `${staff.role}#${staff.id}: thẻ chưa phân công ${r.body.dieuHanh.chua_phan_cong} ≠ danh sách ${ds.tong}`);
   }
-  const a = await goi(ADMIN, 'GET', '/dashboard/stats');
-  assert.ok(a.text.includes(dau(10)), 'admin phải thấy hồ sơ Mật trong việc cần gấp');
+  const a = await goi(MGR, 'GET', '/dashboard/stats');
+  assert.ok(a.text.includes(dau(10)), 'lãnh đạo phải thấy tin tố giác mật trong việc cần gấp');
 });
 
 test('(d) thùng rác: danh sách không lộ, khôi phục hồ sơ bị ẩn trả 404 và hồ sơ vẫn trong thùng', { skip: BO_QUA }, async () => {
@@ -332,10 +331,10 @@ test('(d) thùng rác: danh sách không lộ, khôi phục hồ sơ bị ẩn t
     assert.equal(r.status, 200, r.text.slice(0, 200));
     khongRo(staff, r.text, 'thùng rác');
   }
-  const a = await goi(ADMIN, 'GET', '/trash');
-  assert.ok(a.body.items.some((i) => i.id === 14), 'admin phải thấy hồ sơ Mật trong thùng rác');
+  const a = await goi(MGR, 'GET', '/trash');
+  assert.ok(a.body.items.some((i) => i.id === 14), 'lãnh đạo phải thấy tin tố giác mật trong thùng rác');
   const kp = await goi(H, 'POST', '/trash/14/restore');
-  assert.equal(kp.status, 404, 'handler khôi phục được hồ sơ Mật khỏi thùng rác');
+  assert.equal(kp.status, 404, 'cán bộ khôi phục được tin tố giác mật khỏi thùng rác');
   assert.ok(hang(14).deleted_at, 'hồ sơ phải còn trong thùng rác');
 });
 
@@ -346,20 +345,17 @@ test('(d) khiếu nại mở khoá: tinLienQuan không lộ hồ sơ bị ẩn',
     assert.equal(r.status, 200, r.text.slice(0, 200));
     khongRo(staff, r.text, 'khiếu nại');
   }
-  const a = await goi(ADMIN, 'GET', '/chat/khieu-nai');
-  assert.ok(a.text.includes(dau(15)), 'admin phải thấy tin liên quan');
+  const a = await goi(MGR, 'GET', '/chat/khieu-nai');
+  assert.ok(a.text.includes(dau(15)), 'lãnh đạo phải thấy tin liên quan');
 });
 
-test('(d) báo cáo chi tiết: manager không thấy hồ sơ Mật không giao cho mình', { skip: BO_QUA }, async () => {
+test('(d) báo cáo chi tiết: mọi lãnh đạo thấy cả hồ sơ mang cờ; cán bộ không gọi được', { skip: BO_QUA }, async () => {
   napDuLieu();
   for (const staff of [ADMIN, MGR, MGR2]) {
     const r = await goi(staff, 'GET', '/reports/details');
     assert.equal(r.status, 200, r.text.slice(0, 200));
-    khongRo(staff, r.text, 'báo cáo chi tiết');
+    assert.ok(r.text.includes(dau(10)) && r.text.includes(dau(20)), `${staff.role}#${staff.id} thiếu hồ sơ mang cờ`);
   }
-  const m = await goi(MGR, 'GET', '/reports/details');
-  assert.ok(m.text.includes(dau(12)), 'manager được Trưởng giao hồ sơ Mật phải thấy nó');
-  assert.ok(m.text.includes(dau(20)), 'manager phải thấy hồ sơ Cần bảo vệ');
   const h = await goi(H, 'GET', '/reports/details');
   assert.equal(h.status, 403, 'báo cáo vẫn chỉ cho lãnh đạo (không hồi quy)');
 });
@@ -371,16 +367,18 @@ test('(d) báo cáo chi tiết: manager không thấy hồ sơ Mật không giao
 test('(e) handler ghi lên hồ sơ bị ẩn: status / review / mark-spam đều 404, dữ liệu không đổi', { skip: BO_QUA }, async () => {
   napDuLieu();
   const st = await goi(H, 'PATCH', '/submissions/10/status', { status: 'resolved', note: 'x' });
-  assert.equal(st.status, 404, `đổi trạng thái hồ sơ Mật: ${st.status}`);
+  assert.equal(st.status, 404, `đổi trạng thái tin tố giác mật: ${st.status}`);
   assert.equal(hang(10).status, 'processing');
 
   const rv = await goi(H, 'POST', '/submissions/16/review', { action: 'spam' });
-  assert.equal(rv.status, 404, `duyệt hồ sơ Mật ở hàng chờ: ${rv.status}`);
+  assert.equal(rv.status, 404, `duyệt tin tố giác mật ở hàng chờ: ${rv.status}`);
   assert.equal(hang(16).status, 'pending_review');
   assert.equal(hang(16).deleted_at, null);
 
   const ms = await goi(H, 'POST', '/submissions/10/mark-spam', { reason: 'bịa' });
-  assert.equal(ms.status, 404, `đưa hồ sơ Mật vào thùng rác: ${ms.status}`);
+  assert.equal(ms.status, 404, `đưa tin tố giác mật vào thùng rác: ${ms.status}`);
+  const ms2 = await goi(H, 'POST', '/submissions/21/mark-spam', { reason: 'bịa' });
+  assert.equal(ms2.status, 404, 'cán bộ đụng được tin ngoài thẩm quyền đang giao cho mình');
   assert.equal(hang(10).deleted_at, null);
 
   /* Chứng test không rỗng: hồ sơ thường thì handler vẫn đổi được trạng thái */
@@ -388,105 +386,39 @@ test('(e) handler ghi lên hồ sơ bị ẩn: status / review / mark-spam đề
   assert.equal(ok.status, 200);
 });
 
-test('(e) phân công: manager không đụng được hồ sơ Mật (ẩn -> 404; được giao -> 403); admin giao được', { skip: BO_QUA }, async () => {
-  napDuLieu();
-  const an = await goi(MGR, 'PATCH', '/submissions/10/assign', { staffId: H.id });
-  assert.equal(an.status, 404, `manager giao hồ sơ Mật không thấy được: ${an.status}`);
-  assert.equal(giaoHienTai(10), null);
-
-  const duocGiao = await goi(MGR, 'PATCH', '/submissions/12/assign', { staffId: H.id });
-  assert.equal(duocGiao.status, 403, `manager chuyển giao hồ sơ Mật Trưởng giao cho mình: ${duocGiao.status}`);
-  const boGiao = await goi(MGR, 'PATCH', '/submissions/12/assign', { staffId: null });
-  assert.equal(boGiao.status, 403, `manager bỏ giao hồ sơ Mật: ${boGiao.status}`);
-  assert.equal(giaoHienTai(12), MGR.id);
-
-  const ad = await goi(ADMIN, 'PATCH', '/submissions/10/assign', { staffId: H.id });
-  assert.equal(ad.status, 200);
-  assert.equal((await goi(H, 'GET', '/submissions/10')).status, 200, 'người Trưởng giao phải xem được hồ sơ Mật');
-
-  const kt = await goi(ADMIN, 'PATCH', '/submissions/999/assign', { staffId: H.id });
-  assert.equal(kt.status, 404, 'giao hồ sơ không tồn tại');
-});
-
-test('(e) xem danh tính: manager không được giao hồ sơ Mật nhận 404 (không lộ tồn tại), không ghi lượt xem', { skip: BO_QUA }, async () => {
-  napDuLieu();
-  const r = await goi(MGR2, 'POST', '/submissions/12/reveal');
-  assert.equal(r.status, 404, `nhận ${r.status}`);
-  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM staff_activity_logs WHERE action = 'reveal_identity'`).get().n, 0);
-  const ok = await goi(MGR, 'POST', '/submissions/12/reveal');
-  assert.equal(ok.status, 200, 'manager được Trưởng giao vẫn xem được danh tính');
-});
+/* Phân công và xem danh tính theo hai cấp: phan-cong-hai-cap.test.js */
 
 /* ======================================================================== */
-/* (f) Cần bảo vệ và người phụ trách                                         */
+/* (h) Route đổi cấp độ đã gỡ                                                 */
 /* ======================================================================== */
 
-test('(f) can_bao_ve: manager giao cho handler thì handler đó xem được, handler khác không', { skip: BO_QUA }, async () => {
+test('(h) PATCH /:id/security-level không còn: 404 với mọi vai trò, không ghi gì', { skip: BO_QUA }, async () => {
   napDuLieu();
-  assert.equal((await goi(H2, 'GET', '/submissions/20')).status, 404);
-  const g = await goi(MGR, 'PATCH', '/submissions/20/assign', { staffId: H2.id });
-  assert.equal(g.status, 200, g.text);
-  assert.equal((await goi(H2, 'GET', '/submissions/20')).status, 200);
-  assert.equal((await goi(H, 'GET', '/submissions/20')).status, 404);
-});
-
-/* ======================================================================== */
-/* (h) Đổi mức                                                                */
-/* ======================================================================== */
-
-test('(h) chỉ admin đặt hoặc hạ mức Mật; manager đổi mức thường/cần bảo vệ như cũ', { skip: BO_QUA }, async () => {
-  napDuLieu();
-  const len = await goi(MGR, 'PATCH', '/submissions/30/security-level', { level: 'mat' });
-  assert.equal(len.status, 403, `manager nâng lên Mật: ${len.status}`);
-  assert.equal(mucHienTai(30), 'thuong');
-
-  const ha = await goi(MGR, 'PATCH', '/submissions/12/security-level', { level: 'thuong' });
-  assert.equal(ha.status, 403, `manager hạ hồ sơ Mật được giao cho mình: ${ha.status}`);
-  assert.equal(mucHienTai(12), 'mat');
-
-  const an = await goi(MGR, 'PATCH', '/submissions/10/security-level', { level: 'thuong' });
-  assert.equal(an.status, 404, `manager hạ hồ sơ Mật không thấy được: ${an.status}`);
-  assert.equal(mucHienTai(10), 'mat');
-
-  const cbv = await goi(MGR, 'PATCH', '/submissions/30/security-level', { level: 'can_bao_ve' });
-  assert.equal(cbv.status, 200, 'manager vẫn đổi được mức Cần bảo vệ');
-  assert.equal(mucHienTai(30), 'can_bao_ve');
-});
-
-test('(h) admin nâng lên Mật thì gỡ phân công hiện tại; hạ/nâng đều ghi nhật ký', { skip: BO_QUA }, async () => {
-  napDuLieu();
-  const r = await goi(ADMIN, 'PATCH', '/submissions/21/security-level', { level: 'mat' });
-  assert.equal(r.status, 200, r.text);
-  assert.equal(mucHienTai(21), 'mat');
-  assert.equal(giaoHienTai(21), null, 'nâng lên Mật phải gỡ người đang được giao');
-  assert.equal((await goi(H, 'GET', '/submissions/21')).status, 404, 'người được giao cũ còn xem được');
-
-  const ha = await goi(ADMIN, 'PATCH', '/submissions/10/security-level', { level: 'thuong' });
-  assert.equal(ha.status, 200);
-  const nk = db.prepare(`SELECT target_id, details FROM staff_activity_logs WHERE action = 'set_security_level' ORDER BY id`).all();
-  assert.deepEqual(nk.map((x) => String(x.target_id)), ['21', '10']);
-  assert.match(nk[1].details, /thuong/);
-
-  /* Đặt lại Mật cho hồ sơ ĐÃ Mật không được gỡ người Trưởng vừa giao */
-  await goi(ADMIN, 'PATCH', '/submissions/11/security-level', { level: 'mat' });
-  assert.equal(giaoHienTai(11), H2.id);
-});
-
-/* ======================================================================== */
-/* Tệp nâng cấp gỡ phân công cũ của hồ sơ Mật                                 */
-/* ======================================================================== */
-
-test('nang_cap_v24.sql: gỡ assigned_to của mọi hồ sơ máy chủ coi là Mật (kể cả \'\', NULL, lạ), không đụng mức khác', { skip: BO_QUA }, async () => {
-  napDuLieu();
-  const sql = await readFile(goc('database/nang_cap_v24.sql'), 'utf8');
-  const cacCau = sql.replace(/--[^\n]*/g, '').split(';').map((c) => c.trim())
-    .filter((c) => c && !/^USE\s/i.test(c));
-  for (const cau of cacCau) db.prepare(cau).all();
-  for (const h of HO_SO) {
-    const g = giaoHienTai(h.id);
-    if (chuanMuc(h.muc) === 'mat') assert.equal(g, null, `hồ sơ Mật ${h.id} (muc ${JSON.stringify(h.muc)}) còn người được giao`);
-    else assert.equal(g, h.giao, `hồ sơ ${h.id} (${h.muc}) bị đổi phân công`);
+  for (const staff of [ADMIN, MGR, H]) {
+    const r = await goi(staff, 'PATCH', '/submissions/30/security-level', { level: 'mat' });
+    assert.equal(r.status, 404, `${staff.role}: ${r.status}`);
   }
+  assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM staff_activity_logs WHERE action = 'set_security_level'`).get().n, 0);
+});
+
+/* ======================================================================== */
+/* Tệp nâng cấp chuyển ba mức cũ sang cờ                                       */
+/* ======================================================================== */
+
+test('nang_cap_v26.sql: mọi hồ sơ không ở mức thuong (kể cả NULL, \'\', lạ) thành to_giac_mat = 1; thuong giữ 0', { skip: BO_QUA }, async () => {
+  const sql = await readFile(goc('database/nang_cap_v26.sql'), 'utf8');
+  /* Câu chuyển nằm trong chuỗi PREPARE — lấy đúng nguyên văn, bỏ nháy kép SQL */
+  const khop = /'(UPDATE submissions SET to_giac_mat = 1 WHERE .*?)',\n/s.exec(sql);
+  assert.ok(khop, 'không tìm thấy câu chuyển mức trong nang_cap_v26.sql');
+  const cau = khop[1].replace(/''/g, "'");
+  const csdl = new sqlite.DatabaseSync(':memory:');
+  csdl.exec(`CREATE TABLE submissions (id INT PRIMARY KEY, security_level TEXT, to_giac_mat INT NOT NULL DEFAULT 0)`);
+  const muc = { 1: 'thuong', 2: 'can_bao_ve', 3: 'mat', 4: null, 5: '', 6: 'la_lung' };
+  for (const [id, m] of Object.entries(muc)) csdl.prepare('INSERT INTO submissions (id, security_level) VALUES (?, ?)').run(Number(id), m);
+  csdl.exec(cau);
+  csdl.exec(cau);   // chạy lại không đổi thêm
+  const ra = Object.fromEntries(csdl.prepare('SELECT id, to_giac_mat FROM submissions').all().map((r) => [r.id, r.to_giac_mat]));
+  assert.deepEqual(ra, { 1: 0, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1 });
 });
 
 /* ======================================================================== */
@@ -503,8 +435,9 @@ test('(i) index.js và may-chu-can-bo.js gắn cùng adminRouter; may-chu-cong-k
   assert.doesNotMatch(ck, /import adminRouter/);
 });
 
-test('giao diện mô tả đúng chính sách mức Mật (không còn hứa "Chỉ lãnh đạo")', async () => {
+test('giao diện không còn ô chọn cấp độ bảo mật, không còn gọi route đã gỡ', async () => {
   const tsx = await readFile(goc('src/pages/admin/AdminSubmissionDetailPage.tsx'), 'utf8');
-  assert.doesNotMatch(tsx, /'mat',\s*'Mật',\s*'Chỉ lãnh đạo'/);
-  assert.match(tsx, /'mat',\s*'Mật',\s*'[^']*Trưởng[^']*'/);
+  assert.doesNotMatch(tsx, /setSecurityLevel|security_level|Cấp độ bảo mật/);
+  const dv = await readFile(goc('src/services/adminService.ts'), 'utf8');
+  assert.doesNotMatch(dv, /security-level/);
 });

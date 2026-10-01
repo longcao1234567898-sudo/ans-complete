@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import { pool } from '../../db.js';
 import { authorize } from '../../middleware/authorize.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 
@@ -81,7 +82,7 @@ router.get('/', async (_req, res) => {
 });
 
 /** POST / — thêm điểm đen. Chỉ chỉ huy và quản trị. */
-router.post('/', authorize('admin', 'manager'), async (req, res) => {
+router.post('/', authorize(...LANH_DAO), async (req, res) => {
   const d = docDuLieu(req.body);
   if (d.loi) return res.status(400).json({ error: d.loi });
   try {
@@ -105,7 +106,7 @@ router.post('/', authorize('admin', 'manager'), async (req, res) => {
 });
 
 /** PUT /:id — sửa. Chỉ chỉ huy và quản trị. */
-router.put('/:id', authorize('admin', 'manager'), async (req, res) => {
+router.put('/:id', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });
   const d = docDuLieu(req.body);
@@ -131,7 +132,7 @@ router.put('/:id', authorize('admin', 'manager'), async (req, res) => {
 });
 
 /** PATCH /:id/hien — bật tắt hiển thị trên trang người dân */
-router.patch('/:id/hien', authorize('admin', 'manager'), async (req, res) => {
+router.patch('/:id/hien', authorize(...LANH_DAO), async (req, res) => {
   const id = Number(req.params.id);
   const hien = req.body?.hien === true;
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });

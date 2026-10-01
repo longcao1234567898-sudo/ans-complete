@@ -1,6 +1,7 @@
 /**
- * CSDL node:sqlite trong bộ nhớ cho các bài canh CẤP ĐỘ BẢO MẬT hồ sơ (BUG-009).
- * Không phải tệp test (không đuôi `.test.js`).
+ * CSDL node:sqlite trong bộ nhớ cho các bài canh PHẠM VI XEM hồ sơ (ADR-003 §4;
+ * trước đây là cấp độ bảo mật của BUG-009). Không phải tệp test (không đuôi
+ * `.test.js`).
  *
  * Câu SQL của route chạy NGUYÊN VĂN, chỉ dịch đúng mấy cú pháp MySQL mà các
  * route đụng tới dùng. Câu nào còn cú pháp lạ thì SQLite ném lỗi, route trả
@@ -8,7 +9,7 @@
  *
  * Hai điểm giả lập, ngoài SQLite:
  *   · information_schema.columns — trả theo cột CÓ THẬT trong bảng sqlite, để
- *     bài "CSDL chưa chạy v14" dựng bảng thiếu cột là đủ.
+ *     bài "CSDL chưa chạy v26" dựng bảng thiếu cột là đủ.
  *   · CALL update_submission_status — thủ tục MySQL; ở đây chỉ đổi trạng thái.
  */
 import express from 'express';
@@ -37,8 +38,9 @@ export const H2    = { id: 5, username: 'cb5',    role: 'handler', full_name: 'C
 export const MOI_CAN_BO = [ADMIN, MGR, MGR2, H, H2];
 
 /**
- * Dựng CSDL. `coCot = false` -> bảng submissions KHÔNG có cột security_level
- * (CSDL chưa chạy nang_cap_v14.sql).
+ * Dựng CSDL. `coCot = false` -> bảng submissions KHÔNG có hai cột cờ
+ * to_giac_mat, ngoai_tham_quyen (CSDL chưa chạy nang_cap_v26.sql). Hai cột cho
+ * phép NULL để bài canh fail-safe dựng được hồ sơ cờ NULL.
  */
 export function dungCsdl(sqlite, pool, { coCot = true } = {}) {
   const db = new sqlite.DatabaseSync(':memory:');
@@ -58,7 +60,7 @@ export function dungCsdl(sqlite, pool, { coCot = true } = {}) {
     `CREATE TABLE submissions (
        id INTEGER PRIMARY KEY, tracking_code TEXT, original_content TEXT, ai_processed_content TEXT,
        category_id INT, status TEXT, urgency TEXT,
-       ${coCot ? 'security_level TEXT,' : ''}
+       ${coCot ? 'to_giac_mat INT DEFAULT 0, ngoai_tham_quyen INT DEFAULT 0,' : ''}
        is_anonymous INT, is_flagged INT DEFAULT 0, flag_reason TEXT,
        sender_name TEXT, sender_phone TEXT, sender_phone_hash TEXT, sender_email TEXT,
        ip_address TEXT, user_agent TEXT,

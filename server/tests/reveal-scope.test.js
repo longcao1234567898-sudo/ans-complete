@@ -1,9 +1,11 @@
 /**
- * H2 — Xem danh tính phải kiểm tra PHẠM VI PHÂN CÔNG.
+ * Xem danh tính — ai được, ai không (ADR-003 §3, thay H2/ADR-002).
  *
- * Kể cả sau H1, một `manager` vẫn xem được danh tính của MỌI hồ sơ, không chỉ hồ
- * sơ mình phụ trách. Trong hệ thống tố giác, CÁN BỘ THA HOÁ là mô hình đe doạ
- * chính — nên cần lớp ngăn chặn TRƯỚC, không chỉ nhật ký phát hiện SAU.
+ * Trước ADR-003, manager chỉ xem danh tính hồ sơ được Trưởng giao (H2). Người
+ * vận hành đã chọn: mọi lãnh đạo xem được danh tính mọi tin có danh tính, KHÔNG
+ * cần phân công; cán bộ (handler) không bao giờ. Vì không còn lớp phân công,
+ * nhật ký ghi TRƯỚC khi trả dữ liệu là thứ duy nhất để lãnh đạo kiểm lẫn nhau —
+ * hai test G7 dưới đây canh đúng điều đó.
  *
  * Test chạy route THẬT qua HTTP, KHÔNG cần MySQL: thay `pool.query` bằng hàm
  * giả trả dữ liệu dựng sẵn (mysql2 createPool không kết nối cho tới lần truy vấn
@@ -87,12 +89,13 @@ test('manager ĐƯỢC phân công -> cho qua', async () => {
   assert.equal(body.sender_name, 'Nguyễn Văn An');
 });
 
-test('manager KHÔNG được phân công -> 403, không lộ gì', async () => {
+test('manager KHÔNG được phân công -> vẫn xem được (ADR-003 §3) và lượt xem được ghi đích danh', async () => {
   const { status, body } = await goiReveal(MGR_KO);
-  assert.equal(status, 403);
-  assert.match(String(body.error), /phân công/i);
-  assert.equal(body.sender_name, undefined, 'Vẫn trả danh tính kèm lỗi thì vá vô nghĩa');
-  assert.equal(body.sender_phone, undefined);
+  assert.equal(status, 200);
+  assert.equal(body.sender_name, 'Nguyễn Văn An');
+  const nhatKy = cacTruyVan.find((t) => /INSERT INTO staff_activity_logs/i.test(t.sql));
+  assert.ok(nhatKy && nhatKy.params.includes('reveal_identity'));
+  assert.equal(nhatKy.params[0], MGR_KO.id);
 });
 
 test('handler -> 403 ngay ở tầng phân quyền (H1)', async () => {
@@ -121,6 +124,8 @@ test('không tìm thấy hồ sơ -> 404', async () => {
 
 /* G7 — điểm tốt phải giữ: ghi nhật ký TRƯỚC khi trả dữ liệu */
 test('G7: ghi nhật ký reveal_identity TRƯỚC khi trả danh tính', async () => {
+  /* Ghi nhật ký hỏng thì không trả danh tính: lượt xem không để lại dấu là lượt
+     xem không ai kiểm được. */
   const { status } = await goiReveal(ADMIN);
   assert.equal(status, 200);
 
@@ -131,9 +136,22 @@ test('G7: ghi nhật ký reveal_identity TRƯỚC khi trả danh tính', async (
 });
 
 test('bị 403 thì KHÔNG ghi nhật ký reveal (chưa hề xem được gì)', async () => {
-  await goiReveal(MGR_KO);
+  await goiReveal(HANDLER);
   assert.ok(
     !cacTruyVan.some((t) => /INSERT INTO staff_activity_logs/i.test(t.sql)),
     'Chặn trước rồi thì không có lượt xem nào để ghi'
   );
+});
+
+test('G7: ghi nhật ký hỏng thì KHÔNG trả danh tính', async () => {
+  pool.query = async (sql) => {
+    if (/SELECT is_active FROM staff/i.test(sql)) return [[{ is_active: 1 }]];
+    if (/INSERT INTO staff_activity_logs/i.test(sql)) throw new Error('mất kết nối');
+    if (/FROM submissions/i.test(sql)) return [[HO_SO_MAC_DINH]];
+    return [{ affectedRows: 1 }];
+  };
+  const { status, body } = await goiReveal(MGR_KO);
+  assert.notEqual(status, 200);
+  assert.equal(body.sender_name, undefined, 'lượt xem không ghi được nhật ký mà vẫn trả danh tính');
+  assert.equal(body.sender_phone, undefined);
 });

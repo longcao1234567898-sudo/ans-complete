@@ -21,6 +21,7 @@ import {
   fetchTinQuanTri, fetchMotTin, dangTinMoi, suaTin, doiHienTin,
   type TinQuanTri,
 } from '../../services/adminService';
+import { laLanhDao as laVaiTroLanhDao } from '../../utils/vaiTro';
 
 const NHOM = [
   { ma: 'warning', ten: 'Cảnh giác', mau: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
@@ -37,7 +38,7 @@ const TIN_TRONG: Partial<TinQuanTri> = {
 export default function AdminNewsPage() {
   const qc = useQueryClient();
   const { staff } = useAdminAuth();
-  const laLanhDao = staff?.role === 'admin' || staff?.role === 'manager';
+  const laLanhDao = laVaiTroLanhDao(staff?.role);
 
   const [hienCaAn, setHienCaAn] = useState(false);
   const [dangSua, setDangSua] = useState<Partial<TinQuanTri> | null>(null);
