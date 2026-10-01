@@ -166,8 +166,8 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
              Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
           anonId: draft.contact.anonId ?? '',
           /* MÃ THIẾT BỊ — để cán bộ khoá đúng máy phá hoại khi đánh dấu tin rác.
-             Không gửi thì nút "Tin rác" chỉ đánh dấu được hồ sơ, báo "hồ sơ này
-             không có mã thiết bị nên không khoá được" — kẻ phá hoại gửi tiếp ngay. */
+             Đơn có tên thiếu mã thì máy chủ trả 400 (ADR-003 việc 5); đơn ẩn
+             danh thì máy chủ bỏ qua trường này (BUG-014). */
           deviceId: layMaThietBi(),
           isAnonymous: draft.contact.isAnonymous === true,
           urgency: draft.urgency || 'normal',
