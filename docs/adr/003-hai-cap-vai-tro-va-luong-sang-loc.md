@@ -70,14 +70,17 @@ tại vì phân công từng mở cửa xem danh tính, nay danh tính không c�
 Tin **có danh tính** thiếu mã thiết bị hợp lệ thì bị từ chối. Tin **ẩn danh** giữ nguyên:
 không gửi, không lưu mã thiết bị. Không đụng vùng của phần lõi BUG-017 đang mở.
 
-### 7. Cách hiểu cho sáu điểm kế hoạch còn để ngỏ
+### 7. Sáu điểm kế hoạch từng để ngỏ
 
-Theo phương án đề xuất trong kế hoạch, người vận hành chưa phản đối:
+Người vận hành đã chốt cả sáu điểm: năm điểm theo phương án đề xuất trong kế hoạch, điểm 3 theo cách riêng.
 
 1. Tin ẩn danh vẫn qua hàng kiểm duyệt ẩn danh hiện có. Tin có danh tính vào hàng sàng lọc.
 2. Khoá theo địa chỉ mạng đã bỏ ở BUG-016. Trang danh sách khoá giữ phần khoá thiết bị, thiết
    bị tin cậy và khiếu nại mở khoá.
-3. "Tin giả" ở hàng sàng lọc không khoá máy. Nút "Tin rác" ở phần xử lý giữ cách khoá của BUG-018.
+3. Hàng sàng lọc có **hai** nút bỏ tin: "Tin rác" **vẫn khoá máy** theo cách của BUG-018 (dùng chung
+   đường `/mark-spam` với bảng xử lý, không chép lại luật khoá); "Tin giả" chỉ bỏ vào thùng rác,
+   không khoá. Vì vẫn còn khoá, màn hình "Tạm dừng tiếp nhận" bên người dân giữ nguyên.
+   *(Người vận hành chốt sau khi triển khai; bản đầu chỉ có nút "Tin giả" ở hàng sàng lọc.)*
 4. Hạn 72 giờ người dân bổ sung thông tin tính từ lúc gửi.
 5. Cổng xác minh khi vào web dùng Cloudflare Turnstile (chỉ đổi vị trí); máy chủ cấp vé có thời
    hạn và kiểm vé ở mọi lần gửi tin, đăng nhập.

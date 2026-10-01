@@ -1,10 +1,11 @@
 /**
  * VIỆC 13–17 (ADR-003) — HÀNG SÀNG LỌC, NGOÀI THẨM QUYỀN, GHI CHÚ, CÁC PHẦN TIN
  *
- * Tin có danh tính vào hàng sàng lọc ('received') trước khi xử lý. Bốn nút:
+ * Tin có danh tính vào hàng sàng lọc ('received') trước khi xử lý. Năm nút:
  *   Xác nhận       -> 'processing', vào phần Tin đưa vào xử lý / Tin tố giác
  *   Chưa xác minh  -> ở lại hàng, gắn nhãn
  *   Tin giả        -> thùng rác, KHÔNG khoá máy, bắt ghi lý do (lý do là nội bộ)
+ *   Tin rác        -> thùng rác VÀ khoá máy (đường /mark-spam, như bảng xử lý)
  *   Ngoài thẩm quyền -> phần chỉ lãnh đạo xem
  * Tin ẩn danh vẫn qua hàng kiểm duyệt ẩn danh; duyệt xong vào thẳng 'processing'.
  * Mọi nút kiểm ở máy chủ: đúng trạng thái, đúng phạm vi, đúng vai trò.
@@ -142,6 +143,24 @@ test('Tin giả: vào thùng rác, KHÔNG khoá máy, lý do nội bộ không l
   assert.match(ctl.db.prepare('SELECT noi_dung FROM ghi_chu_noi_bo WHERE submission_id = 10').get().noi_dung, /bịa/);
   assert.equal(h.giu_cho_lanh_dao, 0);
   assert.equal(dong('sang_loc_tin_gia').length, 1);
+});
+
+/* Người vận hành chốt (ADR-003 §7.3): ở hàng sàng lọc có HAI nút — "Tin rác"
+   vẫn khoá máy như mọi nơi khác (đi chung đường /mark-spam, không chép lại
+   luật khoá), còn "Tin giả" chỉ bỏ vào thùng rác. Bài này giữ cho nút khoá
+   không bị ai "dọn" khỏi hàng sàng lọc mà không ai biết. */
+test('Tin rác ở hàng sàng lọc: VẪN khoá máy người gửi (cạnh nút Tin giả không khoá)', { skip: BO_QUA }, async () => {
+  const r = await goi(CAN_BO, 'POST', '/submissions/10/mark-spam', { reason: 'Gửi tin phá rối liên tục' });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.body.daKhoaThietBi, true, r.text);
+  const h = hang(10);
+  assert.equal(h.status, 'spam');
+  assert.ok(h.deleted_at, 'chưa vào thùng rác');
+  const khoa = ctl.db.prepare('SELECT identifier, kind FROM blacklists').all();
+  assert.equal(khoa.length, 1, 'tin rác ở sàng lọc phải khoá máy');
+  assert.equal(khoa[0].identifier, MAY_A);
+  /* Tin đã rời hàng sàng lọc */
+  assert.ok(!(await maTrongDs(CAN_BO, 'phan=sang_loc')).includes('HS0010'));
 });
 
 test('Tin giả với tin TỐ GIÁC: giữ trong thùng rác chờ lãnh đạo, không tự xoá sau 7 ngày', { skip: BO_QUA }, async () => {

@@ -7,6 +7,7 @@
  *   có danh tính ──► 'received' = CHỜ SÀNG LỌC ──┬─ Xác nhận ──► 'processing'
  *                                                ├─ Chưa xác minh (ở lại, gắn nhãn)
  *                                                ├─ Tin giả ──► thùng rác, không khoá máy
+ *                                                ├─ Tin rác ──► thùng rác + khoá máy (/mark-spam)
  *                                                └─ Ngoài thẩm quyền ──► phần lãnh đạo
  *   ẩn danh ──► 'pending_review' (hàng kiểm duyệt ẩn danh) ── Duyệt ──► 'processing'
  *   tố cáo cán bộ (lib/to-giac-mat.js) ──► phần Tin tố giác mật, không qua sàng lọc

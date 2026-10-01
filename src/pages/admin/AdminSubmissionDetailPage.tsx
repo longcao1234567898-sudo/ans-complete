@@ -86,6 +86,43 @@ export default function AdminSubmissionDetailPage() {
     }
   }
 
+  /** Nút TIN RÁC — khoá máy người gửi 24 giờ (tái phạm 30 ngày). Dùng ở cả
+      hàng sàng lọc và bảng xử lý (ADR-003 §7.3), cùng một đường /mark-spam ở
+      máy chủ để hai nơi không bao giờ lệch luật khoá. `diTiep`: danh sách để
+      quay về sau khi hồ sơ vào thùng rác. */
+  async function danhDauRac(diTiep: string) {
+    /* Tố giác ẩn danh không khoá máy hay mạng của người gửi
+       (BUG-017) — máy chủ đã chặn, ở đây chỉ để không hứa
+       với cán bộ một việc sẽ không xảy ra. Cùng quy ước với
+       laDonAnDanh ở máy chủ: NULL coi là ẩn danh; MySQL trả
+       TINYINT dạng số nên so bằng Number, không so với false. */
+    const anDanh = data?.is_anonymous == null || Number(data.is_anonymous) !== 0;
+    /* Không còn khoá theo địa chỉ mạng (BUG-016): hồ sơ không có
+       mã máy thì không khoá gì — nói trước, không hứa suông. */
+    const ly = window.prompt(
+      (anDanh
+        ? 'Đánh dấu TIN RÁC. Tố giác ẩn danh không khoá máy hay mạng của người gửi.\n\n'
+        : data?.co_ma_thiet_bi
+        ? 'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
+        : 'Đánh dấu TIN RÁC. Hồ sơ này không có mã thiết bị nên không khoá.\n\n')
+      + 'Hồ sơ vào thùng rác, giữ 7 ngày, khôi phục được nếu bấm nhầm.\n\n'
+      + 'Lý do (không bắt buộc):'
+    );
+    if (ly === null) return;   // bấm Huỷ
+    setDangDanhDauRac(true);
+    try {
+      const kq = await markSpam(submissionId, ly);
+      toast.success(kq.ghiChu, { duration: 6000 });
+      qc.invalidateQueries({ queryKey: ['admin-submissions'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      navigate(diTiep);
+    } catch (e) {
+      toast.error((e as Error).message || 'Không đánh dấu được.');
+    } finally {
+      setDangDanhDauRac(false);
+    }
+  }
+
   const mutation = useMutation({
     mutationFn: (payload: { status: string; note?: string; rejectionReason?: string }) =>
       updateSubmissionStatus(submissionId, payload),
@@ -286,6 +323,9 @@ export default function AdminSubmissionDetailPage() {
                     className="rounded-xl bg-sky-600 py-2.5 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50">
                     Chưa xác minh
                   </button>
+                  {/* Hai nút bỏ tin (ADR-003 §7.3): Tin giả chỉ vào thùng rác —
+                      người gửi có thể nhầm chứ không phá; Tin rác khoá máy như
+                      ở bảng xử lý — kẻ phá rối gửi liên tục. */}
                   <button type="button" disabled={dangGui}
                     onClick={() => {
                       const ly = window.prompt('Đánh dấu TIN GIẢ — tin vào thùng rác, KHÔNG khoá máy người gửi.\n\nLý do (bắt buộc, chỉ cán bộ xem):');
@@ -295,6 +335,13 @@ export default function AdminSubmissionDetailPage() {
                     }}
                     className="rounded-xl bg-slate-600 py-2.5 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-50">
                     Tin giả
+                    <span className="block text-[11px] font-medium opacity-90">bỏ thùng rác, không khoá</span>
+                  </button>
+                  <button type="button" disabled={dangGui || dangDanhDauRac}
+                    onClick={() => danhDauRac('/quan-tri/sang-loc')}
+                    className="rounded-xl border-2 border-slate-500 bg-slate-100 py-2 text-sm font-bold text-slate-800 hover:bg-slate-200 disabled:opacity-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100">
+                    Tin rác
+                    <span className="block text-[11px] font-medium opacity-80">khoá máy người gửi</span>
                   </button>
                   <button type="button" disabled={dangGui}
                     onClick={() => {
@@ -304,7 +351,7 @@ export default function AdminSubmissionDetailPage() {
                       if (ghi === null) return;
                       lamViec(() => sangLoc(submissionId, 'ngoai_tham_quyen', ghi), lanhDao ? undefined : '/quan-tri/sang-loc');
                     }}
-                    className="rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-50">
+                    className="col-span-2 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-50">
                     Ngoài thẩm quyền
                   </button>
                 </div>
@@ -530,36 +577,7 @@ export default function AdminSubmissionDetailPage() {
                 <button
                   type="button"
                   disabled={dangDanhDauRac}
-                  onClick={async () => {
-                    /* Tố giác ẩn danh không khoá máy hay mạng của người gửi
-                       (BUG-017) — máy chủ đã chặn, ở đây chỉ để không hứa
-                       với cán bộ một việc sẽ không xảy ra. Cùng quy ước với
-                       laDonAnDanh ở máy chủ: NULL coi là ẩn danh; MySQL trả
-                       TINYINT dạng số nên so bằng Number, không so với false. */
-                    const anDanh = data?.is_anonymous == null || Number(data.is_anonymous) !== 0;
-                    /* Không còn khoá theo địa chỉ mạng (BUG-016): hồ sơ không có
-                       mã máy thì không khoá gì — nói trước, không hứa suông. */
-                    const ly = window.prompt(
-                      (anDanh
-                        ? 'Đánh dấu TIN RÁC. Tố giác ẩn danh không khoá máy hay mạng của người gửi.\n\n'
-                        : data?.co_ma_thiet_bi
-                        ? 'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
-                        : 'Đánh dấu TIN RÁC. Hồ sơ này không có mã thiết bị nên không khoá.\n\n')
-                      + 'Hồ sơ vào thùng rác, giữ 7 ngày, khôi phục được nếu bấm nhầm.\n\n'
-                      + 'Lý do (không bắt buộc):'
-                    );
-                    if (ly === null) return;   // bấm Huỷ
-                    setDangDanhDauRac(true);
-                    try {
-                      const kq = await markSpam(submissionId, ly);
-                      toast.success(kq.ghiChu, { duration: 6000 });
-                      navigate('/quan-tri/y-kien');
-                    } catch (e) {
-                      toast.error((e as Error).message || 'Không đánh dấu được.');
-                    } finally {
-                      setDangDanhDauRac(false);
-                    }
-                  }}
+                  onClick={() => danhDauRac('/quan-tri/y-kien')}
                   className="flex items-center gap-1.5 rounded-xl border-2 border-slate-400 bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                 >
                   <Ban className="h-4 w-4" /> Tin rác

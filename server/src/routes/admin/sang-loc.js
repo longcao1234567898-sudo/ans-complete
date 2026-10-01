@@ -80,7 +80,9 @@ async function sangLocMotTin(req, id, hanhDong, ghiChu) {
     if (ghiChu) await themGhiChu(id, req.staff.id, `[Chưa xác minh] ${ghiChu}`);
   } else if (hanhDong === 'tin_gia') {
     /* Vào thùng rác, KHÔNG khoá máy (ADR-003 §7.3): người gửi có thể nhầm chứ
-       không phá — nút "Tin rác" ở phần xử lý mới khoá. Lý do của cán bộ ghi
+       không phá. Muốn khoá thì bấm nút "Tin rác" — có ở cả hàng sàng lọc lẫn
+       bảng xử lý, đi đường /mark-spam; không thêm thao tác khoá ở đây để luật
+       khoá chỉ sống một chỗ. Lý do của cán bộ ghi
        vào ghi chú nội bộ; người dân tra cứu chỉ thấy lời chung.
        Tin TỐ GIÁC bị đánh tin giả: giữ trong thùng rác tới khi lãnh đạo xem
        (không tự xoá sau 7 ngày) — một lần bấm không được làm mất tố giác thật. */
