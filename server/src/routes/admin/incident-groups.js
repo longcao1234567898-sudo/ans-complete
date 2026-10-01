@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { dieuKienNhomXem } from '../../lib/pham-vi-ho-so.js';
+import { ghiNhatKy } from '../../lib/helpers.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -77,11 +78,18 @@ router.post('/:id/ack', async (req, res) => {
        sơ Mật khỏi mục "chưa xem" trên bảng điều hành của Trưởng (BUG-009).
        Phản hồi vẫn { ok: true } như nhóm không tồn tại — không lộ gì. */
     const phamVi = await dieuKienNhomXem(req.staff);
-    await pool.query(
+    const [kq] = await pool.query(
       `UPDATE incident_groups AS g SET acknowledged = TRUE, acknowledged_by = ?
         WHERE g.id = ? AND ${phamVi.sql}`,
       [req.staff.id, req.params.id, ...phamVi.params]
     );
+    /* Chỉ ghi khi thật sự đánh dấu: nhóm ẩn hay không tồn tại vẫn trả { ok }
+       như cũ, nhưng không để lại dòng "đã xem" cho một nhóm người này không thấy */
+    if (kq.affectedRows) {
+      await ghiNhatKy(pool, req, {
+        hanhDong: 'ack_incident_group', loaiDoiTuong: 'incident_group', doiTuongId: Number(req.params.id),
+      });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi máy chủ.' });

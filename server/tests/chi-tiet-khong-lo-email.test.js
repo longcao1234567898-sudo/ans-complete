@@ -120,7 +120,11 @@ async function goi(staff, method, duong) {
   }
 }
 
-const soDongNhatKy = () => cacTruyVan.filter((t) => /INSERT INTO staff_activity_logs/i.test(t.sql)).length;
+/* Đếm dòng nhật ký XEM DANH TÍNH. Từ ADR-003 việc 9, mở chi tiết hồ sơ có ghi
+   một dòng view_submission (lượt mở, không phải lượt xem danh tính) — dòng đó
+   không tính ở đây. */
+const soDongNhatKy = () => cacTruyVan.filter((t) => /INSERT INTO staff_activity_logs/i.test(t.sql)
+  && (t.params || []).includes('reveal_identity')).length;
 
 /** Khẳng định response không chứa bất kỳ mảnh danh tính nào — kể cả bản mã. */
 function khongLoDanhTinh(r, { ten = TEN_THAT, sdt = SDT_THAT, email = EMAIL_THAT, manh = [] } = {}) {
@@ -144,7 +148,7 @@ for (const [ten, cb] of [['handler', HANDLER], ['manager KHÔNG phân công', MG
     assert.equal(r.status, 200);
     assert.equal(r.body.sender_email, undefined, 'GET /:id không được có trường sender_email');
     khongLoDanhTinh(r);
-    assert.equal(soDongNhatKy(), 0, 'GET /:id không xem danh tính nên không có gì để ghi nhật ký');
+    assert.equal(soDongNhatKy(), 0, 'GET /:id không xem danh tính nên không có dòng reveal_identity');
   });
 }
 

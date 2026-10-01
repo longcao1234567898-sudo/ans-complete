@@ -78,25 +78,63 @@ export function layIpThat(req) {
 
    Gom về một hàm: mọi thao tác nhạy cảm (xem danh tính, xuất dữ liệu, xem bản
    đồ, đổi trạng thái) đều gọi cùng một chỗ, ghi đủ AI-KHI NÀO-TỪ ĐÂU-VIỆC GÌ.
-   Không bao giờ ném lỗi ra ngoài: ghi log hỏng thì cảnh báo rồi cho việc chính
-   chạy tiếp, vì chặn cả thao tác chỉ vì không ghi được log là hại nhiều hơn lợi.
+   ghiNhatKy không bao giờ ném lỗi ra ngoài: ghi log hỏng thì cảnh báo rồi cho
+   việc chính chạy tiếp, vì chặn một thao tác xử lý thường chỉ vì không ghi được
+   log là hại nhiều hơn lợi. NGOẠI LỆ là việc xem/mang ra thứ nhạy cảm và việc
+   không hoàn tác được — những việc đó gọi ghiNhatKyTruoc (bên dưới).
+   Mã hành động khai ở lib/danh-muc-nhat-ky.js.
    ============================================================================ */
-export async function ghiNhatKy(pool, req, { hanhDong, loaiDoiTuong = null, doiTuongId = null, chiTiet = null }) {
+export async function ghiNhatKy(pool, req, viec) {
   try {
-    await pool.query(
-      `INSERT INTO staff_activity_logs
-         (staff_id, action, target_type, target_id, details, ip_address)
-       VALUES (?,?,?,?,?,?)`,
-      [
-        req?.staff?.id ?? null,
-        String(hanhDong).slice(0, 64),
-        loaiDoiTuong,
-        doiTuongId,
-        chiTiet ? JSON.stringify(chiTiet).slice(0, 2000) : null,
-        layIpThat(req),
-      ]
-    );
+    await ghiNhatKyTruoc(pool, req, viec);
   } catch (e) {
     console.warn('[nhật ký] không ghi được:', e.message);
   }
+}
+
+/**
+ * GHI NHẬT KÝ BẮT BUỘC — ném lỗi nếu không ghi được (ADR-003 việc 9).
+ *
+ * Dùng khi việc chính là XEM/MANG RA thứ nhạy cảm (danh tính, tin chỉ lãnh đạo
+ * xem, xuất dữ liệu, mở nhật ký) hoặc là việc KHÔNG HOÀN TÁC được (xoá vĩnh
+ * viễn): gọi TRƯỚC, ném lỗi thì route trả lỗi và không làm việc chính. Không có
+ * lớp phân công nào khác đứng giữa lãnh đạo với các việc này — nhật ký là thứ
+ * duy nhất để lãnh đạo kiểm lẫn nhau, nên không có dấu vết thì không cho làm.
+ *
+ * @param {object} viec
+ * @param {string} viec.hanhDong     mã trong lib/danh-muc-nhat-ky.js
+ * @param {number} [viec.staffId]    ghi thay req.staff (đăng xuất: chưa qua requireAuth)
+ * @param {number} [viec.gopPhut]    cùng người, cùng việc, cùng đối tượng đã ghi trong
+ *   chừng ấy phút thì không ghi thêm — cho các lượt XEM bị giao diện tải lại khi
+ *   chuyển tab; lần mở đầu tiên vẫn luôn được ghi
+ */
+export async function ghiNhatKyTruoc(pool, req, {
+  hanhDong, loaiDoiTuong = null, doiTuongId = null, chiTiet = null, staffId, gopPhut = 0,
+}) {
+  const nguoi = staffId ?? req?.staff?.id ?? null;
+  const ma = String(hanhDong).slice(0, 50);
+  if (gopPhut > 0 && nguoi != null) {
+    const [r] = await pool.query(
+      `SELECT 1 FROM staff_activity_logs
+        WHERE staff_id = ? AND action = ?
+          AND (target_id = ? OR (target_id IS NULL AND ? IS NULL))
+          AND created_at > NOW() - INTERVAL ? MINUTE
+        LIMIT 1`,
+      [nguoi, ma, doiTuongId, doiTuongId, Number(gopPhut)]
+    );
+    if (r.length > 0) return;
+  }
+  await pool.query(
+    `INSERT INTO staff_activity_logs
+       (staff_id, action, target_type, target_id, details, ip_address)
+     VALUES (?,?,?,?,?,?)`,
+    [
+      nguoi,
+      ma,
+      loaiDoiTuong,
+      doiTuongId,
+      chiTiet ? JSON.stringify(chiTiet).slice(0, 2000) : null,
+      layIpThat(req),
+    ]
+  );
 }

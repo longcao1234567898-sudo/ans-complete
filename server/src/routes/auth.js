@@ -1,6 +1,6 @@
 /** Xác thực cán bộ: đăng nhập, làm mới token, đăng xuất, xem thông tin bản thân */
 import { Router } from 'express';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, ghiNhatKy } from '../lib/helpers.js';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
@@ -224,7 +224,16 @@ router.post('/logout', async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (raw) {
     try {
-      await pool.query('UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = ?', [hashRefreshToken(raw)]);
+      const bam = hashRefreshToken(raw);
+      /* Đăng xuất không đi qua requireAuth (mã truy cập có thể đã hết hạn) —
+         biết là ai nhờ phiên đăng nhập còn sống trong refresh_tokens */
+      const [phien] = await pool.query(
+        'SELECT staff_id FROM refresh_tokens WHERE token_hash = ? AND revoked = FALSE', [bam]
+      );
+      await pool.query('UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = ?', [bam]);
+      if (phien.length > 0) {
+        await ghiNhatKy(pool, req, { hanhDong: 'logout', staffId: phien[0].staff_id });
+      }
     } catch { /* bỏ qua */ }
   }
   res.clearCookie('refreshToken', { path: '/api/auth' });

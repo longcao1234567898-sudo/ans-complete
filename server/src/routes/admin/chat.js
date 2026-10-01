@@ -235,6 +235,9 @@ router.delete('/trusted-devices/:id', authorize(...LANH_DAO), async (req, res) =
       `DELETE FROM blacklists WHERE id = ? AND kind = 'trusted_device'`, [id]
     );
     if (!kq.affectedRows) return res.status(404).json({ error: 'Không tìm thấy.' });
+    /* Bỏ tin cậy là mở lại khoá tự động cho máy dùng chung đó — ngược với
+       trust_device, cũng phải biết ai làm */
+    await ghiNhatKy(pool, req, { hanhDong: 'untrust_device', loaiDoiTuong: 'device', doiTuongId: id });
     res.json({ ok: true });
   } catch (err) {
     console.error('Bỏ thiết bị tin cậy lỗi:', err.message);

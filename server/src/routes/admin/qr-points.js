@@ -4,7 +4,7 @@ import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 import { LANH_DAO } from '../../lib/vai-tro.js';
-import { generateTrackingCode } from '../../lib/helpers.js';
+import { generateTrackingCode, ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 
 const router = Router();
@@ -45,6 +45,9 @@ router.post('/', authorize(...LANH_DAO), async (req, res) => {
       'INSERT INTO qr_points (code, name, ward_id, note, created_by) VALUES (?,?,?,?,?)',
       [code, name, wardId, note || null, req.staff.id]
     );
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'qr_create', loaiDoiTuong: 'qr_point', doiTuongId: result.insertId, chiTiet: { code, name, wardId },
+    });
     res.status(201).json({ id: result.insertId, code, name, wardId, note });
   } catch (err) {
     console.error('Lỗi tạo điểm QR:', err.message);
@@ -55,10 +58,16 @@ router.post('/', authorize(...LANH_DAO), async (req, res) => {
 /** PATCH /api/admin/qr-points/:id — bật/tắt điểm (admin/manager) */
 router.patch('/:id', authorize(...LANH_DAO), async (req, res) => {
   try {
-    await pool.query('UPDATE qr_points SET is_active = ? WHERE id = ?', [
-      req.body?.isActive === false ? 0 : 1,
+    const batTat = req.body?.isActive !== false;
+    const [kq] = await pool.query('UPDATE qr_points SET is_active = ? WHERE id = ?', [
+      batTat ? 1 : 0,
       req.params.id,
     ]);
+    if (kq.affectedRows) {
+      await ghiNhatKy(pool, req, {
+        hanhDong: 'qr_update', loaiDoiTuong: 'qr_point', doiTuongId: Number(req.params.id) || null, chiTiet: { batTat },
+      });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi máy chủ.' });
@@ -68,7 +77,12 @@ router.patch('/:id', authorize(...LANH_DAO), async (req, res) => {
 /** DELETE /api/admin/qr-points/:id — xoá hẳn (admin/manager) */
 router.delete('/:id', authorize(...LANH_DAO), async (req, res) => {
   try {
-    await pool.query('DELETE FROM qr_points WHERE id = ?', [req.params.id]);
+    const [kq] = await pool.query('DELETE FROM qr_points WHERE id = ?', [req.params.id]);
+    if (kq.affectedRows) {
+      await ghiNhatKy(pool, req, {
+        hanhDong: 'qr_delete', loaiDoiTuong: 'qr_point', doiTuongId: Number(req.params.id) || null,
+      });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi máy chủ.' });

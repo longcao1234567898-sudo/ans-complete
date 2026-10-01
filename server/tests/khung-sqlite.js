@@ -128,6 +128,17 @@ export function dungCsdl(pool, { themCau = [] } = {}) {
   for (const q of [...LUOC_DO, ...themCau]) db.exec(q);
 
   pool.query = async (sql, p = []) => {
+    /* Thủ tục MySQL update_submission_status(id, trạng thái, ghi chú, lý do từ
+       chối, người đổi): đổi trạng thái và ghi lịch sử, như bản trong CSDL */
+    if (/^\s*CALL\s+update_submission_status/i.test(String(sql))) {
+      const [id, moi, ghiChu, lyDo, nguoi] = p.map(norm);
+      const cu = db.prepare('SELECT status FROM submissions WHERE id = ?').get(id)?.status ?? null;
+      db.prepare('UPDATE submissions SET status = ?, rejection_reason = COALESCE(?, rejection_reason) WHERE id = ?')
+        .run(moi, lyDo, id);
+      db.prepare('INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)')
+        .run(id, cu, moi, ghiChu, nguoi);
+      return [{ affectedRows: 1 }, []];
+    }
     const [cau, thamSo] = bungMang(sangSqlite(String(sql)), p);
     let st;
     try {

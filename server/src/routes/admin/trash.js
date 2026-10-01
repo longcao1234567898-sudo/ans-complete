@@ -9,7 +9,7 @@
  */
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
-import { ghiNhatKy } from '../../lib/helpers.js';
+import { ghiNhatKy, ghiNhatKyTruoc } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 import { laLanhDao } from '../../lib/vai-tro.js';
@@ -161,6 +161,20 @@ router.delete('/:id', async (req, res) => {
   }
 
   try {
+    const [co] = await pool.query(
+      'SELECT tracking_code FROM submissions WHERE id = ? AND deleted_at IS NOT NULL',
+      [req.params.id]
+    );
+    if (co.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy tin trong thùng rác.' });
+    }
+    /* Xoá vĩnh viễn không hoàn tác được: ghi TRƯỚC, ghi không được thì không
+       xoá (ném lỗi -> 500 ở dưới). Ghi cả mã tra cứu — sau khi xoá, đó là thứ
+       duy nhất còn lại để đối chiếu với người dân hay hồ sơ giấy. */
+    await ghiNhatKyTruoc(pool, req, {
+      hanhDong: 'trash_purge', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+      chiTiet: { maTraCuu: co[0].tracking_code },
+    });
     const [r] = await pool.query(
       'DELETE FROM submissions WHERE id = ? AND deleted_at IS NOT NULL',
       [req.params.id]
@@ -168,10 +182,6 @@ router.delete('/:id', async (req, res) => {
     if (r.affectedRows === 0) {
       return res.status(404).json({ error: 'Không tìm thấy tin trong thùng rác.' });
     }
-
-    await ghiNhatKy(pool, req, {
-      hanhDong: 'trash_purge', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
-    });
 
     res.json({ ok: true, message: 'Đã xoá vĩnh viễn.' });
   } catch (err) {
@@ -186,10 +196,13 @@ router.delete('/', async (req, res) => {
     return res.status(403).json({ error: 'Chỉ lãnh đạo mới được dọn sạch thùng rác.' });
   }
   try {
-    const [r] = await pool.query('DELETE FROM submissions WHERE deleted_at IS NOT NULL');
-    await ghiNhatKy(pool, req, {
-      hanhDong: 'trash_empty', loaiDoiTuong: 'submission', chiTiet: { soTin: r.affectedRows },
+    /* Như xoá vĩnh viễn từng tin: ghi TRƯỚC, kèm danh sách mã tra cứu */
+    const [ds] = await pool.query('SELECT tracking_code FROM submissions WHERE deleted_at IS NOT NULL');
+    await ghiNhatKyTruoc(pool, req, {
+      hanhDong: 'trash_empty', loaiDoiTuong: 'submission',
+      chiTiet: { soTin: ds.length, maTraCuu: ds.slice(0, 100).map((d) => d.tracking_code) },
     });
+    const [r] = await pool.query('DELETE FROM submissions WHERE deleted_at IS NOT NULL');
     res.json({ ok: true, deleted: r.affectedRows });
   } catch (err) {
     console.error('Lỗi dọn thùng rác:', err.message);

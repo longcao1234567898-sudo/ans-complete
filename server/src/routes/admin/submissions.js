@@ -1,6 +1,6 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
-import { layIpThat, ghiNhatKy } from '../../lib/helpers.js';
+import { layIpThat, ghiNhatKy, ghiNhatKyTruoc } from '../../lib/helpers.js';
 import {
   khoaThietBi, xetKhoaTaiPham,
   xetDonGayKhoa, laDonAnDanh, GHI_CHU_KHONG_TINH_TAI_PHAM,
@@ -324,6 +324,17 @@ router.get('/:id', async (req, res) => {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
 
+    /* NHẬT KÝ LƯỢT MỞ (ADR-003 việc 9). Tin chỉ lãnh đạo xem (tố giác mật,
+       ngoài thẩm quyền): ghi TRƯỚC, ghi không được thì không mở — một tố giác
+       nhắm vào chính một lãnh đạo thì nhật ký là thứ duy nhất cho người khác
+       biết ai đã đọc nó (ADR-003, rủi ro đã chấp nhận). Hồ sơ thường: ghi nếu
+       được. Gộp lượt mở lại trong 10 phút: giao diện tải lại trang chi tiết mỗi
+       lần chuyển tab, ghi hết thì lượt mở thật chìm giữa hàng trăm dòng lặp. */
+    const mangCo = Number(rows[0].to_giac_mat) === 1 || Number(rows[0].ngoai_tham_quyen) === 1;
+    const luotMo = { loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id), gopPhut: 10 };
+    if (mangCo) await ghiNhatKyTruoc(pool, req, { ...luotMo, hanhDong: 'view_flagged_submission' });
+    else await ghiNhatKy(pool, req, { ...luotMo, hanhDong: 'view_submission' });
+
     const [images] = await pool.query(
       'SELECT image_url, mime_type, moderation_status FROM submission_images WHERE submission_id = ?',
       [req.params.id]
@@ -419,7 +430,7 @@ router.patch('/:id/status', async (req, res) => {
        ở SEC-DEC-009. */
     const phamVi = await dieuKienXem(req.staff, '');
     const [thay] = await pool.query(
-      `SELECT id FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      `SELECT id, status FROM submissions WHERE id = ? AND ${phamVi.sql}`,
       [req.params.id, ...phamVi.params]
     );
     if (thay.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
@@ -427,6 +438,12 @@ router.patch('/:id/status', async (req, res) => {
     await pool.query('CALL update_submission_status(?,?,?,?,?)', [
       req.params.id, status, note || null, rejectionReason || null, req.staff.id,
     ]);
+    /* status_history đã có người đổi, nhưng lãnh đạo đọc nhật ký ở MỘT chỗ —
+       không phải mở từng hồ sơ để biết hôm nay ai đóng những gì */
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'update_status', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+      chiTiet: { cu: thay[0].status, moi: status },
+    });
 
     /* TỰ ĐỘNG XOÁ DANH TÍNH khi hồ sơ ĐÓNG, nếu người dân đã yêu cầu trước đó.
        Theo Nghị định 13/2023: quyền xoá bị hoãn khi dữ liệu còn cần cho việc
@@ -460,6 +477,9 @@ router.patch('/:id/status', async (req, res) => {
             [req.staff.id, req.params.id]
           );
           console.log(`🔒 Đã tự xoá danh tính ý kiến #${req.params.id} theo yêu cầu đã ghi nhận`);
+          await ghiNhatKy(pool, req, {
+            hanhDong: 'erase_identity', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+          });
         }
       } catch (e) {
         console.warn('Bỏ qua xoá danh tính tự động:', e.message,
