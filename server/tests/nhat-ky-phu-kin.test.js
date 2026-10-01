@@ -185,8 +185,11 @@ test('đổi trạng thái -> đúng MỘT dòng update_status (thủ tục CSDL
   assert.deepEqual(chiTiet(d[0]), { old_status: 'processing', new_status: 'resolved' });
 });
 
-test('đóng hồ sơ có yêu cầu xoá danh tính -> erase_identity', { skip: BO_QUA }, async () => {
+test('đóng hồ sơ có yêu cầu xoá danh tính -> erase_identity', { skip: BO_QUA }, async (t) => {
   ctl.db.exec(`INSERT INTO data_deletion_requests (submission_id, status) VALUES (10, 'pending')`);
+  /* Route in một dòng có emoji ra stdout; dòng đó chen vào kênh kết quả của bộ
+     chạy node --test và làm cả tệp đỏ chập chờn (ND-039). Tắt in trong bài này. */
+  t.mock.method(console, 'log', () => {});
   const r = await goi(CAN_BO, 'PATCH', '/submissions/10/status', { status: 'resolved' });
   assert.equal(r.status, 200, r.text);
   assert.equal(dong('erase_identity').length, 1);
