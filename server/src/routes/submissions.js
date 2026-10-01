@@ -14,6 +14,7 @@ import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
+import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 
 const router = Router();
 
@@ -80,6 +81,8 @@ router.get('/qr-points/:code', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  /* Chỗ giữ cho các khoá đếm (lib/giu-cho-gui.js) — trả lại ở finally */
+  let giu = null;
   try {
     const body = req.body || {};
     const content = sanitizeText(body.content);
@@ -228,6 +231,18 @@ router.post('/', async (req, res) => {
     // 4) Chống spam — dò theo IP và BĂM SĐT (số thật đã mã hoá nên không so trực tiếp được)
     const contentHash = sha256(normalizedContent);
     const phoneHash = isAnonymous ? null : hashPhone(phone);
+
+    /* GIỮ CHỖ TRƯỚC KHI ĐẾM (luật 6, ADR-003 việc 1). Mọi phép đếm bên dưới
+       và câu INSERT chạy trong lúc giữ chỗ, nên hai yêu cầu cùng mạng, cùng số
+       điện thoại hay cùng nội dung không thể cùng đếm "chưa đủ" rồi cùng ghi. */
+    giu = await giuCho(pool, khoaCuaLanGui({ ipHash, phoneHash, contentHash }));
+    if (!giu.ok) {
+      return res.status(429).json({
+        error: 'Hệ thống đang nhận một ý kiến khác gửi từ cùng thiết bị hoặc cùng mạng. '
+          + 'Bà con vui lòng chờ vài giây rồi bấm gửi lại. Việc khẩn cấp xin gọi ngay 113.',
+      });
+    }
+
     const [spam] = await pool.query(
       `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at,
               EXISTS(SELECT 1 FROM submissions WHERE content_hash=? AND created_at > NOW()-INTERVAL 1 HOUR) AS dup
@@ -398,6 +413,9 @@ router.post('/', async (req, res) => {
       ]
     );
 
+    /* Đã ghi xong: trả chỗ ngay, không giữ trong lúc lưu ảnh và tài liệu */
+    await giu.nha();
+
     // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
     // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không
     // được phép làm hỏng việc bà con đã gửi thành công.
@@ -528,6 +546,8 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('Lỗi gửi ý kiến:', err);
     res.status(500).json({ error: 'Lỗi máy chủ khi gửi ý kiến.' });
+  } finally {
+    if (giu) await giu.nha();
   }
 });
 
