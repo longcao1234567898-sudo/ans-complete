@@ -31,8 +31,6 @@ import { useNgonNgu } from '../../i18n/useNgonNgu';
 /** Khoá nhớ đã xem hướng dẫn. */
 const KHOA = STORAGE_KEYS.daXemHuongDan ?? 'ans_da_xem_huong_dan';
 
-/** Cách bao lâu thì hiện lại hướng dẫn. Một giờ — xem chú thích ở chỗ dùng. */
-const HAN_HIEN_LAI_MS = 60 * 60 * 1000;
 
 interface Buoc {
   /** Khoá tra bản dịch cho tiêu đề. Trước đây viết thẳng chữ tiếng Việt vào
@@ -231,17 +229,11 @@ export default function HuongDanBanDau() {
   useEffect(() => {
     let daHuy = false;
     try {
-      /* HIỆN LẠI SAU MỖI GIỜ, không phải một lần rồi thôi.
-
-         Lý do: bà con lớn tuổi thường không nhớ hết sau một lần xem, mà cũng
-         ít khi chủ động đi tìm lại hướng dẫn. Cách một giờ hiện lại là vừa —
-         người vào lướt qua vài trang trong một buổi thì không bị làm phiền,
-         còn người quay lại hôm sau vẫn được nhắc.
-
-         Ghi MỐC THỜI GIAN thay vì ghi cờ đã xem: cờ thì chỉ biết có hay không,
-         mốc thời gian mới tính được đã qua bao lâu. */
-      const luc = Number(localStorage.getItem(KHOA) || 0);
-      if (luc && Date.now() - luc < HAN_HIEN_LAI_MS) return;
+      /* CHỈ TỰ HIỆN Ở LẦN ĐẦU VÀO WEB (ADR-003 việc 27). Trước đây hiện lại mỗi
+         giờ; người vận hành chọn một lần duy nhất — ai cần xem lại thì bấm
+         "Xem hướng dẫn" ở chân trang hoặc trang Giới thiệu.
+         Nhớ trên trình duyệt: đổi máy hoặc xoá dữ liệu trình duyệt thì hiện lại. */
+      if (localStorage.getItem(KHOA)) return;
     } catch {
       return;   // trình duyệt chặn lưu trữ -> không hiện, tránh hiện lại mỗi lần
     }
@@ -438,7 +430,7 @@ export default function HuongDanBanDau() {
   }, [hien]);
 
   function dong() {
-    /* Ghi MỐC THỜI GIAN đóng. Sau một giờ hướng dẫn sẽ hiện lại. */
+    /* Ghi đã xem (lưu mốc thời gian đóng): từ nay không tự hiện nữa */
     try { localStorage.setItem(KHOA, String(Date.now())); } catch { /* bỏ qua */ }
     dungDoc();
     /* Trả biểu mẫu về bước 1 và mở khoá nút gửi. Không báo kết thúc thì biểu
