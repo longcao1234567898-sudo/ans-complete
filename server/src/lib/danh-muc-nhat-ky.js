@@ -64,8 +64,16 @@ export const NHOM_NHAT_KY = Object.freeze([
     ma: 'sang_loc',
     ten: 'Sàng lọc và chuyển phần',
     hanhDong: {
+      sang_loc_xac_nhan: 'Sàng lọc: xác nhận tin, đưa vào xử lý',
+      sang_loc_chua_xac_minh: 'Sàng lọc: gắn nhãn chưa xác minh',
+      sang_loc_tin_gia: 'Sàng lọc: đánh dấu tin giả (vào thùng rác)',
+      sang_loc_ngoai_tham_quyen: 'Sàng lọc: chuyển sang ngoài thẩm quyền',
+      ntq_chuyen_lai: 'Ngoài thẩm quyền: chuyển lại xử lý',
+      ntq_xoa: 'Ngoài thẩm quyền: xoá (vào thùng rác)',
+      ntq_da_chuyen: 'Ngoài thẩm quyền: đã chuyển cơ quan có thẩm quyền',
       move_to_secret: 'Chuyển tin vào phần tố giác mật',
       release_secret: 'Đưa tin ra khỏi phần tố giác mật',
+      note_add: 'Thêm ghi chú nội bộ',
     },
   },
   {

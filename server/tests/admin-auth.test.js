@@ -58,6 +58,8 @@ const CAC_DUONG_DAN = [
   ['/api/admin/news', 'GET'],
   // Điểm đen giao thông — cán bộ cập nhật số liệu tai nạn
   ['/api/admin/diem-den', 'GET'],
+  // ADR-003 — sàng lọc, ngoài thẩm quyền, ghi chú nội bộ (routes/admin/sang-loc.js)
+  ['/api/admin/submissions/1/sang-loc', 'POST'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {

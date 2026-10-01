@@ -13,6 +13,7 @@ import { ghiNhatKy, ghiNhatKyTruoc } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 import { laLanhDao } from '../../lib/vai-tro.js';
+import { coCotSangLoc } from '../../lib/sang-loc.js';
 
 const router = Router();
 
@@ -31,12 +32,23 @@ const GIU_NGAY = 7; // số ngày giữ trong thùng rác trước khi xoá hẳ
  */
 async function donRacQuaHan() {
   try {
-    const [r] = await pool.query(
-      `DELETE FROM submissions
-       WHERE deleted_at IS NOT NULL
-         AND deleted_at < NOW() - INTERVAL ? DAY`,
-      [GIU_NGAY]
-    );
+    /* Tin tố giác bị sàng lọc đánh "Tin giả" (giu_cho_lanh_dao = 1) KHÔNG tự
+       xoá: giữ tới khi lãnh đạo khôi phục hoặc xoá tay (ADR-003 việc 14) —
+       một lần bấm không được làm mất một tố giác thật. */
+    const [r] = (await coCotSangLoc())
+      ? await pool.query(
+        `DELETE FROM submissions
+         WHERE deleted_at IS NOT NULL
+           AND deleted_at < NOW() - INTERVAL ? DAY
+           AND giu_cho_lanh_dao = 0`,
+        [GIU_NGAY]
+      )
+      : await pool.query(
+        `DELETE FROM submissions
+         WHERE deleted_at IS NOT NULL
+           AND deleted_at < NOW() - INTERVAL ? DAY`,
+        [GIU_NGAY]
+      );
     if (r.affectedRows > 0) {
       console.log(`🗑️  Đã tự xoá vĩnh viễn ${r.affectedRows} tin quá ${GIU_NGAY} ngày trong thùng rác`);
     }

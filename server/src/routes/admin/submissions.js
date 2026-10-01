@@ -15,6 +15,7 @@ import {
   dieuKienXem, coSql, nhomXemDuoc, hoSoMangCo, coCotCo,
 } from '../../lib/pham-vi-ho-so.js';
 import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
+import { timPhan, coCotSangLoc, sangLocSql } from '../../lib/sang-loc.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -154,7 +155,41 @@ router.get('/', async (req, res) => {
      Cán bộ mở danh sách là để LÀM VIỆC. Hồ sơ đã giải quyết hoặc từ chối
      trộn lẫn vào chỉ làm loãng, càng dùng lâu càng nhiều, việc cần làm
      càng bị đẩy xuống dưới. Muốn xem lại thì bấm đúng thẻ đó. */
-  if (status === 'all') {
+  /* PHẦN DANH SÁCH (ADR-003 việc 11, 13, 15, 17): Sàng lọc · Tin đưa vào xử
+     lý · Tin tố giác · Tin tố giác mật · Ngoài thẩm quyền. Mệnh đề mỗi phần
+     định nghĩa một chỗ ở lib/sang-loc.js; tra bằng Object.hasOwn nên
+     ?phan=constructor không lọt. Không gửi phan thì giữ cách lọc cũ. */
+  const coPhan = req.query.phan != null && req.query.phan !== '';
+  const phan = coPhan ? timPhan(req.query.phan) : null;
+  if (coPhan && !phan) return res.status(400).json({ error: 'Phần danh sách không hợp lệ.' });
+  if (phan?.lanhDao && !laLanhDao(req.staff)) {
+    return res.status(403).json({ error: `Phần ${phan.ten} chỉ lãnh đạo xem.` });
+  }
+  if (phan) {
+    where.push(phan.sql);
+    /* Chưa chạy v26: phần chỉ lãnh đạo trả rỗng; phần khác bỏ điều kiện cờ
+       (cán bộ lúc đó vốn không thấy hồ sơ nào — pham-vi-ho-so.js) */
+    if (await coCotCo()) where.push(phan.co);
+    else if (phan.lanhDao) where.push('1 = 0');
+    if (phan.trangThai) {
+      if (status === 'all') {
+        where.push(`s.status IN (${phan.trangThai.map(() => '?').join(', ')})`);
+        params.push(...phan.trangThai);
+      } else if (status) {
+        if (!phan.trangThai.includes(String(status))) {
+          return res.status(400).json({ error: `Phần ${phan.ten} không có trạng thái này.` });
+        }
+        where.push('s.status = ?');
+        params.push(String(status));
+      } else {
+        where.push('s.status = ?');
+        params.push(phan.macDinh);
+      }
+    } else if (status && status !== 'all') {
+      where.push('s.status = ?');
+      params.push(String(status));
+    }
+  } else if (status === 'all') {
     where.push("s.status <> 'spam'");
   } else if (status) {
     where.push('s.status = ?');
@@ -242,7 +277,7 @@ router.get('/', async (req, res) => {
                            AND m.read_by_staff = 0), 0) AS tin_chua_doc,
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
-              ${await coSql('s')},
+              ${await coSql('s')}, ${await sangLocSql('s')},
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
@@ -271,6 +306,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+/** Ghi chú nội bộ của hồ sơ, cũ trước mới sau. Chưa có bảng (chưa chạy v28) -> rỗng.
+    Chỉ gọi SAU khi đã kiểm phạm vi hồ sơ. */
+async function docGhiChu(id) {
+  if (!(await coCotSangLoc())) return [];
+  const [rows] = await pool.query(
+    `SELECT g.id, g.noi_dung, g.created_at, st.full_name AS staff_name
+       FROM ghi_chu_noi_bo g LEFT JOIN staff st ON st.id = g.staff_id
+      WHERE g.submission_id = ?
+      ORDER BY g.created_at ASC, g.id ASC`,
+    [id]
+  );
+  return rows;
+}
+
 /** GET /api/admin/submissions/:id — chi tiết (danh tính CHE SẴN, muốn xem đủ phải bấm nút) */
 router.get('/:id', async (req, res) => {
   try {
@@ -284,7 +333,7 @@ router.get('/:id', async (req, res) => {
          giác — đường lộ danh tính thật, không cần chờ lộ database.
          Thêm cột mới vào bảng thì phải cân nhắc rồi mới thêm vào đây. */
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
-              s.category_id, s.status, s.urgency, ${await coSql('s')}, s.is_anonymous,
+              s.category_id, s.status, s.urgency, ${await coSql('s')}, ${await sangLocSql('s')}, s.is_anonymous,
               s.is_flagged, s.flag_reason,
               s.sender_name, s.sender_phone,
               /* Email: CHỈ lấy cờ có/không, KHÔNG lấy cột. Trang chi tiết chỉ
@@ -362,6 +411,11 @@ router.get('/:id', async (req, res) => {
       /* Vì sao hệ thống xếp mức khẩn này (ADR-003 việc 10) — tính lại từ nội
          dung bằng bộ từ khoá hiện hành; mức đã lưu thì không đổi */
       muc_khan: danhGiaMucKhan(row.original_content),
+      /* Đang ở hàng sàng lọc -> giao diện hiện bốn nút sàng lọc. Máy chủ vẫn
+         kiểm lại ở route sàng lọc; đây chỉ để biết vẽ nút nào. */
+      dang_cho_sang_loc: row.status === 'received' && Number(row.is_anonymous) === 0
+        && row.deleted_at == null && Number(row.to_giac_mat) === 0 && Number(row.ngoai_tham_quyen) === 0,
+      ghi_chu: await docGhiChu(Number(req.params.id)),
       /* Vì sao tin vào phần tố giác mật (ADR-003 việc 12) — chỉ trả khi tin
          mang cờ; cán bộ không bao giờ mở được tin mang cờ nên chỉ lãnh đạo thấy */
       ...(Number(row.to_giac_mat) === 1 ? { to_giac_mat_nhan_dien: nhanDienToGiacMat(row.original_content).lyDo } : {}),
@@ -571,7 +625,10 @@ router.post('/:id/review', async (req, res) => {
       return res.status(400).json({ error: 'Ý kiến này không nằm trong hàng chờ kiểm duyệt.' });
     }
 
-    const newStatus = action === 'approve' ? 'received' : 'spam';
+    /* Duyệt tin ẩn danh -> vào thẳng 'processing'. Từ ADR-003 'received' là
+       "chờ sàng lọc", chỉ dành cho tin có danh tính; hàng kiểm duyệt này đã là
+       bước sàng lọc của tin ẩn danh. */
+    const newStatus = action === 'approve' ? 'processing' : 'spam';
 
     /* ĐƠN NÀY CÓ ĐƯỢC GÂY KHOÁ KHÔNG (BUG-015) — hỏi TRƯỚC khi ghi lịch sử lần
        này. Hàng chờ có thể chứa đơn bị chặn ngầm (đơn có ảnh nghi ngờ được đổi
