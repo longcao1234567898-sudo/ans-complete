@@ -253,6 +253,10 @@ export default function HuongDanBanDau() {
          vòng một giây, hẹn giờ đã đặt xong nên hướng dẫn vẫn nhảy ra giữa lúc
          họ bắt đầu viết. */
       if (window.location.pathname.startsWith('/gui-y-kien')) return;
+      /* KHÔNG TỰ HIỆN ở khu cán bộ: đây là hướng dẫn cho người dân. Từng tự
+         hiện trên trang cán bộ ở máy mới vào lần đầu — lớp hướng dẫn phủ lên
+         khung đang nhập (bấm Thêm, Thôi không ăn) rồi kéo cán bộ về trang chủ. */
+      if (/^\/(quan-tri|dang-nhap)(\/|$)/.test(window.location.pathname)) return;
       setBoBuoc(window.innerWidth < 768 ? BUOC_DIEN_THOAI : BUOC_MAY_TINH);
       setHien(true);
     }, 1200);
