@@ -12,7 +12,10 @@
  *   "ai đã làm gì với hồ sơ?"                       -> xử lý, thùng rác
  *   "ai đã đổi cấu hình chống spam / trang công khai?"
  *
- * Hai hành động cũ (trước ADR-003) vẫn khai để dòng cũ trong CSDL đọc được.
+ * Hành động đã bỏ KHÔNG nằm trong nhóm nào (không hiện ở bộ lọc, thống kê) —
+ * nhưng dòng cũ trong CSDL vẫn đọc được nhãn qua NHAN_DA_BO bên dưới. Nhật ký
+ * chỉ ghi thêm (v27), nên không có cách "xoá dòng cũ"; giấu nhãn đi thì dòng
+ * cũ hiện ra dạng mã khó hiểu, lãnh đạo bỏ qua đúng chỗ cần đọc.
  */
 
 export const NHOM_NHAT_KY = Object.freeze([
@@ -123,15 +126,13 @@ export const NHOM_NHAT_KY = Object.freeze([
       canh_bao_dot_bien: 'Cảnh báo số đơn đột biến theo địa bàn',
     },
   },
-  {
-    ma: 'cu',
-    ten: 'Hành động đã bỏ (dòng cũ)',
-    hanhDong: {
-      set_security_level: 'Đổi cấp độ bảo mật (đã bỏ theo ADR-003)',
-      assign_denied: 'Phân công bị từ chối (đã bỏ theo ADR-003)',
-    },
-  },
 ]);
+
+/* Mã không còn route nào ghi — chỉ để đọc dòng cũ. Xếp vào nhóm "Khác". */
+const NHAN_DA_BO = Object.freeze({
+  set_security_level: 'Đổi cấp độ bảo mật (chức năng đã bỏ)',
+  assign_denied: 'Phân công bị từ chối (chức năng đã bỏ)',
+});
 
 const THEO_MA = new Map();
 for (const nhom of NHOM_NHAT_KY) {
@@ -146,7 +147,7 @@ export const MOI_HANH_DONG = Object.freeze([...THEO_MA.keys()]);
 /** Tra một mã hành động. Mã lạ (dòng do phiên bản khác ghi) trả nguyên mã, nhóm 'khac'. */
 export function tenHanhDong(ma) {
   return THEO_MA.get(ma)
-    || { ma, ten: String(ma), nhom: 'khac', tenNhom: 'Khác', nhayCam: false };
+    || { ma, ten: Object.hasOwn(NHAN_DA_BO, ma) ? NHAN_DA_BO[ma] : String(ma), nhom: 'khac', tenNhom: 'Khác', nhayCam: false };
 }
 
 /** Các mã thuộc một nhóm; nhóm lạ trả null (route trả 400, không đoán). */

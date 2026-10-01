@@ -83,8 +83,13 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
 ];
 
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { staff, logout } = useAdminAuth();
+/**
+ * `mucDangChon`: đường của mục menu cần sáng, khi đường dẫn trang không nói đúng
+ * (trang chi tiết tin dùng chung /quan-tri/y-kien/:id cho mọi phần — xem
+ * utils/phanTin.ts). Không truyền thì so theo đường dẫn như cũ.
+ */
+export default function AdminLayout({ children, mucDangChon }: { children: ReactNode; mucDangChon?: string }) {
+  const { staff, loading, logout } = useAdminAuth();
   const location = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLAnchorElement>(null);
@@ -125,10 +130,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }, [location.pathname]);
 
-  if (!staff) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname }} />;
+  /* CHỜ khôi phục phiên xong mới quyết. Trước đây chuyển sang /dang-nhap ngay
+     lúc phiên còn đang khôi phục, trang đăng nhập lại đẩy về Tổng quan: tải lại
+     bất kỳ trang cán bộ nào (một hồ sơ, điểm đen…) là mất chỗ đang làm. */
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-slate-500">
+        Đang kiểm tra phiên đăng nhập…
+      </div>
+    );
+  }
+  if (!staff) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname + location.search }} />;
 
-  const dangChon = (to: string, exact: boolean) =>
-    exact ? location.pathname === to : location.pathname.startsWith(to);
+  /* So theo TỪNG ĐOẠN đường dẫn: chỉ startsWith thì đang ở /quan-tri/to-giac-mat
+     mà mục /quan-tri/to-giac cũng sáng — hai mục sáng cùng lúc. */
+  const dangChon = (to: string, exact: boolean) => {
+    if (mucDangChon) return to === mucDangChon;
+    const p = location.pathname;
+    return exact ? p === to : p === to || p.startsWith(`${to}/`);
+  };
 
   /* ---------------------------------------------------------------------
      LỌC THANH ĐIỀU HƯỚNG THEO VAI TRÒ

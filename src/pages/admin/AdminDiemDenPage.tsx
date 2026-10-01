@@ -5,10 +5,11 @@
  *    hiểm), chỉ chỉ huy và quản trị THÊM, SỬA, ẨN. Số liệu tai nạn là số liệu
  *    chính thức của đơn vị, phải qua người có trách nhiệm.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TriangleAlert, Plus, Pencil, Eye, EyeOff, Loader2, X, Save } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import LopPhu from '../../components/common/LopPhu';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import {
   fetchDiemDenQuanTri, luuDiemDen, doiHienDiemDen, type DiemDenQuanTri,
@@ -35,6 +36,36 @@ const TRONG: Form = {
   kyThongKe: '', mucDo: 'trung_binh', khuyenCao: '',
 };
 
+/** "10,81" -> "10.81": bàn phím điện thoại tiếng Việt hay gõ dấu phẩy thập phân.
+    Chỉ đổi khi là MỘT số có đúng một dấu phẩy — cặp toạ độ do tachCapToaDo lo. */
+const chuanThapPhan = (s: string) => {
+  const t = s.trim();
+  return /^-?\d+,\d+$/.test(t) ? t.replace(',', '.') : t;
+};
+
+/** Dán cả cặp "10.8100000, 105.2100000" (Google Maps) vào một ô -> tách hai ô.
+    Hai số có dấu chấm, hoặc phẩy kèm khoảng trắng; "10,81" là một số, không tách. */
+const tachCapToaDo = (s: string): [string, string] | null => {
+  const t = s.trim().replace(/^\(|\)$/g, '');
+  const m = t.match(/^(-?\d+\.\d+)\s*[,;\s]\s*(-?\d+\.\d+)$/)
+    || t.match(/^(-?\d+(?:\.\d+)?)\s*[,;]\s+(-?\d+(?:\.\d+)?)$/);
+  return m ? [m[1], m[2]] : null;
+};
+
+/** Kiểm trước những lỗi hay gặp để báo NGAY trong khung nhập. Máy chủ vẫn kiểm
+    lại (diem-den.js docDuLieu) — đây chỉ để không phải đợi một vòng mạng. */
+function loiTruocKhiGui(f: Form): string | null {
+  if (f.ten.trim().length < 5) return 'Tên khu quá ngắn (ít nhất 5 ký tự).';
+  if ((Number(f.soTuVong) || 0) > 0 && (Number(f.soVu) || 0) === 0) {
+    return 'Có người tử vong mà số vụ bằng 0 — kiểm lại giúp.';
+  }
+  const lat = chuanThapPhan(f.lat);
+  const lng = chuanThapPhan(f.lng);
+  if (lat !== '' && !(Number.isFinite(Number(lat)) && Math.abs(Number(lat)) <= 90)) return 'Vĩ độ không hợp lệ (ví dụ: 10.8100000).';
+  if (lng !== '' && !(Number.isFinite(Number(lng)) && Math.abs(Number(lng)) <= 180)) return 'Kinh độ không hợp lệ (ví dụ: 105.2100000).';
+  return null;
+}
+
 export default function AdminDiemDenPage() {
   const qc = useQueryClient();
   const { staff } = useAdminAuth();
@@ -42,6 +73,11 @@ export default function AdminDiemDenPage() {
 
   const [form, setForm] = useState<Form | null>(null);
   const [thongBao, setThongBao] = useState('');
+  /* Lỗi của khung nhập hiện NGAY TRONG khung. Trước đây lỗi hiện ở trang phía
+     sau lớp phủ: trên điện thoại bấm Thêm thấy "không có gì xảy ra". */
+  const [loiForm, setLoiForm] = useState('');
+  /* Sửa lại ô nào thì tắt lời báo cũ — không để "tên quá ngắn" treo trên một tên đã đúng */
+  useEffect(() => { setLoiForm(''); }, [form]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-diem-den'],
@@ -51,8 +87,8 @@ export default function AdminDiemDenPage() {
   const luu = useMutation({
     mutationFn: (f: Form) => luuDiemDen(f.id ?? null, {
       ten: f.ten, moTa: f.moTa,
-      lat: f.lat === '' ? null : Number(f.lat),
-      lng: f.lng === '' ? null : Number(f.lng),
+      lat: chuanThapPhan(f.lat) === '' ? null : Number(chuanThapPhan(f.lat)),
+      lng: chuanThapPhan(f.lng) === '' ? null : Number(chuanThapPhan(f.lng)),
       soVu: Number(f.soVu) || 0,
       soTuVong: Number(f.soTuVong) || 0,
       soBiThuong: Number(f.soBiThuong) || 0,
@@ -61,10 +97,33 @@ export default function AdminDiemDenPage() {
     onSuccess: (r) => {
       setThongBao(r.message);
       setForm(null);
+      setLoiForm('');
       qc.invalidateQueries({ queryKey: ['admin-diem-den'] });
     },
-    onError: (e: Error) => setThongBao(e.message),
+    onError: (e: Error) => setLoiForm(e.message || 'Không lưu được, thử lại.'),
   });
+
+  function moForm(f: Form) {
+    setForm(f);
+    setLoiForm('');
+    setThongBao('');
+  }
+
+  function guiForm(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form || luu.isPending) return;
+    const loi = loiTruocKhiGui(form);
+    if (loi) { setLoiForm(loi); return; }
+    setLoiForm('');
+    luu.mutate(form);
+  }
+
+  /** Ô toạ độ: dán cả cặp vào một ô thì tự tách sang hai ô */
+  function doiToaDo(o: 'lat' | 'lng', v: string) {
+    if (!form) return;
+    const cap = tachCapToaDo(v);
+    setForm(cap ? { ...form, lat: cap[0], lng: cap[1] } : { ...form, [o]: v });
+  }
 
   const doiHien = useMutation({
     mutationFn: ({ id, hien }: { id: number; hien: boolean }) => doiHienDiemDen(id, hien),
@@ -76,7 +135,7 @@ export default function AdminDiemDenPage() {
   });
 
   function moSua(d: DiemDenQuanTri) {
-    setForm({
+    moForm({
       id: d.id, ten: d.ten, moTa: d.mo_ta ?? '',
       lat: d.lat === null ? '' : String(d.lat),
       lng: d.lng === null ? '' : String(d.lng),
@@ -84,13 +143,14 @@ export default function AdminDiemDenPage() {
       soBiThuong: String(d.so_bi_thuong),
       kyThongKe: d.ky_thong_ke ?? '', mucDo: d.muc_do, khuyenCao: d.khuyen_cao ?? '',
     });
-    setThongBao('');
   }
 
   const ds = data?.ds ?? [];
   const coBang = data?.coBang !== false;
-  const o = 'w-full rounded-xl border-2 border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
-  const nhan = 'mb-1 block text-sm font-semibold text-slate-700 dark:text-slate-200';
+  /* Chữ 16px trên điện thoại (text-base): dưới 16px thì Safari iPhone tự phóng to
+     khi chạm vào ô, khung nhập trượt khỏi màn hình và hai nút ở đáy khó bấm. */
+  const o = 'w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base outline-none focus:border-primary-500 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+  const nhan = 'mb-0.5 block text-xs font-semibold text-slate-600 dark:text-slate-300';
 
   return (
     <AdminLayout>
@@ -111,7 +171,7 @@ export default function AdminDiemDenPage() {
       {laLanhDao ? (
         <button
           type="button"
-          onClick={() => { setForm({ ...TRONG }); setThongBao(''); }}
+          onClick={() => moForm({ ...TRONG })}
           className="mb-4 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-primary-700"
         >
           <Plus className="h-4 w-4" /> Thêm điểm cảnh báo
@@ -206,99 +266,127 @@ export default function AdminDiemDenPage() {
         })}
       </div>
 
-      {/* ============ Ô NHẬP ============ */}
+      {/* ============ Ô NHẬP ============
+          Ba phần: đầu (tiêu đề) · thân (cuộn được) · chân (nút Thêm / Thôi
+          LUÔN thấy). Trước đây cả khung cuộn chung, cao 92vh: trên điện thoại
+          thanh công cụ trình duyệt che phần đáy nên bấm Thêm, Thôi không ăn.
+          dvh = chiều cao màn hình THẬT đang thấy (trừ thanh công cụ); trình
+          duyệt cũ không hiểu dvh thì dùng lớp max-h-[85vh]. */}
       {form && (
+        <LopPhu>
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 sm:items-center sm:p-4">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-5 dark:bg-slate-900 sm:rounded-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-extrabold text-slate-800 dark:text-slate-100">
+          <form
+            onSubmit={guiForm}
+            noValidate
+            style={{ maxHeight: '88dvh' }}
+            className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl dark:bg-slate-900 sm:rounded-2xl"
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-slate-700">
+              <h2 className="text-base font-extrabold text-slate-800 dark:text-slate-100">
                 {form.id ? 'Sửa điểm cảnh báo' : 'Thêm điểm cảnh báo'}
               </h2>
               <button type="button" onClick={() => setForm(null)} aria-label="Đóng"
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <label className={nhan}>Tên khu <span className="font-normal text-slate-400">(ví dụ: Ngã tư cầu Tân An)</span></label>
-            <input type="text" value={form.ten} maxLength={200}
-              onChange={(e) => setForm({ ...form, ten: e.target.value })} className={`${o} mb-3`} />
+            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-4 py-3">
+              <div>
+                <label className={nhan}>Tên khu <span className="font-normal text-slate-400">(ví dụ: Ngã tư cầu Tân An)</span></label>
+                <input type="text" value={form.ten} maxLength={200}
+                  onChange={(e) => setForm({ ...form, ten: e.target.value })} className={o} />
+              </div>
 
-            <label className={nhan}>Mức độ</label>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {MUC.map((m) => (
-                <button key={m.ma} type="button"
-                  onClick={() => setForm({ ...form, mucDo: m.ma })}
-                  className={`min-h-[36px] rounded-xl px-3 py-1.5 text-xs font-bold transition ${
-                    form.mucDo === m.ma ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                  }`}>
-                  {m.ten}
+              <div>
+                <label className={nhan}>Mức độ</label>
+                <div className="flex gap-1.5">
+                  {MUC.map((m) => (
+                    <button key={m.ma} type="button"
+                      onClick={() => setForm({ ...form, mucDo: m.ma })}
+                      className={`min-h-[34px] flex-1 rounded-lg px-2 py-1 text-xs font-bold transition ${
+                        form.mucDo === m.ma ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                      }`}>
+                      {m.ten}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {([['soVu', 'Số vụ'], ['soTuVong', 'Tử vong'], ['soBiThuong', 'Bị thương']] as const).map(([k, ten]) => (
+                  <div key={k}>
+                    <label className={nhan}>{ten}</label>
+                    <input type="number" inputMode="numeric" min={0} value={form[k]}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => setForm({ ...form, [k]: e.target.value })} className={o} />
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label className={nhan}>Kỳ thống kê <span className="font-normal text-slate-400">(ví dụ: 01/2026 – 09/2026)</span></label>
+                <input type="text" value={form.kyThongKe} maxLength={100}
+                  onChange={(e) => setForm({ ...form, kyThongKe: e.target.value })} className={o} />
+              </div>
+
+              <div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={nhan}>Vĩ độ</label>
+                    <input type="text" inputMode="decimal" value={form.lat} placeholder="10.8100000"
+                      onChange={(e) => doiToaDo('lat', e.target.value)} className={o} />
+                  </div>
+                  <div>
+                    <label className={nhan}>Kinh độ</label>
+                    <input type="text" inputMode="decimal" value={form.lng} placeholder="105.2100000"
+                      onChange={(e) => doiToaDo('lng', e.target.value)} className={o} />
+                  </div>
+                </div>
+                <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                  Dán cả cặp số từ Google Maps vào ô Vĩ độ là tự tách. Bỏ trống thì điểm chỉ không hiện trên bản đồ.
+                </p>
+              </div>
+
+              <div>
+                <label className={nhan}>Đặc điểm nguy hiểm</label>
+                <textarea value={form.moTa} rows={2} maxLength={2000}
+                  placeholder="Ví dụ: Khúc cua gấp, tầm nhìn bị che, hay xảy ra giờ tan tầm."
+                  onChange={(e) => setForm({ ...form, moTa: e.target.value })} className={o} />
+              </div>
+
+              <div>
+                <label className={nhan}>Khuyến cáo cho bà con</label>
+                <textarea value={form.khuyenCao} rows={2} maxLength={2000}
+                  placeholder="Ví dụ: Giảm tốc độ, bật đèn, chú ý quan sát hai bên."
+                  onChange={(e) => setForm({ ...form, khuyenCao: e.target.value })} className={o} />
+              </div>
+            </div>
+
+            <div
+              className="shrink-0 space-y-2 border-t border-slate-200 px-4 pt-2.5 dark:border-slate-700"
+              style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom))' }}
+            >
+              {loiForm && (
+                <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+                  {loiForm}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button type="submit" disabled={luu.isPending}
+                  className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-primary-700 disabled:opacity-60">
+                  {luu.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {form.id ? 'Lưu thay đổi' : 'Thêm'}
                 </button>
-              ))}
-            </div>
-
-            <div className="mb-3 grid grid-cols-3 gap-3">
-              <div>
-                <label className={nhan}>Số vụ</label>
-                <input type="number" min={0} value={form.soVu}
-                  onChange={(e) => setForm({ ...form, soVu: e.target.value })} className={o} />
-              </div>
-              <div>
-                <label className={nhan}>Tử vong</label>
-                <input type="number" min={0} value={form.soTuVong}
-                  onChange={(e) => setForm({ ...form, soTuVong: e.target.value })} className={o} />
-              </div>
-              <div>
-                <label className={nhan}>Bị thương</label>
-                <input type="number" min={0} value={form.soBiThuong}
-                  onChange={(e) => setForm({ ...form, soBiThuong: e.target.value })} className={o} />
+                <button type="button" onClick={() => setForm(null)}
+                  className="min-h-[44px] rounded-xl border-2 border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                  Thôi
+                </button>
               </div>
             </div>
-
-            <label className={nhan}>Kỳ thống kê <span className="font-normal text-slate-400">(ví dụ: Từ 01/2026 đến 09/2026)</span></label>
-            <input type="text" value={form.kyThongKe} maxLength={100}
-              onChange={(e) => setForm({ ...form, kyThongKe: e.target.value })} className={`${o} mb-3`} />
-
-            <div className="mb-3 grid grid-cols-2 gap-3">
-              <div>
-                <label className={nhan}>Vĩ độ</label>
-                <input type="text" value={form.lat} placeholder="10.8100000"
-                  onChange={(e) => setForm({ ...form, lat: e.target.value })} className={o} />
-              </div>
-              <div>
-                <label className={nhan}>Kinh độ</label>
-                <input type="text" value={form.lng} placeholder="105.2100000"
-                  onChange={(e) => setForm({ ...form, lng: e.target.value })} className={o} />
-              </div>
-            </div>
-            <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-              Lấy toạ độ: mở Google Maps, bấm chuột phải vào vị trí, chọn dãy số hiện ra.
-              Không có toạ độ thì điểm vẫn hiện trong danh sách, chỉ không hiện trên bản đồ.
-            </p>
-
-            <label className={nhan}>Đặc điểm nguy hiểm</label>
-            <textarea value={form.moTa} rows={3} maxLength={2000}
-              placeholder="Ví dụ: Khúc cua gấp, tầm nhìn bị che bởi hàng cây, hay xảy ra vào giờ tan tầm."
-              onChange={(e) => setForm({ ...form, moTa: e.target.value })} className={`${o} mb-3`} />
-
-            <label className={nhan}>Khuyến cáo cho bà con</label>
-            <textarea value={form.khuyenCao} rows={2} maxLength={2000}
-              placeholder="Ví dụ: Giảm tốc độ, bật đèn khi qua đoạn này, chú ý quan sát hai bên."
-              onChange={(e) => setForm({ ...form, khuyenCao: e.target.value })} className={`${o} mb-4`} />
-
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => luu.mutate(form)} disabled={luu.isPending}
-                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700 disabled:opacity-60">
-                {luu.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {form.id ? 'Lưu thay đổi' : 'Thêm'}
-              </button>
-              <button type="button" onClick={() => setForm(null)}
-                className="min-h-[44px] rounded-xl border-2 border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300">
-                Thôi
-              </button>
-            </div>
-          </div>
+          </form>
         </div>
+        </LopPhu>
       )}
     </AdminLayout>
   );

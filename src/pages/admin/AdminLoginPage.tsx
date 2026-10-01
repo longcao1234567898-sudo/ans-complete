@@ -1,6 +1,6 @@
 /** Trang đăng nhập khu vực cán bộ */
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, User, Loader2 } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import Turnstile, { captchaEnabled } from '../../components/common/Turnstile';
@@ -8,6 +8,11 @@ import { LoginError } from '../../services/adminService';
 
 export default function AdminLoginPage() {
   const { login, staff, loading: dangKhoiPhucPhien } = useAdminAuth();
+  /* Quay lại đúng trang cán bộ đang mở trước khi bị đưa ra đây (AdminLayout gửi
+     kèm state.from). Chỉ nhận đường trong /quan-tri — không chuyển ra ngoài. */
+  const location = useLocation();
+  const tu = (location.state as { from?: unknown } | null)?.from;
+  const veTrang = typeof tu === 'string' && /^\/quan-tri(\/|$)/.test(tu) ? tu : '/quan-tri';
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -48,7 +53,7 @@ export default function AdminLoginPage() {
     setError('');
     try {
       await login(username.trim(), password, captchaToken || undefined);
-      navigate('/quan-tri');
+      navigate(veTrang, { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Đăng nhập thất bại.');
       if (e instanceof LoginError && e.canCaptcha) setCanCaptcha(true);
@@ -71,7 +76,7 @@ export default function AdminLoginPage() {
   }
 
   // Đã đăng nhập -> vào thẳng khu quản trị
-  if (staff) return <Navigate to="/quan-tri" replace />;
+  if (staff) return <Navigate to={veTrang} replace />;
 
   return (
     <div className="container-page flex items-center justify-center py-12 sm:py-20">

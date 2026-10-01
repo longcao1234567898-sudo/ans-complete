@@ -5,6 +5,7 @@ import { ReactNode, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/helpers';
+import LopPhu from './LopPhu';
 
 interface ModalProps {
   open: boolean;
@@ -29,7 +30,9 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
     };
   }, [open, onClose]);
 
+  /* Ra ngoài <main> (xem LopPhu): không thì chân trang đè lên đáy hộp thoại */
   return (
+    <LopPhu>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -66,5 +69,6 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
         </motion.div>
       )}
     </AnimatePresence>
+    </LopPhu>
   );
 }

@@ -9,6 +9,7 @@
  */
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { datBienMoiTruongHopLe } from './helpers-test.js';
 import { BO_QUA, dungCsdl, goi as goiGoc, CAN_BO } from './khung-sqlite.js';
 
@@ -53,4 +54,13 @@ test('kiểu sự kiện lạ, đường dẫn không phải trang cán bộ -> 
 
 test('không đăng nhập -> 401', { skip: BO_QUA }, async () => {
   assert.equal((await goi(null, { loai: 'in_trang', duong: '/quan-tri' })).status, 401);
+});
+
+/* Lớp mờ "Nội dung tạm ẩn… Bấm vào đây để tiếp tục" phải TẮT ĐƯỢC bằng cú bấm.
+   Trước đây chỉ tắt khi trình duyệt báo sự kiện focus — trình duyệt nhúng trong
+   ứng dụng trên điện thoại có lúc không báo, cán bộ kẹt sau lớp mờ. */
+test('giao diện — lớp mờ khi rời cửa sổ tắt được bằng cú bấm', async () => {
+  const ma = await readFile(new URL('../../src/components/admin/BaoVeManHinh.tsx', import.meta.url), 'utf8');
+  const lop = ma.slice(ma.indexOf('{mo && ('), ma.indexOf('Bấm vào đây để tiếp tục'));
+  assert.match(lop, /onClick=\{\(\) => setMo\(false\)\}/, 'lớp mờ nói "bấm vào đây" mà không gắn hành động bấm');
 });

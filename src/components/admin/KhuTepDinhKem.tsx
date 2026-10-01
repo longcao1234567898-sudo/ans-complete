@@ -11,6 +11,7 @@
  */
 import { useState } from 'react';
 import { X, Play, Image as ImageIcon, AlertTriangle, Download } from 'lucide-react';
+import LopPhu from '../common/LopPhu';
 
 export interface TepDinhKem {
   image_url: string;
@@ -76,6 +77,7 @@ export default function KhuTepDinhKem({ tep }: Props) {
 
       {/* ============ MỞ TO XEM ============ */}
       {dangMo && (
+        <LopPhu>
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/90 p-4"
           onClick={() => setDangMo(null)}
@@ -126,6 +128,7 @@ export default function KhuTepDinhKem({ tep }: Props) {
             </div>
           </div>
         </div>
+        </LopPhu>
       )}
     </>
   );

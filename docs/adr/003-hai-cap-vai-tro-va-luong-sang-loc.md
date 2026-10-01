@@ -79,7 +79,9 @@ Người vận hành đã chốt cả sáu điểm: năm điểm theo phương �
    bị tin cậy và khiếu nại mở khoá.
 3. Hàng sàng lọc có **hai** nút bỏ tin: "Tin rác" **vẫn khoá máy** theo cách của BUG-018 (dùng chung
    đường `/mark-spam` với bảng xử lý, không chép lại luật khoá); "Tin giả" chỉ bỏ vào thùng rác,
-   không khoá. Vì vẫn còn khoá, màn hình "Tạm dừng tiếp nhận" bên người dân giữ nguyên.
+   không khoá. Phía người dân không đổi gì: từ bản vá BUG-015, máy bị khoá **không** còn thấy màn
+   hình "Tạm dừng tiếp nhận" — biểu mẫu luôn mở, tin gửi vào bị chặn ngầm, máy bị khoá loại có tên
+   thấy ô khiếu nại mở khoá phía trên biểu mẫu (`routes/submissions.js`, chú thích `/kiem-tra-khoa`).
    *(Người vận hành chốt sau khi triển khai; bản đầu chỉ có nút "Tin giả" ở hàng sàng lọc.)*
 4. Hạn 72 giờ người dân bổ sung thông tin tính từ lúc gửi.
 5. Cổng xác minh khi vào web dùng Cloudflare Turnstile (chỉ đổi vị trí); máy chủ cấp vé có thời
@@ -122,3 +124,5 @@ Những chỗ kế hoạch chưa nói rõ, phiên triển khai đã chọn như 
 | Cảnh báo đột biến với cán bộ | Chỉ hiện khi riêng số tin cán bộ xem được đã chạm ngưỡng | Ngưỡng là số công khai; hiện cảnh báo dưới ngưỡng là lộ có tin bị ẩn (BUG-009) |
 | Vé cổng vào | JWT 6 giờ, không gắn địa chỉ mạng; chưa khai `TURNSTILE_SECRET_KEY` thì không bắt vé | 4G đổi IP liên tục; giữ hành vi cũ khi chưa khai khoá |
 | Chống chụp màn hình | Chữ chìm, làm mờ, chặn in/sao chép, ghi nhật ký phím chụp | Trang web không chặn tuyệt đối được — mục tiêu là răn đe và truy vết |
+| Khung "Xử lý ý kiến" (P47) | Chỉ cho tin đã vào xử lý. Tin chờ sàng lọc và tin ngoài thẩm quyền: máy chủ trả 409 khi đổi trạng thái; bỏ `received` khỏi trạng thái đặt tay | Người vận hành yêu cầu; đổi trạng thái tin chờ sàng lọc là bỏ qua bước sàng lọc. Tin chờ duyệt ẩn danh chưa chặn — ND-042 |
+| Tin ngoài thẩm quyền → tố giác mật (P47) | Không cho (409); lãnh đạo "Chuyển lại xử lý" trước nếu cần | Người vận hành yêu cầu: tin ngoài thẩm quyền chỉ có ba nút của phần đó |

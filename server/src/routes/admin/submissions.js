@@ -521,9 +521,15 @@ router.post('/:id/reveal', authorize(...LANH_DAO), async (req, res) => {
 });
 
 /** PATCH /api/admin/submissions/:id/status — cập nhật trạng thái */
+/* Lời trả khi đổi trạng thái tin không thuộc phần xử lý — mỗi phần có nút riêng */
+const LOI_TIN_NTQ = 'Tin ngoài thẩm quyền chỉ xử lý bằng các nút ở khung "Tin ngoài thẩm quyền" (chuyển lại xử lý, đã chuyển cơ quan có thẩm quyền, xoá tin).';
+const LOI_TIN_SANG_LOC = 'Tin đang chờ sàng lọc — dùng các nút ở khung "Sàng lọc tin" (xác nhận, chưa xác minh, tin giả, tin rác, ngoài thẩm quyền).';
+
 router.patch('/:id/status', async (req, res) => {
   const { status, note, rejectionReason } = req.body || {};
-  const valid = ['received', 'processing', 'resolved', 'rejected'];
+  /* Không còn 'received': từ ADR-003 nó nghĩa là "chờ sàng lọc" — đặt tay về đó
+     là đẩy một tin đã xử lý quay lại hàng sàng lọc mà không qua nút nào. */
+  const valid = ['processing', 'resolved', 'rejected'];
   if (!valid.includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ.' });
   if (status === 'rejected' && !rejectionReason?.trim()) {
     return res.status(400).json({ error: 'Vui lòng nhập lý do từ chối.' });
@@ -533,11 +539,29 @@ router.patch('/:id/status', async (req, res) => {
        điều kiện phạm vi nên kiểm bằng một câu riêng ngay trước — đánh đổi ghi
        ở SEC-DEC-009. */
     const phamVi = await dieuKienXem(req.staff, '');
+    const coCo = await coCotCo();
     const [thay] = await pool.query(
-      `SELECT id FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      coCo
+        ? `SELECT id, status, is_anonymous, to_giac_mat, ngoai_tham_quyen FROM submissions WHERE id = ? AND ${phamVi.sql}`
+        : `SELECT id, status, is_anonymous FROM submissions WHERE id = ? AND ${phamVi.sql}`,
       [req.params.id, ...phamVi.params]
     );
     if (thay.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+
+    /* MỖI PHẦN CÓ NÚT RIÊNG (người vận hành yêu cầu, sau ADR-003). Khung "Xử lý
+       ý kiến" chỉ dành cho tin đã vào xử lý; chặn ở máy chủ, giao diện ẩn khung
+       chỉ để dễ dùng (luật 2):
+         · ngoài thẩm quyền -> ba nút của lãnh đạo (routes/admin/sang-loc.js)
+         · chờ sàng lọc     -> năm nút sàng lọc; đổi trạng thái ở đây là bỏ qua
+                               bước sàng lọc (không ghi người sàng lọc, nhãn…)
+       Thiếu cột (chưa chạy v26/v28) thì chưa có các nút kia — không chặn, kẻo
+       tin có danh tính không còn đường nào xử lý. */
+    const hs = thay[0];
+    if (coCo && Number(hs.ngoai_tham_quyen) === 1) return res.status(409).json({ error: LOI_TIN_NTQ });
+    if (coCo && await coCotSangLoc()
+        && hs.status === 'received' && Number(hs.is_anonymous) === 0 && Number(hs.to_giac_mat) === 0) {
+      return res.status(409).json({ error: LOI_TIN_SANG_LOC });
+    }
 
     /* Thủ tục này TỰ GHI một dòng nhật ký update_status (trạng thái cũ, mới)
        cùng dòng status_history — route không ghi thêm, kẻo mỗi lần đổi ra hai
@@ -950,12 +974,17 @@ router.post('/:id/to-giac-mat', async (req, res) => {
   try {
     const phamVi = await dieuKienXem(req.staff);
     const [rows] = await pool.query(
-      `SELECT s.id, s.assigned_to, st.role AS vai_tro_phu_trach
+      `SELECT s.id, s.assigned_to, s.ngoai_tham_quyen, st.role AS vai_tro_phu_trach
          FROM submissions s LEFT JOIN staff st ON st.id = s.assigned_to
         WHERE s.id = ? AND ${phamVi.sql}`,
       [id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    /* Tin ngoài thẩm quyền đã ở phần chỉ lãnh đạo xem; lãnh đạo quyết bằng ba
+       nút của phần đó. Muốn đưa vào tố giác mật thì "Chuyển lại xử lý" trước. */
+    if (Number(rows[0].ngoai_tham_quyen) === 1) {
+      return res.status(409).json({ error: 'Tin ngoài thẩm quyền không chuyển vào Tin tố giác mật được. Bấm "Chuyển lại xử lý" trước nếu cần.' });
+    }
     /* Tin chỉ lãnh đạo xem thì không để giao cho cán bộ: màn hình người đó sẽ
        hiện một việc họ không mở được (cùng luật với route phân công) */
     const boGiao = rows[0].assigned_to != null && !laLanhDao({ role: rows[0].vai_tro_phu_trach });

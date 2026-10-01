@@ -20,6 +20,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { adminFetch, type StaffInfo } from '../../services/adminService';
+import LopPhu from '../common/LopPhu';
 
 function baoMayChu(loai: 'phim_chup_man_hinh' | 'in_trang', duong: string) {
   adminFetch('/api/admin/su-kien-man-hinh', {
@@ -96,18 +97,27 @@ export default function BaoVeManHinh({ staff }: { staff: StaffInfo }) {
     return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
   }, [staff.name, staff.id, gio]);
 
+  /* Ra ngoài <main> (xem LopPhu): ở trong main thì chân trang đè lên, chữ chìm
+     và lớp mờ không phủ được phần chân trang. */
   return (
-    <>
+    <LopPhu>
       {/* In trang cán bộ ra giấy: ẩn hết nội dung */}
       <style>{'@media print { body * { visibility: hidden !important; } }'}</style>
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60]" style={{ backgroundImage: nen }} />
       {mo && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/60 backdrop-blur-xl dark:bg-slate-950/60">
-          <p className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-soft dark:bg-slate-900 dark:text-slate-300">
+        /* Bấm là tắt. Trước đây lời nhắc "Bấm vào đây" không gắn gì: lớp mờ chỉ
+           tắt khi trình duyệt báo sự kiện focus — vài trình duyệt điện thoại
+           (trình duyệt nhúng trong ứng dụng) không báo, cán bộ kẹt luôn. */
+        <button
+          type="button"
+          onClick={() => setMo(false)}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-white/60 backdrop-blur-xl dark:bg-slate-950/60"
+        >
+          <span className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-600 shadow-soft dark:bg-slate-900 dark:text-slate-300">
             Nội dung tạm ẩn khi rời cửa sổ. Bấm vào đây để tiếp tục.
-          </p>
-        </div>
+          </span>
+        </button>
       )}
-    </>
+    </LopPhu>
   );
 }
