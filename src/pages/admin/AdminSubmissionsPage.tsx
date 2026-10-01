@@ -487,6 +487,16 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
                           <MessageSquare className="h-2.5 w-2.5" />
                           {s.tin_chua_doc}
                         </span>
+                      )}
+                      {/* Chấm đỏ khi người dân BỔ SUNG thông tin (ADR-003 việc 22) —
+                          tắt khi có cán bộ mở hồ sơ */}
+                      {(s.bo_sung_chua_doc ?? 0) > 0 && (
+                        <span
+                          className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-rose-600 px-1.5 py-0.5 align-middle text-[10px] font-bold text-white"
+                          title={`${s.bo_sung_chua_doc} lần người dân bổ sung thông tin, chưa ai mở xem`}
+                        >
+                          +{s.bo_sung_chua_doc} bổ sung
+                        </span>
                       )}</span>
                       {s.urgency === 'urgent' && (
                         <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">

@@ -17,6 +17,7 @@ import {
   moPhongChat, layTinNhan, guiTinNhan, layVeChat, xoaVeChat,
   type ChatMessageItem,
 } from '../../services/trackingService';
+import BoSungThongTin from './BoSungThongTin';
 
 interface Props {
   /** Mã tra cứu 6 ký tự của ý kiến */
@@ -261,6 +262,8 @@ export default function ChatPanel({ code }: Props) {
           <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
             Nhấn Enter để gửi. Kênh này không lộ danh tính của bà con.
           </p>
+          {/* Bổ sung chính thức vào hồ sơ (lưu riêng, kèm ảnh) — khác tin nhắn */}
+          <BoSungThongTin code={code} />
         </div>
       )}
     </section>

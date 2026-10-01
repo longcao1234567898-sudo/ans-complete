@@ -196,6 +196,8 @@ export const fetchDashboardStats = () => adminFetch<DashboardStats>('/api/admin/
 export interface SubmissionRow {
   /** Số tin nhắn người dân gửi mà cán bộ chưa đọc — dùng hiện chấm đỏ */
   tin_chua_doc?: number;
+  /** Số lần người dân bổ sung mà chưa cán bộ nào mở hồ sơ (ADR-003 việc 22) */
+  bo_sung_chua_doc?: number;
   id: number;
   tracking_code: string;
   urgency?: 'normal' | 'important' | 'urgent';
@@ -259,7 +261,18 @@ export interface GhiChuNoiBo {
   staff_name: string | null;
 }
 
+export interface BoSungCuaDan {
+  id: number;
+  thu_tu: number;
+  noi_dung: string;
+  created_at: string;
+  da_doc_luc: string | null;
+  anh: { image_url: string; mime_type: string; moderation_status: string }[];
+}
+
 export interface SubmissionDetail extends SubmissionRow {
+  /** Các lần người dân bổ sung (ADR-003 việc 21) */
+  bo_sung?: BoSungCuaDan[];
   /** Lúc tin vào thùng rác (null = không ở thùng rác) */
   deleted_at?: string | null;
   /** Tin đang ở hàng sàng lọc -> hiện bốn nút sàng lọc (máy chủ vẫn kiểm lại) */

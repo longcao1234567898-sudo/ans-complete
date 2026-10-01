@@ -199,6 +199,26 @@ export default function AdminSubmissionDetailPage() {
               </div>
             </div>
 
+            {/* NGƯỜI DÂN BỔ SUNG (ADR-003 việc 21) — lưu riêng, nội dung gốc ở trên không đổi */}
+            {(data.bo_sung ?? []).length > 0 && (
+              <div className="rounded-2xl border-2 border-rose-200 bg-white p-5 shadow-soft dark:border-rose-900/40 dark:bg-slate-900">
+                <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+                  Người dân bổ sung ({data.bo_sung!.length})
+                </h3>
+                <ul className="space-y-3">
+                  {data.bo_sung!.map((b) => (
+                    <li key={b.id} className="rounded-xl bg-rose-50/50 p-3 text-sm dark:bg-rose-900/10">
+                      <p className="mb-1 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                        Lần {b.thu_tu} · {formatDateTime(b.created_at)}{!b.da_doc_luc && ' · MỚI'}
+                      </p>
+                      <p className="whitespace-pre-wrap text-slate-700 dark:text-slate-200">{b.noi_dung}</p>
+                      {b.anh.length > 0 && <div className="mt-2"><KhuTepDinhKem tep={b.anh} /></div>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* GHI CHÚ NỘI BỘ (ADR-003 việc 16) — người dân không thấy. Chỉ thêm
                 được, không sửa xoá (máy chủ và CSDL đều chặn) để giữ diễn biến. */}
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
