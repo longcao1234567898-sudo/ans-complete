@@ -288,3 +288,51 @@ test('duyệt tin ẩn danh -> vào thẳng Đang xử lý (không vào hàng s�
   assert.ok(!(await maTrongDs(CAN_BO, 'phan=sang_loc')).includes('HS0020'));
   assert.ok((await maTrongDs(CAN_BO, 'phan=to_giac')).includes('HS0020'));
 });
+
+/* ---- Mỗi phần có nút riêng: khung "Xử lý ý kiến" chỉ cho tin đã vào xử lý --
+   Người vận hành yêu cầu: tin chờ sàng lọc và tin ngoài thẩm quyền không có
+   khung Đang xử lý / Giải quyết / Từ chối; tin ngoài thẩm quyền không chuyển
+   vào tố giác mật. Chặn ở máy chủ — giao diện ẩn khung chỉ để dễ dùng. */
+const doiTrangThai = (staff, id, status, them = {}) =>
+  goi(staff, 'PATCH', `/submissions/${id}/status`, { status, ...them });
+
+test('đổi trạng thái tin đang chờ sàng lọc: 409, phải qua nút sàng lọc', { skip: BO_QUA }, async () => {
+  for (const [staff, status] of [[CAN_BO, 'processing'], [TRUONG, 'resolved'], [PHO, 'rejected']]) {
+    const r = await doiTrangThai(staff, 10, status, { rejectionReason: 'x' });
+    assert.equal(r.status, 409, r.text);
+    assert.match(r.body.error, /sàng lọc/);
+  }
+  assert.equal(hang(10).status, 'received');
+  assert.equal(dong('update_status').length, 0);
+});
+
+test('đổi trạng thái tin ngoài thẩm quyền: 409, kể cả lãnh đạo — dùng ba nút của phần đó', { skip: BO_QUA }, async () => {
+  for (const status of ['processing', 'resolved']) {
+    const r = await doiTrangThai(TRUONG, 41, status);
+    assert.equal(r.status, 409, r.text);
+    assert.match(r.body.error, /ngoài thẩm quyền/i);
+  }
+  assert.equal(hang(41).status, 'received');
+});
+
+test('tin tố giác mật (không qua sàng lọc) và tin đang xử lý vẫn đổi trạng thái được', { skip: BO_QUA }, async () => {
+  assert.equal((await doiTrangThai(TRUONG, 40, 'processing')).status, 200);
+  assert.equal(hang(40).status, 'processing');
+  assert.equal((await doiTrangThai(CAN_BO, 30, 'resolved')).status, 200);
+  assert.equal(hang(30).status, 'resolved');
+});
+
+test("không đặt tay trạng thái 'received' (nay nghĩa là chờ sàng lọc)", { skip: BO_QUA }, async () => {
+  const r = await doiTrangThai(CAN_BO, 30, 'received');
+  assert.equal(r.status, 400, r.text);
+  assert.equal(hang(30).status, 'processing');
+});
+
+test('tin ngoài thẩm quyền không chuyển vào tố giác mật; tin chờ sàng lọc vẫn chuyển được', { skip: BO_QUA }, async () => {
+  const r = await goi(TRUONG, 'POST', '/submissions/41/to-giac-mat', { lyDo: 'thử' });
+  assert.equal(r.status, 409, r.text);
+  assert.equal(hang(41).to_giac_mat, 0);
+  const ok = await goi(CAN_BO, 'POST', '/submissions/10/to-giac-mat', {});
+  assert.equal(ok.status, 200, ok.text);
+  assert.equal(hang(10).to_giac_mat, 1);
+});
