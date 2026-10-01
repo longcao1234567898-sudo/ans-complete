@@ -22,6 +22,7 @@ import {
   Filter, Megaphone, Lock, CornerUpRight } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { LANH_DAO, tenVaiTro } from '../../utils/vaiTro';
+import BaoVeManHinh from './BaoVeManHinh';
 
 interface MucDieuHuong {
   to: string;
@@ -150,7 +151,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     .filter((nhom) => nhom.muc.length > 0);   // bỏ luôn nhóm rỗng
 
   return (
-    <div className="container-page py-5">
+    <div className="container-page select-none py-5">
+      {/* Chữ chìm, làm mờ khi rời cửa sổ, chặn in / sao chép, ghi nhật ký phím chụp (ADR-003 việc 26) */}
+      <BaoVeManHinh staff={staff} />
       {/* ===== THANH TRỰC BAN =====
           Lấy cảm hứng từ bảng phân công trực ban ở trụ sở: ai đang trực,
           giữ chức vụ gì, và lời nhắc mọi thao tác đều để lại vết. */}

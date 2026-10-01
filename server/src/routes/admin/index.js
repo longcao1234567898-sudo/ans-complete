@@ -21,6 +21,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import submissionsRouter from './submissions.js';
 import sangLocRouter from './sang-loc.js';
+import suKienManHinhRouter from './su-kien-man-hinh.js';
 import dashboardRouter from './dashboard.js';
 import bannedWordsRouter from './banned-words.js';
 import staffRouter from './staff.js';
@@ -44,6 +45,8 @@ router.use(requireAuth);
 router.use('/submissions', sangLocRouter);
 router.use('/submissions', submissionsRouter);
 router.use('/dashboard', dashboardRouter);
+/* Truy vết chụp / in màn hình trang cán bộ (ADR-003 việc 26) */
+router.use('/su-kien-man-hinh', suKienManHinhRouter);
 router.use('/banned-words', bannedWordsRouter);
 router.use('/staff', staffRouter);
 router.use('/reports', reportsRouter);

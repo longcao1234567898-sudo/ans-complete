@@ -27,6 +27,7 @@ export const NHOM_NHAT_KY = Object.freeze([
       view_map: 'Xem bản đồ điểm nóng',
       view_logs: 'Mở nhật ký hệ thống',
       export_logs: 'Xuất nhật ký ra Excel',
+      screen_capture_attempt: 'Bấm phím chụp màn hình / lệnh in trên trang cán bộ',
     },
   },
   {

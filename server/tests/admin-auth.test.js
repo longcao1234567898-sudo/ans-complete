@@ -60,6 +60,8 @@ const CAC_DUONG_DAN = [
   ['/api/admin/diem-den', 'GET'],
   // ADR-003 — sàng lọc, ngoài thẩm quyền, ghi chú nội bộ (routes/admin/sang-loc.js)
   ['/api/admin/submissions/1/sang-loc', 'POST'],
+  // ADR-003 việc 26 — ghi nhật ký phím chụp màn hình, lệnh in
+  ['/api/admin/su-kien-man-hinh', 'POST'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {
