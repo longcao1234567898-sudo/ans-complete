@@ -29,6 +29,8 @@ export function sangSqlite(sql) {
   s = s.replace(/NOW\(\)\s*([-+])\s*INTERVAL\s+(\?|\d+)\s+(SECOND|MINUTE|HOUR|DAY)/gi,
     (_m, dau, n, d) => `datetime(NOW(), '${dau}' || ${n} || ' ${dv(d)}')`);
   s = s.replace(/DATE_ADD\(\?,\s*INTERVAL\s+(\d+)\s+DAY\)/gi, (_m, n) => `datetime(?, '+${n} days')`);
+  s = s.replace(/DATE_SUB\(\?,\s*INTERVAL\s+\?\s+(MINUTE|HOUR|DAY)\)/gi,
+    (_m, d) => `datetime(?, '-' || ? || ' ${d.toLowerCase()}s')`);
   s = s.replace(/DATEDIFF\(DATE_ADD\(s\.deleted_at,\s*INTERVAL\s+\?\s+DAY\),\s*NOW\(\)\)/gi,
     'CAST(julianday(s.deleted_at) + ? - julianday(NOW()) AS INT)');
   s = s.replace(/DATEDIFF\(NOW\(\),\s*([\w.]+)\)/gi, 'CAST(julianday(NOW()) - julianday($1) AS INT)');
@@ -99,6 +101,8 @@ const LUOC_DO = [
      id INTEGER PRIMARY KEY, submission_id INT, tracking_code TEXT, status TEXT DEFAULT 'pending',
      requested_at TEXT DEFAULT (NOW()), handled_at TEXT, handled_by INT, reason TEXT, requester_ip TEXT)`,
   `CREATE TABLE khoa_gui_tam (khoa TEXT PRIMARY KEY, chu TEXT NOT NULL, het_han TEXT NOT NULL)`,
+  `CREATE TABLE canh_bao_dot_bien (id INTEGER PRIMARY KEY, ward_id INT NOT NULL, khung INT NOT NULL,
+     so_tin INT NOT NULL, nguong INT NOT NULL, created_at TEXT DEFAULT (NOW()), UNIQUE (ward_id, khung))`,
   `INSERT INTO categories VALUES (1, 'to_giac', 'Tố giác', 15), (2, 'khieu_nai', 'Khiếu nại', 30),
      (3, 'phan_anh', 'Phản ánh', 15), (4, 'de_xuat', 'Đề xuất', 15)`,
   `INSERT INTO wards (id, name) VALUES (1, 'Khu phố 1'), (2, 'Khu phố 2')`,

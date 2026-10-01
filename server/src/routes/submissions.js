@@ -16,6 +16,7 @@ import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { quaCongVao } from '../lib/cong-vao.js';
 import { capPhieuMoForm, danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
+import { xetDotBien } from '../lib/dot-bien.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
@@ -452,6 +453,10 @@ router.post('/', async (req, res) => {
 
     /* Đã ghi xong: trả chỗ ngay, không giữ trong lúc lưu ảnh và tài liệu */
     await giu.nha();
+
+    /* Đột biến số đơn theo địa bàn (ADR-003 việc 25) — chỉ cảnh báo, không
+       chặn; hàm không ném lỗi nên không làm hỏng việc nhận tin */
+    await xetDotBien(pool, wardId);
 
     // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
     // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không

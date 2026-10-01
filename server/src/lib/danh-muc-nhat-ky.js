@@ -116,6 +116,13 @@ export const NHOM_NHAT_KY = Object.freeze([
     },
   },
   {
+    ma: 'he_thong',
+    ten: 'Cảnh báo của hệ thống',
+    hanhDong: {
+      canh_bao_dot_bien: 'Cảnh báo số đơn đột biến theo địa bàn',
+    },
+  },
+  {
     ma: 'cu',
     ten: 'Hành động đã bỏ (dòng cũ)',
     hanhDong: {

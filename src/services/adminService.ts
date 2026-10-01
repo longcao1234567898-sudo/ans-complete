@@ -197,6 +197,19 @@ export interface DashboardStats {
 
 export const fetchDashboardStats = () => adminFetch<DashboardStats>('/api/admin/dashboard/stats');
 
+/** Cảnh báo số đơn đột biến theo địa bàn trong 24 giờ (ADR-003 việc 25) */
+export interface CanhBaoDotBien {
+  id: number;
+  ward_id: number;
+  ward_name: string | null;
+  so_tin: number;
+  nguong: number;
+  created_at: string;
+  tin: { id: number; tracking_code: string; status: string; urgency: string; created_at: string; xem_truoc: string }[];
+}
+export const fetchCanhBaoDotBien = () =>
+  adminFetch<{ data: CanhBaoDotBien[] }>('/api/admin/dashboard/canh-bao-dot-bien').then((r) => r.data);
+
 export interface SubmissionRow {
   /** Số tin nhắn người dân gửi mà cán bộ chưa đọc — dùng hiện chấm đỏ */
   tin_chua_doc?: number;

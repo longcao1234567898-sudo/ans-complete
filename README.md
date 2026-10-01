@@ -76,6 +76,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v26.sql           #    B
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v27.sql           #    Nhật ký chỉ ghi thêm: trigger chặn sửa/xoá, khoá ngoại cán bộ đổi sang RESTRICT (ADR-003) — chạy bằng root, không cần dừng máy chủ
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v28.sql           #    Hàng sàng lọc, ghi chú nội bộ chỉ ghi thêm, giữ tin tố giác bị đánh tin giả chờ lãnh đạo (ADR-003) — chạy bằng root, dừng máy chủ, chạy tệp, rồi cập nhật mã
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v29.sql           #    Người dân bổ sung thông tin trong 72 giờ (ADR-003) — chạy lúc nào cũng được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v30.sql           #    Cảnh báo số đơn đột biến theo địa bàn (ADR-003) — chạy lúc nào cũng được
 ```
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 
