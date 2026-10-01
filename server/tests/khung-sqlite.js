@@ -36,6 +36,8 @@ export function sangSqlite(sql) {
   s = s.replace(/FIELD\(([\w.]+),\s*'([^']+)',\s*'([^']+)',\s*'([^']+)'\)/gi,
     "(CASE $1 WHEN '$2' THEN 1 WHEN '$3' THEN 2 WHEN '$4' THEN 3 ELSE 4 END)");
   s = s.replace(/\bDATE\(([\w.]+)\)/gi, 'date($1)');
+  s = s.replace(/ON DUPLICATE KEY UPDATE\s+([\s\S]+)$/i,
+    (_m, ds) => `ON CONFLICT DO UPDATE SET ${ds.replace(/VALUES\((\w+)\)/gi, 'excluded.$1')}`);
   return s;
 }
 
@@ -75,8 +77,12 @@ const LUOC_DO = [
      mime_type TEXT, is_verified INT, moderation_status TEXT)`,
   `CREATE TABLE status_history (submission_id INT, old_status TEXT, new_status TEXT, note TEXT,
      changed_at TEXT DEFAULT (NOW()), changed_by INT)`,
+  /* details là cột JSON trên MySQL: ghi chuỗi chữ trần vào thì MySQL từ chối cả
+     câu INSERT. SQLite nhận mọi chuỗi, nên phải tự đặt ràng buộc — thiếu nó thì
+     test xanh trong khi nhật ký thật không ghi được dòng nào. */
   `CREATE TABLE staff_activity_logs (id INTEGER PRIMARY KEY, staff_id INT, action TEXT, target_type TEXT,
-     target_id TEXT, details TEXT, ip_address TEXT, attempted_username TEXT, created_at TEXT DEFAULT (NOW()))`,
+     target_id TEXT, details TEXT CHECK (details IS NULL OR json_valid(details)), ip_address TEXT,
+     attempted_username TEXT, created_at TEXT DEFAULT (NOW()))`,
   `CREATE TABLE incident_groups (id INTEGER PRIMARY KEY, ward_id INT, category_id INT, first_submission_id INT,
      submission_count INT, first_reported_at TEXT, last_reported_at TEXT, acknowledged INT DEFAULT 0,
      acknowledged_by INT, acknowledged_at TEXT)`,

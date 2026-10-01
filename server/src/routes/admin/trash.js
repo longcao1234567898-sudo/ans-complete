@@ -9,7 +9,7 @@
  */
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
-import { layIpThat } from '../../lib/helpers.js';
+import { ghiNhatKy } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 import { laLanhDao } from '../../lib/vai-tro.js';
@@ -138,15 +138,13 @@ router.post('/:id/restore', async (req, res) => {
       [newStatus, req.params.id]
     );
 
-    // Ghi nhật ký
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        // req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh
-        [req.staff.id, 'trash_restore', 'submission', req.params.id,
-         'Khôi phục tin từ thùng rác', layIpThat(req)]
-      );
-    } catch { /* bỏ qua nếu chưa có bảng nhật ký */ }
+    /* Ghi nhật ký qua ghiNhatKy: cột details là JSON, ghi chuỗi trần thì MySQL
+       từ chối cả câu — lỗi bị nuốt, nhật ký mất dòng (trước đây vẫn thế).
+       req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh. */
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'trash_restore', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+      chiTiet: { trangThaiMoi: newStatus },
+    });
 
     res.json({ ok: true, status: newStatus, message: 'Đã khôi phục tin báo.' });
   } catch (err) {
@@ -171,13 +169,9 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy tin trong thùng rác.' });
     }
 
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        [req.staff.id, 'trash_purge', 'submission', req.params.id,
-         'Xoá vĩnh viễn tin trong thùng rác', layIpThat(req)]
-      );
-    } catch { /* bỏ qua */ }
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'trash_purge', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+    });
 
     res.json({ ok: true, message: 'Đã xoá vĩnh viễn.' });
   } catch (err) {
@@ -193,13 +187,9 @@ router.delete('/', async (req, res) => {
   }
   try {
     const [r] = await pool.query('DELETE FROM submissions WHERE deleted_at IS NOT NULL');
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, details, ip_address) VALUES (?,?,?,?,?)',
-        [req.staff.id, 'trash_empty', 'submission',
-         `Dọn sạch thùng rác (${r.affectedRows} tin)`, layIpThat(req)]
-      );
-    } catch { /* bỏ qua */ }
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'trash_empty', loaiDoiTuong: 'submission', chiTiet: { soTin: r.affectedRows },
+    });
     res.json({ ok: true, deleted: r.affectedRows });
   } catch (err) {
     console.error('Lỗi dọn thùng rác:', err.message);

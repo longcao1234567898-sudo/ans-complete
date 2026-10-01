@@ -16,7 +16,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import { pool } from '../../db.js';
-import { generateTrackingCode, sha256, layIpThat } from '../../lib/helpers.js';
+import { generateTrackingCode, sha256, ghiNhatKy } from '../../lib/helpers.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
 import { kiemTraNoiDungNham } from '../../lib/noi-dung-nham.js';
 
@@ -119,21 +119,13 @@ router.post('/submit', async (req, res) => {
     );
 
     // GHI NHẬT KÝ: ai là cán bộ nhập hộ (truy trách nhiệm khi cần)
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        [
-          // req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
-          // như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ.
-          req.staff.id,
-          'kiosk_submit',
-          'submission',
-          result.insertId,
-          `Nhập hộ tại trụ sở, mã ${trackingCode}`,
-          layIpThat(req) || null,
-        ]
-      );
-    } catch { /* chưa có bảng nhật ký -> bỏ qua */ }
+    /* req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
+       như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ. Đi qua
+       ghiNhatKy: cột details là JSON, chuỗi trần bị MySQL từ chối. */
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'kiosk_submit', loaiDoiTuong: 'submission', doiTuongId: result.insertId,
+      chiTiet: { maTraCuu: trackingCode },
+    });
 
     res.status(201).json({
       trackingCode,

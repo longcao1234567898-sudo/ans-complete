@@ -215,11 +215,11 @@ router.post('/trusted-devices', authorize(...LANH_DAO), async (req, res) => {
        ON DUPLICATE KEY UPDATE reason = VALUES(reason), created_by = VALUES(created_by)`,
       [deviceId, ghiChu || 'Máy dùng chung tại trụ sở/điểm hỗ trợ', req.staff?.id || null]
     );
-    await pool.query(
-      `INSERT INTO staff_activity_logs (staff_id, action, details, ip_address)
-       VALUES (?, 'trust_device', ?, ?)`,
-      [req.staff?.id || null, `Đánh dấu tin cậy thiết bị ${deviceId.slice(0, 12)}…`, layIpThat(req)]
-    ).catch(() => {});
+    /* Chỉ ghi đầu mã: đủ để đối chiếu với danh sách thiết bị tin cậy, không
+       chép nguyên mã máy sang một bảng nữa */
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'trust_device', loaiDoiTuong: 'device', chiTiet: { dauMa: deviceId.slice(0, 12) },
+    });
     res.status(201).json({ ok: true });
   } catch (err) {
     console.error('Thêm thiết bị tin cậy lỗi:', err.message);
