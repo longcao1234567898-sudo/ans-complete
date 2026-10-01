@@ -170,7 +170,7 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
              danh thì máy chủ bỏ qua trường này (BUG-014). */
           deviceId: layMaThietBi(),
           isAnonymous: draft.contact.isAnonymous === true,
-          urgency: draft.urgency || 'normal',
+          /* Không gửi mức khẩn: máy chủ tự đánh giá theo nội dung (ADR-003 việc 10) */
         }),
       });
     } catch (e) {

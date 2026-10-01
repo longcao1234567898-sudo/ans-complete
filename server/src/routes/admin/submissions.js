@@ -10,6 +10,7 @@ import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 import { LANH_DAO, laLanhDao } from '../../lib/vai-tro.js';
 import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
+import { danhGiaMucKhan } from '../../lib/phan-loai.js';
 import {
   dieuKienXem, coSql, nhomXemDuoc, hoSoMangCo,
 } from '../../lib/pham-vi-ho-so.js';
@@ -357,6 +358,9 @@ router.get('/:id', async (req, res) => {
          trỏ tới nó là báo "có hồ sơ tương tự bạn không được xem" (BUG-009) */
       incident_group_id: (await nhomXemDuoc(req.staff, row.incident_group_id)) ? row.incident_group_id : null,
       is_masked: true,
+      /* Vì sao hệ thống xếp mức khẩn này (ADR-003 việc 10) — tính lại từ nội
+         dung bằng bộ từ khoá hiện hành; mức đã lưu thì không đổi */
+      muc_khan: danhGiaMucKhan(row.original_content),
       ...slaOf(row),
       images,
       history,

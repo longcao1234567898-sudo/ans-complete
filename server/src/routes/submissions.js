@@ -9,6 +9,7 @@ import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProble
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
 import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
+import { danhGiaMucKhan } from '../lib/phan-loai.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -94,7 +95,10 @@ router.post('/', async (req, res) => {
     const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
     const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
     const isAnonymous = body.isAnonymous === true;
-    const urgency = ['normal','important','urgent'].includes(body.urgency) ? body.urgency : 'normal';
+    /* MỨC KHẨN DO HỆ THỐNG TỰ ĐÁNH GIÁ (ADR-003 việc 10). Trường urgency gửi
+       lên bị bỏ qua: chọn tay thì kẻ phá tự gắn "khẩn cấp" cho tin rác để chen
+       lên đầu hàng chờ của cán bộ. */
+    const urgency = danhGiaMucKhan(content).muc;
 
     const ip = layIpThat(req);
 

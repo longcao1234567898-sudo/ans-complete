@@ -247,6 +247,8 @@ export function fetchSubmissions(params: {
 }
 
 export interface SubmissionDetail extends SubmissionRow {
+  /** Vì sao hệ thống xếp mức khẩn (ADR-003 việc 10) */
+  muc_khan?: { muc: string; lyDo: string; tuKhoa: string[] };
   /** Hồ sơ có mã thiết bị hay không (false với đơn gửi trước khi có tính năng chặn
       spam). Máy chủ KHÔNG trả giá trị mã: hai hồ sơ cùng mã là hai đơn cùng một máy,
       đủ để nối đơn ẩn danh với đơn có tên (BUG-014). */

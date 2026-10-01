@@ -25,11 +25,6 @@ const CATEGORIES = [
   { code: 'de_xuat', label: 'Đề xuất', desc: 'Góp ý, hiến kế' },
 ];
 
-const URGENCY = [
-  { id: 'normal', label: 'Bình thường' },
-  { id: 'important', label: 'Quan trọng' },
-  { id: 'urgent', label: 'Khẩn cấp' },
-];
 
 interface KioskResult {
   trackingCode: string;
@@ -42,14 +37,13 @@ export default function AdminKioskPage() {
   const [category, setCategory] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [urgency, setUrgency] = useState('normal');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [result, setResult] = useState<KioskResult | null>(null);
 
   function reset() {
     setContent(''); setCategory(''); setFullName(''); setPhone('');
-    setUrgency('normal'); setErr(''); setResult(null);
+    setErr(''); setResult(null);
   }
 
   async function submit() {
@@ -63,7 +57,7 @@ export default function AdminKioskPage() {
     try {
       const r = await adminFetch<KioskResult>('/api/admin/kiosk/submit', {
         method: 'POST',
-        body: JSON.stringify({ content, category, fullName, phone, urgency }),
+        body: JSON.stringify({ content, category, fullName, phone }),
       });
       setResult(r);
     } catch (e) {
@@ -266,29 +260,11 @@ export default function AdminKioskPage() {
           </div>
         </div>
 
-        {/* 5. Mức khẩn cấp */}
-        <div className="mb-6">
-          <label className="mb-2 block text-base font-bold text-slate-700 dark:text-slate-200">
-            5. Mức độ khẩn cấp
-          </label>
-          <div className="flex gap-2">
-            {URGENCY.map((u) => (
-              <label
-                key={u.id}
-                className="flex min-h-[48px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white p-3 transition has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:border-slate-700 dark:bg-slate-800/60 dark:has-[:checked]:bg-primary-900/20"
-              >
-                <input
-                  type="radio"
-                  name="urg"
-                  checked={urgency === u.id}
-                  onChange={() => setUrgency(u.id)}
-                  className="h-4 w-4 accent-primary-600"
-                />
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{u.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+        {/* Mức khẩn: hệ thống tự đánh giá theo nội dung (ADR-003 việc 10) */}
+        <p className="mb-6 text-xs text-slate-500 dark:text-slate-400">
+          Mức độ khẩn cấp do hệ thống tự đánh giá theo nội dung. Việc đang xảy ra, nguy hiểm tính mạng:
+          báo ngay trực ban hoặc 113, không chờ hệ thống.
+        </p>
 
         {err && (
           <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600 dark:bg-red-900/20 dark:text-red-400">

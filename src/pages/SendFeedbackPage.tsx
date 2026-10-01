@@ -327,8 +327,6 @@ export default function SendFeedbackPage() {
           <ContentInput
             value={draft.content}
             onChange={(content) => setDraft((d) => ({ ...d, content }))}
-            urgency={draft.urgency}
-            onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
             draftRestored={draftRestored}
             onDismissDraft={() => {
               setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });

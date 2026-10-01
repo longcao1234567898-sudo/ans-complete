@@ -1456,3 +1456,20 @@ export function kiemTraDuRo(noiDung) {
     goiY,
   };
 }
+
+/**
+ * MỨC KHẨN DO HỆ THỐNG TỰ ĐÁNH GIÁ (ADR-003 việc 10) — dùng ở mọi cửa nhận tin.
+ *
+ * Người gửi không còn tự chọn mức: chọn tay thì kẻ phá tự gắn "khẩn cấp" cho
+ * tin rác để chen lên đầu hàng, còn người thật hay chọn sai (việc gấp mà để
+ * bình thường). Dùng đúng bộ từ khoá và bảng chủ đề của phanLoaiNoiDung.
+ * Trang chi tiết gọi lại hàm này để cán bộ thấy "vì sao" — mức đã LƯU lúc
+ * nhận tin không đổi nếu sau này sửa bộ từ khoá.
+ *
+ * @returns {{ muc: 'normal'|'important'|'urgent', lyDo: string, tuKhoa: string[] }}
+ */
+export function danhGiaMucKhan(noiDung) {
+  const kq = phanLoaiNoiDung(noiDung);
+  const muc = ['normal', 'important', 'urgent'].includes(kq.suggestedUrgency) ? kq.suggestedUrgency : 'normal';
+  return { muc, lyDo: kq.urgencyReason || '', tuKhoa: kq.tuKhoaKhan || [] };
+}

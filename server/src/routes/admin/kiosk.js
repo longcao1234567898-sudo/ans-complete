@@ -19,6 +19,7 @@ import { pool } from '../../db.js';
 import { generateTrackingCode, sha256, ghiNhatKy } from '../../lib/helpers.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
 import { kiemTraNoiDungNham } from '../../lib/noi-dung-nham.js';
+import { danhGiaMucKhan } from '../../lib/phan-loai.js';
 
 const router = Router();
 
@@ -42,7 +43,8 @@ router.post('/submit', async (req, res) => {
   const fullName = String(b.fullName || '').trim();
   const phone = String(b.phone || '').trim();
   const wardId = b.wardId ? Number(b.wardId) : null;
-  const urgency = ['normal', 'important', 'urgent'].includes(b.urgency) ? b.urgency : 'normal';
+  /* Cùng luật với tin người dân tự gửi (ADR-003 việc 10): mức khẩn theo nội dung */
+  const urgency = danhGiaMucKhan(content).muc;
 
   // 🔒 Ki-ốt LUÔN có danh tính (cán bộ nhập hộ tại trụ sở) -> khoá hỏng là chặn ngay.
   if (!encryptionEnabled()) {

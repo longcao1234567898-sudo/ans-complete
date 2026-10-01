@@ -118,6 +118,12 @@ export default function AdminSubmissionDetailPage() {
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-500">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
+              {data.muc_khan?.lyDo && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Mức khẩn do hệ thống tự đánh giá: {data.muc_khan.lyDo}
+                  {data.muc_khan.tuKhoa.length > 0 && <> (từ khoá: {data.muc_khan.tuKhoa.join(', ')})</>}
+                </p>
+              )}
 
               <h3 className="mb-1 mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">Nội dung công dân gửi</h3>
               <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">{data.original_content}</p>
