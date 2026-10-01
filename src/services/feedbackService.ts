@@ -12,6 +12,7 @@ import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
+import { loiGuiDeHieu } from '../utils/loiGui';
 import { prepareImages } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
@@ -140,37 +141,44 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
   // ============ CHẾ ĐỘ DATABASE: gửi lên backend, backend lưu vào MySQL ============
   // Backend kiểm tra CHỐNG SPAM + TỪ CẤM + SĐT lần nữa phía máy chủ (không tin trình duyệt)
   if (hasBackend) {
-    return apiFetch<FeedbackSubmission>('/api/submissions', {
-      method: 'POST',
-      body: JSON.stringify({
-        content,
-        normalizedContent: draft.analysis?.normalizedContent ?? content,
-        category: draft.category,
-        fullName,
-        phone: draft.contact.phone.trim(),
-        email: draft.contact.email.trim() || undefined,
-        images: await prepareImages(draft.images),
-        /* Tài liệu gửi thẳng dạng chuỗi — máy chủ kiểm an toàn bốn lớp trước
-           khi lưu (lib/tai-lieu-an-toan.js). Không qua kho ảnh vì kho ảnh chỉ
-           nhận ảnh, và tài liệu cần kiểm nội dung chứ không chỉ lưu trữ. */
-        taiLieu: draft.taiLieu ?? [],
-        /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
-           Không bấm thì trường này rỗng, máy chủ bỏ qua. */
-        viTri: draft.viTri ?? null,
-        wardId: draft.contact.wardId ?? null,
-        captchaToken: draft.contact.captchaToken ?? '',
-        otpToken: draft.contact.otpToken ?? '',
-        /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
-           Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
-        anonId: draft.contact.anonId ?? '',
-        /* MÃ THIẾT BỊ — để cán bộ khoá đúng máy phá hoại khi đánh dấu tin rác.
-           Không gửi thì nút "Tin rác" chỉ đánh dấu được hồ sơ, báo "hồ sơ này
-           không có mã thiết bị nên không khoá được" — kẻ phá hoại gửi tiếp ngay. */
-        deviceId: layMaThietBi(),
-        isAnonymous: draft.contact.isAnonymous === true,
-        urgency: draft.urgency || 'normal',
-      }),
-    });
+    try {
+      return await apiFetch<FeedbackSubmission>('/api/submissions', {
+        method: 'POST',
+        body: JSON.stringify({
+          content,
+          normalizedContent: draft.analysis?.normalizedContent ?? content,
+          category: draft.category,
+          fullName,
+          phone: draft.contact.phone.trim(),
+          email: draft.contact.email.trim() || undefined,
+          images: await prepareImages(draft.images),
+          /* Tài liệu gửi thẳng dạng chuỗi — máy chủ kiểm an toàn bốn lớp trước
+             khi lưu (lib/tai-lieu-an-toan.js). Không qua kho ảnh vì kho ảnh chỉ
+             nhận ảnh, và tài liệu cần kiểm nội dung chứ không chỉ lưu trữ. */
+          taiLieu: draft.taiLieu ?? [],
+          /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
+             Không bấm thì trường này rỗng, máy chủ bỏ qua. */
+          viTri: draft.viTri ?? null,
+          wardId: draft.contact.wardId ?? null,
+          captchaToken: draft.contact.captchaToken ?? '',
+          otpToken: draft.contact.otpToken ?? '',
+          /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
+             Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
+          anonId: draft.contact.anonId ?? '',
+          /* MÃ THIẾT BỊ — để cán bộ khoá đúng máy phá hoại khi đánh dấu tin rác.
+             Không gửi thì nút "Tin rác" chỉ đánh dấu được hồ sơ, báo "hồ sơ này
+             không có mã thiết bị nên không khoá được" — kẻ phá hoại gửi tiếp ngay. */
+          deviceId: layMaThietBi(),
+          isAnonymous: draft.contact.isAnonymous === true,
+          urgency: draft.urgency || 'normal',
+        }),
+      });
+    } catch (e) {
+      /* Mất mạng, máy chủ sập, tải ảnh lỗi... -> câu cố định có 113, thay cho
+         "Failed to fetch". Lời giải thích của máy chủ thì giữ nguyên. */
+      console.error('[gửi ý kiến] thất bại:', e instanceof Error ? e.message : e);
+      throw loiGuiDeHieu(e);
+    }
   }
   // ============ CHẾ ĐỘ DEMO: lưu localStorage như cũ ============
 

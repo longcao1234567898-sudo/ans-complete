@@ -171,7 +171,7 @@ router.post('/', async (req, res) => {
           error:
             'Hệ thống tạm thời không tiếp nhận ý kiến có thông tin liên hệ do sự cố kỹ thuật về bảo mật. '
             + 'Nếu việc gấp, bà con có thể gửi TỐ GIÁC ẨN DANH (vẫn hoạt động bình thường) '
-            + 'hoặc gọi trực tiếp số trực ban. Mong bà con thông cảm.',
+            + 'hoặc gọi ngay 113 nếu vấn đề khẩn cấp. Mong bà con thông cảm.',
           code: 'ENCRYPTION_UNAVAILABLE',
         });
       }
@@ -561,7 +561,9 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     console.error('Lỗi gửi ý kiến:', err);
-    res.status(500).json({ error: 'Lỗi máy chủ khi gửi ý kiến.' });
+    /* Cùng câu với giao diện (src/utils/loiGui.ts): gửi hỏng thì việc gấp
+       phải biết gọi 113 ngay, không chờ "thử lại sau" (ADR-003 việc 7) */
+    res.status(500).json({ error: 'Gửi thất bại — Vấn đề khẩn cấp liên hệ ngay 113 để được giải quyết.' });
   } finally {
     if (giu) await giu.nha();
   }

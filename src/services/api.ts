@@ -33,7 +33,14 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Lỗi máy chủ (${res.status})`);
+  /* tuMayChu: máy chủ có trả lời kèm lý do. Nơi gọi cần phân biệt với trang lỗi
+     của cổng mạng (502 trả HTML) — xem utils/loiGui.ts. */
+  if (!res.ok) {
+    throw Object.assign(new Error(data?.error || `Lỗi máy chủ (${res.status})`), {
+      status: res.status,
+      tuMayChu: Boolean(data?.error),
+    });
+  }
   return data as T;
 }
 

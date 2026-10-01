@@ -26,6 +26,7 @@ import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageBackground from '../components/common/PageBackground';
 import { MapPin } from 'lucide-react';
+import { LOI_GUI_THAT_BAI } from '../utils/loiGui';
 
 const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
@@ -241,7 +242,8 @@ export default function SendFeedbackPage() {
         saveTrackingCode(result.trackingCode, result.category);
         toast.success('Gửi ý kiến thành công!');
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.'),
+      /* Để lâu hơn mặc định: câu có số 113 phải đọc kịp */
+      onError: (err) => toast.error(err instanceof Error ? err.message : LOI_GUI_THAT_BAI, { duration: 10_000 }),
     });
   };
 
