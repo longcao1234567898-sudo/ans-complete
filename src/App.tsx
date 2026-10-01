@@ -4,6 +4,7 @@
  */
 import { useEffect } from 'react';
 import CongVao from './components/common/CongVao';
+import TheoDoiMayChu from './components/common/TheoDoiMayChu';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -177,6 +178,9 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AdminAuthProvider>
+            {/* Máy chủ không phản hồi -> chuyển sang trang dự phòng (ADR-003 việc 28).
+                Đặt NGOÀI cổng xác minh: máy chủ sập thì cổng cũng không cấp được vé. */}
+            <TheoDoiMayChu />
             {/* Cổng xác minh "không phải người máy" khi vào web (ADR-003 việc 23) */}
             <CongVao>
               <AppShell />

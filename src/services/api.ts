@@ -46,6 +46,19 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   return data as T;
 }
 
+/**
+ * Máy chủ có phản hồi không (ADR-003 việc 28). Chỉ "không" khi lỗi mạng, quá
+ * thời gian, hoặc 5xx — máy chủ trả 4xx vẫn là đang sống.
+ */
+export async function kiemTraMayChu(choMs: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/api/health`, { signal: AbortSignal.timeout(choMs) });
+    return res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
 /** Trạng thái bật/tắt AI ở backend (cache sau lần gọi đầu) */
 let backendAI: boolean | null = null;
 export async function backendHasAI(): Promise<boolean> {
