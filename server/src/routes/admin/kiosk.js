@@ -16,9 +16,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import { pool } from '../../db.js';
-import { generateTrackingCode, sha256, layIpThat } from '../../lib/helpers.js';
+import { generateTrackingCode, sha256, ghiNhatKy } from '../../lib/helpers.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
 import { kiemTraNoiDungNham } from '../../lib/noi-dung-nham.js';
+import { danhGiaMucKhan } from '../../lib/phan-loai.js';
+import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
+import { coCotCo } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 
@@ -42,7 +45,8 @@ router.post('/submit', async (req, res) => {
   const fullName = String(b.fullName || '').trim();
   const phone = String(b.phone || '').trim();
   const wardId = b.wardId ? Number(b.wardId) : null;
-  const urgency = ['normal', 'important', 'urgent'].includes(b.urgency) ? b.urgency : 'normal';
+  /* Cùng luật với tin người dân tự gửi (ADR-003 việc 10): mức khẩn theo nội dung */
+  const urgency = danhGiaMucKhan(content).muc;
 
   // 🔒 Ki-ốt LUÔN có danh tính (cán bộ nhập hộ tại trụ sở) -> khoá hỏng là chặn ngay.
   if (!encryptionEnabled()) {
@@ -93,13 +97,19 @@ router.post('/submit', async (req, res) => {
     } catch { /* chưa nâng cấp v2 -> mặc định */ }
     const deadlineAt = new Date(Date.now() + slaDays * 24 * 60 * 60 * 1000);
 
+    /* Tố cáo cán bộ, người nhà nước -> gắn cờ ngay trong câu INSERT, như tin
+       người dân tự gửi (ADR-003 việc 12): người nhập hộ cũng có thể là người
+       bị tố cáo, hoặc đồng nghiệp của người đó. */
+    const coCotMat = await coCotCo();
+    const toGiacMat = nhanDienToGiacMat(content).mat;
+
     // Lưu — danh tính MÃ HOÁ như mọi ý kiến khác
     const [result] = await pool.query(
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency)
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?)`,
+        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency${coCotMat ? ', to_giac_mat' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?${coCotMat ? ', ?' : ''})`,
       [
         trackingCode, content, content, catId, catId,
         sha256(content),
@@ -115,25 +125,18 @@ router.post('/submit', async (req, res) => {
         true,                             // cán bộ đã xác minh trực tiếp
         false,
         urgency,
+        ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
       ]
     );
 
     // GHI NHẬT KÝ: ai là cán bộ nhập hộ (truy trách nhiệm khi cần)
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        [
-          // req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
-          // như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ.
-          req.staff.id,
-          'kiosk_submit',
-          'submission',
-          result.insertId,
-          `Nhập hộ tại trụ sở, mã ${trackingCode}`,
-          layIpThat(req) || null,
-        ]
-      );
-    } catch { /* chưa có bảng nhật ký -> bỏ qua */ }
+    /* req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
+       như bản cũ là mất khả năng truy trách nhiệm ai đã nhập hộ. Đi qua
+       ghiNhatKy: cột details là JSON, chuỗi trần bị MySQL từ chối. */
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'kiosk_submit', loaiDoiTuong: 'submission', doiTuongId: result.insertId,
+      chiTiet: { maTraCuu: trackingCode },
+    });
 
     res.status(201).json({
       trackingCode,

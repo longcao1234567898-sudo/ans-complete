@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Inbox, Clock3, CheckCircle2, XCircle, Loader2, TrendingUp, Users, Check,
          AlarmClock, CalendarClock, UserX, ChevronRight } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { fetchDashboardStats, ackIncidentGroup } from '../../services/adminService';
+import { fetchDashboardStats, ackIncidentGroup, fetchCanhBaoDotBien } from '../../services/adminService';
 import { STATUS_META, formatDateTime } from '../../components/admin/statusMeta';
 
 export default function AdminDashboardPage() {
@@ -13,6 +13,13 @@ export default function AdminDashboardPage() {
     queryKey: ['admin-stats'],
     queryFn: fetchDashboardStats,
     refetchInterval: 30_000, // tự làm mới mỗi 30 giây
+  });
+
+  /* Cảnh báo đột biến theo địa bàn (ADR-003 việc 25) — chỉ để xem, không chặn gì */
+  const { data: dotBien } = useQuery({
+    queryKey: ['canh-bao-dot-bien'],
+    queryFn: fetchCanhBaoDotBien,
+    refetchInterval: 60_000,
   });
 
   // Ẩn ngay trên giao diện khi bấm "Đã xem", không cần chờ vòng làm mới 30 giây
@@ -37,6 +44,34 @@ export default function AdminDashboardPage() {
         <div className="flex items-center gap-2 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Đang tải số liệu...</div>
       )}
       {error && <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{(error as Error).message}</div>}
+
+      {dotBien && dotBien.length > 0 && (
+        <div className="mb-5 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/10">
+          <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+            Số tin tăng đột biến ở {dotBien.length} địa bàn trong 24 giờ qua
+          </p>
+          <p className="mt-0.5 text-xs text-amber-700/80 dark:text-amber-300/80">
+            Có thể là sự việc thật nhiều người cùng báo, cũng có thể bị gửi phá. Hệ thống không chặn — đồng chí xem các tin dưới đây.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {dotBien.map((cb) => (
+              <li key={cb.id} className="rounded-xl bg-white p-3 text-sm dark:bg-slate-900">
+                <p className="font-semibold text-slate-700 dark:text-slate-200">
+                  {cb.ward_name || 'Không rõ địa bàn'} · {cb.so_tin} tin trong 30 phút (ngưỡng {cb.nguong}) · {formatDateTime(cb.created_at)}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {cb.tin.map((t) => (
+                    <Link key={t.id} to={`/quan-tri/y-kien/${t.id}`} title={t.xem_truoc}
+                      className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-primary-700 hover:underline dark:bg-slate-800 dark:text-primary-300">
+                      {t.tracking_code}
+                    </Link>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {data && (
         <>

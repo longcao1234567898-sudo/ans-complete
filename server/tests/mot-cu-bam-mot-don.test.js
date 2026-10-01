@@ -65,7 +65,7 @@ function dungCsdl() {
     `CREATE TABLE staff (id INT PRIMARY KEY, full_name TEXT, is_active INT DEFAULT 1)`,
     `CREATE TABLE submissions (
        id INTEGER PRIMARY KEY, tracking_code TEXT, original_content TEXT, ai_processed_content TEXT,
-       category_id INT, status TEXT, urgency TEXT, security_level TEXT DEFAULT 'thuong',
+       category_id INT, status TEXT, urgency TEXT, security_level TEXT DEFAULT 'thuong', to_giac_mat INT NOT NULL DEFAULT 0, ngoai_tham_quyen INT NOT NULL DEFAULT 0,
        is_anonymous INT, is_flagged INT DEFAULT 0, flag_reason TEXT,
        sender_name TEXT, sender_phone TEXT, sender_phone_hash TEXT, sender_email TEXT,
        ip_address TEXT, user_agent TEXT, content_hash TEXT,

@@ -4,6 +4,8 @@ import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
 import { dieuKienXem, dieuKienNhomXem } from '../../lib/pham-vi-ho-so.js';
+import { laLanhDao } from '../../lib/vai-tro.js';
+import { PHUT_CUA_SO } from '../../lib/dot-bien.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -165,6 +167,51 @@ router.get('/stats', async (req, res) => {
     res.json({ overview, byCategory, recent: recentSafe, sla, dieuHanh, canGap, nhomTrungLap });
   } catch (err) {
     console.error('Lỗi thống kê:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ.' });
+  }
+});
+
+/**
+ * GET /api/admin/dashboard/canh-bao-dot-bien — CẢNH BÁO SỐ ĐƠN ĐỘT BIẾN (ADR-003 việc 25)
+ * Cảnh báo trong 24 giờ qua, mỗi cảnh báo kèm các tin của địa bàn đó trong
+ * khung 30 phút trước lúc báo.
+ *
+ * PHẠM VI: danh sách tin AND điều kiện xem; số đếm là số tin NGƯỜI XEM thấy.
+ * Cán bộ chỉ thấy cảnh báo khi riêng số tin mình xem được đã chạm ngưỡng —
+ * ngưỡng tối thiểu là số công khai, hiện một cảnh báo mà mình chỉ đọc được dưới
+ * ngưỡng là nói "có tin bạn không được xem" (kiểu rò của BUG-009).
+ */
+router.get('/canh-bao-dot-bien', async (req, res) => {
+  try {
+    const [ds] = await pool.query(
+      `SELECT cb.id, cb.ward_id, cb.so_tin, cb.nguong, cb.created_at, w.name AS ward_name
+         FROM canh_bao_dot_bien cb LEFT JOIN wards w ON w.id = cb.ward_id
+        WHERE cb.created_at > NOW() - INTERVAL 24 HOUR
+        ORDER BY cb.created_at DESC
+        LIMIT 20`
+    );
+    const phamVi = await dieuKienXem(req.staff);
+    const lanhDao = laLanhDao(req.staff);
+    const data = [];
+    for (const cb of ds) {
+      const [tin] = await pool.query(
+        `SELECT s.id, s.tracking_code, s.status, s.urgency, s.created_at, LEFT(s.original_content, 120) AS xem_truoc
+           FROM submissions s
+          WHERE s.ward_id = ?
+            AND s.created_at > DATE_SUB(?, INTERVAL ? MINUTE) AND s.created_at <= ?
+            AND ${phamVi.sql}
+          ORDER BY s.created_at ASC
+          LIMIT 100`,
+        [cb.ward_id, cb.created_at, PHUT_CUA_SO, cb.created_at, ...phamVi.params]
+      );
+      if (!lanhDao && tin.length < Number(cb.nguong)) continue;
+      data.push({ ...cb, so_tin: lanhDao ? Number(cb.so_tin) : tin.length, tin });
+    }
+    res.json({ data });
+  } catch (err) {
+    /* Chưa chạy nang_cap_v30.sql: không có cảnh báo nào, trang tổng quan vẫn chạy */
+    if (/canh_bao_dot_bien/.test(String(err.message))) return res.json({ data: [] });
+    console.error('Lỗi cảnh báo đột biến:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ.' });
   }
 });

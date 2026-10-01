@@ -173,9 +173,15 @@ export default function Footer() {
               </Link>
             </li>
             <li>
-              <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">
-                Hướng dẫn sử dụng
-              </Link>
+              {/* Hướng dẫn từng bước chỉ tự hiện ở lần đầu vào web (ADR-003 việc 27);
+                  nút này mở lại bất cứ lúc nào */}
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event('ans:mo-huong-dan'))}
+                className="text-slate-300 transition hover:text-accent-500"
+              >
+                Xem hướng dẫn
+              </button>
             </li>
             <li>
               <Link to="/gioi-thieu" className="text-slate-300 transition hover:text-accent-500">

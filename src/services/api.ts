@@ -33,8 +33,30 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || `Lỗi máy chủ (${res.status})`);
+  /* tuMayChu: máy chủ có trả lời kèm lý do. Nơi gọi cần phân biệt với trang lỗi
+     của cổng mạng (502 trả HTML) — xem utils/loiGui.ts. */
+  if (!res.ok) {
+    throw Object.assign(new Error(data?.error || `Lỗi máy chủ (${res.status})`), {
+      status: res.status,
+      tuMayChu: Boolean(data?.error),
+      /* Mã lỗi máy chủ (ví dụ CAN_XAC_MINH — vé cổng vào hết hạn) */
+      code: typeof data?.code === 'string' ? data.code : undefined,
+    });
+  }
   return data as T;
+}
+
+/**
+ * Máy chủ có phản hồi không (ADR-003 việc 28). Chỉ "không" khi lỗi mạng, quá
+ * thời gian, hoặc 5xx — máy chủ trả 4xx vẫn là đang sống.
+ */
+export async function kiemTraMayChu(choMs: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/api/health`, { signal: AbortSignal.timeout(choMs) });
+    return res.status < 500;
+  } catch {
+    return false;
+  }
 }
 
 /** Trạng thái bật/tắt AI ở backend (cache sau lần gọi đầu) */

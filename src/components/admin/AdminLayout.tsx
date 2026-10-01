@@ -18,8 +18,11 @@ import { Navigate, Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText,
-  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert } from 'lucide-react';
+  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert,
+  Filter, Megaphone, Lock, CornerUpRight } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { LANH_DAO, tenVaiTro } from '../../utils/vaiTro';
+import BaoVeManHinh from './BaoVeManHinh';
 
 interface MucDieuHuong {
   to: string;
@@ -36,14 +39,23 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
     ten: 'Xử lý',
     muc: [
       { to: '/quan-tri', label: 'Tổng quan', Icon: LayoutDashboard, exact: true },
-      { to: '/quan-tri/y-kien', label: 'Danh sách ý kiến', Icon: Inbox, exact: false },
-      { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt', Icon: ShieldQuestion, exact: false },
+      /* Đường đi của tin (ADR-003): có danh tính vào Sàng lọc, ẩn danh vào Chờ
+         duyệt; qua rồi thì vào Tin đưa vào xử lý hoặc Tin tố giác. Hai phần
+         chỉ lãnh đạo xem khớp với 403 ở máy chủ (lib/sang-loc.js, lanhDao). */
+      { to: '/quan-tri/sang-loc', label: 'Sàng lọc', Icon: Filter, exact: false },
+      { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt ẩn danh', Icon: ShieldQuestion, exact: false },
+      { to: '/quan-tri/y-kien', label: 'Tin đưa vào xử lý', Icon: Inbox, exact: false },
+      { to: '/quan-tri/to-giac', label: 'Tin tố giác', Icon: Megaphone, exact: false },
+      { to: '/quan-tri/to-giac-mat', label: 'Tin tố giác mật', Icon: Lock, exact: false,
+        vaiTro: [...LANH_DAO] },
+      { to: '/quan-tri/ngoai-tham-quyen', label: 'Ngoài thẩm quyền', Icon: CornerUpRight, exact: false,
+        vaiTro: [...LANH_DAO] },
       { to: '/quan-tri/thung-rac', label: 'Thùng rác', Icon: Trash2, exact: false },
         /* Danh sách khoá thiết bị — đặt cạnh Thùng rác vì cùng nhóm việc
            xử lý tin rác. Chỉ admin và manager xem được, khớp với phân quyền
            ở máy chủ (authorize('admin','manager')). */
         { to: '/quan-tri/danh-sach-khoa', label: 'Danh sách khoá', Icon: ShieldOff, exact: false,
-          vaiTro: ['admin', 'manager'] },
+          vaiTro: [...LANH_DAO] },
     ],
   },
   {
@@ -65,16 +77,11 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
          Phải KHỚP với authorize(...) ở máy chủ, nếu không cán bộ bấm vào sẽ
          nhận lỗi 403 — trang hiện thông báo lỗi khó hiểu, tưởng hệ thống hỏng. */
       { to: '/quan-tri/nhat-ky', label: 'Nhật ký', Icon: ScrollText, exact: false,
-        vaiTro: ['admin', 'manager'] },
+        vaiTro: [...LANH_DAO] },
     ],
   },
 ];
 
-function tenVaiTro(role: string) {
-  if (role === 'admin') return 'Quản trị viên';
-  if (role === 'manager') return 'Cán bộ quản lý';
-  return 'Cán bộ xử lý';
-}
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { staff, logout } = useAdminAuth();
@@ -144,7 +151,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     .filter((nhom) => nhom.muc.length > 0);   // bỏ luôn nhóm rỗng
 
   return (
-    <div className="container-page py-5">
+    <div className="container-page select-none py-5">
+      {/* Chữ chìm, làm mờ khi rời cửa sổ, chặn in / sao chép, ghi nhật ký phím chụp (ADR-003 việc 26) */}
+      <BaoVeManHinh staff={staff} />
       {/* ===== THANH TRỰC BAN =====
           Lấy cảm hứng từ bảng phân công trực ban ở trụ sở: ai đang trực,
           giữ chức vụ gì, và lời nhắc mọi thao tác đều để lại vết. */}

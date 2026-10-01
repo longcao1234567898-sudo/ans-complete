@@ -14,11 +14,12 @@ import { Link } from 'react-router-dom';
 import { MessageSquareWarning, Loader2, Check, X, Smartphone, Globe } from 'lucide-react';
 import { fetchKhieuNai, xuLyKhieuNai } from '../../services/adminService';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { laLanhDao as laVaiTroLanhDao } from '../../utils/vaiTro';
 
 export default function KhuKhieuNai() {
   const qc = useQueryClient();
   const { staff } = useAdminAuth();
-  const laLanhDao = staff?.role === 'admin' || staff?.role === 'manager';
+  const laLanhDao = laVaiTroLanhDao(staff?.role);
 
   const [xemTatCa, setXemTatCa] = useState(false);
   const [dangMo, setDangMo] = useState<number | null>(null);

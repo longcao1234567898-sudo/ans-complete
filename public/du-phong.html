@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+  TRANG DỰ PHÒNG KHI WEB SẬP (ADR-003 việc 28)
+
+  Trang TĨNH: không script, không gọi máy chủ — máy chủ chính sập thì trang này
+  vẫn hiện. Giao diện tự chuyển sang đây khi máy chủ không phản hồi
+  (src/components/common/TheoDoiMayChu.tsx); service worker giữ sẵn một bản
+  (public/sw.js) cho người đã từng vào.
+
+  ⚠️ SỐ ĐIỆN THOẠI, TÊN ĐƠN VỊ, ĐƯỜNG DẪN chép tay từ src/utils/constants.ts
+  (UNIT) vì trang tĩnh không đọc được tệp đó. Đổi ở đó thì đổi cả ở đây — bài
+  server/tests/trang-du-phong.test.js báo đỏ nếu số trực ban lệch.
+
+  Nơi chạy trang web (Netlify) cũng sập thì trang này cũng mất: nên đặt thêm một
+  bản sao ở nơi lưu trữ khác và in số 113, số trực ban trên tờ rơi, mã QR.
+-->
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Điểm Chạm An Ninh — Liên hệ khẩn</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 16px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1e293b;
+      background: #0f3d14 url('/media/bg-tru-so-cong-an.webp') center / cover no-repeat fixed;
+    }
+    .the {
+      width: 100%; max-width: 480px; border-radius: 20px; padding: 24px;
+      background: rgba(255, 255, 255, 0.94); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 6px; font-size: 20px; color: #14532d; }
+    p { margin: 0 0 12px; font-size: 15px; line-height: 1.55; }
+    .goi {
+      display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px;
+      margin: 10px 0; border-radius: 14px; text-decoration: none; font-weight: 800;
+    }
+    .goi-113 { background: #b91c1c; color: #fff; font-size: 26px; }
+    .goi-truc-ban { background: #14532d; color: #fff; font-size: 18px; flex-direction: column; gap: 0; }
+    .goi-truc-ban small { font-weight: 600; font-size: 13px; opacity: 0.9; }
+    ul { margin: 14px 0 0; padding: 0; list-style: none; font-size: 14px; }
+    li { margin: 6px 0; }
+    a { color: #1d4ed8; }
+    .thu-lai {
+      display: inline-block; margin-top: 16px; min-height: 44px; line-height: 44px; padding: 0 18px;
+      border-radius: 12px; border: 2px solid #14532d; color: #14532d; font-weight: 700; text-decoration: none;
+    }
+    .nho { font-size: 12px; color: #64748b; margin-top: 14px; }
+    @media (prefers-color-scheme: dark) {
+      .the { background: rgba(15, 23, 42, 0.94); color: #e2e8f0; }
+      h1 { color: #86efac; }
+      a { color: #93c5fd; }
+      .thu-lai { border-color: #86efac; color: #86efac; }
+    }
+  </style>
+</head>
+<body>
+  <main class="the">
+    <h1>Hệ thống gửi ý kiến đang tạm gián đoạn</h1>
+    <p>Bà con chưa gửi được ý kiến qua mạng lúc này. <strong>Việc khẩn cấp, gọi ngay:</strong></p>
+
+    <a class="goi goi-113" href="tel:113">📞 Gọi 113</a>
+    <a class="goi goi-truc-ban" href="tel:02743827132">
+      Trực ban 0274 3827 132
+      <small>Công an phường Chánh Hiệp</small>
+    </a>
+
+    <p>Việc không gấp: bà con thử lại sau ít phút, hoặc đến trực tiếp Trụ sở Công an phường Chánh Hiệp, Thành phố Hồ Chí Minh.</p>
+
+    <ul>
+      <li>Email: <a href="mailto:conganphuongchanhhiep@tphcm.gov.vn">conganphuongchanhhiep@tphcm.gov.vn</a></li>
+      <li>Công an Thành phố Hồ Chí Minh: <a href="https://congan.tphcm.gov.vn" rel="noopener">https://congan.tphcm.gov.vn</a></li>
+      <li>Trang Facebook đơn vị: <a href="https://www.facebook.com/profile.php?id=61569502381565" rel="noopener">mở trang</a></li>
+      <li>Cổng Dịch vụ công quốc gia: <a href="https://dichvucong.gov.vn" rel="noopener">https://dichvucong.gov.vn</a></li>
+    </ul>
+
+    <a class="thu-lai" href="/">Thử lại trang chính</a>
+    <p class="nho">Trang này không cần kết nối tới máy chủ của hệ thống.</p>
+  </main>
+</body>
+</html>

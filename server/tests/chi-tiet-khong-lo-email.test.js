@@ -91,7 +91,9 @@ function gaPool(hang) {
     if (/SELECT is_active FROM staff/i.test(sql)) return [[{ is_active: 1 }]];
     if (/information_schema\.columns/i.test(sql)) return [[{ 1: 1 }]];
     if (/WHERE s\.id = \?/.test(sql)) return [hoSo ? [chieu(sql, hoSo)] : []];
-    if (/FROM submission_images|FROM status_history/i.test(sql)) return [[]];
+    /* SELECT trên bảng con của hồ sơ trả mảng như MySQL thật (ghi chú nội bộ,
+       phần bổ sung của người dân — ADR-003 việc 16, 21) */
+    if (/FROM (submission_images|status_history|ghi_chu_noi_bo|bo_sung_thong_tin)/i.test(sql)) return [[]];
     if (/SELECT assigned_to, sender_name, sender_phone, sender_email, is_anonymous FROM submissions/i.test(sql)) {
       return [hoSo ? [{ assigned_to: hoSo.assigned_to, sender_name: hoSo.sender_name,
         sender_phone: hoSo.sender_phone, sender_email: hoSo.sender_email, is_anonymous: hoSo.is_anonymous }] : []];
@@ -120,7 +122,11 @@ async function goi(staff, method, duong) {
   }
 }
 
-const soDongNhatKy = () => cacTruyVan.filter((t) => /INSERT INTO staff_activity_logs/i.test(t.sql)).length;
+/* Đếm dòng nhật ký XEM DANH TÍNH. Từ ADR-003 việc 9, mở chi tiết hồ sơ có ghi
+   một dòng view_submission (lượt mở, không phải lượt xem danh tính) — dòng đó
+   không tính ở đây. */
+const soDongNhatKy = () => cacTruyVan.filter((t) => /INSERT INTO staff_activity_logs/i.test(t.sql)
+  && (t.params || []).includes('reveal_identity')).length;
 
 /** Khẳng định response không chứa bất kỳ mảnh danh tính nào — kể cả bản mã. */
 function khongLoDanhTinh(r, { ten = TEN_THAT, sdt = SDT_THAT, email = EMAIL_THAT, manh = [] } = {}) {
@@ -144,7 +150,7 @@ for (const [ten, cb] of [['handler', HANDLER], ['manager KHÔNG phân công', MG
     assert.equal(r.status, 200);
     assert.equal(r.body.sender_email, undefined, 'GET /:id không được có trường sender_email');
     khongLoDanhTinh(r);
-    assert.equal(soDongNhatKy(), 0, 'GET /:id không xem danh tính nên không có gì để ghi nhật ký');
+    assert.equal(soDongNhatKy(), 0, 'GET /:id không xem danh tính nên không có dòng reveal_identity');
   });
 }
 

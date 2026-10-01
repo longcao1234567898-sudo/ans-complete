@@ -1,59 +1,41 @@
 /**
- * PHẠM VI XEM HỒ SƠ THEO CẤP ĐỘ BẢO MẬT (BUG-009, ADR-002 §3)
+ * PHẠM VI XEM HỒ SƠ (ADR-003 §4, thay chính sách cấp độ của BUG-009 / ADR-002 §3)
  * ============================================================================
  *
- * Mức "Mật" từng chỉ là nhãn: giao diện hứa "chỉ lãnh đạo" nhưng không route
- * nào đọc cột security_level để quyết định gì, nên mọi cán bộ vẫn đọc toàn văn,
- * đọc và GỬI tin trong phòng chat với người tố giác. Một lời hứa bảo vệ không
- * có thật tệ hơn không hứa: lãnh đạo hành xử như thể hồ sơ đã được che.
- *
  * Luật nằm ở MỘT chỗ này, không rải từng route. Mọi truy vấn trả nội dung hồ sơ
- * cho cán bộ, hoặc ghi lên hồ sơ, đều AND với dieuKienXem(). Rải kiểm từng
- * route chính là cách đã để sót ở đây — thêm bề mặt mới (báo cáo, xuất file,
- * giao theo lô...) thì gọi hàm này, đừng tự viết lại điều kiện.
+ * cho cán bộ, hoặc ghi lên hồ sơ, đều AND với dieuKienXem(). Bài học của BUG-009:
+ * rải kiểm từng route là cách đã để sót — thêm bề mặt mới (báo cáo, xuất file,
+ * giao theo lô, tin trùng...) thì gọi hàm này, đừng tự viết lại điều kiện.
  *
- *   Mức          Ai xem được (nội dung, chat, trích đoạn, thao tác ghi)
- *   thuong       mọi cán bộ (ADR-001)
- *   can_bao_ve   admin, manager, người đang được giao
- *   mat          admin và người admin giao — manager KHÔNG, trừ khi được giao
+ *   Ai                      Xem được
+ *   lãnh đạo (admin, manager)  mọi hồ sơ
+ *   cán bộ (handler)        hồ sơ KHÔNG mang cờ nào dưới đây
  *
- * "Người admin giao" của hồ sơ Mật đứng được nhờ ba chốt ở nơi khác, gỡ một
- * cái là manager lách được dòng Mật:
- *   · chỉ admin gọi /assign lên hồ sơ Mật (routes/admin/submissions.js)
- *   · nâng lên Mật thì gỡ người đang được giao (cùng tệp, /security-level)
- *   · phân công cũ của hồ sơ Mật đã gỡ bằng database/nang_cap_v24.sql
+ *   to_giac_mat       tin tố cáo cán bộ, người làm việc trong cơ quan nhà nước,
+ *                     chính quyền — hệ thống tự gắn bằng từ khoá lúc nhận tin
+ *   ngoai_tham_quyen  tin bị đánh dấu ngoài thẩm quyền ở bước sàng lọc
  *
- * ⚠️ FAIL-SAFE: mức không đọc được (thiếu cột vì chưa chạy nang_cap_v14.sql,
- * NULL, giá trị ngoài ENUM — MySQL không nghiêm ngặt lưu giá trị lạ thành '')
- * thì coi là Mật. Từng làm ngược lại: thiếu cột thì coi mọi tin là 'thuong'.
- * Đánh đổi đã chấp nhận: CSDL chưa nâng cấp thì handler và manager chỉ thấy
- * hồ sơ đang giao cho mình — thà cán bộ thiếu việc còn hơn lộ tố giác Mật.
+ * ADR-003 bỏ ba cấp độ Thường / Cần bảo vệ / Mật và luật "người được giao xem
+ * được". Cán bộ được giao một hồ sơ mang cờ cũng KHÔNG đọc được: phần Tin tố
+ * giác mật chỉ dành cho lãnh đạo, và route phân công chặn giao hồ sơ mang cờ
+ * cho cán bộ để màn hình không hiện một việc người nhận không mở được.
+ *
+ * ⚠️ FAIL-SAFE: cờ không đọc được (NULL — dữ liệu chép tay, cột cho phép NULL ở
+ * một bản CSDL lạ) thì coi là CÓ cờ. Thiếu hẳn cột (chưa chạy
+ * nang_cap_v26.sql) thì cán bộ không thấy hồ sơ nào. Đánh đổi đã chấp nhận:
+ * thà cán bộ thiếu việc trong lúc chờ nâng cấp còn hơn lộ tin tố cáo cán bộ.
  */
 import { pool } from '../db.js';
+import { laLanhDao } from './vai-tro.js';
 
-export const CAP_DO_HOP_LE = ['thuong', 'can_bao_ve', 'mat'];
-
-/** Mức chỉ admin được đặt, hạ và phân công */
-export const MUC_CHI_TRUONG = 'mat';
-
-/* Allow-list: mức nào mở cho MỌI người của vai trò đó, không cần được giao.
-   admin không nằm ở đây vì xem được hết. Vai trò lạ không có dòng -> chỉ thấy
-   hồ sơ đang giao cho mình. */
-const MUC_MO_THEO_VAI_TRO = {
-  manager: ['thuong', 'can_bao_ve'],
-  handler: ['thuong'],
-};
-
-/* Nhớ khi CÓ cột. Chưa có thì hỏi lại lần sau: CSDL chưa nâng cấp là tình
-   trạng tạm, chạy v14 xong không phải khởi động lại máy chủ. Lỗi vì bất kỳ lý
-   do gì thì coi như thiếu cột — tức mọi hồ sơ là Mật, không phải là Thường.
-   Dò thẳng cột thay vì hỏi information_schema: kiểm đúng thứ các câu truy vấn
-   sẽ đụng tới, không phụ thuộc DATABASE() hay quyền đọc information_schema. */
+/* Nhớ khi CÓ cột. Chưa có thì hỏi lại lần sau: chạy v26 xong không phải khởi
+   động lại máy chủ. Lỗi vì bất kỳ lý do gì thì coi như thiếu cột. Dò thẳng cột
+   thay vì hỏi information_schema: kiểm đúng thứ các câu truy vấn sẽ đụng tới. */
 let _coCot = false;
-async function coCotCapDo() {
+export async function coCotCo() {
   if (_coCot) return true;
   try {
-    await pool.query('SELECT security_level FROM submissions LIMIT 0');
+    await pool.query('SELECT to_giac_mat, ngoai_tham_quyen FROM submissions LIMIT 0');
     _coCot = true;
   } catch {
     /* để false */
@@ -64,26 +46,14 @@ async function coCotCapDo() {
 const cot = (bang, ten) => (bang ? `${bang}.${ten}` : ten);
 
 /**
- * Biểu thức SQL cho mức của hồ sơ, đã chuẩn hoá: luôn ra một trong ba giá trị
- * hợp lệ, không đọc được thì 'mat'. Dùng cả để SELECT trả về giao diện, để giao
- * diện không hiện "Thường" cho hồ sơ không rõ mức.
+ * Hai cờ để SELECT trả về giao diện (lãnh đạo cần biết hồ sơ đang nằm ở phần
+ * nào). Thiếu cột thì trả 0 — chỉ lãnh đạo đọc được hồ sơ lúc đó, nên không lộ gì.
  * @param {string} bang bí danh bảng submissions trong câu truy vấn ('' nếu không có)
  */
-export async function capDoSql(bang = 's') {
-  if (!(await coCotCapDo())) return `'${MUC_CHI_TRUONG}'`;
-  return bieuThucCapDo(bang);
-}
-
-/**
- * Như capDoSql nhưng KHÔNG dò cột: dùng cho câu truy vấn vốn bắt buộc có cột
- * (câu ghi security_level). Ở đó thay mức bằng hằng 'mat' khi dò lỗi là SAI
- * CHIỀU: "đã Mật sẵn" thì không gỡ người được giao — một lần mất kết nối thoáng
- * qua làm việc gỡ giao im lặng bỏ qua (trọng tài P44). Cột thật sự thiếu thì
- * câu đó tự lỗi, không ghi gì.
- */
-export function bieuThucCapDo(bang = 's') {
-  const c = cot(bang, 'security_level');
-  return `(CASE WHEN ${c} IN ('thuong', 'can_bao_ve', 'mat') THEN ${c} ELSE '${MUC_CHI_TRUONG}' END)`;
+export async function coSql(bang = 's') {
+  if (!(await coCotCo())) return '0 AS to_giac_mat, 0 AS ngoai_tham_quyen';
+  return `COALESCE(${cot(bang, 'to_giac_mat')}, 1) AS to_giac_mat, `
+    + `COALESCE(${cot(bang, 'ngoai_tham_quyen')}, 1) AS ngoai_tham_quyen`;
 }
 
 /**
@@ -91,44 +61,40 @@ export function bieuThucCapDo(bang = 's') {
  * `params` vào ĐÚNG vị trí dấu ? của nó.
  *
  * ⚠️ Luôn ra đúng/sai, KHÔNG BAO GIỜ NULL — để đặt được trong NOT (...) khi cần
- * tìm "hồ sơ người này KHÔNG xem được". `assigned_to = ?` với hồ sơ chưa giao
- * ai là NULL; NOT NULL vẫn là NULL, nên NOT EXISTS sẽ lặng lẽ bỏ qua đúng hồ
- * sơ Mật chưa giao — thứ cần bắt nhất.
+ * tìm "hồ sơ người này KHÔNG xem được" (dieuKienNhomXem). COALESCE giữ điều đó
+ * cả khi cờ là NULL.
  * @param {{ id: number, role: string }} staff req.staff
  * @param {string} bang bí danh bảng submissions ('' nếu câu không đặt bí danh)
  * @returns {Promise<{ sql: string, params: any[] }>}
  */
 export async function dieuKienXem(staff, bang = 's') {
-  if (staff?.role === 'admin') return { sql: '1 = 1', params: [] };
+  if (laLanhDao(staff)) return { sql: '1 = 1', params: [] };   // ADR-003 §1
   if (!Number.isInteger(staff?.id) || staff.id <= 0) return { sql: '1 = 0', params: [] };
-
-  const cotGiao = cot(bang, 'assigned_to');
-  const giao = `(${cotGiao} IS NOT NULL AND ${cotGiao} = ?)`;
-  const moSan = Object.hasOwn(MUC_MO_THEO_VAI_TRO, staff.role) ? MUC_MO_THEO_VAI_TRO[staff.role] : [];
-  if (moSan.length === 0) return { sql: `(${giao})`, params: [staff.id] };
-
-  const danhSach = moSan.map((m) => `'${m}'`).join(', ');
+  /* Vai trò lạ không có dòng nào ở đây -> như cán bộ. Thiếu cột -> không thấy gì. */
+  if (!(await coCotCo())) return { sql: '1 = 0', params: [] };
   return {
-    sql: `(${await capDoSql(bang)} IN (${danhSach}) OR ${giao})`,
-    params: [staff.id],
+    sql: `(COALESCE(${cot(bang, 'to_giac_mat')}, 1) = 0 AND COALESCE(${cot(bang, 'ngoai_tham_quyen')}, 1) = 0)`,
+    params: [],
   };
 }
 
 /**
- * Điều kiện WHERE cho bảng incident_groups (bí danh BẮT BUỘC là `g`): nhóm
- * không có thành viên nào `staff` không xem được.
- *
- * Nhóm chứa dù chỉ một hồ sơ bị ẩn thì ẩn CẢ NHÓM, không chỉ che trích đoạn:
- * số đơn, giờ nhận đầu/cuối, id đơn đầu của nhóm đều nói "có một tố giác bạn
- * không thấy, cùng thôn, cùng lĩnh vực, lúc mấy giờ" — ở cấp xã thế là đủ để
- * đoán. Đánh đổi: handler mất góc nhìn gộp của những nhóm trộn mức; từng hồ sơ
- * Thường trong nhóm vẫn hiện ở danh sách như mọi hồ sơ khác.
- * Xét cả đơn đầu (first_submission_id), phòng khi dòng gán incident_group_id
- * của nó không ghi được.
+ * Hồ sơ có mang cờ nào không (đọc thẳng CSDL, bỏ qua phạm vi). Route phân công
+ * dùng để không giao hồ sơ mang cờ cho cán bộ. Không đọc được thì coi là có.
  */
+export async function hoSoMangCo(id) {
+  if (!(await coCotCo())) return true;
+  const [r] = await pool.query(
+    `SELECT (COALESCE(to_giac_mat, 1) = 1 OR COALESCE(ngoai_tham_quyen, 1) = 1) AS co
+       FROM submissions WHERE id = ?`,
+    [id]
+  );
+  return r.length === 0 ? true : Boolean(Number(r[0].co));
+}
+
 /**
  * `staff` có thấy nhóm sự kiện `nhomId` không. Dùng để che incident_group_id ở
- * trang chi tiết hồ sơ: hồ sơ Thường trỏ tới một nhóm trả 404 là nói "nhóm này
+ * trang chi tiết hồ sơ: hồ sơ thường trỏ tới một nhóm trả 404 là nói "nhóm này
  * có hồ sơ tương tự bạn không được xem" (trọng tài P44).
  */
 export async function nhomXemDuoc(staff, nhomId) {
@@ -146,8 +112,18 @@ export async function nhomXemDuoc(staff, nhomId) {
   }
 }
 
+/**
+ * Điều kiện WHERE cho bảng incident_groups (bí danh BẮT BUỘC là `g`): nhóm
+ * không có thành viên nào `staff` không xem được.
+ *
+ * Nhóm chứa dù chỉ một hồ sơ bị ẩn thì ẩn CẢ NHÓM, không chỉ che trích đoạn:
+ * số đơn, giờ nhận đầu/cuối, id đơn đầu của nhóm đều nói "có một tin bạn không
+ * thấy, cùng địa bàn, cùng lĩnh vực, lúc mấy giờ" — ở cấp xã thế là đủ để đoán.
+ * Xét cả đơn đầu (first_submission_id), phòng khi dòng gán incident_group_id
+ * của nó không ghi được.
+ */
 export async function dieuKienNhomXem(staff) {
-  if (staff?.role === 'admin') return { sql: '1 = 1', params: [] };
+  if (laLanhDao(staff)) return { sql: '1 = 1', params: [] };
   const phamVi = await dieuKienXem(staff, 'sx');
   return {
     sql: `NOT EXISTS (SELECT 1 FROM submissions sx

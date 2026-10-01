@@ -69,13 +69,13 @@ describe('TC2 — MỌI đường khoá đều xét tin cậy trước', () => {
 });
 
 describe('TC3 — route quản trị thiết bị tin cậy', () => {
-  test('có đủ xem/thêm/bỏ, chỉ admin và manager', async () => {
+  test('có đủ xem/thêm/bỏ, chỉ lãnh đạo (authorize(...LANH_DAO), ADR-003 §1)', async () => {
     const ma = await doc(ROUTE);
-    assert.match(ma, /router\.get\('\/trusted-devices',\s*authorize\('admin', 'manager'\)/,
-      'route xem phải chốt quyền admin/manager');
-    assert.match(ma, /router\.post\('\/trusted-devices',\s*authorize\('admin', 'manager'\)/,
+    assert.match(ma, /router\.get\('\/trusted-devices',\s*authorize\(\.\.\.LANH_DAO\)/,
+      'route xem phải chốt quyền lãnh đạo');
+    assert.match(ma, /router\.post\('\/trusted-devices',\s*authorize\(\.\.\.LANH_DAO\)/,
       'route thêm phải chốt quyền');
-    assert.match(ma, /router\.delete\('\/trusted-devices\/:id',\s*authorize\('admin', 'manager'\)/,
+    assert.match(ma, /router\.delete\('\/trusted-devices\/:id',\s*authorize\(\.\.\.LANH_DAO\)/,
       'route bỏ phải chốt quyền');
   });
 

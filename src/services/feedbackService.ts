@@ -12,6 +12,8 @@ import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import { apiFetch, hasBackend } from './api';
+import { loiGuiDeHieu } from '../utils/loiGui';
+import { layVe, veHetHan } from '../utils/veVaoCua';
 import { prepareImages } from './uploadService';
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
@@ -93,6 +95,23 @@ function saveSubmissions(list: FeedbackSubmission[], newest: FeedbackSubmission)
   }
 }
 
+/* PHIẾU MỞ FORM (ADR-003 việc 24): máy chủ cấp lúc mở trang gửi ý kiến, lúc gửi
+   máy chủ tự đo thời gian điền. Giao diện không tự đo, không tự báo giờ —
+   giờ trình duyệt thì máy tự động sửa được. */
+let phieuMoForm = '';
+
+/** Gọi khi mở trang gửi ý kiến và khi bắt đầu một đơn mới */
+export async function batDauDienDon(): Promise<void> {
+  if (!hasBackend) return;
+  try {
+    const kq = await apiFetch<{ phieu: string }>('/api/submissions/phieu-mo-form');
+    phieuMoForm = kq.phieu;
+  } catch {
+    /* Không lấy được phiếu thì vẫn gửi được — máy chủ chỉ gắn cờ, không chặn */
+    phieuMoForm = '';
+  }
+}
+
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
 export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubmission> {
 
@@ -140,37 +159,48 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
   // ============ CHẾ ĐỘ DATABASE: gửi lên backend, backend lưu vào MySQL ============
   // Backend kiểm tra CHỐNG SPAM + TỪ CẤM + SĐT lần nữa phía máy chủ (không tin trình duyệt)
   if (hasBackend) {
-    return apiFetch<FeedbackSubmission>('/api/submissions', {
-      method: 'POST',
-      body: JSON.stringify({
-        content,
-        normalizedContent: draft.analysis?.normalizedContent ?? content,
-        category: draft.category,
-        fullName,
-        phone: draft.contact.phone.trim(),
-        email: draft.contact.email.trim() || undefined,
-        images: await prepareImages(draft.images),
-        /* Tài liệu gửi thẳng dạng chuỗi — máy chủ kiểm an toàn bốn lớp trước
-           khi lưu (lib/tai-lieu-an-toan.js). Không qua kho ảnh vì kho ảnh chỉ
-           nhận ảnh, và tài liệu cần kiểm nội dung chứ không chỉ lưu trữ. */
-        taiLieu: draft.taiLieu ?? [],
-        /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
-           Không bấm thì trường này rỗng, máy chủ bỏ qua. */
-        viTri: draft.viTri ?? null,
-        wardId: draft.contact.wardId ?? null,
-        captchaToken: draft.contact.captchaToken ?? '',
-        otpToken: draft.contact.otpToken ?? '',
-        /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
-           Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
-        anonId: draft.contact.anonId ?? '',
-        /* MÃ THIẾT BỊ — để cán bộ khoá đúng máy phá hoại khi đánh dấu tin rác.
-           Không gửi thì nút "Tin rác" chỉ đánh dấu được hồ sơ, báo "hồ sơ này
-           không có mã thiết bị nên không khoá được" — kẻ phá hoại gửi tiếp ngay. */
-        deviceId: layMaThietBi(),
-        isAnonymous: draft.contact.isAnonymous === true,
-        urgency: draft.urgency || 'normal',
-      }),
-    });
+    try {
+      return await apiFetch<FeedbackSubmission>('/api/submissions', {
+        method: 'POST',
+        body: JSON.stringify({
+          content,
+          normalizedContent: draft.analysis?.normalizedContent ?? content,
+          category: draft.category,
+          fullName,
+          phone: draft.contact.phone.trim(),
+          email: draft.contact.email.trim() || undefined,
+          images: await prepareImages(draft.images),
+          /* Tài liệu gửi thẳng dạng chuỗi — máy chủ kiểm an toàn bốn lớp trước
+             khi lưu (lib/tai-lieu-an-toan.js). Không qua kho ảnh vì kho ảnh chỉ
+             nhận ảnh, và tài liệu cần kiểm nội dung chứ không chỉ lưu trữ. */
+          taiLieu: draft.taiLieu ?? [],
+          /* Toạ độ nơi xảy ra vụ việc — người dân TỰ NGUYỆN bấm nút gửi.
+             Không bấm thì trường này rỗng, máy chủ bỏ qua. */
+          viTri: draft.viTri ?? null,
+          wardId: draft.contact.wardId ?? null,
+          /* Vé cổng vào (ADR-003 việc 23) — thay ô xác minh ở form */
+          veVaoCua: layVe(),
+          phieuMoForm,
+          otpToken: draft.contact.otpToken ?? '',
+          /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
+             Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
+          anonId: draft.contact.anonId ?? '',
+          /* MÃ THIẾT BỊ — để cán bộ khoá đúng máy phá hoại khi đánh dấu tin rác.
+             Đơn có tên thiếu mã thì máy chủ trả 400 (ADR-003 việc 5); đơn ẩn
+             danh thì máy chủ bỏ qua trường này (BUG-014). */
+          deviceId: layMaThietBi(),
+          isAnonymous: draft.contact.isAnonymous === true,
+          /* Không gửi mức khẩn: máy chủ tự đánh giá theo nội dung (ADR-003 việc 10) */
+        }),
+      });
+    } catch (e) {
+      /* Vé cổng vào hết hạn -> hiện lại màn hình xác minh; lời máy chủ (có 113) giữ nguyên */
+      if ((e as { code?: string })?.code === 'CAN_XAC_MINH') veHetHan();
+      /* Mất mạng, máy chủ sập, tải ảnh lỗi... -> câu cố định có 113, thay cho
+         "Failed to fetch". Lời giải thích của máy chủ thì giữ nguyên. */
+      console.error('[gửi ý kiến] thất bại:', e instanceof Error ? e.message : e);
+      throw loiGuiDeHieu(e);
+    }
   }
   // ============ CHẾ ĐỘ DEMO: lưu localStorage như cũ ============
 

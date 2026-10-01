@@ -216,20 +216,27 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
                  một biến boolean (req.query.chuaXem === '1'). Không có dữ liệu
                  người dùng nào lọt vào câu lệnh. */
               || /^chiChuaXem \? 'AND g\.acknowledged = FALSE' : ''$/.test(bieuThuc)
-              /* Phạm vi xem theo cấp độ bảo mật (BUG-009, lib/pham-vi-ho-so.js).
-                 phamVi.sql là MỆNH ĐỀ dựng từ hằng trong lib; giá trị duy nhất
-                 (mã cán bộ) đi qua dấu ? ở phamVi.params. capDoSql() / mucSql
-                 là biểu thức cột dựng từ hằng — tên cột và ba mức viết sẵn,
-                 bí danh bảng do route truyền hằng 's' hoặc ''. */
+              /* Phạm vi xem hồ sơ (ADR-003 §4, lib/pham-vi-ho-so.js).
+                 phamVi.sql là MỆNH ĐỀ dựng từ hằng trong lib; mọi giá trị đi
+                 qua dấu ? ở phamVi.params. coSql() là danh sách hai cột cờ
+                 viết sẵn, bí danh bảng do route truyền hằng 's' hoặc ''. */
               || bieuThuc === 'phamVi.sql'
-              || bieuThuc === 'mucSql'
-              || /^await capDoSql\('s?'\)$/.test(bieuThuc)
+              || /^await coSql\('s?'\)$/.test(bieuThuc)
+              /* ADR-003 việc 13: cột nhãn "Chưa xác minh" (tên cột cố định) và
+                 mệnh đề hằng "đang chờ sàng lọc" — đều định nghĩa ở lib/sang-loc.js */
+              || /^await sangLocSql\('s'\)$/.test(bieuThuc)
+              /* ADR-003 việc 22: cột đếm bổ sung chưa đọc (lib/bo-sung.js, hằng) */
+              || bieuThuc === 'await boSungSql()'
+              || bieuThuc === 'DANG_CHO_SANG_LOC'
               /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
                  toạ độ vụ việc đã tồn tại chưa (coCotToaDo, đọc từ
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa
                  có thì bỏ hẳn hai cột khỏi câu lệnh. Bản thân GIÁ TRỊ toạ độ
                  vẫn đi qua dấu ? ở mảng params. */
               || /^coCotToaDo \? '.*' : ''$/.test(bieuThuc)
+              /* Cờ tố giác mật trong câu INSERT (ADR-003 việc 12): chỉ thêm một
+                 tên cột / một dấu ? cố định khi CSDL đã có cột */
+              || /^coCotMat \? '(, to_giac_mat|, \?)' : ''$/.test(bieuThuc)
               /* admin/submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên
                  cột toạ độ vụ việc đã tồn tại chưa (coCotToaDoAd, đọc từ
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa

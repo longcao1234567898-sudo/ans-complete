@@ -105,7 +105,7 @@ function dungCsdl() {
     `CREATE TABLE report_messages (submission_id INT, sender_type TEXT, read_by_staff INT)`,
     `CREATE TABLE submissions (
        id INTEGER PRIMARY KEY, tracking_code TEXT, original_content TEXT, ai_processed_content TEXT,
-       category_id INT, ai_suggested_category_id INT, status TEXT, urgency TEXT, security_level TEXT DEFAULT 'thuong',
+       category_id INT, ai_suggested_category_id INT, status TEXT, urgency TEXT, security_level TEXT DEFAULT 'thuong', to_giac_mat INT NOT NULL DEFAULT 0, ngoai_tham_quyen INT NOT NULL DEFAULT 0,
        is_anonymous INT, is_flagged INT DEFAULT 0, flag_reason TEXT, is_verified_otp INT,
        sender_name TEXT, sender_phone TEXT, sender_phone_hash TEXT, sender_email TEXT,
        ip_address TEXT, user_agent TEXT, content_hash TEXT,

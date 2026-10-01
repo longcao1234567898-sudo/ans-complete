@@ -7,7 +7,11 @@
  *
  * Chỉ ảnh/font mới cache-first (chúng không đổi nội dung, lại nặng).
  */
-const CACHE = 'htans-v42'; // đổi tên -> xoá sạch cache cũ
+const CACHE = 'htans-v43'; // đổi tên -> xoá sạch cache cũ
+
+/* Trang dự phòng (ADR-003 việc 28): giữ sẵn ngay khi cài, để người đã từng vào
+   vẫn thấy số 113 và số trực ban khi mất mạng hoặc nơi chạy trang web sập. */
+const GIU_SAN = ['/du-phong.html', '/media/bg-tru-so-cong-an.webp'];
 
 /**
  * Chỉ lưu vào cache khi phản hồi ĐÚNG chuẩn 200 đầy đủ.
@@ -22,7 +26,10 @@ function coTheLuuCache(res) {
   return res && res.status === 200 && res.type !== 'opaque';
 }
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(GIU_SAN)).catch(() => {}));
+});
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -36,11 +43,14 @@ self.addEventListener('activate', (event) => {
          giao diện đời trước loé lên vài giây rồi mới nhảy sang bản mới —
          trông như lỗi, mà nội dung cũ có khi còn sai lệch.
 
-         Nay xoá TẤT CẢ khi kích hoạt. Cache sẽ tự dựng lại từ mạng, mất
-         thêm chút dung lượng lần đầu nhưng chắc chắn không còn sót bản cũ.
+         Nay xoá TẤT CẢ cache của các bản trước khi kích hoạt. Cache sẽ tự
+         dựng lại từ mạng, mất thêm chút dung lượng lần đầu nhưng chắc chắn
+         không còn sót bản cũ. Chỉ chừa cache MANG TÊN BẢN NÀY: nó vừa được
+         tạo lúc cài, chỉ chứa trang dự phòng (GIU_SAN) — không có gì cũ.
          ---------------------------------------------------------------- */
       const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
+      /* Giữ lại cache của chính bản này — trong đó có trang dự phòng vừa nạp lúc cài */
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
       await self.clients.claim(); // chiếm quyền ngay, không chờ tab đóng
     })()
   );
@@ -90,6 +100,8 @@ self.addEventListener('fetch', (event) => {
       .catch(() =>
         caches
           .match(request)
+          /* Trang (điều hướng) không lấy được: ưu tiên trang dự phòng có 113 */
+          .then((cached) => cached || (request.mode === 'navigate' ? caches.match('/du-phong.html') : undefined))
           .then((cached) => cached || caches.match('/index.html'))
           // BẮT BUỘC có nhánh cuối này: respondWith() ném TypeError "Failed to
           // convert value to 'Response'" nếu nhận undefined — và caches.match

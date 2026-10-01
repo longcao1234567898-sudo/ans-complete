@@ -9,9 +9,11 @@
  */
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
-import { layIpThat } from '../../lib/helpers.js';
+import { ghiNhatKy, ghiNhatKyTruoc } from '../../lib/helpers.js';
 import { pool } from '../../db.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
+import { laLanhDao } from '../../lib/vai-tro.js';
+import { coCotSangLoc } from '../../lib/sang-loc.js';
 
 const router = Router();
 
@@ -30,12 +32,23 @@ const GIU_NGAY = 7; // số ngày giữ trong thùng rác trước khi xoá hẳ
  */
 async function donRacQuaHan() {
   try {
-    const [r] = await pool.query(
-      `DELETE FROM submissions
-       WHERE deleted_at IS NOT NULL
-         AND deleted_at < NOW() - INTERVAL ? DAY`,
-      [GIU_NGAY]
-    );
+    /* Tin tố giác bị sàng lọc đánh "Tin giả" (giu_cho_lanh_dao = 1) KHÔNG tự
+       xoá: giữ tới khi lãnh đạo khôi phục hoặc xoá tay (ADR-003 việc 14) —
+       một lần bấm không được làm mất một tố giác thật. */
+    const [r] = (await coCotSangLoc())
+      ? await pool.query(
+        `DELETE FROM submissions
+         WHERE deleted_at IS NOT NULL
+           AND deleted_at < NOW() - INTERVAL ? DAY
+           AND giu_cho_lanh_dao = 0`,
+        [GIU_NGAY]
+      )
+      : await pool.query(
+        `DELETE FROM submissions
+         WHERE deleted_at IS NOT NULL
+           AND deleted_at < NOW() - INTERVAL ? DAY`,
+        [GIU_NGAY]
+      );
     if (r.affectedRows > 0) {
       console.log(`🗑️  Đã tự xoá vĩnh viễn ${r.affectedRows} tin quá ${GIU_NGAY} ngày trong thùng rác`);
     }
@@ -137,15 +150,13 @@ router.post('/:id/restore', async (req, res) => {
       [newStatus, req.params.id]
     );
 
-    // Ghi nhật ký
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        // req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh
-        [req.staff.id, 'trash_restore', 'submission', req.params.id,
-         'Khôi phục tin từ thùng rác', layIpThat(req)]
-      );
-    } catch { /* bỏ qua nếu chưa có bảng nhật ký */ }
+    /* Ghi nhật ký qua ghiNhatKy: cột details là JSON, ghi chuỗi trần thì MySQL
+       từ chối cả câu — lỗi bị nuốt, nhật ký mất dòng (trước đây vẫn thế).
+       req.staff LUÔN tồn tại (requireAuth ở router cha) -> ghi được đích danh. */
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'trash_restore', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+      chiTiet: { trangThaiMoi: newStatus },
+    });
 
     res.json({ ok: true, status: newStatus, message: 'Đã khôi phục tin báo.' });
   } catch (err) {
@@ -157,11 +168,25 @@ router.post('/:id/restore', async (req, res) => {
 /** DELETE /api/admin/trash/:id — xoá vĩnh viễn NGAY (không chờ hết 7 ngày) */
 router.delete('/:id', async (req, res) => {
   // Chỉ admin mới được xoá vĩnh viễn — tránh cán bộ thường xoá mất chứng cứ
-  if (req.staff.role !== 'admin') {
-    return res.status(403).json({ error: 'Chỉ quản trị viên mới được xoá vĩnh viễn.' });
+  if (!laLanhDao(req.staff)) {
+    return res.status(403).json({ error: 'Chỉ lãnh đạo mới được xoá vĩnh viễn.' });
   }
 
   try {
+    const [co] = await pool.query(
+      'SELECT tracking_code FROM submissions WHERE id = ? AND deleted_at IS NOT NULL',
+      [req.params.id]
+    );
+    if (co.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy tin trong thùng rác.' });
+    }
+    /* Xoá vĩnh viễn không hoàn tác được: ghi TRƯỚC, ghi không được thì không
+       xoá (ném lỗi -> 500 ở dưới). Ghi cả mã tra cứu — sau khi xoá, đó là thứ
+       duy nhất còn lại để đối chiếu với người dân hay hồ sơ giấy. */
+    await ghiNhatKyTruoc(pool, req, {
+      hanhDong: 'trash_purge', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
+      chiTiet: { maTraCuu: co[0].tracking_code },
+    });
     const [r] = await pool.query(
       'DELETE FROM submissions WHERE id = ? AND deleted_at IS NOT NULL',
       [req.params.id]
@@ -169,14 +194,6 @@ router.delete('/:id', async (req, res) => {
     if (r.affectedRows === 0) {
       return res.status(404).json({ error: 'Không tìm thấy tin trong thùng rác.' });
     }
-
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
-        [req.staff.id, 'trash_purge', 'submission', req.params.id,
-         'Xoá vĩnh viễn tin trong thùng rác', layIpThat(req)]
-      );
-    } catch { /* bỏ qua */ }
 
     res.json({ ok: true, message: 'Đã xoá vĩnh viễn.' });
   } catch (err) {
@@ -187,18 +204,17 @@ router.delete('/:id', async (req, res) => {
 
 /** DELETE /api/admin/trash — dọn sạch toàn bộ thùng rác (chỉ admin) */
 router.delete('/', async (req, res) => {
-  if (req.staff.role !== 'admin') {
-    return res.status(403).json({ error: 'Chỉ quản trị viên mới được dọn sạch thùng rác.' });
+  if (!laLanhDao(req.staff)) {
+    return res.status(403).json({ error: 'Chỉ lãnh đạo mới được dọn sạch thùng rác.' });
   }
   try {
+    /* Như xoá vĩnh viễn từng tin: ghi TRƯỚC, kèm danh sách mã tra cứu */
+    const [ds] = await pool.query('SELECT tracking_code FROM submissions WHERE deleted_at IS NOT NULL');
+    await ghiNhatKyTruoc(pool, req, {
+      hanhDong: 'trash_empty', loaiDoiTuong: 'submission',
+      chiTiet: { soTin: ds.length, maTraCuu: ds.slice(0, 100).map((d) => d.tracking_code) },
+    });
     const [r] = await pool.query('DELETE FROM submissions WHERE deleted_at IS NOT NULL');
-    try {
-      await pool.query(
-        'INSERT INTO staff_activity_logs (staff_id, action, target_type, details, ip_address) VALUES (?,?,?,?,?)',
-        [req.staff.id, 'trash_empty', 'submission',
-         `Dọn sạch thùng rác (${r.affectedRows} tin)`, layIpThat(req)]
-      );
-    } catch { /* bỏ qua */ }
     res.json({ ok: true, deleted: r.affectedRows });
   } catch (err) {
     console.error('Lỗi dọn thùng rác:', err.message);

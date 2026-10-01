@@ -8,12 +8,18 @@ import {
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
-import { xetTruocKhiNhan } from '../lib/chan-spam.js';
+import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
+import { danhGiaMucKhan } from '../lib/phan-loai.js';
+import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
+import { coCotCo } from '../lib/pham-vi-ho-so.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
-import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
+import { quaCongVao } from '../lib/cong-vao.js';
+import { capPhieuMoForm, danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
+import { xetDotBien } from '../lib/dot-bien.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
+import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 
 const router = Router();
 
@@ -79,7 +85,17 @@ router.get('/qr-points/:code', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/submissions/phieu-mo-form — phiếu có chữ ký ghi giờ mở form (ADR-003
+ * việc 24). Trang gửi ý kiến lấy khi mở; lúc gửi máy chủ tự đo thời gian điền.
+ */
+router.get('/phieu-mo-form', (_req, res) => {
+  res.json({ phieu: capPhieuMoForm() });
+});
+
 router.post('/', async (req, res) => {
+  /* Chỗ giữ cho các khoá đếm (lib/giu-cho-gui.js) — trả lại ở finally */
+  let giu = null;
   try {
     const body = req.body || {};
     const content = sanitizeText(body.content);
@@ -91,7 +107,10 @@ router.post('/', async (req, res) => {
     const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
     const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
     const isAnonymous = body.isAnonymous === true;
-    const urgency = ['normal','important','urgent'].includes(body.urgency) ? body.urgency : 'normal';
+    /* MỨC KHẨN DO HỆ THỐNG TỰ ĐÁNH GIÁ (ADR-003 việc 10). Trường urgency gửi
+       lên bị bỏ qua: chọn tay thì kẻ phá tự gắn "khẩn cấp" cho tin rác để chen
+       lên đầu hàng chờ của cán bộ. */
+    const urgency = danhGiaMucKhan(content).muc;
 
     const ip = layIpThat(req);
 
@@ -110,16 +129,11 @@ router.post('/', async (req, res) => {
        nhưng TUYỆT ĐỐI không ghi vào database. */
     const ipHash = hashIdentifier(ip).slice(0, 32);
 
-    // 0) CAPTCHA chống bot
-    const captcha = await verifyTurnstile(body.captchaToken, ip);
-    if (!captcha.ok) return res.status(400).json({ error: captcha.error });
-
-    // ẨN DANH: CAPTCHA là BẮT BUỘC (không cho bỏ qua như ý kiến có danh tính)
-    if (isAnonymous && turnstileEnabled() && !body.captchaToken) {
-      return res.status(400).json({
-        error: 'Gửi ẩn danh bắt buộc phải hoàn tất bước xác minh "Tôi không phải người máy".',
-      });
-    }
+    // 0) CỔNG VÀO: vé xác minh "không phải người máy" (ADR-003 việc 23).
+    //    Mọi tin, có danh tính lẫn ẩn danh. Kiểm ở máy chủ: máy tự động gọi
+    //    thẳng API, không đi qua màn hình xác minh.
+    const cong = await quaCongVao(body, ip);
+    if (!cong.ok) return res.status(403).json({ error: cong.error, code: cong.code });
 
     // 1) Ràng buộc cơ bản
     if (!content) return res.status(400).json({ error: 'Nội dung ý kiến không được để trống.' });
@@ -168,12 +182,28 @@ router.post('/', async (req, res) => {
           error:
             'Hệ thống tạm thời không tiếp nhận ý kiến có thông tin liên hệ do sự cố kỹ thuật về bảo mật. '
             + 'Nếu việc gấp, bà con có thể gửi TỐ GIÁC ẨN DANH (vẫn hoạt động bình thường) '
-            + 'hoặc gọi trực tiếp số trực ban. Mong bà con thông cảm.',
+            + 'hoặc gọi ngay 113 nếu vấn đề khẩn cấp. Mong bà con thông cảm.',
           code: 'ENCRYPTION_UNAVAILABLE',
         });
       }
 
       if (!fullName) return res.status(400).json({ error: 'Vui lòng nhập họ và tên.' });
+
+      /* MÃ THIẾT BỊ BẮT BUỘC (ADR-003 §6). Nút "Tin rác" khoá đúng máy đã gửi
+         bằng mã này; đơn có tên mà không có mã thì không khoá được gì, một đoạn
+         mã tự động chỉ cần bỏ trường deviceId là gửi tiếp mãi. Giao diện luôn
+         gửi mã (kể cả khi trình duyệt chặn bộ nhớ), nên chỉ yêu cầu dựng tay mới
+         thiếu. Đánh đổi đã biết: mã do trình duyệt tự sinh, kẻ cố tình vẫn bịa
+         được mã mới cho mỗi lần gửi — lớp này chỉ đóng đường "không có gì để
+         khoá"; giới hạn theo mạng và số điện thoại vẫn là lớp chặn chính.
+         Đơn ẩn danh không đi qua đây: không đọc mã máy của đơn ẩn danh (BUG-014). */
+      if (!layMaThietBi(req)) {
+        return res.status(400).json({
+          error: 'Gửi thất bại: trình duyệt chưa cấp được mã thiết bị. Bà con vui lòng tải lại trang '
+            + 'rồi gửi lại, hoặc dùng trình duyệt khác. Vấn đề khẩn cấp xin liên hệ ngay 113.',
+          code: 'THIEU_MA_THIET_BI',
+        });
+      }
 
       /* --------------------------------------------------------------------
          XÁC THỰC EMAIL — TẠM TẮT
@@ -228,6 +258,18 @@ router.post('/', async (req, res) => {
     // 4) Chống spam — dò theo IP và BĂM SĐT (số thật đã mã hoá nên không so trực tiếp được)
     const contentHash = sha256(normalizedContent);
     const phoneHash = isAnonymous ? null : hashPhone(phone);
+
+    /* GIỮ CHỖ TRƯỚC KHI ĐẾM (luật 6, ADR-003 việc 1). Mọi phép đếm bên dưới
+       và câu INSERT chạy trong lúc giữ chỗ, nên hai yêu cầu cùng mạng, cùng số
+       điện thoại hay cùng nội dung không thể cùng đếm "chưa đủ" rồi cùng ghi. */
+    giu = await giuCho(pool, khoaCuaLanGui({ ipHash, phoneHash, contentHash }));
+    if (!giu.ok) {
+      return res.status(429).json({
+        error: 'Hệ thống đang nhận một ý kiến khác gửi từ cùng thiết bị hoặc cùng mạng. '
+          + 'Bà con vui lòng chờ vài giây rồi bấm gửi lại. Việc khẩn cấp xin gọi ngay 113.',
+      });
+    }
+
     const [spam] = await pool.query(
       `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at,
               EXISTS(SELECT 1 FROM submissions WHERE content_hash=? AND created_at > NOW()-INTERVAL 1 HOUR) AS dup
@@ -311,6 +353,7 @@ router.post('/', async (req, res) => {
        thường, gửi mãi chẳng ai xử lý rồi mất hứng.
        --------------------------------------------------------------------- */
     const { chanNgam, deviceId } = await xetTruocKhiNhan(pool, req);
+    const thoiGianDien = danhGiaThoiGianDien(body.phieuMoForm);
 
     /* ---------------------------------------------------------------------
        6c) SINH MÃ PIN VÀO PHÒNG CHAT
@@ -350,6 +393,12 @@ router.post('/', async (req, res) => {
        để máy chủ chưa nâng cấp database vẫn nhận được ý kiến bình thường —
        chỉ là không lưu toạ độ. Thà thiếu toạ độ còn hơn chặn cả việc gửi tin. */
     const coCotToaDo = await kiemCotToaDo();
+    /* TIN TỐ GIÁC MẬT (ADR-003 việc 12): tố cáo cán bộ, người nhà nước thì gắn
+       cờ NGAY TRONG câu INSERT — không UPDATE sau: giữa hai câu có một khoảng
+       cán bộ thấy được tin, và UPDATE lỗi thì tin nằm lại luồng thường. Chưa
+       có cột (chưa chạy v26) thì cán bộ vốn không thấy hồ sơ nào (fail-safe). */
+    const coCotMat = await coCotCo();
+    const toGiacMat = nhanDienToGiacMat(content).mat;
 
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
@@ -357,8 +406,8 @@ router.post('/', async (req, res) => {
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
-        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''})
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''})`,
+        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''}${coCotMat ? ', to_giac_mat' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''}${coCotMat ? ', ?' : ''})`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -384,8 +433,11 @@ router.post('/', async (req, res) => {
         isAnonymous,
         urgency,
         // Cờ nghi gửi hàng loạt (lớp chống trùng gần đúng phát hiện)
-        trungLap.danhDau ? 1 : 0,
-        trungLap.ghiChu || null,
+        /* Cờ: nghi gửi hàng loạt (chống trùng gần đúng) HOẶC nghi máy tự động
+           (thời gian điền đơn do máy chủ đo — ADR-003 việc 24). Chỉ gắn cờ,
+           không từ chối; cán bộ thấy lý do ở trang chi tiết. */
+        trungLap.danhDau || thoiGianDien.nghiMay ? 1 : 0,
+        [trungLap.ghiChu, thoiGianDien.ghiChu].filter(Boolean).join(' · ') || null,
         // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat.
         // Đơn ẩn danh KHÔNG mang mã máy (BUG-017, SEC-DEC-008 M-B): xetTruocKhiNhan
         // đã không đọc nó; chặn thêm ở đây vì đây là chỗ GHI vào CSDL.
@@ -395,8 +447,16 @@ router.post('/', async (req, res) => {
         /* Toạ độ chỉ thêm vào khi database đã có cột — thứ tự phải khớp với
            phần dựng câu lệnh ở trên. */
         ...(coCotToaDo ? [viTriLat, viTriLng] : []),
+        ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
       ]
     );
+
+    /* Đã ghi xong: trả chỗ ngay, không giữ trong lúc lưu ảnh và tài liệu */
+    await giu.nha();
+
+    /* Đột biến số đơn theo địa bàn (ADR-003 việc 25) — chỉ cảnh báo, không
+       chặn; hàm không ném lỗi nên không làm hỏng việc nhận tin */
+    await xetDotBien(pool, wardId);
 
     // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
     // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không
@@ -527,7 +587,11 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     console.error('Lỗi gửi ý kiến:', err);
-    res.status(500).json({ error: 'Lỗi máy chủ khi gửi ý kiến.' });
+    /* Cùng câu với giao diện (src/utils/loiGui.ts): gửi hỏng thì việc gấp
+       phải biết gọi 113 ngay, không chờ "thử lại sau" (ADR-003 việc 7) */
+    res.status(500).json({ error: 'Gửi thất bại — Vấn đề khẩn cấp liên hệ ngay 113 để được giải quyết.' });
+  } finally {
+    if (giu) await giu.nha();
   }
 });
 

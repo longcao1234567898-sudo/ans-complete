@@ -1,10 +1,11 @@
 /** Xác thực cán bộ: đăng nhập, làm mới token, đăng xuất, xem thông tin bản thân */
 import { Router } from 'express';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, ghiNhatKy } from '../lib/helpers.js';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
+import { quaCongVao } from '../lib/cong-vao.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
   signAccessToken, generateRefreshToken, hashRefreshToken,
@@ -91,6 +92,14 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   try {
     const ip = (layIpThat(req) || '').trim();
+
+    /* CỔNG VÀO (ADR-003 việc 23): vé xác minh "không phải người máy" lấy khi
+       vào trang. Kiểm TRƯỚC khi đụng tới tài khoản — máy dò mật khẩu gọi thẳng
+       API thì dừng ở đây, không tốn một lần so bcrypt nào. Ô xác minh sau
+       nhiều lần sai (bên dưới) vẫn giữ: vé sống vài giờ, dò mật khẩu cần chặn
+       riêng theo tài khoản. */
+    const cong = await quaCongVao(req.body, ip);
+    if (!cong.ok) return res.status(403).json({ error: cong.error, code: cong.code });
 
     /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
        được khi database chưa nâng cấp v9 — không làm sập đăng nhập. */
@@ -224,7 +233,16 @@ router.post('/logout', async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (raw) {
     try {
-      await pool.query('UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = ?', [hashRefreshToken(raw)]);
+      const bam = hashRefreshToken(raw);
+      /* Đăng xuất không đi qua requireAuth (mã truy cập có thể đã hết hạn) —
+         biết là ai nhờ phiên đăng nhập còn sống trong refresh_tokens */
+      const [phien] = await pool.query(
+        'SELECT staff_id FROM refresh_tokens WHERE token_hash = ? AND revoked = FALSE', [bam]
+      );
+      await pool.query('UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = ?', [bam]);
+      if (phien.length > 0) {
+        await ghiNhatKy(pool, req, { hanhDong: 'logout', staffId: phien[0].staff_id });
+      }
     } catch { /* bỏ qua */ }
   }
   res.clearCookie('refreshToken', { path: '/api/auth' });

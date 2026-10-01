@@ -6,7 +6,8 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
 import { authorize } from '../../middleware/authorize.js';
-import { ghiNhatKy } from '../../lib/helpers.js';
+import { LANH_DAO } from '../../lib/vai-tro.js';
+import { ghiNhatKy, ghiNhatKyTruoc } from '../../lib/helpers.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
@@ -26,7 +27,7 @@ const router = Router();
    dòng nội dung, hay /summary cho thấy hiệu suất từng cán bộ. */
 router.get('/map', banDoDiemNong);
 
-router.use(authorize('admin', 'manager'));
+router.use(authorize(...LANH_DAO));
 
 /** GET /api/admin/reports/summary?from=&to= — số liệu tổng hợp để xem + xuất Excel */
 router.get('/summary', async (req, res) => {
@@ -199,9 +200,9 @@ router.get('/details', async (req, res) => {
     const from = req.query.from || '2000-01-01';
     const to = req.query.to || '2100-01-01';
 
-    /* Chỉ lãnh đạo mới tới được đây, nhưng lãnh đạo chưa chắc được đọc hồ sơ
-       Mật: manager chỉ đọc hồ sơ Mật Trưởng giao cho mình (BUG-009). Tệp xuất
-       là đường rò lớn nhất — phải cùng phạm vi với trang chi tiết. */
+    /* Chỉ lãnh đạo mới tới được đây, và lãnh đạo xem được mọi hồ sơ (ADR-003
+       §1). Vẫn AND điều kiện phạm vi: tệp xuất là đường rò lớn nhất — phải
+       cùng phạm vi với trang chi tiết dù chính sách đổi thế nào (BUG-009). */
     const phamVi = await dieuKienXem(req.staff);
     const [rows] = await pool.query(
       `SELECT s.tracking_code, s.status, s.is_anonymous, s.created_at, s.deadline_at,
@@ -227,6 +228,14 @@ router.get('/details', async (req, res) => {
       rejected: 'Từ chối',
     };
 
+    /* Nhật ký TRƯỚC khi trả (ADR-003 việc 9): một lần tải mang gần như toàn bộ
+       dữ liệu nghiệp vụ ra ngoài. Ghi không được thì không xuất — trước đây ghi
+       SAU khi đã trả, lỗi ghi thì dữ liệu đã ra mà không có dấu vết. */
+    await ghiNhatKyTruoc(pool, req, {
+      hanhDong: 'export_data',
+      chiTiet: { tuNgay: req.query.from || null, denNgay: req.query.to || null, soDong: rows.length },
+    });
+
     res.json(
       rows.map((r) => ({
         trackingCode: r.tracking_code,
@@ -242,13 +251,6 @@ router.get('/details', async (req, res) => {
           ? new Date(r.deadline_at) < new Date() : false,
       }))
     );
-    /* Nhật ký: đây là điểm rò rỉ lớn nhất — một lần tải mang gần như toàn bộ
-       dữ liệu nghiệp vụ ra ngoài. Ghi lại ai xuất, khoảng thời gian nào, bao
-       nhiêu dòng. Với dữ liệu nhà nước, "ai đã mang gì ra ngoài" là bắt buộc. */
-    ghiNhatKy(pool, req, {
-      hanhDong: 'export_data',
-      chiTiet: { tuNgay: req.query.from || null, denNgay: req.query.to || null, soDong: rows.length },
-    });
   } catch (err) {
     console.error('Lỗi báo cáo chi tiết:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ khi tải danh sách chi tiết.' });

@@ -11,7 +11,6 @@ import Input from '../common/Input';
 import Button from '../common/Button';
 import { BAT_XAC_THUC_EMAIL } from '../../utils/constants';
 import { getPhoneError, isValidEmail, isValidPhone } from '../../utils/helpers';
-import Turnstile, { captchaEnabled } from '../common/Turnstile';
 import { fetchWards, sendOtp, verifyOtp, requestAnonCode, verifyAnonCode } from '../../services/feedbackService';
 
 interface ContactInfoProps {
@@ -109,7 +108,6 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
       ? 'Email không đúng định dạng'
       : '';
 
-  const captchaOk = !captchaEnabled || Boolean(value.captchaToken);
 
   // ẨN DANH chỉ dành cho TỐ GIÁC TỘI PHẠM — nơi nỗi sợ bị trả thù là có thật.
   // Các nhóm khác (khiếu nại, phản ánh, đề xuất) cần danh tính để cán bộ phản hồi.
@@ -215,7 +213,6 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
       conThieu.push('Email nhập chưa đúng dạng (hoặc bỏ trống cũng được)');
     }
   }
-  if (!captchaOk) conThieu.push('Chưa qua bước xác minh "Tôi không phải là người máy"');
 
   const handleNext = () => {
     if (conThieu.length === 0) {
@@ -476,13 +473,8 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
         </p>
       )}
 
-      {/* V2: CAPTCHA chống bot (tự ẩn nếu chưa cấu hình) */}
-      <Turnstile onToken={(t) => onChange({ ...value, captchaToken: t })} />
-      {attempted && !captchaOk && (
-        <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
-          {t('ci.vuiLongHoanTat')}
-        </p>
-      )}
+      {/* Ô xác minh "không phải người máy" đã chuyển ra cổng vào web
+          (ADR-003 việc 23, components/common/CongVao.tsx); máy chủ kiểm vé. */}
 
       <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />

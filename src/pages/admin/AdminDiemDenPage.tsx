@@ -13,6 +13,7 @@ import { useAdminAuth } from '../../hooks/useAdminAuth';
 import {
   fetchDiemDenQuanTri, luuDiemDen, doiHienDiemDen, type DiemDenQuanTri,
 } from '../../services/adminService';
+import { laLanhDao as laVaiTroLanhDao } from '../../utils/vaiTro';
 
 const MUC = [
   { ma: 'cao', ten: 'Rất nguy hiểm', mau: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
@@ -37,7 +38,7 @@ const TRONG: Form = {
 export default function AdminDiemDenPage() {
   const qc = useQueryClient();
   const { staff } = useAdminAuth();
-  const laLanhDao = staff?.role === 'admin' || staff?.role === 'manager';
+  const laLanhDao = laVaiTroLanhDao(staff?.role);
 
   const [form, setForm] = useState<Form | null>(null);
   const [thongBao, setThongBao] = useState('');

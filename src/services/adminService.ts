@@ -3,6 +3,7 @@
  * Refresh token do backend quản lý qua httpOnly cookie.
  */
 import { hasBackend } from './api';
+import { layVe, veHetHan } from '../utils/veVaoCua';
 
 const API_URL = (
   (import.meta.env.VITE_ADMIN_API_URL as string | undefined)?.trim() ||
@@ -93,12 +94,15 @@ export async function login(
   const res = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, captchaToken }),
+    /* veVaoCua: vé cổng vào (ADR-003 việc 23). captchaToken chỉ còn dùng khi
+       máy chủ đòi xác minh thêm sau nhiều lần đăng nhập sai. */
+    body: JSON.stringify({ username, password, captchaToken, veVaoCua: layVe() }),
     credentials: 'include',
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const d = data as { error?: string; canCaptcha?: boolean };
+    const d = data as { error?: string; canCaptcha?: boolean; code?: string };
+    if (d?.code === 'CAN_XAC_MINH') veHetHan();
     throw new LoginError(d?.error || 'Đăng nhập thất bại.', Boolean(d?.canCaptcha));
   }
   const { accessToken, staff } = data as { accessToken: string; staff: StaffInfo };
@@ -193,14 +197,33 @@ export interface DashboardStats {
 
 export const fetchDashboardStats = () => adminFetch<DashboardStats>('/api/admin/dashboard/stats');
 
+/** Cảnh báo số đơn đột biến theo địa bàn trong 24 giờ (ADR-003 việc 25) */
+export interface CanhBaoDotBien {
+  id: number;
+  ward_id: number;
+  ward_name: string | null;
+  so_tin: number;
+  nguong: number;
+  created_at: string;
+  tin: { id: number; tracking_code: string; status: string; urgency: string; created_at: string; xem_truoc: string }[];
+}
+export const fetchCanhBaoDotBien = () =>
+  adminFetch<{ data: CanhBaoDotBien[] }>('/api/admin/dashboard/canh-bao-dot-bien').then((r) => r.data);
+
 export interface SubmissionRow {
   /** Số tin nhắn người dân gửi mà cán bộ chưa đọc — dùng hiện chấm đỏ */
   tin_chua_doc?: number;
+  /** Số lần người dân bổ sung mà chưa cán bộ nào mở hồ sơ (ADR-003 việc 22) */
+  bo_sung_chua_doc?: number;
   id: number;
   tracking_code: string;
   urgency?: 'normal' | 'important' | 'urgent';
-  /** Cấp độ bảo mật (v14): thuong/can_bao_ve/mat. Mặc định 'thuong' nếu chưa nâng cấp DB */
-  security_level?: 'thuong' | 'can_bao_ve' | 'mat';
+  /** Tin tố cáo cán bộ / người nhà nước — chỉ lãnh đạo thấy (ADR-003, nang_cap_v26.sql) */
+  to_giac_mat?: number;
+  /** Tin bị đánh dấu ngoài thẩm quyền — chỉ lãnh đạo thấy */
+  ngoai_tham_quyen?: number;
+  /** Lúc sàng lọc bấm "Chưa xác minh" (null = chưa bấm) — ADR-003 việc 14 */
+  chua_xac_minh_luc?: string | null;
   original_content: string;
   ai_processed_content: string | null;
   category_code: string | null;
@@ -228,7 +251,11 @@ export interface SubmissionListResult {
   totalPages: number;
 }
 
+/** Các phần danh sách (ADR-003): định nghĩa ở server/src/lib/sang-loc.js */
+export type PhanDanhSach = 'sang_loc' | 'xu_ly' | 'to_giac' | 'to_giac_mat' | 'ngoai_tham_quyen';
+
 export function fetchSubmissions(params: {
+  phan?: PhanDanhSach;
   status?: string; category?: string; urgency?: string; sla?: string; assigned?: string;
   /** '1' = chỉ xem tin đã bị đánh dấu rác, để soát xem có chặn oan ai không */
   nghiRac?: string;
@@ -244,7 +271,37 @@ export function fetchSubmissions(params: {
   return adminFetch<SubmissionListResult>(`/api/admin/submissions${s ? '?' + s : ''}`);
 }
 
+export interface GhiChuNoiBo {
+  id: number;
+  noi_dung: string;
+  created_at: string;
+  staff_name: string | null;
+}
+
+export interface BoSungCuaDan {
+  id: number;
+  thu_tu: number;
+  noi_dung: string;
+  created_at: string;
+  da_doc_luc: string | null;
+  anh: { image_url: string; mime_type: string; moderation_status: string }[];
+}
+
 export interface SubmissionDetail extends SubmissionRow {
+  /** Các lần người dân bổ sung (ADR-003 việc 21) */
+  bo_sung?: BoSungCuaDan[];
+  /** Lúc tin vào thùng rác (null = không ở thùng rác) */
+  deleted_at?: string | null;
+  /** Tin đang ở hàng sàng lọc -> hiện bốn nút sàng lọc (máy chủ vẫn kiểm lại) */
+  dang_cho_sang_loc?: boolean;
+  /** Ghi chú nội bộ, cũ trước mới sau — người dân không thấy */
+  ghi_chu?: GhiChuNoiBo[];
+  /** Cặp chức danh + hành vi khiến tin vào phần tố giác mật (chỉ lãnh đạo nhận được) */
+  to_giac_mat_nhan_dien?: string[];
+  /** Lý do gắn cờ: nghi gửi hàng loạt, nghi máy tự động (ADR-003 việc 24) */
+  flag_reason?: string | null;
+  /** Vì sao hệ thống xếp mức khẩn (ADR-003 việc 10) */
+  muc_khan?: { muc: string; lyDo: string; tuKhoa: string[] };
   /** Hồ sơ có mã thiết bị hay không (false với đơn gửi trước khi có tính năng chặn
       spam). Máy chủ KHÔNG trả giá trị mã: hai hồ sơ cùng mã là hai đơn cùng một máy,
       đủ để nối đơn ẩn danh với đơn có tên (BUG-014). */
@@ -293,13 +350,6 @@ export const assignSubmission = (id: number, staffId: number | null) =>
   adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/assign`, {
     method: 'PATCH',
     body: JSON.stringify({ staffId }),
-  });
-
-/** Đổi cấp độ bảo mật của một ý kiến (chỉ admin/manager). */
-export const setSecurityLevel = (id: number, level: 'thuong' | 'can_bao_ve' | 'mat') =>
-  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/security-level`, {
-    method: 'PATCH',
-    body: JSON.stringify({ level }),
   });
 
 /** Xem danh tính đầy đủ — LƯU Ý: mỗi lần xem đều bị ghi nhật ký */
@@ -399,6 +449,7 @@ export const fetchMapData = (ngay = 30): Promise<WardPoint[]> =>
 
 export interface ActivityLog {
   id: number;
+  staff_id: number | null;
   action: string;
   target_type: string | null;
   target_id: number | null;
@@ -408,6 +459,11 @@ export interface ActivityLog {
   staff_name: string | null;
   staff_role: string | null;
   tracking_code: string | null;
+  /* Nhãn do máy chủ gắn theo lib/danh-muc-nhat-ky.js */
+  ten_hanh_dong: string;
+  nhom: string;
+  ten_nhom: string;
+  nhay_cam: boolean;
 }
 
 export interface LogsResult {
@@ -418,6 +474,44 @@ export interface LogsResult {
   totalPages: number;
   revealCount30d: number;
 }
+
+/** Bộ lọc nhật ký — mọi giá trị máy chủ kiểm lại bằng allow-list */
+export interface BoLocNhatKy {
+  nhom?: string;
+  action?: string;
+  staffId?: number;
+  tu?: string;   // YYYY-MM-DD
+  den?: string;  // YYYY-MM-DD
+}
+
+export interface NhomNhatKy {
+  ma: string;
+  ten: string;
+  nhayCam: boolean;
+  hanhDong: { ma: string; ten: string }[];
+}
+
+export interface ThongKeNhatKy {
+  tu: string;
+  den: string;
+  theoNgay: { ngay: string; tong: number; nhayCam: number; theoNhom: Record<string, number> }[];
+  theoCanBo: { staffId: number | null; ten: string; vaiTro: string | null; tong: number; nhayCam: number }[];
+}
+
+export interface XuatNhatKy {
+  tu: string;
+  den: string;
+  catBot: boolean;
+  toiDa: number;
+  data: ActivityLog[];
+}
+
+const chuoiLoc = (b: BoLocNhatKy & { page?: number; limit?: number }) => {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(b)) if (v !== undefined && v !== '' && v !== null) p.set(k, String(v));
+  const qs = p.toString();
+  return qs ? `?${qs}` : '';
+};
 
 /** Nhật ký hệ thống (chỉ admin/manager) */
 /* ---------- QUẢN LÝ TIN TỨC ---------- */
@@ -525,14 +619,20 @@ export const xuLyKhieuNai = (id: number, quyetDinh: 'go_khoa' | 'tu_choi', ghiCh
     body: JSON.stringify({ quyetDinh, ghiChu: ghiChu || '' }),
   });
 
-export const fetchLogs = (params: { action?: string; page?: number; limit?: number }): Promise<LogsResult> => {
-  const p = new URLSearchParams();
-  if (params.action) p.set('action', params.action);
-  if (params.page) p.set('page', String(params.page));
-  if (params.limit) p.set('limit', String(params.limit));
-  const qs = p.toString();
-  return adminFetch<LogsResult>(`/api/admin/logs${qs ? '?' + qs : ''}`);
-};
+export const fetchLogs = (params: BoLocNhatKy & { page?: number; limit?: number }): Promise<LogsResult> =>
+  adminFetch<LogsResult>(`/api/admin/logs${chuoiLoc(params)}`);
+
+/** Nhóm và nhãn hành động — một nguồn với máy chủ */
+export const fetchDanhMucNhatKy = (): Promise<NhomNhatKy[]> =>
+  adminFetch<NhomNhatKy[]>('/api/admin/logs/danh-muc');
+
+/** Thống kê theo ngày (mặc định 30 ngày, tối đa 92) */
+export const fetchThongKeNhatKy = (b: { tu?: string; den?: string }): Promise<ThongKeNhatKy> =>
+  adminFetch<ThongKeNhatKy>(`/api/admin/logs/thong-ke${chuoiLoc(b)}`);
+
+/** Lấy dữ liệu để xuất Excel — máy chủ ghi một dòng export_logs trước khi trả */
+export const xuatNhatKy = (b: BoLocNhatKy): Promise<XuatNhatKy> =>
+  adminFetch<XuatNhatKy>(`/api/admin/logs/xuat${chuoiLoc(b)}`);
 
 
 /* ============================================================
@@ -620,7 +720,35 @@ export interface ThanhVienNhomSuKien {
   is_anonymous: boolean;
   created_at: string;
   preview: string;
+  urgency?: 'normal' | 'important' | 'urgent';
+  assigned_name?: string | null;
+  /** Đang chờ sàng lọc -> chọn được để xác nhận / đánh tin giả hàng loạt */
+  dang_cho_sang_loc?: boolean;
 }
+
+/** Một hàng trong danh mục Tin trùng (ADR-003 việc 18, 19) */
+export interface NhomTinTrung {
+  id: number;
+  so_tin: number;
+  dau: string;
+  cuoi: string;
+  ward_name: string | null;
+  category_name: string | null;
+  xem_truoc: string;
+  /** Có hai tin giống nhau gần từng chữ — nghi một người gửi lặp */
+  gan_nhu_giong: boolean;
+}
+
+export const fetchTinTrung = (phan: 'sang_loc' | 'xu_ly' | 'to_giac') =>
+  adminFetch<{ data: NhomTinTrung[] }>(`/api/admin/submissions/tin-trung?phan=${phan}`).then((r) => r.data);
+
+/** Xác nhận / đánh tin giả hàng loạt — máy chủ xử lý và ghi nhật ký từng tin */
+export const sangLocHangLoat = (ids: number[], hanhDong: 'xac_nhan' | 'tin_gia', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; soXong: number; message: string;
+    ketQua: { id: number; status: number; message: string }[] }>('/api/admin/submissions/sang-loc-hang-loat', {
+    method: 'POST',
+    body: JSON.stringify({ ids, hanhDong, ghiChu: ghiChu || '' }),
+  });
 
 export const fetchIncidentGroups = (chuaXem = false) =>
   adminFetch<{ data: NhomSuKien[] }>(`/api/admin/incident-groups${chuaXem ? '?chuaXem=1' : ''}`).then((r) => r.data);
@@ -676,6 +804,43 @@ export const fetchBlacklist = (): Promise<BlacklistItem[]> =>
 
 export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
   adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
+
+/** Bốn nút sàng lọc (ADR-003 việc 14). Tin giả bắt buộc ghiChu (lý do). */
+export const sangLoc = (id: number, hanhDong: 'xac_nhan' | 'chua_xac_minh' | 'tin_gia' | 'ngoai_tham_quyen', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/sang-loc`, {
+    method: 'POST',
+    body: JSON.stringify({ hanhDong, ghiChu: ghiChu || '' }),
+  });
+
+/** Nút của lãnh đạo ở phần Ngoài thẩm quyền (ADR-003 việc 15) */
+export const xuLyNgoaiThamQuyen = (id: number, hanhDong: 'chuyen_lai' | 'xoa' | 'da_chuyen', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/ngoai-tham-quyen`, {
+    method: 'POST',
+    body: JSON.stringify({ hanhDong, ghiChu: ghiChu || '' }),
+  });
+
+/** Dữ liệu xuất Excel phần Ngoài thẩm quyền — máy chủ ghi nhật ký trước khi trả */
+export const xuatNgoaiThamQuyen = () =>
+  adminFetch<{ trackingCode: string; content: string; category: string; ward: string;
+    status: string; sender: string; createdAt: string }[]>('/api/admin/submissions/ngoai-tham-quyen/xuat');
+
+/** Thêm ghi chú nội bộ (chỉ ghi thêm, không sửa xoá) — ADR-003 việc 16 */
+export const themGhiChuNoiBo = (id: number, noiDung: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/ghi-chu`, {
+    method: 'POST',
+    body: JSON.stringify({ noiDung }),
+  });
+
+/** Chuyển tin vào phần Tin tố giác mật — mọi cán bộ; một chiều (ADR-003 việc 12) */
+export const chuyenVaoToGiacMat = (id: number, lyDo?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/to-giac-mat`, {
+    method: 'POST',
+    body: JSON.stringify({ lyDo: lyDo || '' }),
+  });
+
+/** Đưa tin ra khỏi phần Tin tố giác mật — chỉ lãnh đạo */
+export const duaRaToGiacMat = (id: number) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/to-giac-mat`, { method: 'DELETE' });
 
 /** Đánh dấu tin rác + khoá thiết bị đã gửi (24 giờ) */
 export const markSpam = (id: number, reason?: string): Promise<{

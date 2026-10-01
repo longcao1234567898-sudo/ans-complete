@@ -104,6 +104,20 @@ export async function layTinNhan(code: string): Promise<{
   });
 }
 
+/**
+ * Bổ sung thông tin cho tin đã gửi, trong 72 giờ (ADR-003 việc 21). Dùng vé
+ * phòng trao đổi (đã nhập mã PIN). Ảnh là data URL đã nén lại ở trình duyệt —
+ * máy chủ vẫn kiểm lại như lúc gửi.
+ */
+export async function guiBoSung(code: string, noiDung: string, images: string[]): Promise<{ message: string }> {
+  const ve = layVeChat(code);
+  return apiFetch('/api/chat/bo-sung', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ve}` },
+    body: JSON.stringify({ noiDung, images }),
+  });
+}
+
 /** Gửi một tin nhắn */
 export async function guiTinNhan(code: string, message: string): Promise<void> {
   const ve = layVeChat(code);

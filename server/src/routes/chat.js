@@ -32,8 +32,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { sanitizeText } from '../lib/security.js';
+import { sanitizeText, scanTextForThreats } from '../lib/security.js';
 import { containsProfanity } from '../lib/security.js';
+import { locDanhSachAnh } from '../lib/anh-an-toan.js';
+import {
+  GIO_BO_SUNG, SO_LAN_BO_SUNG_TOI_DA, TRANG_THAI_NHAN_BO_SUNG, coBangBoSung,
+} from '../lib/bo-sung.js';
 
 const router = Router();
 
@@ -253,6 +257,131 @@ router.post('/messages', gioiHanGuiTin, async (req, res) => {
   } catch (err) {
     console.error('Gửi tin nhắn lỗi:', err.message);
     res.status(500).json({ error: 'Không gửi được tin nhắn.' });
+  }
+});
+
+/* ==========================================================================
+   BỔ SUNG THÔNG TIN TRONG 72 GIỜ (ADR-003 việc 21)
+
+   Người dân bổ sung nội dung, ảnh cho tin đã gửi. Vào bằng VÉ PHÒNG TRAO ĐỔI
+   (mã tra cứu + mã PIN), không chỉ mã tra cứu: người lấy được mã tra cứu — có
+   thể chính là người bị tố giác — không được thêm thông tin giả vào hồ sơ.
+
+   · Lưu RIÊNG, ghi giờ; nội dung gốc không đổi.
+   · Ảnh qua đúng lớp kiểm tra lúc gửi (lib/anh-an-toan.js).
+   · 72 giờ tính từ lúc gửi, máy chủ tự tính bằng giờ CSDL — không tin giờ máy
+     người dùng.
+   · Số lần có giới hạn, đếm ATOMIC (luật 6): mỗi lần giữ một "thứ tự" riêng,
+     khoá duy nhất (submission_id, thu_tu). Hai yêu cầu cùng lúc giành cùng
+     một thứ tự thì CSDL chỉ cho một câu thành công; thứ tự không bao giờ vượt
+     SO_LAN_BO_SUNG_TOI_DA nên số dòng cũng không vượt.
+   ========================================================================== */
+const DAI_BO_SUNG_TOI_THIEU = 10;
+const DAI_BO_SUNG_TOI_DA = 2000;
+
+/* Không thêm giới hạn theo IP ở đây: vé không giả được (ký bằng JWT_SECRET),
+   dò PIN đã bị chặn ở /open, và mỗi tin bị chặn cứng ở SO_LAN_BO_SUNG_TOI_DA
+   lần × 3 ảnh bằng phép đếm atomic — tổng dữ liệu một vé đẩy vào là có trần.
+   Giới hạn theo IP chỉ thêm chặn oan nhiều người chung mạng 4G (CGNAT). */
+
+const trungKhoa = (e) => e?.code === 'ER_DUP_ENTRY' || e?.errno === 1062;
+const thieuBang = (e) => e?.code === 'ER_NO_SUCH_TABLE' || e?.errno === 1146
+  || /no such table|doesn't exist|Unknown column|no such column/i.test(String(e?.message || ''));
+
+router.post('/bo-sung', async (req, res) => {
+  let submissionId;
+  try {
+    submissionId = kiemTraVeNguoiDan(req);
+  } catch {
+    return res.status(401).json({ error: 'Bà con vào lại bằng mã tra cứu và mã PIN để bổ sung thông tin.' });
+  }
+
+  const tho = req.body?.noiDung;
+  if (typeof tho !== 'string') return res.status(400).json({ error: 'Vui lòng nhập nội dung bổ sung.' });
+  if (tho.trim().length > DAI_BO_SUNG_TOI_DA) {
+    return res.status(400).json({ error: `Nội dung bổ sung tối đa ${DAI_BO_SUNG_TOI_DA} ký tự.` });
+  }
+  const noiDung = sanitizeText(tho, DAI_BO_SUNG_TOI_DA);
+  if (noiDung.length < DAI_BO_SUNG_TOI_THIEU) {
+    return res.status(400).json({ error: 'Nội dung bổ sung quá ngắn, bà con mô tả thêm giúp.' });
+  }
+  const quet = scanTextForThreats(tho);
+  if (!quet.safe) return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${quet.reasons.join(', ')}).` });
+  if (containsProfanity(noiDung)) return res.status(400).json({ error: 'Nội dung chứa ngôn từ không phù hợp.' });
+  const anhGui = Array.isArray(req.body?.images) ? req.body.images.slice(0, 3) : [];
+
+  if (!(await coBangBoSung())) {
+    return res.status(503).json({ error: 'Hệ thống tạm chưa nhận bổ sung. Việc khẩn cấp xin gọi ngay 113.' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, status, deleted_at, (created_at > NOW() - INTERVAL ? HOUR) AS trong_han
+         FROM submissions WHERE id = ? LIMIT 1`,
+      [GIO_BO_SUNG, submissionId]
+    );
+    const don = rows[0];
+    if (!don || don.deleted_at || !TRANG_THAI_NHAN_BO_SUNG.includes(don.status)) {
+      return res.status(403).json({ error: 'Tin này đã khép lại, không nhận bổ sung. Có việc mới bà con gửi ý kiến mới.' });
+    }
+    if (!Number(don.trong_han)) {
+      return res.status(403).json({
+        error: `Đã quá ${GIO_BO_SUNG} giờ kể từ lúc gửi nên không bổ sung được nữa. `
+          + 'Bà con nhắn cho cán bộ trong khung trao đổi, hoặc gửi ý kiến mới.',
+      });
+    }
+
+    const [[{ n }]] = await pool.query(
+      'SELECT COUNT(*) AS n FROM bo_sung_thong_tin WHERE submission_id = ?', [submissionId]
+    );
+    if (Number(n) >= SO_LAN_BO_SUNG_TOI_DA) {
+      return res.status(429).json({
+        error: `Mỗi tin bổ sung được tối đa ${SO_LAN_BO_SUNG_TOI_DA} lần. Bà con nhắn thêm cho cán bộ trong khung trao đổi.`,
+      });
+    }
+    let boSungId;
+    try {
+      const [kq] = await pool.query(
+        'INSERT INTO bo_sung_thong_tin (submission_id, thu_tu, noi_dung) VALUES (?, ?, ?)',
+        [submissionId, Number(n) + 1, noiDung]
+      );
+      boSungId = kq.insertId;
+    } catch (e) {
+      if (trungKhoa(e)) {
+        return res.status(429).json({ error: 'Hệ thống đang nhận một bổ sung khác của tin này. Bà con chờ vài giây rồi gửi lại.' });
+      }
+      throw e;
+    }
+
+    /* Ảnh: cùng lớp kiểm như lúc gửi. Ảnh bị chặn thì bỏ, phần chữ vẫn nhận. */
+    let soAnh = 0;
+    if (anhGui.length > 0) {
+      const { hopLe, biChan } = locDanhSachAnh(anhGui, { cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim() });
+      if (biChan.length) console.warn(`[BỔ SUNG] chặn ${biChan.length} ảnh:`, biChan.map((b) => b.lyDo).join(' | '));
+      for (const { anh, trangThai } of hopLe) {
+        const laLink = typeof anh === 'object' && anh?.url;
+        await pool.query(
+          `INSERT INTO submission_images
+             (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status, bo_sung_id)
+           VALUES (?,?,?,?,?,?,?,?)`,
+          [submissionId, laLink ? String(anh.url) : String(anh), laLink ? anh.publicId || null : null,
+            laLink ? 'cloudinary' : 'base64', 'image/jpeg', true, trangThai, boSungId]
+        );
+        soAnh += 1;
+      }
+    }
+
+    res.status(201).json({
+      ok: true,
+      soAnh,
+      message: 'Đã nhận phần bổ sung. Cán bộ sẽ thấy ngay trên hồ sơ của bà con.',
+    });
+  } catch (err) {
+    if (thieuBang(err)) {
+      return res.status(503).json({ error: 'Hệ thống tạm chưa nhận bổ sung. Việc khẩn cấp xin gọi ngay 113.' });
+    }
+    console.error('Bổ sung thông tin lỗi:', err.message);
+    res.status(500).json({ error: 'Gửi thất bại — Vấn đề khẩn cấp liên hệ ngay 113 để được giải quyết.' });
   }
 });
 

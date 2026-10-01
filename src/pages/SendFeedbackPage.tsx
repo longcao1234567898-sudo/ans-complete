@@ -10,7 +10,7 @@ import type { ContactInfo as ContactInfoType, FeedbackCategory, FeedbackDraft, F
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { readDraft, clearDraft, useDraftAutosave } from '../hooks/useDraftAutosave';
 import { saveTrackingCode } from '../hooks/useTrackingHistory';
-import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa } from '../services/feedbackService';
+import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa, batDauDienDon } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
 import { useNgonNgu } from '../i18n/useNgonNgu';
@@ -26,6 +26,7 @@ import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageBackground from '../components/common/PageBackground';
 import { MapPin } from 'lucide-react';
+import { LOI_GUI_THAT_BAI } from '../utils/loiGui';
 
 const EMPTY_CONTACT: ContactInfoType = { fullName: '', phone: '', email: '' };
 
@@ -241,11 +242,16 @@ export default function SendFeedbackPage() {
         saveTrackingCode(result.trackingCode, result.category);
         toast.success('Gửi ý kiến thành công!');
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.'),
+      /* Để lâu hơn mặc định: câu có số 113 phải đọc kịp */
+      onError: (err) => toast.error(err instanceof Error ? err.message : LOI_GUI_THAT_BAI, { duration: 10_000 }),
     });
   };
 
+  /* Phiếu mở form: lấy khi mở trang (ADR-003 việc 24) */
+  useEffect(() => { batDauDienDon(); }, []);
+
   const handleReset = () => {
+    batDauDienDon();
     setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
     clearDraft();
     setSubmission(null);
@@ -325,8 +331,6 @@ export default function SendFeedbackPage() {
           <ContentInput
             value={draft.content}
             onChange={(content) => setDraft((d) => ({ ...d, content }))}
-            urgency={draft.urgency}
-            onUrgencyChange={(u) => setDraft((d) => ({ ...d, urgency: u }))}
             draftRestored={draftRestored}
             onDismissDraft={() => {
               setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });

@@ -17,10 +17,11 @@ import { fetchWards, type WardOption } from '../../services/feedbackService';
 import {
   fetchQrPoints, createQrPoint, toggleQrPoint, deleteQrPoint, type QrPoint,
 } from '../../services/adminService';
+import { laLanhDao } from '../../utils/vaiTro';
 
 export default function AdminQrPage() {
   const { staff } = useAdminAuth();
-  const dieuHanhDuoc = staff?.role === 'admin' || staff?.role === 'manager';
+  const dieuHanhDuoc = laLanhDao(staff?.role);
 
   const [wards, setWards] = useState<WardOption[]>([]);
   const [points, setPoints] = useState<QrPoint[]>([]);

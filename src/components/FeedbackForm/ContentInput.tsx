@@ -442,7 +442,17 @@ export default function ContentInput({ value, onChange, urgency = 'normal', onUr
         </div>
       )}
 
-      {/* Mức độ khẩn cấp — người dân tự đánh dấu, cán bộ ưu tiên việc gấp */}
+      {/* Mức độ khẩn cấp: hệ thống tự đánh giá theo nội dung (ADR-003 việc 10),
+          người dân không tự chọn nữa — chỉ còn lời nhắc gọi 113 khi gấp */}
+      {!onUrgencyChange && (
+        <div className="mt-6 flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <p className="leading-relaxed">
+            Hệ thống tự đánh giá mức độ khẩn cấp theo nội dung bà con mô tả. Nếu đang có nguy hiểm cần
+            lực lượng đến ngay, bà con hãy gọi ngay số <b className="whitespace-nowrap">113</b>.
+          </p>
+        </div>
+      )}
       {onUrgencyChange && (
         <div className="mt-6">
           <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
