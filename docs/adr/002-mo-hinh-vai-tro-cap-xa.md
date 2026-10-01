@@ -1,6 +1,6 @@
 # ADR 002 — Mô hình vai trò cho Công an cấp xã
 
-- **Trạng thái**: Đã chấp nhận
+- **Trạng thái**: Đã chấp nhận — **bị thay một phần bởi [ADR 003](003-hai-cap-vai-tro-va-luong-sang-loc.md)** (mục 1–4, ngày 2026-10-01)
 - **Ngày**: 2026-09-27
 - **Người quyết định**: Loc (người vận hành), phiên P38. Claude Opus 5.5 đề xuất phương án
 - **Khép**: nợ kỹ thuật ND-030
