@@ -78,7 +78,9 @@ const LUOC_DO = [
   `CREATE TABLE ghi_chu_noi_bo (id INTEGER PRIMARY KEY, submission_id INT NOT NULL, staff_id INT NOT NULL,
      noi_dung TEXT NOT NULL, created_at TEXT DEFAULT (NOW()))`,
   `CREATE TABLE submission_images (submission_id INT, image_url TEXT, cloudinary_id TEXT, storage TEXT,
-     mime_type TEXT, is_verified INT, moderation_status TEXT)`,
+     mime_type TEXT, is_verified INT, moderation_status TEXT, bo_sung_id INT)`,
+  `CREATE TABLE bo_sung_thong_tin (id INTEGER PRIMARY KEY, submission_id INT NOT NULL, thu_tu INT NOT NULL,
+     noi_dung TEXT NOT NULL, created_at TEXT DEFAULT (NOW()), da_doc_luc TEXT, UNIQUE (submission_id, thu_tu))`,
   `CREATE TABLE status_history (submission_id INT, old_status TEXT, new_status TEXT, note TEXT,
      changed_at TEXT DEFAULT (NOW()), changed_by INT)`,
   /* details là cột JSON trên MySQL: ghi chuỗi chữ trần vào thì MySQL từ chối cả

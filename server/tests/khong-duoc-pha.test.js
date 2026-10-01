@@ -225,6 +225,8 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
               /* ADR-003 việc 13: cột nhãn "Chưa xác minh" (tên cột cố định) và
                  mệnh đề hằng "đang chờ sàng lọc" — đều định nghĩa ở lib/sang-loc.js */
               || /^await sangLocSql\('s'\)$/.test(bieuThuc)
+              /* ADR-003 việc 22: cột đếm bổ sung chưa đọc (lib/bo-sung.js, hằng) */
+              || bieuThuc === 'await boSungSql()'
               || bieuThuc === 'DANG_CHO_SANG_LOC'
               /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
                  toạ độ vụ việc đã tồn tại chưa (coCotToaDo, đọc từ

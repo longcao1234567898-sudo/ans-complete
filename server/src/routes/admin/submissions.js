@@ -16,6 +16,7 @@ import {
 } from '../../lib/pham-vi-ho-so.js';
 import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
 import { timPhan, coCotSangLoc, sangLocSql } from '../../lib/sang-loc.js';
+import { coBangBoSung, boSungSql } from '../../lib/bo-sung.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -280,6 +281,9 @@ router.get('/', async (req, res) => {
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
               ${await coSql('s')}, ${await sangLocSql('s')},
+              /* Số lần người dân bổ sung mà chưa cán bộ nào mở xem — cộng với
+                 tin nhắn chưa đọc thành chấm đỏ (ADR-003 việc 22) */
+              ${await boSungSql()},
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
@@ -307,6 +311,32 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Lỗi máy chủ.' });
   }
 });
+
+/** Các lần người dân bổ sung (ADR-003 việc 21), cũ trước mới sau, kèm ảnh của
+    từng lần. Đánh dấu ĐÃ ĐỌC ngay khi một cán bộ mở hồ sơ — tắt chấm đỏ (việc
+    22). Chỉ gọi SAU khi đã kiểm phạm vi hồ sơ. */
+async function docBoSung(id) {
+  const [ds] = await pool.query(
+    `SELECT id, thu_tu, noi_dung, created_at, da_doc_luc
+       FROM bo_sung_thong_tin WHERE submission_id = ? ORDER BY thu_tu ASC`,
+    [id]
+  );
+  if (ds.length === 0) return [];
+  const [anh] = await pool.query(
+    `SELECT bo_sung_id, image_url, mime_type, moderation_status
+       FROM submission_images WHERE submission_id = ? AND bo_sung_id IS NOT NULL`,
+    [id]
+  );
+  await pool.query(
+    'UPDATE bo_sung_thong_tin SET da_doc_luc = NOW() WHERE submission_id = ? AND da_doc_luc IS NULL',
+    [id]
+  ).catch((e) => console.warn('[bổ sung] không đánh dấu đã đọc được:', e.message));
+  return ds.map((b) => ({
+    ...b,
+    anh: anh.filter((a) => Number(a.bo_sung_id) === Number(b.id))
+      .map(({ bo_sung_id: _b, ...a }) => a),
+  }));
+}
 
 /** Ghi chú nội bộ của hồ sơ, cũ trước mới sau. Chưa có bảng (chưa chạy v28) -> rỗng.
     Chỉ gọi SAU khi đã kiểm phạm vi hồ sơ. */
@@ -388,10 +418,19 @@ router.get('/:id', async (req, res) => {
     if (mangCo) await ghiNhatKyTruoc(pool, req, { ...luotMo, hanhDong: 'view_flagged_submission' });
     else await ghiNhatKy(pool, req, { ...luotMo, hanhDong: 'view_submission' });
 
-    const [images] = await pool.query(
-      'SELECT image_url, mime_type, moderation_status FROM submission_images WHERE submission_id = ?',
-      [req.params.id]
-    );
+    /* Ảnh gửi kèm lúc đầu; ảnh của các lần bổ sung đi theo từng lần bổ sung
+       (ADR-003 việc 21) — trộn chung thì không biết ảnh nào người dân gửi sau */
+    const coBoSung = await coBangBoSung();
+    const [images] = coBoSung
+      ? await pool.query(
+        'SELECT image_url, mime_type, moderation_status FROM submission_images WHERE submission_id = ? AND bo_sung_id IS NULL',
+        [req.params.id]
+      )
+      : await pool.query(
+        'SELECT image_url, mime_type, moderation_status FROM submission_images WHERE submission_id = ?',
+        [req.params.id]
+      );
+    const boSung = coBoSung ? await docBoSung(Number(req.params.id)) : [];
     const [history] = await pool.query(
       `SELECT h.old_status, h.new_status, h.note, h.changed_at, st.full_name AS changed_by_name
        FROM status_history h LEFT JOIN staff st ON h.changed_by = st.id
@@ -418,6 +457,7 @@ router.get('/:id', async (req, res) => {
       dang_cho_sang_loc: row.status === 'received' && Number(row.is_anonymous) === 0
         && row.deleted_at == null && Number(row.to_giac_mat) === 0 && Number(row.ngoai_tham_quyen) === 0,
       ghi_chu: await docGhiChu(Number(req.params.id)),
+      bo_sung: boSung,
       /* Vì sao tin vào phần tố giác mật (ADR-003 việc 12) — chỉ trả khi tin
          mang cờ; cán bộ không bao giờ mở được tin mang cờ nên chỉ lãnh đạo thấy */
       ...(Number(row.to_giac_mat) === 1 ? { to_giac_mat_nhan_dien: nhanDienToGiacMat(row.original_content).lyDo } : {}),
