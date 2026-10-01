@@ -8,7 +8,7 @@ import {
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
-import { xetTruocKhiNhan, xetKhoaIp, layMaThietBi } from '../lib/chan-spam.js';
+import { xetTruocKhiNhan } from '../lib/chan-spam.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -150,9 +150,9 @@ router.post('/', async (req, res) => {
        tuổi và người vùng sâu bỏ cuộc giữa chừng.
 
        Việc chống người máy đã có Turnstile lo (kiểm ở trên, dòng 117), chống
-       spam đã có khoá thiết bị và khoá địa chỉ mạng lo. Ẩn danh cũng đã bị
-       siết bằng hai điều kiện khác: nội dung phải đủ dài (ANON_MIN_LENGTH) và
-       chỉ áp dụng cho nhóm tố giác tội phạm.
+       spam với đơn ẩn danh là giới hạn theo IP lo (không khoá máy — BUG-017).
+       Ẩn danh cũng đã bị siết bằng hai điều kiện khác: nội dung phải đủ dài
+       (ANON_MIN_LENGTH) và chỉ áp dụng cho nhóm tố giác tội phạm.
 
        ⚠️ VẪN NHẬN otpToken nếu trình duyệt cũ còn gửi lên — chỉ là không bắt
        buộc nữa. Bỏ hẳn việc đọc trường này sẽ làm hỏng các phiên đang mở dở. */
@@ -386,8 +386,10 @@ router.post('/', async (req, res) => {
         // Cờ nghi gửi hàng loạt (lớp chống trùng gần đúng phát hiện)
         trungLap.danhDau ? 1 : 0,
         trungLap.ghiChu || null,
-        // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat
-        deviceId || null,
+        // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat.
+        // Đơn ẩn danh KHÔNG mang mã máy (BUG-017, SEC-DEC-008 M-B): xetTruocKhiNhan
+        // đã không đọc nó; chặn thêm ở đây vì đây là chỗ GHI vào CSDL.
+        isAnonymous ? null : (deviceId || null),
         chanNgam ? 1 : 0,
         chatPinHash,
         /* Toạ độ chỉ thêm vào khi database đã có cột — thứ tự phải khớp với
@@ -395,14 +397,6 @@ router.post('/', async (req, res) => {
         ...(coCotToaDo ? [viTriLat, viTriLng] : []),
       ]
     );
-
-    /* Đơn vừa lưu bị chặn ngầm -> xét xem có nên khoá luôn cả IP không.
-       Chỉ khoá khi cùng một IP có nhiều THIẾT BỊ KHÁC NHAU cùng gửi đơn rác —
-       dấu hiệu kẻ phá hoại xoá bộ nhớ trình duyệt để đổi mã thiết bị.
-       Bọc riêng vì lỗi ở đây không được làm hỏng việc đã gửi thành công. */
-    if (chanNgam) {
-      xetKhoaIp(pool, ip).catch(() => { /* bỏ qua */ });
-    }
 
     // 7b) Nối ý kiến vừa lưu vào nhóm sự kiện (nếu tìm thấy ở bước 6b).
     // Làm SAU khi đã lưu xong, và bọc try/catch riêng — lỗi ở đây không
@@ -538,47 +532,28 @@ router.post('/', async (req, res) => {
 });
 
 /* ==========================================================================
-   KIỂM TRA THIẾT BỊ CÓ ĐANG BỊ KHOÁ KHÔNG
+   KIỂM TRA THIẾT BỊ CÓ ĐANG BỊ KHOÁ KHÔNG — NAY LUÔN TRẢ "KHÔNG" (BUG-015)
 
-   Giao diện gọi khi bà con mở trang Gửi ý kiến. Bị khoá thì hiện màn hình
-   thông báo ngay, không để bà con điền hết năm bước rồi mới báo.
+   Trước đây giao diện gọi khi mở trang Gửi ý kiến, bị khoá thì thay cả biểu
+   mẫu bằng màn hình khoá.
 
-   ⚠️ CHỈ trả về CÓ/KHÔNG và thời gian còn lại. Không nói khoá theo thiết bị
-   hay theo địa chỉ mạng, không nói vì hồ sơ nào — nói ra là chỉ đường cho kẻ
-   phá hoại biết cách né.
+   ⚠️ VÌ SAO KHÔNG CÒN BÁO KHOÁ. Khoá tách theo loại đơn (lib/chan-spam.js).
+   Báo khoá theo bất kỳ quy tắc nào có dính tới khoá LOẠI ẨN DANH là cho cán bộ
+   một phép thử danh tính: đánh rác tố giác ẩn danh B, đánh rác một đơn có tên
+   của ông P, rồi xem P có gặp màn hình khoá không — gặp thì B gửi từ máy của
+   P. Còn báo khoá theo khoá loại CÓ TÊN thì màn hình thay cả biểu mẫu, chặn
+   luôn kênh tố giác ẩn danh bằng một khoá do đơn có tên gây ra.
+   Nên biểu mẫu luôn mở; đơn gửi vào loại đang khoá bị chặn ngầm — đúng thiết
+   kế gốc "chặn ngầm chứ không báo thẳng". Máy bị khoá loại có tên thấy ô khiếu
+   nại phía trên biểu mẫu (routes/khieu-nai.js chỉ đọc khoá loại có tên).
+   Đánh đổi đã chấp nhận (Loc, SEC-DEC-005): người bị khoá oan không còn màn
+   hình giải thích "tạm dừng tiếp nhận, việc gấp gọi 113".
+
+   Giữ đường dẫn để trình duyệt còn bản giao diện cũ không gặp lỗi. KHÔNG đọc
+   danh sách khoá ở đây — để không ai "sửa lại cho đúng" mà mở lại phép thử.
    ========================================================================== */
-router.post('/kiem-tra-khoa', async (req, res) => {
-  try {
-    const deviceId = layMaThietBi(req);
-    const ip = layIpThat(req);
-    if (!deviceId && !ip) return res.json({ biKhoa: false });
-
-    const [rows] = await pool.query(
-      `SELECT expires_at,
-              TIMESTAMPDIFF(MINUTE, NOW(), expires_at) AS con_lai_phut
-         FROM blacklists
-        WHERE expires_at > NOW()
-          AND (   (kind = 'device' AND identifier = ?)
-               OR (kind = 'ip'     AND identifier = ?) )
-        ORDER BY expires_at DESC
-        LIMIT 1`,
-      [deviceId || null, ip || null]
-    );
-    if (rows.length === 0) return res.json({ biKhoa: false });
-
-    const phut = Math.max(1, Number(rows[0].con_lai_phut) || 1);
-    res.json({
-      biKhoa: true,
-      conLaiPhut: phut,
-      gio: Math.floor(phut / 60),
-      phut: phut % 60,
-    });
-  } catch (err) {
-    /* Bảng chưa tạo hoặc lỗi database -> KHÔNG chặn ai.
-       Thà để lọt còn hơn chặn oan toàn bộ bà con vì một lỗi kỹ thuật. */
-    console.warn('[kiểm tra khoá]', err.message);
-    res.json({ biKhoa: false });
-  }
+router.post('/kiem-tra-khoa', (_req, res) => {
+  res.json({ biKhoa: false });
 });
 
 export default router;

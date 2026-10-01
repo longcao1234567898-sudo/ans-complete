@@ -8,7 +8,7 @@ Gồm 2 phần độc lập, có thể chạy riêng:
 
 ## Trạng thái hiện tại (2026-08-08)
 - ✅ `npm run build` (frontend) chạy sạch, không lỗi TypeScript.
-- ✅ Backend: 285/285 test pass (`cd server && npm test`).
+- ✅ Backend: bộ test chạy sạch — đếm bằng `cd server && npm test`, đừng chép con số vào đây (xem ND-002).
 - ⚠️ Xem mục [Việc còn tồn đọng](#việc-còn-tồn-đọng--hướng-phát-triển-tiếp-theo) trước khi bàn giao hoặc mở rộng — có vài chỗ tài liệu/cấu hình chưa theo kịp code.
 
 ## Kiến trúc & thư mục chính
@@ -22,9 +22,12 @@ ans-complete/
 │  └─ utils/               constants, security.ts (lá chắn nội dung), mockData.ts
 ├─ server/                Backend (Node + Express + MySQL), xem server/README.md
 ├─ database/              Schema + migration SQL (xem mục Database bên dưới)
-├─ docs/adr/               Quyết định kiến trúc (Architecture Decision Records)
-└─ docs/CHANGELOG-BAO-MAT.md   Nhật ký đợt vá bảo mật lớn 2026-08-03
+└─ docs/                  Tài liệu — bắt đầu ở docs/README.md (bản đồ)
 ```
+
+**Tài liệu bắt đầu từ đâu:** [docs/README.md](docs/README.md) là bản đồ, nói tệp nào làm việc
+gì và bạn nên đọc gì trước tuỳ vai trò. Người sắp làm việc với Claude trên repo này đọc
+[docs/SO-TAY-NGUOI-LAP-TRINH.md](docs/SO-TAY-NGUOI-LAP-TRINH.md).
 
 ## Công nghệ
 **Frontend**: React 18 + TypeScript + Vite · Tailwind CSS · Framer Motion · TanStack React Query · React Router · react-leaflet/Leaflet (bản đồ) · recharts (biểu đồ) · xlsx (xuất báo cáo) · html5-qrcode + qrcode.react (QR) · react-markdown · react-hot-toast
@@ -61,6 +64,13 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v8.sql            #    Q
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v9.sql            #    Tăng cường bảo mật đăng nhập cán bộ
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v10.sql           #    Mã QR định vị hiện trường
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v11.sql           # 3. Gộp sự kiện trùng lặp (nhiều người báo 1 vụ)
+# nang_cap_v12.sql … nang_cap_v18.sql: chạy lần lượt theo số (chưa liệt kê từng tệp ở đây — ND-006)
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v19.sql           #    Khoá chống spam tách theo loại đơn — chạy TRƯỚC khi cập nhật mã máy chủ
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v20.sql           #    Dọn dấu vết dọn theo lô và mã hồ sơ trong lý do cũ — sao lưu trước, không đảo ngược được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v21.sql           #    Xoá dòng khoá cũ khong_ro và dòng khoá hết hạn, mã máy của đơn đã xoá danh tính, mã máy + IP đã băm của đơn quá 30 ngày — cần v19, sao lưu trước, không đảo ngược được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v22.sql           #    Xoá mã máy trên đơn ẩn danh và dòng khoá loại ẩn danh cũ — cần v19, chạy TRƯỚC khi cập nhật mã máy chủ, sao lưu trước (rồi huỷ bản sao lưu), không đảo ngược được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v23.sql           #    Xoá mọi dòng khoá theo địa chỉ mạng (không còn khoá IP) — chạy TRƯỚC khi cập nhật mã máy chủ, sao lưu trước, không đảo ngược được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v24.sql           #    Gỡ người được giao của hồ sơ mức Mật (Trưởng giao lại) — cần v14; dừng máy chủ, cập nhật mã, chạy tệp, rồi mới khởi động lại; LƯU danh sách tệp in ra; sao lưu trước, không đảo ngược được
 ```
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 
@@ -113,10 +123,10 @@ Dự án từng trải qua một đợt vá bảo mật khẩn cấp lớn (2026
 - **Fail-safe, không fail-open**: thiếu khoá bí mật → server từ chối khởi động, không âm thầm chạy với giá trị mặc định yếu.
 - IP người dùng chỉ tin từ `req.ip` (đã qua `trust proxy`), không bao giờ tin header client tự đặt.
 - SĐT/email băm bằng HMAC + pepper (biến môi trường, không nằm trong DB) — không phải SHA-256 trần.
-- Danh tính người tố giác chỉ `admin` hoặc cán bộ **được phân công đúng hồ sơ đó** mới xem được, mọi lượt xem đều ghi log.
+- Danh tính người tố giác chỉ `admin` (Trưởng) xem được, hoặc `manager` (Phó) được Trưởng **giao đúng hồ sơ đó**; cán bộ xử lý không bao giờ xem được. Mọi lượt xem đều ghi log. Vai trò ứng với ai ngoài đời: [docs/adr/002-mo-hinh-vai-tro-cap-xa.md](docs/adr/002-mo-hinh-vai-tro-cap-xa.md).
 - Access token cán bộ giữ trong RAM (không `localStorage`/`sessionStorage`); phiên khôi phục qua cookie refresh `httpOnly`.
 - Hệ thống giả định **một đơn vị/một database** — xem [docs/adr/001-pham-vi-du-lieu-theo-don-vi.md](docs/adr/001-pham-vi-du-lieu-theo-don-vi.md) trước khi gộp nhiều xã/phường dùng chung một database.
-- Kiểm chứng: `cd server && npm test` (285 test, không cần MySQL).
+- Kiểm chứng: `cd server && npm test` (không cần MySQL).
 
 ## Tuỳ biến cho đơn vị
 Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/utils/constants.ts` (hằng số `UNIT`) và `server/src/lib/unit.js` (dùng trong email OTP).

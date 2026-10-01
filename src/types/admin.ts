@@ -14,7 +14,8 @@ export interface SubmissionListItem {
 
 export interface SubmissionDetail extends SubmissionListItem {
   sender_phone: string;
-  sender_email: string | null;
+  /** Có email hay không — email đầy đủ chỉ ra qua /reveal */
+  co_email: boolean;
   rejection_reason: string | null;
   resolution_note: string | null;
   resolved_by_name: string | null;

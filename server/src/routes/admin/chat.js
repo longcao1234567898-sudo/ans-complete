@@ -14,6 +14,7 @@ import { authorize } from '../../middleware/authorize.js';
 import { sanitizeText } from '../../lib/security.js';
 import { goKhoa } from '../../lib/chan-spam.js';
 import { layIpThat } from '../../lib/helpers.js';
+import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -35,9 +36,11 @@ router.get('/:id/messages', async (req, res) => {
   }
 
   try {
+    /* Hồ sơ ngoài phạm vi cấp độ: 404 y như không tồn tại (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff, '');
     const [[don]] = await pool.query(
-      'SELECT status, is_anonymous FROM submissions WHERE id = ? LIMIT 1',
-      [id]
+      `SELECT status, is_anonymous FROM submissions WHERE id = ? AND ${phamVi.sql} LIMIT 1`,
+      [id, ...phamVi.params]
     );
     if (!don) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
 
@@ -85,9 +88,12 @@ router.post('/:id/messages', async (req, res) => {
   }
 
   try {
+    /* Chặn GỬI cùng phạm vi với đọc (BUG-009): không xem được hồ sơ Mật thì
+       cũng không được nhắn cho người tố giác của nó dưới danh nghĩa công an. */
+    const phamVi = await dieuKienXem(req.staff, '');
     const [[don]] = await pool.query(
-      'SELECT status FROM submissions WHERE id = ? LIMIT 1',
-      [id]
+      `SELECT status FROM submissions WHERE id = ? AND ${phamVi.sql} LIMIT 1`,
+      [id, ...phamVi.params]
     );
     if (!don) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
 
@@ -125,15 +131,22 @@ router.post('/:id/messages', async (req, res) => {
    ========================================================================== */
 /* MỞ CHO MỌI VAI TRÒ CÁN BỘ (bỏ authorize).
 
-   Danh sách khoá chỉ chứa mã thiết bị ngẫu nhiên và địa chỉ mạng — không có
-   danh tính, không có nội dung tin. Cán bộ cơ sở cần xem để biết vì sao bà con
-   gọi lên nói "tôi không gửi được", và để đối chiếu khi có khiếu nại.
+   Cán bộ cơ sở cần xem để biết vì sao bà con gọi lên nói "tôi không gửi
+   được". Việc GỠ khoá vẫn giữ chốt admin/manager ở route delete bên dưới —
+   xem thì ai cũng xem được, nhưng quyết định gỡ là của lãnh đạo.
 
-   Việc GỠ khoá vẫn giữ chốt admin/manager ở route delete bên dưới — xem thì ai
-   cũng xem được, nhưng quyết định gỡ là của lãnh đạo. */
+   ⚠️ KHÔNG TRẢ MÃ MÁY / ĐỊA CHỈ (identifier) — liệt kê cột, không SELECT *.
+   Từng mã đơn lẻ không nói lên ai, nhưng cùng mã đó đứng ở khiếu nại mở khoá
+   (thường ký tên thật) — đối chiếu hai danh sách là biết người ký tên kia bị
+   khoá vì đơn nào, kể cả đơn tố giác ẩn danh (BUG-014). Gỡ khoá đi theo id.
+   Người dân không nhìn thấy mã máy của mình, nên tra theo mã cũng không phục
+   vụ ai. */
 router.get('/blacklist', async (_req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM vw_blacklist_active');
+    const [rows] = await pool.query(
+      `SELECT id, kind, reason, created_at, expires_at, nguoi_khoa, con_lai_phut
+         FROM vw_blacklist_active`
+    );
     res.json(rows);
   } catch (err) {
     console.error('Đọc danh sách khoá lỗi:', err.message);
@@ -243,9 +256,16 @@ router.get('/khieu-nai', async (req, res) => {
       `SELECT a.id, a.identifier, a.kind, a.content, a.status,
               a.created_at, a.handled_at, a.handler_note,
               s.full_name AS handled_by_name,
-              /* Còn đang bị khoá thật không — khoá có thể đã tự hết hạn */
+              /* Còn đang bị khoá thật không — khoá có thể đã tự hết hạn.
+                 CHỈ KHOÁ LOẠI CÓ TÊN (BUG-015): khiếu nại chỉ gắn với loại đó
+                 (xem routes/khieu-nai.js). Đếm cả loại ẩn danh thì cờ này còn
+                 bật sau khi khoá có tên đã gỡ — tức là nói người ký tên này
+                 đang bị khoá kênh ẩn danh. */
+              /* Chỉ khoá THIẾT BỊ: không còn khoá theo địa chỉ mạng (BUG-016),
+                 dòng kind = 'ip' còn sót không chặn ai nên không phải "còn khoá" */
               (SELECT COUNT(*) FROM blacklists b
-                WHERE b.kind = a.kind AND b.identifier = a.identifier
+                WHERE b.kind = 'device' AND b.kind = a.kind AND b.identifier = a.identifier
+                  AND b.loai_don = 'co_ten'
                   AND b.expires_at > NOW()) AS con_bi_khoa
          FROM unlock_appeals a
          LEFT JOIN staff s ON s.id = a.handled_by
@@ -257,9 +277,22 @@ router.get('/khieu-nai', async (req, res) => {
     /* GẮN KÈM CÁC Ý KIẾN BỊ ĐÁNH DẤU RÁC của chính thiết bị/địa chỉ đang khiếu
        nại. Cán bộ cần thấy NGAY người này đã gửi gì mới quyết định được: nếu
        toàn tin rác thật thì từ chối, nếu là tin báo nghiêm túc bị đánh nhầm
-       thì gỡ khoá. Không có thông tin này thì cán bộ quyết định mò. */
+       thì gỡ khoá. Không có thông tin này thì cán bộ quyết định mò.
+
+       ⚠️ KHÔNG MỘT DẤU VẾT NÀO CỦA ĐƠN ẨN DANH, KHÔNG TRẢ MÃ MÁY (BUG-014).
+       Danh sách này là một NHÓM ĐƠN CÙNG MÁY, đặt cạnh lời khiếu nại mà bà con
+       hay ký tên và số điện thoại. Đơn ẩn danh lọt vào nhóm — dưới dạng mã, nội
+       dung, hay chỉ một con số đếm — là nói cho mọi cán bộ biết người ký tên kia
+       từng dùng kênh ẩn danh, và thu hẹp được còn vài đơn trong thùng rác.
+       Mã máy/địa chỉ (identifier) chỉ dùng để truy vấn ở đây, không trả ra:
+       cùng mã đó đứng ở danh sách khoá cạnh lý do khoá, là khoá nối thứ hai.
+       Xử lý khiếu nại đi theo id, không cần mã.
+       Đánh đổi đã chấp nhận (SEC-DEC-005): máy chỉ có đơn ẩn danh bị đánh rác
+       thì cán bộ xét khiếu nại chỉ bằng lời trình bày. */
+    /* Tin liên quan cũng là nội dung hồ sơ: chỉ hồ sơ trong phạm vi (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff);
     const ketQua = [];
-    for (const r of rows) {
+    for (const { identifier, ...r } of rows) {
       let tinLienQuan = [];
       try {
         const [tin] = await pool.query(
@@ -268,10 +301,15 @@ router.get('/khieu-nai', async (req, res) => {
              FROM submissions s
             WHERE s.deleted_at IS NULL
               AND (s.is_spam = 1 OR s.status = 'spam')
-              AND (s.device_id = ? OR s.ip_address = ?)
+              /* Chỉ ghép theo máy: khiếu nại cũ loại địa chỉ mạng (trước BUG-016)
+                 không ghép theo IP — cùng IP 4G là hàng trăm thuê bao khác nhau */
+              AND s.device_id = ?
+              /* = 0 chứ không phải <> 1: cột cho phép NULL, không rõ thì coi là ẩn danh */
+              AND s.is_anonymous = 0
+              AND ${phamVi.sql}
             ORDER BY s.created_at DESC
             LIMIT 5`,
-          [r.kind === 'device' ? r.identifier : null, r.kind === 'ip' ? r.identifier : null]
+          [r.kind === 'device' ? identifier : null, ...phamVi.params]
         );
         tinLienQuan = tin;
       } catch (e) {
@@ -312,9 +350,12 @@ router.post('/khieu-nai/:id/xu-ly', authorize('admin', 'manager'), async (req, r
     if (quyetDinh === 'go_khoa') {
       /* Gỡ khoá THẬT khỏi danh sách chặn — không chỉ đổi trạng thái khiếu nại,
          vì đổi trạng thái mà không gỡ thì bà con vẫn không gửi được tin, còn
-         cán bộ tưởng đã xong. */
+         cán bộ tưởng đã xong.
+         CHỈ GỠ KHOÁ LOẠI CÓ TÊN (BUG-015). Gỡ cả loại ẩn danh thì dòng khoá ẩn
+         danh biến khỏi danh sách khoá đúng lúc xử lý một khiếu nại ký tên — cán
+         bộ nhìn hai màn hình là nối được. Khoá ẩn danh tự hết hạn. */
       await pool.query(
-        `DELETE FROM blacklists WHERE kind = ? AND identifier = ?`,
+        `DELETE FROM blacklists WHERE kind = ? AND identifier = ? AND loai_don = 'co_ten'`,
         [don.kind, don.identifier]
       );
     }

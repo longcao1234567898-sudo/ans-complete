@@ -54,6 +54,13 @@ const ACTION_META: Record<string, { label: string; cls: string; Icon: any }> = {
     cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
     Icon: UserPlus,
   },
+  /* Manager thử giao hồ sơ cho lãnh đạo (kể cả chính mình) — bị chặn, nhưng
+     là dấu hiệu tìm đường xem danh tính (BUG-008). */
+  assign_denied: {
+    label: 'Phân công bị từ chối',
+    cls: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    Icon: UserPlus,
+  },
   login: {
     label: 'Đăng nhập',
     cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
@@ -74,6 +81,7 @@ const FILTERS = [
   { value: 'set_security_level', label: 'Đổi cấp độ mật' },
   { value: 'update_status', label: 'Đổi trạng thái' },
   { value: 'assign', label: 'Phân công' },
+  { value: 'assign_denied', label: 'Phân công bị từ chối' },
   { value: 'login', label: 'Đăng nhập' },
 ];
 

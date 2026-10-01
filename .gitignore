@@ -21,6 +21,27 @@ server/ca.pem
 DIEN-SAN-*.txt
 MAU-*env*.txt
 
-# Bản sao lưu cơ sở dữ liệu — chứa toàn bộ dữ liệu người dân
-server/sao-luu/
+# Bản sao lưu cơ sở dữ liệu — chứa toàn bộ dữ liệu người dân.
+# Không neo vào server/: chặn thư mục sao-luu/ ở MỌI độ sâu, phòng khi bản
+# sao lưu bị sinh hay chép ra chỗ khác (BUG-005).
+sao-luu/
 *.sql.bak
+
+# ============================================================
+# NHẬT KÝ LỖ HỔNG — CHỈ GIỮ Ở MÁY, KHÔNG ĐẨY LÊN GITHUB
+# ============================================================
+# buglogs/ chứa lỗ hổng CHƯA vá của một hệ thống giữ dữ liệu tố
+# giác tội phạm. Đẩy lên repo công khai là đưa bản đồ tấn công
+# cho người ngoài. Cùng nguyên tắc đã áp dụng cho tài liệu phân
+# tích đợt vá 2026-08-03 (xem docs/CHANGELOG-BAO-MAT.md).
+# Phần PHƯƠNG PHÁP (không chứa lỗ hổng sống) vẫn công khai ở
+# docs/kiem-thu-bao-mat/.
+# Sao lưu: buglogs/ có git repo RIÊNG lồng bên trong, xem
+# buglogs/README.md.
+#
+# ⚠️ LUẬT NÀY ĐÃ TỪNG BỊ XOÁ MỘT LẦN ở commit 76ee015 (kèm theo
+# một thay đổi không liên quan: bộ đếm lượt truy cập). Khôi phục
+# ngày 2026-09-23 khi hợp nhất nhánh. Nếu thấy nó biến mất lần
+# nữa, đó là dấu hiệu có người sửa .gitignore ngoài phạm vi việc
+# đang làm — dừng lại và kiểm, đừng đẩy gì lên.
+buglogs/

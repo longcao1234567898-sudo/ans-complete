@@ -3,13 +3,39 @@ import { Router } from 'express';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { decrypt, maskName } from '../../lib/crypto.js';
+import { dieuKienXem, dieuKienNhomXem } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 router.use(requireAuth);
 
+/** Nhóm sự kiện chưa xem cho bảng điều hành. Cùng luật với trang nhóm sự kiện:
+ *  nhóm chứa hồ sơ người xem không được đọc thì ẩn cả nhóm (BUG-009). */
+async function nhomChuaXem(staff) {
+  const phamVi = await dieuKienNhomXem(staff);
+  const [rows] = await pool.query(
+    `SELECT g.id, g.submission_count, g.last_reported_at,
+            w.name AS ward_name, c.name AS category_name,
+            LEFT(s.original_content, 90) AS preview
+     FROM incident_groups g
+     LEFT JOIN wards w ON w.id = g.ward_id
+     LEFT JOIN categories c ON c.id = g.category_id
+     LEFT JOIN submissions s ON s.id = g.first_submission_id
+     WHERE g.acknowledged = FALSE AND g.submission_count >= 2
+       AND ${phamVi.sql}
+     ORDER BY g.submission_count DESC, g.last_reported_at DESC
+     LIMIT 5`,
+    phamVi.params
+  );
+  return rows;
+}
+
 /** GET /api/admin/dashboard/stats */
-router.get('/stats', async (_req, res) => {
+router.get('/stats', async (req, res) => {
   try {
+    /* Mọi khối liệt kê hồ sơ, và các thẻ điều hành bấm sang danh sách, chỉ đếm
+       và hiện hồ sơ người xem được đọc (BUG-009). Bỏ ở thẻ thì thẻ nói "3 việc
+       chưa phân công" mà bấm vào danh sách chỉ ra 1. */
+    const phamVi = await dieuKienXem(req.staff);
     const [[overview]] = await pool.query('SELECT * FROM vw_dashboard_stats');
 
     /* ---------------------------------------------------------------------
@@ -43,7 +69,9 @@ router.get('/stats', async (_req, res) => {
                AND s.urgency = 'urgent')                         AS khan_cap
          FROM submissions s
          WHERE s.deleted_at IS NULL
-           AND (s.is_spam IS NULL OR s.is_spam = 0)`
+           AND (s.is_spam IS NULL OR s.is_spam = 0)
+           AND ${phamVi.sql}`,
+        phamVi.params
       );
       dieuHanh = {
         qua_han: Number(dh?.qua_han || 0),
@@ -62,7 +90,8 @@ router.get('/stats', async (_req, res) => {
                  AND deadline_at <= DATE_ADD(NOW(), INTERVAL 3 DAY))              AS sap_han,
              SUM(status IN ('received','processing') AND assigned_to IS NULL)     AS chua_phan_cong,
              SUM(status IN ('received','processing') AND urgency = 'urgent')      AS khan_cap
-           FROM submissions WHERE deleted_at IS NULL`
+           FROM submissions s WHERE deleted_at IS NULL AND ${phamVi.sql}`,
+          phamVi.params
         );
         dieuHanh = {
           qua_han: Number(dh2?.qua_han || 0),
@@ -76,7 +105,9 @@ router.get('/stats', async (_req, res) => {
     const [recent] = await pool.query(
       `SELECT s.tracking_code, s.status, s.sender_name, c.name AS category_name, s.created_at
        FROM submissions s LEFT JOIN categories c ON s.category_id = c.id
-       ORDER BY s.created_at DESC LIMIT 8`
+       WHERE ${phamVi.sql}
+       ORDER BY s.created_at DESC LIMIT 8`,
+      phamVi.params
     );
     /* DANH SÁCH VIỆC QUÁ HẠN / SẮP HẠN — hiện thẳng trên dashboard.
        Trước đây chỉ đếm số rồi bắt cán bộ bấm sang trang khác mới xem được.
@@ -96,8 +127,10 @@ router.get('/stats', async (_req, res) => {
            AND s.deleted_at IS NULL
            AND s.deadline_at IS NOT NULL
            AND s.deadline_at < NOW() + INTERVAL 3 DAY
+           AND ${phamVi.sql}
          ORDER BY FIELD(s.urgency,'urgent','important','normal'), s.deadline_at ASC
-         LIMIT 10`
+         LIMIT 10`,
+        phamVi.params
       );
       canGap = rows.map((r) => ({
         ...r,
@@ -114,19 +147,7 @@ router.get('/stats', async (_req, res) => {
        Xem server/src/lib/duplicate.js -> timSuKienTrung() để biết cách gộp. */
     let nhomTrungLap = [];
     try {
-      const [rows] = await pool.query(
-        `SELECT g.id, g.submission_count, g.last_reported_at,
-                w.name AS ward_name, c.name AS category_name,
-                LEFT(s.original_content, 90) AS preview
-         FROM incident_groups g
-         LEFT JOIN wards w ON w.id = g.ward_id
-         LEFT JOIN categories c ON c.id = g.category_id
-         LEFT JOIN submissions s ON s.id = g.first_submission_id
-         WHERE g.acknowledged = FALSE AND g.submission_count >= 2
-         ORDER BY g.submission_count DESC, g.last_reported_at DESC
-         LIMIT 5`
-      );
-      nhomTrungLap = rows;
+      nhomTrungLap = await nhomChuaXem(req.staff);
     } catch (e) {
       console.warn('Bỏ qua nhóm sự kiện trùng lặp:', e.message); // chưa chạy nang_cap_v11.sql
     }

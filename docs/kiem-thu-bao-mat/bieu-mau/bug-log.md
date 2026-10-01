@@ -1,7 +1,7 @@
 # Phụ lục A — Mẫu Bug Log
 
-Bản gốc để sao chép nằm ở [`buglogs/_MAU-BUG.md`](../../buglogs/_MAU-BUG.md).
-Bảng tổng hợp nằm ở [`buglogs/BUG-LOG.md`](../../buglogs/BUG-LOG.md).
+Bản gốc để sao chép nằm ở [`buglogs/_MAU-BUG.md`](../../../buglogs/_MAU-BUG.md).
+Bảng tổng hợp nằm ở [`buglogs/BUG-LOG.md`](../../../buglogs/BUG-LOG.md).
 
 ---
 
@@ -70,7 +70,7 @@ toàn thân thể của một người thật.
 
 > **Vì sao lấy một lỗi ĐÃ VÁ làm ví dụ:** file này công khai trên GitHub. Minh hoạ bằng lỗ
 > hổng đang mở là tự đăng báo cáo lỗ hổng của chính mình. Ví dụ dưới đây lấy lỗi **C1 đã vá
-> xong** trong [CHANGELOG-BAO-MAT.md](../CHANGELOG-BAO-MAT.md) — vốn đã công khai, nên tái
+> xong** trong [CHANGELOG-BAO-MAT.md](../../CHANGELOG-BAO-MAT.md) — vốn đã công khai, nên tái
 > hiện lại ở đây không lộ thêm gì. Khi ghi Bug Log thật, chi tiết đầy đủ nằm ở `buglogs/`
 > (nội bộ), không nằm ở đây.
 

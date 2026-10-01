@@ -208,6 +208,10 @@ router.post('/:code/request-deletion', async (req, res) => {
              sender_email = NULL,
              ip_address = NULL,
              user_agent = NULL,
+             /* Mã máy là dấu nối: giữ nó thì đơn đã xoá danh tính vẫn nối được
+                với đơn có tên cùng máy (BUG-014, SEC-DEC-008). Cùng danh sách
+                cột với routes/admin/submissions.js — sửa một nơi thì sửa cả hai. */
+             device_id = NULL,
              identity_erased = TRUE,
              identity_erased_at = NOW()
          WHERE id = ?`,

@@ -1,19 +1,23 @@
 /** API quản lý ý kiến cho cán bộ (yêu cầu đăng nhập) */
 import { Router } from 'express';
 import { layIpThat, ghiNhatKy } from '../../lib/helpers.js';
-import { khoaThietBi, khoaIpThuCong, xetKhoaTaiPham, donDonCungThietBi } from '../../lib/chan-spam.js';
+import {
+  khoaThietBi, xetKhoaTaiPham,
+  xetDonGayKhoa, laDonAnDanh, GHI_CHU_KHONG_TINH_TAI_PHAM,
+} from '../../lib/chan-spam.js';
 import { pool } from '../../db.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authorize.js';
 import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
+import {
+  dieuKienXem, capDoSql, bieuThucCapDo, nhomXemDuoc, CAP_DO_HOP_LE, MUC_CHI_TRUONG,
+} from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 router.use(requireAuth);
 
-/* Cột security_level chỉ có sau khi chạy nang_cap_v14.sql. Kiểm tra MỘT lần rồi
-   nhớ kết quả, để truy vấn danh sách/chi tiết không sập nếu database chưa nâng
-   cấp — cột chưa có thì coi mọi tin là 'thuong'. Thà thiếu tính năng phân loại
-   còn hơn cả danh sách ý kiến trắng trơn vì thiếu một cột. */
+/* Cấp độ bảo mật (cột security_level, nang_cap_v14.sql): mọi đường đọc/ghi hồ
+   sơ ở tệp này AND với dieuKienXem() — xem lib/pham-vi-ho-so.js (BUG-009). */
 /* Cột toạ độ vụ việc chỉ có sau khi chạy nang_cap_v16.sql. Kiểm một lần rồi
    nhớ, để trang chi tiết không sập khi database chưa nâng cấp. */
 let _coCotToaDoAd = null;
@@ -30,22 +34,6 @@ async function coCotToaDoAd() {
     _coCotToaDoAd = false;
   }
   return _coCotToaDoAd;
-}
-
-let _coCotMat = null;
-async function coCotCapDoMat() {
-  if (_coCotMat !== null) return _coCotMat;
-  try {
-    const [r] = await pool.query(
-      `SELECT 1 FROM information_schema.columns
-        WHERE table_schema = DATABASE() AND table_name = 'submissions'
-          AND column_name = 'security_level' LIMIT 1`
-    );
-    _coCotMat = r.length > 0;
-  } catch {
-    _coCotMat = false;
-  }
-  return _coCotMat;
 }
 
 /** Tính tình trạng hạn xử lý (SLA) */
@@ -223,6 +211,12 @@ router.get('/', async (req, res) => {
     where.push('s.assigned_to = ?');
     params.push(Number(canBo));
   }
+  /* PHẠM VI THEO CẤP ĐỘ (BUG-009). Nằm trong `where` chung nên trang dữ liệu,
+     total và ô tìm kiếm cùng chỉ thấy hồ sơ được xem — hồ sơ bị ẩn mà vẫn đếm
+     vào total khi "khớp" từ khoá là để lộ nó tồn tại. */
+  const phamVi = await dieuKienXem(req.staff);
+  where.push(phamVi.sql);
+  params.push(...phamVi.params);
   const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   try {
@@ -244,7 +238,7 @@ router.get('/', async (req, res) => {
                            AND m.read_by_staff = 0), 0) AS tin_chua_doc,
               c.code AS category_code, c.name AS category_name,
               s.status, s.sender_name, s.is_flagged, s.created_at, s.is_anonymous, s.urgency,
-              ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"}
+              ${await capDoSql('s')} AS security_level,
               s.deadline_at, s.assigned_to,
               st.full_name AS assigned_name, w.name AS ward_name
        FROM submissions s
@@ -276,6 +270,8 @@ router.get('/', async (req, res) => {
 /** GET /api/admin/submissions/:id — chi tiết (danh tính CHE SẴN, muốn xem đủ phải bấm nút) */
 router.get('/:id', async (req, res) => {
   try {
+    /* Hồ sơ ngoài phạm vi trả 404 y như không tồn tại (BUG-009) */
+    const phamVi = await dieuKienXem(req.staff);
     const [rows] = await pool.query(
       /* Liệt kê cột TƯỜNG MINH, KHÔNG dùng SELECT s.* — trước đây s.* kéo theo cả
          ip_address, user_agent, content_hash, sender_phone_hash rồi spread thẳng
@@ -284,9 +280,15 @@ router.get('/:id', async (req, res) => {
          giác — đường lộ danh tính thật, không cần chờ lộ database.
          Thêm cột mới vào bảng thì phải cân nhắc rồi mới thêm vào đây. */
       `SELECT s.id, s.tracking_code, s.original_content, s.ai_processed_content,
-              s.category_id, s.status, s.urgency, ${(await coCotCapDoMat()) ? 's.security_level,' : "'thuong' AS security_level,"} s.is_anonymous,
+              s.category_id, s.status, s.urgency, ${await capDoSql('s')} AS security_level, s.is_anonymous,
               s.is_flagged, s.flag_reason,
-              s.sender_name, s.sender_phone, s.sender_email,
+              s.sender_name, s.sender_phone,
+              /* Email: CHỈ lấy cờ có/không, KHÔNG lấy cột. Trang chi tiết chỉ
+                 cần biết để hiện dòng thư; email đầy đủ chỉ ra qua /reveal (ba
+                 lớp + nhật ký). Từng lấy cột rồi giải mã trả nguyên văn cho mọi
+                 cán bộ (BUG-010). Không che bằng maskName được: email không có
+                 khoảng trắng là MỘT từ, maskName giữ nguyên từ đầu tiên. */
+              (s.sender_email IS NOT NULL) AS co_email,
               s.created_at, s.updated_at, s.deadline_at, s.resolved_at,
               s.assigned_to, s.resolved_by, s.reviewed_by, s.reviewed_at,
               s.rejection_reason, s.resolution_note, s.ward_id,
@@ -296,13 +298,17 @@ router.get('/:id', async (req, res) => {
               ${(await coCotToaDoAd()) ? 's.incident_lat, s.incident_lng,' : 'NULL AS incident_lat, NULL AS incident_lng,'}
               s.identity_erased, s.identity_erased_at, s.deleted_at,
               s.incident_group_id,
-              /* Mã thiết bị: chuỗi NGẪU NHIÊN do trình duyệt tự sinh, KHÔNG
-                 suy ra được ai. Cần ở đây để giao diện biết hồ sơ có khoá được
-                 máy gửi không.
+              /* Mã thiết bị: CHỈ lấy cờ có/không, KHÔNG lấy giá trị. Từng mã
+                 đơn lẻ là chuỗi ngẫu nhiên, nhưng nó sống mãi trong trình duyệt
+                 nên hai hồ sơ cùng mã là hai đơn từ cùng một máy — đơn tố giác
+                 ẩn danh nối được với đơn có tên của cùng người gửi (BUG-014).
+                 Giao diện chỉ cần biết có khoá được máy không; mark-spam và
+                 review tự đọc mã phía máy chủ theo id hồ sơ. Trả băm hay một
+                 khúc của mã cũng nối được y hệt — không làm.
                  (Chú thích cố ý KHÔNG nhắc tên các cột nhạy cảm — bài kiểm thử
                   admin-detail-columns quét nguyên văn chuỗi SQL này, nhắc tên
                   chúng ở đây sẽ làm test báo đỏ oan.) */
-              s.device_id,
+              (s.device_id IS NOT NULL) AS co_ma_thiet_bi,
               c.code AS category_code, c.name AS category_name, c.sla_days,
               st.full_name AS assigned_name, rb.full_name AS resolved_by_name,
               w.name AS ward_name
@@ -311,8 +317,8 @@ router.get('/:id', async (req, res) => {
        LEFT JOIN staff st ON s.assigned_to = st.id
        LEFT JOIN staff rb ON s.resolved_by = rb.id
        LEFT JOIN wards w ON s.ward_id = w.id
-       WHERE s.id = ?`,
-      [req.params.id]
+       WHERE s.id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
 
@@ -332,7 +338,11 @@ router.get('/:id', async (req, res) => {
       ...row,
       sender_name: row.is_anonymous ? '🕶️ Người gửi ẩn danh' : maskName(decrypt(row.sender_name)),
       sender_phone: row.is_anonymous ? '(không cung cấp)' : maskPhone(decrypt(row.sender_phone)),
-      sender_email: row.sender_email ? decrypt(row.sender_email) : null,
+      co_email: Boolean(row.co_email),
+      co_ma_thiet_bi: Boolean(row.co_ma_thiet_bi),
+      /* Chỉ trỏ tới nhóm người xem mở được. Nhóm chứa hồ sơ bị ẩn trả 404 —
+         trỏ tới nó là báo "có hồ sơ tương tự bạn không được xem" (BUG-009) */
+      incident_group_id: (await nhomXemDuoc(req.staff, row.incident_group_id)) ? row.incident_group_id : null,
       is_masked: true,
       ...slaOf(row),
       images,
@@ -360,9 +370,13 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/:id/reveal', authorize('admin', 'manager'), async (req, res) => {
   try {
+    /* Ngoài phạm vi cấp độ thì 404, không 403 — 403 là xác nhận hồ sơ tồn tại
+       (BUG-009). Lớp 2 bên dưới vẫn đứng riêng: xem được nội dung chưa có
+       nghĩa là được xem danh tính. */
+    const phamVi = await dieuKienXem(req.staff, '');
     const [rows] = await pool.query(
-      'SELECT assigned_to, sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ?',
-      [req.params.id]
+      `SELECT assigned_to, sender_name, sender_phone, sender_email, is_anonymous FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (rows[0].is_anonymous) {
@@ -371,7 +385,12 @@ router.post('/:id/reveal', authorize('admin', 'manager'), async (req, res) => {
 
     /* Chỉ admin, hoặc cán bộ ĐƯỢC PHÂN CÔNG hồ sơ này, mới xem được danh tính.
        Không có bước này thì một manager vẫn tra được danh tính của MỌI người
-       tố giác trong hệ thống, kể cả hồ sơ mình không hề phụ trách. */
+       tố giác trong hệ thống, kể cả hồ sơ mình không hề phụ trách.
+
+       ⚠️ Lớp này chỉ đứng được chừng nào manager không tự ghi được
+       assigned_to trỏ vào mình hay đồng cấp (BUG-008). Luật đó nằm ở
+       DUOC_GIAO_CHO của /assign. Thêm bất kỳ đường nào khác ghi assigned_to
+       (giao theo lô, tự động giao...) thì phải đi qua cùng luật. */
     if (req.staff.role !== 'admin' && rows[0].assigned_to !== req.staff.id) {
       return res.status(403).json({
         error: 'Chỉ cán bộ được phân công xử lý ý kiến này mới xem được danh tính.',
@@ -407,6 +426,16 @@ router.patch('/:id/status', async (req, res) => {
     return res.status(400).json({ error: 'Vui lòng nhập lý do từ chối.' });
   }
   try {
+    /* Không xem được thì không sửa được (BUG-009). Thủ tục CALL không nhận
+       điều kiện phạm vi nên kiểm bằng một câu riêng ngay trước — đánh đổi ghi
+       ở SEC-DEC-009. */
+    const phamVi = await dieuKienXem(req.staff, '');
+    const [thay] = await pool.query(
+      `SELECT id FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
+    );
+    if (thay.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+
     await pool.query('CALL update_submission_status(?,?,?,?,?)', [
       req.params.id, status, note || null, rejectionReason || null, req.staff.id,
     ]);
@@ -428,6 +457,10 @@ router.patch('/:id/status', async (req, res) => {
             `UPDATE submissions
              SET sender_name = NULL, sender_phone = NULL, sender_phone_hash = NULL,
                  sender_email = NULL, ip_address = NULL, user_agent = NULL,
+                 /* Mã máy là dấu nối: giữ nó thì đơn đã xoá danh tính vẫn nối
+                    được với đơn có tên cùng máy (BUG-014, SEC-DEC-008). Cùng danh
+                    sách cột với routes/tracking.js — sửa một nơi thì sửa cả hai. */
+                 device_id = NULL,
                  identity_erased = TRUE, identity_erased_at = NOW()
              WHERE id = ?`,
             [req.params.id]
@@ -453,11 +486,89 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+/* AI ĐƯỢC GIAO HỒ SƠ CHO AI (BUG-008, SEC-DEC-007) — allow-list theo vai trò.
+
+   Phân công không chỉ là giao việc: nó quyết định ai lọt qua lớp 2 của
+   /reveal. Trước đây manager giao được cho BẤT KỲ AI, kể cả chính mình — tức
+   tự mở cửa /reveal cho mình (tự giao, xem danh tính, giao trả lại người cũ),
+   hoặc hai manager giao chéo cho nhau. Người bị kiểm và người ghi dữ liệu để
+   kiểm không được là một.
+
+   Nên chỉ admin — vai trò vốn đã xem được mọi danh tính — mới giao hồ sơ cho
+   người /reveal được (admin, manager). Manager chỉ giao cho handler, vai trò
+   không bao giờ /reveal được (H1). Không vai trò nào tự nới được phạm vi xem
+   danh tính của mình hay của đồng cấp.
+
+   Đánh đổi đã chấp nhận: manager muốn tự nhận một hồ sơ phải nhờ admin giao.
+   Vai trò người nhận đọc từ CSDL lúc giao; ai bị nâng vai trò bằng tay SAU đó
+   thì mang theo các hồ sơ đang giữ (rủi ro ghi ở SEC-DEC-007). */
+const DUOC_GIAO_CHO = {
+  admin: ['admin', 'manager', 'handler'],
+  manager: ['handler'],
+};
+
 /** PATCH /api/admin/submissions/:id/assign — phân công cán bộ (admin/manager) */
 router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
   const { staffId } = req.body || {};
+
+  /* Chỉ nhận số nguyên dương, hoặc null để bỏ giao. mysql2 định dạng tham số
+     phía client: "3" và [3] đều thành 3, true thành 1 — nên kiểu lạ không được
+     tới câu UPDATE, kể cả khi người gửi là admin. */
+  if (staffId !== null && !(Number.isInteger(staffId) && staffId > 0)) {
+    return res.status(400).json({ error: 'Mã cán bộ không hợp lệ.' });
+  }
+
   try {
-    await pool.query('UPDATE submissions SET assigned_to = ? WHERE id = ?', [staffId || null, req.params.id]);
+    /* HỒ SƠ MẬT: CHỈ ADMIN GIAO HAY BỎ GIAO (BUG-009, chính sách P38 #2).
+       Người được giao đọc được hồ sơ Mật (lib/pham-vi-ho-so.js). Nếu manager
+       giao được thì "người admin giao" thành "người manager chọn" — lách thẳng
+       dòng Mật, vì manager giao được cho handler (SEC-DEC-007). */
+    const laTruong = req.staff.role === 'admin';
+    const phamVi = await dieuKienXem(req.staff, '');
+    const mucSql = await capDoSql('');
+    const [hoSo] = await pool.query(
+      `SELECT ${mucSql} AS muc FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
+    );
+    if (hoSo.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (!laTruong && hoSo[0].muc === MUC_CHI_TRUONG) {
+      await ghiNhatKy(pool, req, {
+        hanhDong: 'assign_denied', loaiDoiTuong: 'submission', doiTuongId: req.params.id,
+        chiTiet: { assignedTo: staffId, lyDo: 'ho_so_mat' },
+      });
+      return res.status(403).json({ error: 'Chỉ Trưởng Công an xã được phân công hồ sơ Mật.' });
+    }
+
+    if (staffId !== null) {
+      const [nguoiNhan] = await pool.query('SELECT role, is_active FROM staff WHERE id = ?', [staffId]);
+      if (nguoiNhan.length === 0 || !nguoiNhan[0].is_active) {
+        return res.status(400).json({ error: 'Cán bộ không tồn tại hoặc đã bị khoá.' });
+      }
+      if (!(DUOC_GIAO_CHO[req.staff.role] || []).includes(nguoiNhan[0].role)) {
+        /* Ghi lại lần thử: manager thử giao hồ sơ cho lãnh đạo (kể cả chính
+           mình) là dấu hiệu đáng xem, dù đã bị chặn. Tên hành động riêng để
+           không lẫn với một lần giao thành công. */
+        await pool.query(
+          'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details, ip_address) VALUES (?,?,?,?,?,?)',
+          [req.staff.id, 'assign_denied', 'submission', req.params.id,
+           JSON.stringify({ assignedTo: staffId, role: nguoiNhan[0].role }), layIpThat(req)]
+        );
+        return res.status(403).json({
+          error: 'Chỉ quản trị viên được giao hồ sơ cho lãnh đạo. Bạn chỉ giao được cho cán bộ xử lý.',
+        });
+      }
+    }
+
+    /* Kiểm mức lần nữa NGAY TRONG câu ghi: admin nâng hồ sơ lên Mật giữa câu
+       SELECT trên và câu này thì lần giao của manager không được lọt vào. */
+    const [kq] = await pool.query(
+      `UPDATE submissions SET assigned_to = ?
+        WHERE id = ? AND (? = 1 OR ${mucSql} <> 'mat')`,
+      [staffId, req.params.id, laTruong ? 1 : 0]
+    );
+    if (!kq.affectedRows) {
+      return res.status(409).json({ error: 'Cấp độ hồ sơ vừa thay đổi. Tải lại trang rồi thử lại.' });
+    }
     await pool.query(
       'INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details) VALUES (?,?,?,?,?)',
       [req.staff.id, 'assign', 'submission', req.params.id, JSON.stringify({ assignedTo: staffId })]
@@ -472,22 +583,59 @@ router.patch('/:id/assign', authorize('admin', 'manager'), async (req, res) => {
 /** PATCH /api/admin/submissions/:id/security-level — đặt cấp độ bảo mật (admin/manager)
  *
  * Ba mức: thuong / can_bao_ve / mat. Chỉ lãnh đạo được đổi, vì đây là quyết
- * định nghiệp vụ ảnh hưởng tới việc ai được xem tin. Ghi nhật ký đầy đủ. */
+ * định nghiệp vụ ảnh hưởng tới việc ai được xem tin. Ghi nhật ký đầy đủ.
+ *
+ * MỨC MẬT CHỈ ADMIN ĐẶT HOẶC HẠ (BUG-009, ADR-002 §3). Manager hạ được thì hạ
+ * xuống, cho một cán bộ đọc, rồi nhờ nâng lại — Mật không còn chặn được ai;
+ * mà ở cấp xã, tố giác Mật có thể nhắm vào chính Phó trưởng. */
 router.patch('/:id/security-level', authorize('admin', 'manager'), async (req, res) => {
   const { level } = req.body || {};
-  const hopLe = ['thuong', 'can_bao_ve', 'mat'];
-  if (!hopLe.includes(level)) return res.status(400).json({ error: 'Cấp độ không hợp lệ.' });
+  if (!CAP_DO_HOP_LE.includes(level)) return res.status(400).json({ error: 'Cấp độ không hợp lệ.' });
+  const laTruong = req.staff.role === 'admin';
+  if (!laTruong && level === MUC_CHI_TRUONG) {
+    return res.status(403).json({ error: 'Chỉ Trưởng Công an xã được đặt mức Mật.' });
+  }
   try {
-    const [kq] = await pool.query(
-      'UPDATE submissions SET security_level = ? WHERE id = ?',
-      [level, req.params.id]
+    const phamVi = await dieuKienXem(req.staff, '');
+    /* Route này ghi vào cột security_level nên đọc thẳng cột, không qua lượt
+       dò cột: dò lỗi thoáng qua mà thay mức bằng hằng 'mat' thì câu UPDATE dưới
+       tưởng hồ sơ "đã Mật sẵn" và bỏ qua việc gỡ người được giao. */
+    const mucSql = bieuThucCapDo('');
+    const [hoSo] = await pool.query(
+      `SELECT ${mucSql} AS muc, assigned_to FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
-    if (!kq.affectedRows) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (hoSo.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (!laTruong && hoSo[0].muc === MUC_CHI_TRUONG) {
+      return res.status(403).json({ error: 'Chỉ Trưởng Công an xã được hạ mức Mật.' });
+    }
+
+    /* NÂNG LÊN MẬT THÌ GỠ NGƯỜI ĐANG ĐƯỢC GIAO (chính sách P38 #2): người đó có
+       thể do manager chọn, mà người được giao thì đọc được hồ sơ Mật. Hồ sơ đã
+       Mật sẵn thì giữ nguyên, để không gỡ người Trưởng vừa giao. "Mật sẵn" tính
+       theo mức đã chuẩn hoá (mucSql), khớp với cách máy chủ phân quyền và với
+       nang_cap_v24.sql — mức lạ ('' , NULL) đã được v24 gỡ giao.
+       ⚠️ assigned_to đứng TRƯỚC security_level: MySQL gán từ trái sang phải,
+       cột sau đọc giá trị MỚI của cột trước — đảo lại thì CASE luôn thấy 'mat'.
+       Manager: điều kiện mức nằm ngay trong câu ghi, không lọt khi admin nâng
+       mức giữa câu SELECT trên và câu này. */
+    const [kq] = await pool.query(
+      `UPDATE submissions
+          SET assigned_to = CASE WHEN ? = 'mat' AND ${mucSql} <> 'mat'
+                                 THEN NULL ELSE assigned_to END,
+              security_level = ?
+        WHERE id = ? AND (? = 1 OR security_level IN ('thuong', 'can_bao_ve'))`,
+      [level, level, req.params.id, laTruong ? 1 : 0]
+    );
+    if (!kq.affectedRows) {
+      return res.status(409).json({ error: 'Cấp độ hồ sơ vừa thay đổi. Tải lại trang rồi thử lại.' });
+    }
+    const goGiao = level === MUC_CHI_TRUONG && hoSo[0].muc !== MUC_CHI_TRUONG && hoSo[0].assigned_to != null;
     await ghiNhatKy(pool, req, {
       hanhDong: 'set_security_level',
       loaiDoiTuong: 'submission',
       doiTuongId: req.params.id,
-      chiTiet: { level },
+      chiTiet: { level, tuMuc: hoSo[0].muc, ...(goGiao ? { goPhanCong: hoSo[0].assigned_to } : {}) },
     });
     res.json({ ok: true, message: 'Đã cập nhật cấp độ bảo mật.' });
   } catch (err) {
@@ -509,8 +657,10 @@ router.post('/:id/review', async (req, res) => {
   }
 
   try {
+    const phamVi = await dieuKienXem(req.staff, '');   // BUG-009
     const [rows] = await pool.query(
-      'SELECT status, is_anonymous, device_id FROM submissions WHERE id = ?', [req.params.id]
+      `SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      [req.params.id, ...phamVi.params]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (rows[0].status !== 'pending_review') {
@@ -518,6 +668,28 @@ router.post('/:id/review', async (req, res) => {
     }
 
     const newStatus = action === 'approve' ? 'received' : 'spam';
+
+    /* ĐƠN NÀY CÓ ĐƯỢC GÂY KHOÁ KHÔNG (BUG-015) — hỏi TRƯỚC khi ghi lịch sử lần
+       này. Hàng chờ có thể chứa đơn bị chặn ngầm (đơn có ảnh nghi ngờ được đổi
+       sang 'pending_review' lúc nhận) và đơn được khôi phục; xem xetDonGayKhoa. */
+    const xet = action === 'spam'
+      ? await xetDonGayKhoa(pool, rows[0])
+      : { gayKhoa: false, khongTinhTaiPham: false };
+    /* Khoá và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015), và đơn ẩn
+       danh — gần như cả hàng chờ này — không khoá gì (BUG-017, M-B) */
+    const anDanh = laDonAnDanh(rows[0].is_anonymous);
+    const gayKhoa = !anDanh && xet.gayKhoa && Boolean(rows[0].device_id);
+
+    /* Đơn chặn ngầm: dòng lịch sử mang GHI_CHU_KHONG_TINH_TAI_PHAM là dấu để
+       xetKhoaTaiPham KHÔNG đếm đơn này về sau. Ghi TRƯỚC và KHÔNG nuốt lỗi —
+       khác lệ ở dưới, vì đánh rác mà thiếu dấu là đơn chặn ngầm thành "quyết
+       định cán bộ", đẩy máy lên khoá 30 ngày. Không ghi được thì không đánh rác. */
+    if (xet.khongTinhTaiPham) {
+      await pool.query(
+        'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
+        [req.params.id, 'pending_review', 'spam', GHI_CHU_KHONG_TINH_TAI_PHAM, req.staff.id]
+      );
+    }
 
     // "Tin rác" -> đưa vào THÙNG RÁC (xoá mềm), giữ 7 ngày để còn khôi phục được.
     // "Duyệt"    -> chuyển sang danh sách xử lý bình thường.
@@ -551,7 +723,8 @@ router.post('/:id/review', async (req, res) => {
        hình kiểm duyệt.
        ====================================================================== */
     try {
-      await pool.query(
+      /* Đơn chặn ngầm đã có dòng lịch sử ghi ở trên — không ghi hai lần */
+      if (!xet.khongTinhTaiPham) await pool.query(
         'INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)',
         [req.params.id, 'pending_review', newStatus,
          action === 'approve' ? 'Duyệt tin báo ẩn danh — đưa vào xử lý' : 'Đánh dấu tin rác',
@@ -574,30 +747,28 @@ router.post('/:id/review', async (req, res) => {
     }
 
     /* ======================================================================
-       ĐÁNH DẤU TIN RÁC Ở HÀNG CHỜ CŨNG PHẢI DỌN VÀ KHOÁ
+       ĐÁNH DẤU TIN RÁC Ở HÀNG CHỜ CŨNG PHẢI KHOÁ
 
-       Trước đây chỉ đường /:id/spam mới dọn và khoá, còn nút "Đánh dấu tin
-       rác" ngay tại màn hình kiểm duyệt thì chỉ đổi trạng thái một đơn. Hai
-       nút mang cùng một cái tên mà làm hai việc khác nhau — cán bộ dùng nút ở
-       hàng chờ (nút hay dùng nhất) lại là nút yếu nhất.
+       Trước đây chỉ đường /:id/mark-spam mới khoá, còn nút "Đánh dấu tin rác"
+       ngay tại màn hình kiểm duyệt thì chỉ đổi trạng thái. Hai nút mang cùng
+       một cái tên mà làm hai việc khác nhau — cán bộ dùng nút ở hàng chờ (nút
+       hay dùng nhất) lại là nút yếu nhất.
+
+       Cả hai nút chỉ tác động ĐÚNG ĐƠN được bấm, không dọn theo lô (BUG-018):
+       xem chú thích "KHÔNG CÒN DỌN THEO LÔ" trong lib/chan-spam.js.
        ====================================================================== */
-    let soDonDaDon = 0;
     let taiPham = false;
-    if (action === 'spam' && rows[0].device_id) {
-      soDonDaDon = await donDonCungThietBi(pool, {
-        deviceId: rows[0].device_id,
-        boQuaId: req.params.id,
-        staffId: req.staff.id,
-        lyDo: 'Dọn theo lô cùng thiết bị với một tin bị đánh dấu rác ở hàng chờ',
-      });
+    if (gayKhoa) {
       await khoaThietBi(pool, {
         deviceId: rows[0].device_id,
         staffId: req.staff.id,
         lyDo: 'Tin rác — đánh dấu tại hàng chờ kiểm duyệt',
+        anDanh,
       });
       const kq = await xetKhoaTaiPham(pool, {
         deviceId: rows[0].device_id,
         staffId: req.staff.id,
+        anDanh,
       });
       taiPham = kq.taiPham;
     }
@@ -605,15 +776,11 @@ router.post('/:id/review', async (req, res) => {
     res.json({
       ok: true,
       taiPham,
-      soDonDaDon,
-      message: (action === 'approve'
+      message: action === 'approve'
         ? 'Đã duyệt — ý kiến được đưa vào quy trình xử lý.'
         : taiPham
           ? 'Đã đánh dấu là tin rác. Thiết bị bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
-          : 'Đã đánh dấu là tin rác.')
-        + (soDonDaDon > 0
-            ? ` Đã đưa thêm ${soDonDaDon} tin cùng thiết bị (gửi trong 24 giờ trước) vào Thùng rác.`
-            : ''),
+          : 'Đã đánh dấu là tin rác.',
     });
   } catch (err) {
     console.error('Lỗi kiểm duyệt:', err.message);
@@ -639,22 +806,42 @@ router.post('/:id/review', async (req, res) => {
 router.post('/:id/mark-spam', async (req, res) => {
   const id = Number(req.params.id);
   const lyDo = String(req.body?.reason || '').trim().slice(0, 200);
-  /* Cán bộ chủ động chọn khoá IP khi hồ sơ không có mã thiết bị */
-  const khoaIp = req.body?.khoaIp === true;
+  /* Không đọc cờ khoaIp: không còn khoá theo IP (BUG-016, SEC-DEC-008 G1).
+     Giao diện cũ còn gửi cờ này thì máy chủ bỏ qua. */
 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
   }
 
   try {
+    const phamVi = await dieuKienXem(req.staff, '');   // BUG-009
     const [rows] = await pool.query(
-      'SELECT status, device_id, ip_address, tracking_code FROM submissions WHERE id = ? AND deleted_at IS NULL',
-      [id]
+      `SELECT id, status, is_anonymous, device_id, is_spam, reviewed_by FROM submissions WHERE id = ? AND deleted_at IS NULL AND ${phamVi.sql}`,
+      [id, ...phamVi.params]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Không tìm thấy hồ sơ, hoặc hồ sơ đã ở trong thùng rác.' });
     }
     const don = rows[0];
+    /* Khoá, dọn và đếm tái phạm đều CHỈ trong loại của đơn này (BUG-015) */
+    const anDanh = laDonAnDanh(don.is_anonymous);
+
+    /* ĐƠN NÀY CÓ ĐƯỢC GÂY KHOÁ KHÔNG (BUG-015) — hỏi TRƯỚC khi ghi lịch sử lần
+       này. Đọc từ dữ liệu của đơn, không từ status; xem xetDonGayKhoa. */
+    const { gayKhoa, khongTinhTaiPham } = await xetDonGayKhoa(pool, don);
+
+    /* Đơn chặn ngầm: dòng lịch sử mang GHI_CHU_KHONG_TINH_TAI_PHAM là dấu để
+       xetKhoaTaiPham KHÔNG đếm đơn này về sau (lý do cán bộ gõ vẫn lưu ở
+       rejection_reason). Ghi TRƯỚC và KHÔNG nuốt lỗi: không ghi được dấu thì
+       không đánh rác — đánh rác mà thiếu dấu là đơn chặn ngầm thành "quyết định
+       cán bộ", đẩy máy lên khoá 30 ngày. */
+    const ghiLichSu = () => pool.query(
+      `INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by)
+       VALUES (?, ?, 'spam', ?, ?)`,
+      [id, don.status, khongTinhTaiPham ? GHI_CHU_KHONG_TINH_TAI_PHAM : (lyDo || 'Đánh dấu tin rác'),
+       req.staff?.id || null]
+    );
+    if (khongTinhTaiPham) await ghiLichSu();
 
     await pool.query(
       `UPDATE submissions
@@ -665,33 +852,29 @@ router.post('/:id/mark-spam', async (req, res) => {
       [req.staff?.id || null, lyDo || 'Cán bộ đánh dấu tin rác', id]
     );
 
-    await pool.query(
-      `INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by)
-       VALUES (?, ?, 'spam', ?, ?)`,
-      [id, don.status, lyDo || 'Đánh dấu tin rác', req.staff?.id || null]
-    ).catch(() => {});
+    if (!khongTinhTaiPham) await ghiLichSu().catch(() => {});
 
     /* Khoá thiết bị. Bọc riêng vì lỗi ở đây không được làm hỏng việc đánh dấu
        đã thành công — thà không khoá được còn hơn để hồ sơ nửa vời. */
     let daKhoa = false;
     let kieuKhoa = '';
-    let soDonDaDon = 0;
     let taiPham = false;
-    if (don.device_id) {
-      /* Dọn cả loạt đơn cùng thiết bị trong 24 giờ trước — kẻ rải tin rác
-         hiếm khi gửi đúng một đơn. Chỉ đưa vào thùng rác (giữ 7 ngày) và
-         không đụng đơn cán bộ đã xử lý; xem chú thích trong chan-spam.js. */
-      soDonDaDon = await donDonCungThietBi(pool, {
-        deviceId: don.device_id,
-        boQuaId: id,
-        staffId: req.staff?.id || null,
-        lyDo: `Dọn theo lô cùng thiết bị với hồ sơ ${don.tracking_code}`,
-      });
-
+    if (anDanh) {
+      /* Đơn ẩn danh (kể cả is_anonymous NULL): không khoá máy, không khoá mạng,
+         không đếm tái phạm (BUG-017, SEC-DEC-008 M-B). Khoá IP không còn ở
+         đâu nữa (BUG-016), nên hồ sơ không mã máy cũng không có đường lui nào. */
+    } else if (!gayKhoa) {
+      /* Đơn vẫn vào thùng rác như trên; chỉ không khoá, không đếm */
+    } else if (don.device_id) {
+      /* Chỉ tác động ĐÚNG ĐƠN này, không dọn các đơn khác cùng máy (BUG-018):
+         xem chú thích "KHÔNG CÒN DỌN THEO LÔ" trong lib/chan-spam.js. */
+      /* Lý do khoá KHÔNG ghi mã hồ sơ: nó ra ở danh sách khoá — trỏ tới hồ sơ
+         nào là nối hồ sơ đó với các đơn/khiếu nại cùng máy (BUG-014). */
       daKhoa = await khoaThietBi(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
-        lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
+        lyDo: `Tin rác${lyDo ? ': ' + lyDo : ''}`,
+        anDanh,
       });
       if (daKhoa) kieuKhoa = 'thiết bị';
 
@@ -700,21 +883,14 @@ router.post('/:id/mark-spam', async (req, res) => {
       const kqTaiPham = await xetKhoaTaiPham(pool, {
         deviceId: don.device_id,
         staffId: req.staff?.id || null,
+        anDanh,
       });
       taiPham = kqTaiPham.taiPham;
       if (taiPham) { daKhoa = true; kieuKhoa = 'thiết bị'; }
-    } else if (don.ip_address) {
-      /* ĐƯỜNG LUI: hồ sơ gửi trước khi có tính năng mã thiết bị, hoặc người
-         gửi tắt localStorage. Khoá theo IP với thời hạn ngắn hơn (2 giờ) vì
-         có thể chặn oan người dùng chung IP nhà mạng.
-         Không có đường lui này thì cán bộ bấm "Tin rác" mà chẳng chặn được gì. */
-      daKhoa = await khoaIpThuCong(pool, {
-        ip: don.ip_address,
-        staffId: req.staff?.id || null,
-        lyDo: `Tin rác — hồ sơ ${don.tracking_code}${lyDo ? ': ' + lyDo : ''}`,
-      });
-      if (daKhoa) kieuKhoa = 'địa chỉ mạng';
     }
+    /* Hồ sơ không có mã máy: KHÔNG khoá gì, kể cả theo IP (BUG-016, SEC-DEC-008
+       G1) — khoá IP chặn ngầm cả vùng thuê bao dùng chung địa chỉ. Phản hồi báo
+       đúng sự thật cho cán bộ, không hứa một cú khoá không xảy ra. */
 
     await pool.query(
       `INSERT INTO staff_activity_logs (staff_id, action, target_id, ip_address)
@@ -729,22 +905,23 @@ router.post('/:id/mark-spam', async (req, res) => {
          có tính năng này thì không có mã thiết bị -> chỉ đánh dấu được thôi. */
       kieuKhoa,
       taiPham,
-      soDonDaDon,
-      /* Nói rõ ĐÃ DỌN BAO NHIÊU ĐƠN. Quét theo lô mà im lặng là kiểu giấu
-         việc: cán bộ bấm một nút, năm hồ sơ biến mất khỏi hàng chờ, không ai
-         hiểu vì sao. Nói ra thì cán bộ còn biết đường vào Thùng rác kiểm lại
-         nếu thấy con số lạ. */
-      ghiChu: (!daKhoa
-        ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị lẫn địa chỉ mạng nên không khoá được.'
-        : kieuKhoa === 'thiết bị'
-          ? (taiPham
-              ? 'Đã đánh dấu tin rác. Thiết bị này bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
-              : 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.')
-          : 'Đã đánh dấu tin rác. Hồ sơ không có mã thiết bị nên khoá theo địa chỉ mạng '
-            + 'trong 2 giờ — thời hạn ngắn vì có thể ảnh hưởng người dùng chung mạng.')
-        + (soDonDaDon > 0
-            ? ` Đã đưa thêm ${soDonDaDon} hồ sơ cùng thiết bị (gửi trong 24 giờ trước) vào Thùng rác — khôi phục được trong 7 ngày.`
-            : ''),
+      /* Phản hồi không được thay đổi theo số đơn khác cùng máy: nó là phép thử
+         "người này còn gửi đơn nào nữa không" (BUG-018, biến thể D8). */
+      /* Đơn ẩn danh: MỘT câu cố định, không phụ thuộc hồ sơ có mã máy/IP hay
+         từng bị chặn — mọi khác biệt ở đây là một phép thử về người gửi. */
+      ghiChu: anDanh
+        ? 'Đã đánh dấu tin rác. Tố giác ẩn danh không khoá máy hay mạng của người gửi — '
+          + 'chỉ hồ sơ này vào thùng rác.'
+        : !gayKhoa
+        ? 'Đã đánh dấu tin rác. Không khoá thêm: hồ sơ này đã bị chặn từ lúc nhận, '
+          + 'hoặc đã từng bị đánh dấu tin rác trước đây — mỗi hồ sơ chỉ gây khoá một lần.'
+        : !don.device_id
+        ? 'Đã đánh dấu tin rác. Hồ sơ này không có mã thiết bị nên không khoá.'
+        : !daKhoa
+        ? 'Đã đánh dấu tin rác. Không khoá được thiết bị này.'
+        : taiPham
+          ? 'Đã đánh dấu tin rác. Thiết bị này bị đánh dấu 3 lần liên tiếp nên khoá 30 ngày.'
+          : 'Đã đánh dấu tin rác và khoá thiết bị này trong 24 giờ.',
     });
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);

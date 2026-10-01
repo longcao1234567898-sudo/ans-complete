@@ -1,0 +1,24 @@
+# Allow-list cho mục 8 cổng DoD: những tệp khớp mẫu "nhạy cảm" nhưng ĐÃ SOÁT và được phép theo dõi.
+# Lệnh kiểm và luật dùng: docs/QUY-TRINH-LAM-VIEC.md §5.
+#
+# Mỗi dòng dữ liệu: <blob hash trong chỉ mục> <đường dẫn>. Lấy bằng: git rev-parse ":<đường dẫn>"
+#
+# Vì sao ghim theo hash, không theo tên: cái được duyệt là NỘI DUNG đã soát, không phải cái tên.
+# Ai đó thêm một khoá bí mật vào tệp đã duyệt thì hash đổi, cổng đỏ lại, buộc soát lại từ đầu.
+# Ghim theo tên thì tệp đã duyệt một lần sẽ thành chỗ giấu an toàn mãi mãi.
+#
+# Thêm hoặc cập nhật một dòng khi và chỉ khi đủ ba điều:
+#   (1) đã đọc toàn bộ nội dung tệp ở đúng phiên bản có hash đó;
+#   (2) người vận hành duyệt;
+#   (3) ghi dòng chú thích ngay trên: lý do vô hại, ai duyệt, ngày, phiên.
+# Không bao giờ nới regex của lệnh kiểm thay cho việc thêm dòng ở đây (luật 5).
+
+# .env.production: chỉ có 4 biến VITE_* công khai theo thiết kế (Vite nhúng vào bundle).
+# Netlify đọc tệp này khi tự dựng từ GitHub, gỡ đi có thể hỏng bản dựng.
+# Soát: BUG-005 Phần 1, soát lại ở P10, P15, P16. Duyệt: Loc, 2026-09-24. ND-020.
+30c0d35c54cfb4a24b5daf88d16f5a2332489946 .env.production
+
+# server/ca.pem: chứng chỉ CA công khai của nhà cung cấp MySQL, không có khoá riêng.
+# Gỡ đi có thể cắt kết nối DB nếu Render đọc qua DB_SSL_CA.
+# Soát: BUG-005 Phần 1, soát lại ở P10, P15, P16. Duyệt: Loc, 2026-09-24. ND-020.
+63c987d80c53ffff387690e9eee1df98ea022adb server/ca.pem

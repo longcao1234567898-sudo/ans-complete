@@ -78,12 +78,24 @@ export const JWT_SECRET = (() => {
 const ACCESS_TTL = '8h';        // access token sống 8 giờ
 const REFRESH_TTL_DAYS = 30;    // refresh token sống 30 ngày
 
+/* ⚠️ DẤU PHÂN LOẠI VÉ CÁN BỘ (BUG-001).
+   JWT_SECRET còn ký cả vé của CÔNG DÂN: vé OTP (routes/otp.js) và vé chat
+   (routes/chat.js) — người ngoài lấy được cả hai mà không cần tài khoản. Chữ
+   ký hợp lệ vì thế KHÔNG chứng minh được đây là vé cán bộ. Trước đây
+   verifyAccessToken chỉ kiểm chữ ký, nên vé chat mang `sub` = id đơn (trùng id
+   một cán bộ có thật) mở được mọi endpoint /api/admin.
+
+   Kiểm theo allow-list: vé cán bộ PHẢI mang đúng `aud` này, thiếu hay khác
+   đều bị từ chối — không liệt kê các `purpose` của vé công dân để chặn, vì vé
+   công dân thêm mới sau này sẽ lọt qua danh sách đó. */
+const ACCESS_AUD = 'hop-thu:can-bo';
+
 /** Sinh access token chứa thông tin cán bộ */
 export function signAccessToken(staff) {
   return jwt.sign(
     { sub: staff.id, username: staff.username, role: staff.role, name: staff.full_name },
     JWT_SECRET,
-    { expiresIn: ACCESS_TTL }
+    { expiresIn: ACCESS_TTL, audience: ACCESS_AUD }
   );
 }
 
@@ -97,7 +109,7 @@ export function signAccessToken(staff) {
  * chiếm quyền quản trị mà không cần biết khoá bí mật. Ghim ngay từ đầu để cửa
  * đó không bao giờ mở, kể cả khi đổi loại khoá về sau. */
 export function verifyAccessToken(token) {
-  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'], audience: ACCESS_AUD });
 }
 
 /** Sinh refresh token ngẫu nhiên (lưu hash vào DB) */

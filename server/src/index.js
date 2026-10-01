@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { pool } from './db.js';
+import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { loadBannedWords } from './lib/security.js';
 import { aiAvailable } from './lib/ai.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -213,6 +214,10 @@ app.use((_req, res) => res.status(404).json({ error: 'Endpoint không tồn tạ
 app.use(errorHandler);
 
 async function start() {
+  /* Dấu nối (mã máy, IP đã băm) tự xoá sau 30 ngày — không chờ ai mở trang
+     nào. Bật TRƯỚC khi kiểm kết nối: CSDL chưa lên thì lượt đầu ghi lỗi, các
+     chu kỳ sau tự thử lại. Xem lib/vong-doi-dau-noi.js. */
+  batTuDonDauNoi(pool);
   try {
     await pool.query('SELECT 1');
     console.log('✅ Kết nối MySQL thành công');

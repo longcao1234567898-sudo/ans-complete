@@ -10,10 +10,13 @@
  * Cán bộ đánh dấu tin rác thì khoá đúng máy đó, không đụng ai khác.
  *
  * ---------------------------------------------------------------------------
- * ⚠️ ĐÂY KHÔNG PHẢI ĐỊNH DANH NGƯỜI DÙNG.
- * Mã này ngẫu nhiên hoàn toàn, không suy ra được ai. Xoá bộ nhớ trình duyệt là
- * mất. Nó chỉ để phân biệt "máy nào đang phá hoại", không để theo dõi người
- * dân — đúng tinh thần bảo vệ người tố giác của hệ thống.
+ * ⚠️ MỘT MÃ ĐƠN LẺ KHÔNG NÓI LÊN AI — NHƯNG NÓ LÀ KHOÁ NỐI.
+ * Mã ngẫu nhiên, xoá bộ nhớ trình duyệt là mất. Nhưng nó sống qua mọi lần gửi
+ * từ cùng trình duyệt, nên hai đơn cùng mã là hai đơn cùng một máy: đơn tố giác
+ * ẩn danh nối được với đơn có tên người dân từng gửi trước đó (BUG-014). Vì vậy
+ * trang chi tiết hồ sơ chỉ nhận cờ có/không, và nhóm đơn cùng máy ở khiếu nại mở
+ * khoá không liệt kê đơn ẩn danh. Đừng trả mã kèm bất kỳ hồ sơ nào cho cán bộ —
+ * kể cả băm hay cắt ngắn, vì cùng đầu vào vẫn cho cùng đầu ra.
  */
 
 const KHOA = 'htans_device_id';

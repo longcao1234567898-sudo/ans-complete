@@ -31,7 +31,7 @@ Nếu chưa đạt mục tiêu, cứ nói chưa đạt. Báo cáo sai làm hỏn
 
 ## Bước 2 — Cổng Definition of Done  ⚠️ bắt buộc
 
-Bảy mục. **Thiếu bất kỳ mục nào → không commit.**
+Tám mục. **Thiếu bất kỳ mục nào → không commit.**
 
 | # | Kiểm | Cách kiểm |
 |---|---|---|
@@ -42,6 +42,30 @@ Bảy mục. **Thiếu bất kỳ mục nào → không commit.**
 | 5 | Không file ngoài phạm vi | File lạ trong `--stat` → tách commit khác hoặc hoàn nguyên |
 | 6 | Tài liệu đã đồng bộ | Theo bảng ánh xạ ở bước 5 |
 | 7 | Số liệu trong tài liệu là số đo được | Chạy lệnh đếm, không chép lại từ trí nhớ |
+| 8 | **Không tệp nhạy cảm nào đang bị theo dõi** | Chạy lệnh ở ngay dưới — phải không in ra dòng nào |
+
+```bash
+git -c core.quotePath=false ls-files | grep -iE "sao-luu/|(^|/)\.env($|\.)|ca\.pem$|\.sql\.bak$|^buglogs/" | grep -vE "(^|/)\.env\.example$" | while IFS= read -r f; do echo "$(git rev-parse ":$f") $f"; done | grep -vxFf <(grep -v "^#" docs/tep-nhay-cam-da-soat.txt | tr -d "\r")
+```
+
+Tệp khớp mẫu mà **đã soát và được duyệt** thì nằm trong allow-list
+[docs/tep-nhay-cam-da-soat.txt](../../docs/tep-nhay-cam-da-soat.txt), ghim theo **blob hash**:
+nội dung tệp đổi thì hash đổi, cổng đỏ lại. Luật thêm dòng ghi ở đầu tệp đó và ở QUY-TRINH §5.
+
+**Vì sao mục 8 tồn tại.** Bảy mục đầu chỉ soát **diff** của phiên hiện tại. Một tệp đã bị
+`git add` từ lâu thì không bao giờ xuất hiện trong diff nào nữa, nên nó vô hình với cả bảy
+mục đó. `.gitignore` cũng không cứu được: luật ignore **chỉ áp dụng cho tệp chưa được theo
+dõi**. Thêm luật vào `.gitignore` **không** gỡ được thứ đã lỡ commit.
+
+Ngày 2026-09-23 phát hiện một bản sao lưu toàn bộ cơ sở dữ liệu đã nằm công khai trên GitHub
+đúng theo đường đó, sống sót qua năm phiên vì không phiên nào nhìn ra ngoài diff (BUG-005).
+
+Lệnh in ra bất kỳ dòng nào → **dừng, không commit**, mở Bug Log. Gỡ bằng `git rm --cached`,
+không phải bằng cách thêm luật vào `.gitignore`.
+
+Nếu tin tệp đó vô hại: **không commit kèm ngoại lệ**. Soát toàn bộ nội dung, xin người vận hành
+duyệt, rồi thêm dòng vào allow-list trong một commit riêng. Không bao giờ nới regex thay cho việc
+đó. Ngoại lệ ghi tay mỗi phiên chính là thứ ND-020 đã gỡ: cổng đỏ thường trực dạy người ta bỏ qua cổng.
 
 **Bảng dấu hiệu đáng ngờ khi đọc diff** (mục 3):
 
@@ -104,8 +128,8 @@ Hỏi người dùng trước khi `git push`. Đã chốt là push thẳng, khô
 
 | Nếu phiên này đụng vào | Phải cập nhật |
 |---|---|
-| Thêm/xoá endpoint | `docs/kiem-thu-bao-mat/01-GIAI-DOAN-1-KIEM-KE.md`, `server/README.md` |
-| Đổi giới hạn nghiệp vụ (rate limit, quota, kích thước) | Bảng §2.2 của `01-GIAI-DOAN-1-KIEM-KE.md` |
+| Thêm/xoá endpoint | `docs/kiem-thu-bao-mat/phuong-phap/1-kiem-ke.md`, `server/README.md` |
+| Đổi giới hạn nghiệp vụ (rate limit, quota, kích thước) | Bảng §2.2 của `docs/kiem-thu-bao-mat/phuong-phap/1-kiem-ke.md` |
 | Đổi biến môi trường | `.env.example`, `server/.env.example`, `render.yaml`, `README.md` |
 | Đổi schema DB | File `database/nang_cap_vXX.sql` mới + `README.md` (thứ tự import) |
 | Quyết định kiến trúc | ADR mới trong `docs/adr/` |

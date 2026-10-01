@@ -188,7 +188,9 @@ export default function AdminSubmissionDetailPage() {
               <div className="space-y-2 text-sm">
                 <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-500" /> {revealed?.sender_name ?? data.sender_name}</p>
                 <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-500" /> {revealed?.sender_phone ?? data.sender_phone}</p>
-                {(revealed?.sender_email ?? data.sender_email) && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-500" /> {revealed?.sender_email ?? data.sender_email}</p>}
+                {revealed
+                  ? revealed.sender_email && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-500" /> {revealed.sender_email}</p>
+                  : data.co_email && <p className="flex items-center gap-2 text-slate-500 dark:text-slate-400"><Mail className="h-4 w-4 text-slate-500" /> <span className="italic">Có email — bấm “Xem danh tính” để xem</span></p>}
                 <p className="flex items-center gap-2 text-slate-500"><Clock className="h-4 w-4" /> {formatDateTime(data.created_at)}</p>
                 {data.ward_name && <p className="text-xs text-slate-500">Địa bàn: <span className="font-semibold text-slate-600 dark:text-slate-300">{data.ward_name}</span></p>}
               </div>
@@ -226,11 +228,18 @@ export default function AdminSubmissionDetailPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
               >
                 <option value="">— Chưa phân công —</option>
-                {staffList?.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.full_name} ({st.open_count} việc đang mở)
-                  </option>
-                ))}
+                {/* Manager chỉ giao được cho cán bộ xử lý (BUG-008) — backend
+                    chặn, ở đây chỉ để khỏi hiện lựa chọn chắc chắn bị từ chối.
+                    Người đang phụ trách vẫn hiện (không chọn lại được) để ô
+                    không trông như "chưa phân công". */}
+                {staffList
+                  ?.filter((st) => staff?.role !== 'manager' || st.role === 'handler' || st.id === data.assigned_to)
+                  .map((st) => (
+                    <option key={st.id} value={st.id}
+                      disabled={staff?.role === 'manager' && st.role !== 'handler'}>
+                      {st.full_name} ({st.open_count} việc đang mở)
+                    </option>
+                  ))}
               </select>
               {data.assigned_name && (
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
@@ -278,7 +287,9 @@ export default function AdminSubmissionDetailPage() {
             )}
 
             {/* CẤP ĐỘ BẢO MẬT — chỉ lãnh đạo (admin/manager) được đổi.
-                Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký. */}
+                Ba mức: thường / cần bảo vệ / mật. Mọi lần đổi đều ghi nhật ký.
+                Mức Mật chỉ Trưởng (admin) đặt hoặc hạ: khoá nút ở đây chỉ cho
+                dễ dùng, máy chủ tự chặn (BUG-009, lib/pham-vi-ho-so.js). */}
             {laLanhDao && (
               <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
                 <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
@@ -289,17 +300,19 @@ export default function AdminSubmissionDetailPage() {
                 </p>
                 <div className="flex flex-col gap-2">
                   {([
-                    ['thuong', 'Thường', 'Mọi cán bộ được phân công đều xem'],
-                    ['can_bao_ve', 'Cần bảo vệ', 'Chỉ người phụ trách và lãnh đạo'],
-                    ['mat', 'Mật', 'Chỉ lãnh đạo'],
+                    ['thuong', 'Thường', 'Mọi cán bộ đều xem'],
+                    ['can_bao_ve', 'Cần bảo vệ', 'Chỉ lãnh đạo và người được giao'],
+                    ['mat', 'Mật', 'Chỉ Trưởng và người Trưởng giao'],
                   ] as const).map(([giaTri, ten, moTa]) => {
                     const dangChon = (data.security_level || 'thuong') === giaTri;
+                    const chiTruong = staff?.role !== 'admin'
+                      && (giaTri === 'mat' || data.security_level === 'mat');
                     return (
                       <button
                         key={giaTri}
                         type="button"
-                        onClick={() => !dangChon && capDoMutation.mutate(giaTri)}
-                        disabled={capDoMutation.isPending || dangChon}
+                        onClick={() => !dangChon && !chiTruong && capDoMutation.mutate(giaTri)}
+                        disabled={capDoMutation.isPending || dangChon || chiTruong}
                         className={`rounded-xl border-2 p-3 text-left transition ${
                           dangChon
                             ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
@@ -392,29 +405,27 @@ export default function AdminSubmissionDetailPage() {
                   type="button"
                   disabled={dangDanhDauRac}
                   onClick={async () => {
+                    /* Tố giác ẩn danh không khoá máy hay mạng của người gửi
+                       (BUG-017) — máy chủ đã chặn, ở đây chỉ để không hứa
+                       với cán bộ một việc sẽ không xảy ra. Cùng quy ước với
+                       laDonAnDanh ở máy chủ: NULL coi là ẩn danh; MySQL trả
+                       TINYINT dạng số nên so bằng Number, không so với false. */
+                    const anDanh = data?.is_anonymous == null || Number(data.is_anonymous) !== 0;
+                    /* Không còn khoá theo địa chỉ mạng (BUG-016): hồ sơ không có
+                       mã máy thì không khoá gì — nói trước, không hứa suông. */
                     const ly = window.prompt(
-                      'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
+                      (anDanh
+                        ? 'Đánh dấu TIN RÁC. Tố giác ẩn danh không khoá máy hay mạng của người gửi.\n\n'
+                        : data?.co_ma_thiet_bi
+                        ? 'Đánh dấu TIN RÁC và khoá thiết bị này 24 giờ.\n\n'
+                        : 'Đánh dấu TIN RÁC. Hồ sơ này không có mã thiết bị nên không khoá.\n\n')
                       + 'Hồ sơ vào thùng rác, giữ 7 ngày, khôi phục được nếu bấm nhầm.\n\n'
                       + 'Lý do (không bắt buộc):'
                     );
                     if (ly === null) return;   // bấm Huỷ
-                    /* Hồ sơ gửi TRƯỚC khi có mã thiết bị thì không khoá được máy.
-                       Hỏi cán bộ có muốn khoá địa chỉ mạng thay thế không —
-                       KHÔNG tự làm, vì nhà mạng di động cho hàng trăm thuê bao
-                       chung một IP, khoá nhầm là chặn oan cả vùng. */
-                    let khoaIp = false;
-                    if (!data?.device_id) {
-                      khoaIp = window.confirm(
-                        'Hồ sơ này KHÔNG CÓ mã thiết bị (gửi trước khi hệ thống có tính năng).\n\n'
-                        + 'Bấm OK để khoá ĐỊA CHỈ MẠNG của người gửi trong 2 giờ.\n\n'
-                        + '⚠️ Lưu ý: nhà mạng di động cho hàng trăm thuê bao dùng chung một địa chỉ. '
-                        + 'Khoá có thể ảnh hưởng người khác trong cùng vùng.\n\n'
-                        + 'Bấm Cancel để chỉ đánh dấu tin rác, không khoá gì.'
-                      );
-                    }
                     setDangDanhDauRac(true);
                     try {
-                      const kq = await markSpam(submissionId, ly, khoaIp);
+                      const kq = await markSpam(submissionId, ly);
                       toast.success(kq.ghiChu, { duration: 6000 });
                       navigate('/quan-tri/y-kien');
                     } catch (e) {

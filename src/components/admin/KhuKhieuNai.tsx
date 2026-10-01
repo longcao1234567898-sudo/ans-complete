@@ -75,7 +75,7 @@ export default function KhuKhieuNai() {
 
       <p className="mb-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
         Bà con bị khoá nhầm gửi khiếu nại về đây. Máy có thể khoá nhầm khi nhiều người
-        dùng chung một điện thoại, hoặc nhà mạng cấp chung địa chỉ cho nhiều nhà.
+        dùng chung một điện thoại, hoặc cán bộ đánh nhầm một tin thật thành tin rác.
       </p>
 
       {thongBao && (
@@ -106,9 +106,6 @@ export default function KhuKhieuNai() {
               <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 {k.kind === 'device' ? <Smartphone className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
                 {k.kind === 'device' ? 'Thiết bị' : 'Địa chỉ mạng'}
-              </span>
-              <span className="font-mono text-xs text-slate-500">
-                {k.identifier.length > 20 ? k.identifier.slice(0, 20) + '…' : k.identifier}
               </span>
               {!k.con_bi_khoa && k.status === 'cho_xu_ly' && (
                 <span className="rounded-lg bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">

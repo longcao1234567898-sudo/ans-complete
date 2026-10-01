@@ -245,10 +245,13 @@ export function fetchSubmissions(params: {
 }
 
 export interface SubmissionDetail extends SubmissionRow {
-  /** Mã thiết bị đã gửi đơn — rỗng với đơn gửi trước khi có tính năng chặn spam */
-  device_id?: string | null;
+  /** Hồ sơ có mã thiết bị hay không (false với đơn gửi trước khi có tính năng chặn
+      spam). Máy chủ KHÔNG trả giá trị mã: hai hồ sơ cùng mã là hai đơn cùng một máy,
+      đủ để nối đơn ẩn danh với đơn có tên (BUG-014). */
+  co_ma_thiet_bi: boolean;
   sender_phone: string;
-  sender_email: string | null;
+  /** Hồ sơ có email hay không. Email đầy đủ chỉ lấy được qua revealIdentity (có ghi nhật ký). */
+  co_email: boolean;
   rejection_reason: string | null;
   resolution_note: string | null;
   resolved_by_name: string | null;
@@ -491,7 +494,8 @@ export const doiHienDiemDen = (id: number, hien: boolean) =>
 /* ---------- KHIẾU NẠI MỞ KHOÁ ---------- */
 export interface KhieuNai {
   id: number;
-  identifier: string;
+  /* Không có mã máy/địa chỉ: máy chủ cố ý không trả — cùng mã đó ở danh sách
+     khoá là khoá nối khiếu nại (ký tên) với hồ sơ gây khoá (BUG-014). */
   kind: 'device' | 'ip';
   content: string;
   status: 'cho_xu_ly' | 'da_go_khoa' | 'tu_choi';
@@ -658,7 +662,7 @@ export const sendChatMessage = (id: number, message: string): Promise<{ ok: bool
 
 export interface BlacklistItem {
   id: number;
-  identifier: string;
+  /* Không có mã máy/địa chỉ — xem chú thích ở KhieuNai (BUG-014). */
   kind: 'device' | 'ip';
   reason: string | null;
   created_at: string;
@@ -674,9 +678,9 @@ export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
   adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
 
 /** Đánh dấu tin rác + khoá thiết bị đã gửi (24 giờ) */
-export const markSpam = (id: number, reason?: string, khoaIp?: boolean): Promise<{
+export const markSpam = (id: number, reason?: string): Promise<{
   ok: boolean; coMaThietBi: boolean; cachKhoa: string; ghiChu: string;
 }> => adminFetch(`/api/admin/submissions/${id}/mark-spam`, {
   method: 'POST',
-  body: JSON.stringify({ reason: reason || '', khoaIp: khoaIp === true }),
+  body: JSON.stringify({ reason: reason || '' }),
 });
