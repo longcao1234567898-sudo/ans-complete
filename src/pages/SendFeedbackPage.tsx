@@ -10,7 +10,7 @@ import type { ContactInfo as ContactInfoType, FeedbackCategory, FeedbackDraft, F
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { readDraft, clearDraft, useDraftAutosave } from '../hooks/useDraftAutosave';
 import { saveTrackingCode } from '../hooks/useTrackingHistory';
-import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa } from '../services/feedbackService';
+import { submitFeedback, fetchQrPointInfo, kiemTraBiKhoa, batDauDienDon } from '../services/feedbackService';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
 import StepIndicator from '../components/FeedbackForm/StepIndicator';
 import { useNgonNgu } from '../i18n/useNgonNgu';
@@ -247,7 +247,11 @@ export default function SendFeedbackPage() {
     });
   };
 
+  /* Phiếu mở form: lấy khi mở trang (ADR-003 việc 24) */
+  useEffect(() => { batDauDienDon(); }, []);
+
   const handleReset = () => {
+    batDauDienDon();
     setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
     clearDraft();
     setSubmission(null);

@@ -141,6 +141,11 @@ export default function AdminSubmissionDetailPage() {
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-500">Nhóm: {CATEGORY_LABEL[data.category_code || ''] || data.category_name}</p>
+              {Boolean(data.is_flagged) && data.flag_reason && (
+                <p className="mt-1 rounded-lg bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+                  ⚑ Cờ cảnh báo: {data.flag_reason}
+                </p>
+              )}
               {data.muc_khan?.lyDo && (
                 <p className="mt-1 text-xs text-slate-500">
                   Mức khẩn do hệ thống tự đánh giá: {data.muc_khan.lyDo}

@@ -15,6 +15,7 @@ import { coCotCo } from '../lib/pham-vi-ho-so.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { quaCongVao } from '../lib/cong-vao.js';
+import { capPhieuMoForm, danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
@@ -81,6 +82,14 @@ router.get('/qr-points/:code', async (req, res) => {
     // Chưa chạy nang_cap_v10.sql -> coi như không có, form vẫn dùng được bình thường
     res.status(404).json({ error: 'Mã QR không hợp lệ.' });
   }
+});
+
+/**
+ * GET /api/submissions/phieu-mo-form — phiếu có chữ ký ghi giờ mở form (ADR-003
+ * việc 24). Trang gửi ý kiến lấy khi mở; lúc gửi máy chủ tự đo thời gian điền.
+ */
+router.get('/phieu-mo-form', (_req, res) => {
+  res.json({ phieu: capPhieuMoForm() });
 });
 
 router.post('/', async (req, res) => {
@@ -343,6 +352,7 @@ router.post('/', async (req, res) => {
        thường, gửi mãi chẳng ai xử lý rồi mất hứng.
        --------------------------------------------------------------------- */
     const { chanNgam, deviceId } = await xetTruocKhiNhan(pool, req);
+    const thoiGianDien = danhGiaThoiGianDien(body.phieuMoForm);
 
     /* ---------------------------------------------------------------------
        6c) SINH MÃ PIN VÀO PHÒNG CHAT
@@ -422,8 +432,11 @@ router.post('/', async (req, res) => {
         isAnonymous,
         urgency,
         // Cờ nghi gửi hàng loạt (lớp chống trùng gần đúng phát hiện)
-        trungLap.danhDau ? 1 : 0,
-        trungLap.ghiChu || null,
+        /* Cờ: nghi gửi hàng loạt (chống trùng gần đúng) HOẶC nghi máy tự động
+           (thời gian điền đơn do máy chủ đo — ADR-003 việc 24). Chỉ gắn cờ,
+           không từ chối; cán bộ thấy lý do ở trang chi tiết. */
+        trungLap.danhDau || thoiGianDien.nghiMay ? 1 : 0,
+        [trungLap.ghiChu, thoiGianDien.ghiChu].filter(Boolean).join(' · ') || null,
         // 21-23: chặn spam theo thiết bị + mã PIN vào phòng chat.
         // Đơn ẩn danh KHÔNG mang mã máy (BUG-017, SEC-DEC-008 M-B): xetTruocKhiNhan
         // đã không đọc nó; chặn thêm ở đây vì đây là chỗ GHI vào CSDL.

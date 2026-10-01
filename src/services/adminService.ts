@@ -285,6 +285,8 @@ export interface SubmissionDetail extends SubmissionRow {
   ghi_chu?: GhiChuNoiBo[];
   /** Cặp chức danh + hành vi khiến tin vào phần tố giác mật (chỉ lãnh đạo nhận được) */
   to_giac_mat_nhan_dien?: string[];
+  /** Lý do gắn cờ: nghi gửi hàng loạt, nghi máy tự động (ADR-003 việc 24) */
+  flag_reason?: string | null;
   /** Vì sao hệ thống xếp mức khẩn (ADR-003 việc 10) */
   muc_khan?: { muc: string; lyDo: string; tuKhoa: string[] };
   /** Hồ sơ có mã thiết bị hay không (false với đơn gửi trước khi có tính năng chặn

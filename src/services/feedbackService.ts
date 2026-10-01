@@ -95,6 +95,23 @@ function saveSubmissions(list: FeedbackSubmission[], newest: FeedbackSubmission)
   }
 }
 
+/* PHIẾU MỞ FORM (ADR-003 việc 24): máy chủ cấp lúc mở trang gửi ý kiến, lúc gửi
+   máy chủ tự đo thời gian điền. Giao diện không tự đo, không tự báo giờ —
+   giờ trình duyệt thì máy tự động sửa được. */
+let phieuMoForm = '';
+
+/** Gọi khi mở trang gửi ý kiến và khi bắt đầu một đơn mới */
+export async function batDauDienDon(): Promise<void> {
+  if (!hasBackend) return;
+  try {
+    const kq = await apiFetch<{ phieu: string }>('/api/submissions/phieu-mo-form');
+    phieuMoForm = kq.phieu;
+  } catch {
+    /* Không lấy được phiếu thì vẫn gửi được — máy chủ chỉ gắn cờ, không chặn */
+    phieuMoForm = '';
+  }
+}
+
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
 export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubmission> {
 
@@ -163,6 +180,7 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
           wardId: draft.contact.wardId ?? null,
           /* Vé cổng vào (ADR-003 việc 23) — thay ô xác minh ở form */
           veVaoCua: layVe(),
+          phieuMoForm,
           otpToken: draft.contact.otpToken ?? '',
           /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
              Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
