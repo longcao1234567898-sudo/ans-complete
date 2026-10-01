@@ -14,6 +14,7 @@ import {
   Newspaper, Plus, Pencil, Eye, EyeOff, Loader2, Star, X, Save, Search, ImagePlus,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
+import LopPhu from '../../components/common/LopPhu';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { uploadToCloudinary, cloudinaryEnabled } from '../../services/uploadService';
 import { compressImageFile } from '../../utils/helpers';
@@ -274,6 +275,7 @@ export default function AdminNewsPage() {
 
       {/* ============ Ô SOẠN TIN ============ */}
       {dangSua && (
+        <LopPhu>
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4">
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-5 dark:bg-slate-900 sm:rounded-2xl">
             <div className="mb-4 flex items-center justify-between">
@@ -462,6 +464,7 @@ export default function AdminNewsPage() {
             </div>
           </div>
         </div>
+        </LopPhu>
       )}
     </AdminLayout>
   );

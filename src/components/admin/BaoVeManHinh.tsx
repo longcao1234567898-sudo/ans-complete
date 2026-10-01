@@ -20,6 +20,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { adminFetch, type StaffInfo } from '../../services/adminService';
+import LopPhu from '../common/LopPhu';
 
 function baoMayChu(loai: 'phim_chup_man_hinh' | 'in_trang', duong: string) {
   adminFetch('/api/admin/su-kien-man-hinh', {
@@ -96,8 +97,10 @@ export default function BaoVeManHinh({ staff }: { staff: StaffInfo }) {
     return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
   }, [staff.name, staff.id, gio]);
 
+  /* Ra ngoài <main> (xem LopPhu): ở trong main thì chân trang đè lên, chữ chìm
+     và lớp mờ không phủ được phần chân trang. */
   return (
-    <>
+    <LopPhu>
       {/* In trang cán bộ ra giấy: ẩn hết nội dung */}
       <style>{'@media print { body * { visibility: hidden !important; } }'}</style>
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60]" style={{ backgroundImage: nen }} />
@@ -108,6 +111,6 @@ export default function BaoVeManHinh({ staff }: { staff: StaffInfo }) {
           </p>
         </div>
       )}
-    </>
+    </LopPhu>
   );
 }
