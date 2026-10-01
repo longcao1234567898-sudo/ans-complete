@@ -84,7 +84,7 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
 
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { staff, logout } = useAdminAuth();
+  const { staff, loading, logout } = useAdminAuth();
   const location = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLAnchorElement>(null);
@@ -125,7 +125,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }, [location.pathname]);
 
-  if (!staff) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname }} />;
+  /* CHỜ khôi phục phiên xong mới quyết. Trước đây chuyển sang /dang-nhap ngay
+     lúc phiên còn đang khôi phục, trang đăng nhập lại đẩy về Tổng quan: tải lại
+     bất kỳ trang cán bộ nào (một hồ sơ, điểm đen…) là mất chỗ đang làm. */
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm text-slate-500">
+        Đang kiểm tra phiên đăng nhập…
+      </div>
+    );
+  }
+  if (!staff) return <Navigate to="/dang-nhap" replace state={{ from: location.pathname + location.search }} />;
 
   const dangChon = (to: string, exact: boolean) =>
     exact ? location.pathname === to : location.pathname.startsWith(to);
