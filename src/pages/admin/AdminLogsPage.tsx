@@ -321,7 +321,7 @@ export default function AdminLogsPage() {
                       <th className="px-3 py-2">Ngày</th>
                       <th className="px-3 py-2 text-right">Tổng</th>
                       <th className="px-3 py-2 text-right text-rose-600">Nhạy cảm</th>
-                      {danhMuc?.filter((n) => !n.nhayCam && n.ma !== 'cu').map((n) => (
+                      {danhMuc?.filter((n) => !n.nhayCam).map((n) => (
                         <th key={n.ma} className="px-3 py-2 text-right">{n.ten}</th>
                       ))}
                     </tr>
@@ -332,7 +332,7 @@ export default function AdminLogsPage() {
                         <td className="px-3 py-1.5 font-mono text-xs">{new Date(`${d.ngay}T00:00:00`).toLocaleDateString('vi-VN')}</td>
                         <td className="px-3 py-1.5 text-right font-semibold">{d.tong}</td>
                         <td className={`px-3 py-1.5 text-right ${d.nhayCam ? 'font-bold text-rose-600' : 'text-slate-300'}`}>{d.nhayCam}</td>
-                        {danhMuc?.filter((n) => !n.nhayCam && n.ma !== 'cu').map((n) => (
+                        {danhMuc?.filter((n) => !n.nhayCam).map((n) => (
                           <td key={n.ma} className="px-3 py-1.5 text-right text-slate-600 dark:text-slate-300">{d.theoNhom[n.ma] || 0}</td>
                         ))}
                       </tr>

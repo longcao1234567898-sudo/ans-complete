@@ -4,19 +4,17 @@
  *
  *   THIẾT BỊ — do cán bộ đánh dấu tin rác một đơn có tên, khoá 24 giờ.
  *
- *   ĐỊA CHỈ MẠNG — KHÔNG CÒN KHOÁ (BUG-016, SEC-DEC-008 G1). Nhà mạng di động
- *              dùng CGNAT: hàng trăm thuê bao chung một IP, khoá là chặn oan
- *              cả vùng. Mục này chỉ còn để hiện dòng cũ do phiên bản trước để
- *              lại (không chặn ai) cho tới khi chạy nang_cap_v23.sql. Đừng viết
- *              lại lời hứa "hệ thống khoá IP" ở đây — cán bộ tin là đã khoá thì
- *              không dùng biện pháp khác (đúng hậu quả của BUG-016).
+ *   Không còn khoá theo địa chỉ mạng (BUG-016, SEC-DEC-008 G1): nhà mạng di
+ *   động dùng CGNAT, hàng trăm thuê bao chung một IP, khoá là chặn oan cả vùng.
+ *   Máy chủ chỉ trả dòng khoá thiết bị. Đừng viết lại lời hứa "hệ thống khoá
+ *   IP" ở đây — cán bộ tin là đã khoá thì không dùng biện pháp khác.
  *
  * Trang này để cán bộ NHÌN THẤY và GỠ được. Khoá ngầm mà không ai xem lại được
  * thì đến lúc chặn oan người thật cũng không ai biết mà sửa.
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldOff, Smartphone, Globe, Unlock, Loader2, Search } from 'lucide-react';
+import { ShieldOff, Smartphone, Unlock, Loader2, Search } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import KhuKhieuNai from '../../components/admin/KhuKhieuNai';
 import { fetchBlacklist, removeBlacklist, type BlacklistItem } from '../../services/adminService';
@@ -76,15 +74,12 @@ export default function AdminBlacklistPage() {
     : tatCaGoc;
 
   const thietBi = tatCa.filter((x) => x.kind === 'device');
-  const ip = tatCa.filter((x) => x.kind === 'ip');
 
-  function bang(ds: BlacklistItem[], loai: 'device' | 'ip') {
+  function bang(ds: BlacklistItem[]) {
     if (ds.length === 0) {
       return (
         <p className="rounded-xl border border-dashed border-slate-300 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-          {loai === 'device'
-            ? 'Chưa khoá thiết bị nào. Khoá được tạo khi cán bộ bấm "Tin rác" trên một hồ sơ.'
-            : 'Không có dòng nào.'}
+          Chưa khoá thiết bị nào. Khoá được tạo khi cán bộ bấm &quot;Tin rác&quot; trên một hồ sơ có tên.
         </p>
       );
     }
@@ -204,26 +199,7 @@ export default function AdminBlacklistPage() {
             <p className="mb-3 text-[11px] text-slate-500 dark:text-slate-400">
               Cán bộ bấm &quot;Tin rác&quot; trên một hồ sơ → khoá thiết bị đã gửi trong <b>24 giờ</b>.
             </p>
-            {bang(thietBi, 'device')}
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
-              <Globe className="h-4 w-4 text-slate-500" />
-              Địa chỉ mạng (dòng cũ)
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                {ip.length}
-              </span>
-            </h2>
-            <p className="mb-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-              Hệ thống <b>không còn khoá theo địa chỉ mạng</b>: nhà mạng di động cho hàng
-              trăm thuê bao dùng chung một địa chỉ, khoá là chặn oan cả vùng. Hồ sơ không
-              có mã thiết bị bị đánh dấu tin rác thì không khoá gì.
-              <br />
-              Dòng nào còn hiện ở đây là do phiên bản cũ để lại và <b>không chặn ai</b>;
-              gỡ được, hoặc chạy <code>nang_cap_v23.sql</code> để dọn.
-            </p>
-            {bang(ip, 'ip')}
+            {bang(thietBi)}
           </section>
         </div>
       )}
