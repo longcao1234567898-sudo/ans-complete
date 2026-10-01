@@ -138,7 +138,10 @@ export async function timSuKienTrung(pool, { noiDung, wardId, categoryId }) {
        FROM submissions
        WHERE ward_id = ?
          AND category_id = ?
-         AND status != 'spam'
+         /* CHỈ gộp với tin còn mở (ADR-003 việc 20): chờ sàng lọc, chờ duyệt
+            ẩn danh, đang xử lý. Gộp vào tin đã xong hay đã từ chối là chôn tin
+            mới theo vụ cũ — cán bộ thấy nhóm "đã xử lý" rồi bỏ qua. */
+         AND status IN ('received', 'pending_review', 'processing')
          AND deleted_at IS NULL
          AND created_at > NOW() - INTERVAL ? MINUTE
        ORDER BY created_at DESC

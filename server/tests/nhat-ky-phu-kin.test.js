@@ -38,8 +38,18 @@ async function tepNguon(thuMuc = GOC, ra = []) {
   return ra;
 }
 const ten = (u) => u.pathname.split('/src/')[1];
-/* CALL update_submission_status: thủ tục CSDL tự ghi dòng update_status */
-const GHI_LOG = /ghiNhatKy(Truoc)?\(|INSERT INTO staff_activity_logs|CALL update_submission_status/;
+/* CALL update_submission_status: thủ tục CSDL tự ghi dòng update_status.
+   sangLocMotTin: nút sàng lọc đơn và hàng loạt dùng chung, ghi từng tin —
+   bài dưới kiểm chính hàm đó có ghi. */
+const GHI_LOG = /ghiNhatKy(Truoc)?\(|INSERT INTO staff_activity_logs|CALL update_submission_status|sangLocMotTin\(/;
+
+test('quét: hàm dùng chung sangLocMotTin tự ghi nhật ký', async () => {
+  const nguon = await readFile(new URL('../src/routes/admin/sang-loc.js', import.meta.url), 'utf8');
+  const a = nguon.indexOf('async function sangLocMotTin(');
+  const b = nguon.indexOf("router.post('/:id/sang-loc'");
+  assert.ok(a >= 0 && b > a, 'không tìm thấy sangLocMotTin');
+  assert.match(nguon.slice(a, b), /ghiNhatKy\(/);
+});
 
 /** Tách thân từng handler: từ router.xxx( tới router.xxx( kế tiếp */
 function cacRoute(nguon) {
