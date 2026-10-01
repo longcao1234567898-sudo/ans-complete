@@ -12,8 +12,9 @@ import { LANH_DAO, laLanhDao } from '../../lib/vai-tro.js';
 import { decrypt, maskPhone, maskName } from '../../lib/crypto.js';
 import { danhGiaMucKhan } from '../../lib/phan-loai.js';
 import {
-  dieuKienXem, coSql, nhomXemDuoc, hoSoMangCo,
+  dieuKienXem, coSql, nhomXemDuoc, hoSoMangCo, coCotCo,
 } from '../../lib/pham-vi-ho-so.js';
+import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -361,6 +362,9 @@ router.get('/:id', async (req, res) => {
       /* Vì sao hệ thống xếp mức khẩn này (ADR-003 việc 10) — tính lại từ nội
          dung bằng bộ từ khoá hiện hành; mức đã lưu thì không đổi */
       muc_khan: danhGiaMucKhan(row.original_content),
+      /* Vì sao tin vào phần tố giác mật (ADR-003 việc 12) — chỉ trả khi tin
+         mang cờ; cán bộ không bao giờ mở được tin mang cờ nên chỉ lãnh đạo thấy */
+      ...(Number(row.to_giac_mat) === 1 ? { to_giac_mat_nhan_dien: nhanDienToGiacMat(row.original_content).lyDo } : {}),
       ...slaOf(row),
       images,
       history,
@@ -829,6 +833,72 @@ router.post('/:id/mark-spam', async (req, res) => {
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);
     res.status(500).json({ error: 'Lỗi máy chủ. Đã chạy nang_cap_v12.sql chưa?' });
+  }
+});
+
+/* ============================================================================
+   CHUYỂN TIN VÀO / RA PHẦN TIN TỐ GIÁC MẬT (ADR-003 việc 12)
+
+   Bộ từ khoá bắt phần lớn tin tố cáo cán bộ ngay lúc nhận. Phần còn lại do
+   người đọc phát hiện: MỌI cán bộ được chuyển tin VÀO (một chiều — chuyển vào
+   xong thì chính cán bộ đó cũng không mở được nữa). Chỉ LÃNH ĐẠO đưa tin RA,
+   cho trường hợp bộ từ khoá bắt dư. Cả hai chiều ghi nhật ký.
+   ============================================================================ */
+router.post('/:id/to-giac-mat', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
+  if (!(await coCotCo())) {
+    return res.status(503).json({ error: 'CSDL chưa có phần tố giác mật — chạy database/nang_cap_v26.sql.' });
+  }
+  const lyDo = String(req.body?.lyDo ?? '').trim().slice(0, 500);
+  try {
+    const phamVi = await dieuKienXem(req.staff);
+    const [rows] = await pool.query(
+      `SELECT s.id, s.assigned_to, st.role AS vai_tro_phu_trach
+         FROM submissions s LEFT JOIN staff st ON st.id = s.assigned_to
+        WHERE s.id = ? AND ${phamVi.sql}`,
+      [id, ...phamVi.params]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    /* Tin chỉ lãnh đạo xem thì không để giao cho cán bộ: màn hình người đó sẽ
+       hiện một việc họ không mở được (cùng luật với route phân công) */
+    const boGiao = rows[0].assigned_to != null && !laLanhDao({ role: rows[0].vai_tro_phu_trach });
+    await pool.query(
+      `UPDATE submissions
+          SET to_giac_mat = 1, assigned_to = CASE WHEN ? = 1 THEN NULL ELSE assigned_to END
+        WHERE id = ?`,
+      [boGiao ? 1 : 0, id]
+    );
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'move_to_secret', loaiDoiTuong: 'submission', doiTuongId: id,
+      chiTiet: { lyDo: lyDo || null, boGiaoCanBo: boGiao ? rows[0].assigned_to : null },
+    });
+    res.json({
+      ok: true,
+      message: laLanhDao(req.staff)
+        ? 'Đã chuyển tin vào phần Tin tố giác mật.'
+        : 'Đã chuyển tin vào phần Tin tố giác mật. Từ giờ chỉ lãnh đạo mở được tin này.',
+    });
+  } catch (err) {
+    console.error('Lỗi chuyển tin vào tố giác mật:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ.' });
+  }
+});
+
+router.delete('/:id/to-giac-mat', authorize(...LANH_DAO), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
+  if (!(await coCotCo())) {
+    return res.status(503).json({ error: 'CSDL chưa có phần tố giác mật — chạy database/nang_cap_v26.sql.' });
+  }
+  try {
+    const [kq] = await pool.query('UPDATE submissions SET to_giac_mat = 0 WHERE id = ? AND to_giac_mat = 1', [id]);
+    if (!kq.affectedRows) return res.status(404).json({ error: 'Tin này không nằm trong phần tố giác mật.' });
+    await ghiNhatKy(pool, req, { hanhDong: 'release_secret', loaiDoiTuong: 'submission', doiTuongId: id });
+    res.json({ ok: true, message: 'Đã đưa tin ra khỏi phần Tin tố giác mật.' });
+  } catch (err) {
+    console.error('Lỗi đưa tin ra khỏi tố giác mật:', err.message);
+    res.status(500).json({ error: 'Lỗi máy chủ.' });
   }
 });
 

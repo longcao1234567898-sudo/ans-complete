@@ -8,7 +8,8 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import KhuTepDinhKem from '../../components/admin/KhuTepDinhKem';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
-  fetchStaffList, assignSubmission, revealIdentity, markSpam } from '../../services/adminService';
+  fetchStaffList, assignSubmission, revealIdentity, markSpam,
+  chuyenVaoToGiacMat, duaRaToGiacMat } from '../../services/adminService';
 import { laLanhDao } from '../../utils/vaiTro';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import AdminChatPanel from '../../components/admin/AdminChatPanel';
@@ -388,6 +389,63 @@ export default function AdminSubmissionDetailPage() {
                 >
                   <Ban className="h-4 w-4" /> Tin rác
                 </button>
+              </div>
+
+              {/* TIN TỐ GIÁC MẬT (ADR-003 việc 12): cán bộ chuyển vào được, một chiều;
+                  chỉ lãnh đạo đưa ra được khi bộ từ khoá bắt dư. */}
+              <div className="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+                {!data.to_giac_mat ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ly = window.prompt(
+                        'Chuyển tin này vào phần TIN TỐ GIÁC MẬT (chỉ lãnh đạo xem).\n\n'
+                        + (laLanhDao(staff?.role) ? '' : 'Sau khi chuyển, đồng chí sẽ KHÔNG mở được tin này nữa.\n\n')
+                        + 'Lý do (không bắt buộc):'
+                      );
+                      if (ly === null) return;
+                      try {
+                        const kq = await chuyenVaoToGiacMat(submissionId, ly);
+                        toast.success(kq.message, { duration: 6000 });
+                        qc.invalidateQueries({ queryKey: ['admin-submissions'] });
+                        if (laLanhDao(staff?.role)) qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
+                        else navigate('/quan-tri/y-kien');
+                      } catch (e) {
+                        toast.error((e as Error).message || 'Không chuyển được.');
+                      }
+                    }}
+                    className="w-full rounded-xl border-2 border-rose-300 px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-300 dark:hover:bg-rose-900/20"
+                  >
+                    🔒 Chuyển vào Tin tố giác mật
+                  </button>
+                ) : (
+                  laLanhDao(staff?.role) && (
+                    <div className="space-y-2">
+                      {data.to_giac_mat_nhan_dien && data.to_giac_mat_nhan_dien.length > 0 && (
+                        <p className="text-xs text-slate-500">
+                          Hệ thống nhận diện theo từ khoá: {data.to_giac_mat_nhan_dien.join('; ')}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!window.confirm('Đưa tin ra khỏi phần Tin tố giác mật? Cán bộ sẽ thấy và xử lý tin này như tin thường.')) return;
+                          try {
+                            const kq = await duaRaToGiacMat(submissionId);
+                            toast.success(kq.message);
+                            qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
+                            qc.invalidateQueries({ queryKey: ['admin-submissions'] });
+                          } catch (e) {
+                            toast.error((e as Error).message || 'Không đưa ra được.');
+                          }
+                        }}
+                        className="w-full rounded-xl border-2 border-slate-300 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+                      >
+                        Đưa ra khỏi phần tố giác mật
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
 
               {mutation.isPending && <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500"><Loader2 className="h-3 w-3 animate-spin" /> Đang cập nhật...</p>}

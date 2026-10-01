@@ -20,6 +20,8 @@ import { generateTrackingCode, sha256, ghiNhatKy } from '../../lib/helpers.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
 import { kiemTraNoiDungNham } from '../../lib/noi-dung-nham.js';
 import { danhGiaMucKhan } from '../../lib/phan-loai.js';
+import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
+import { coCotCo } from '../../lib/pham-vi-ho-so.js';
 
 const router = Router();
 
@@ -95,13 +97,19 @@ router.post('/submit', async (req, res) => {
     } catch { /* chưa nâng cấp v2 -> mặc định */ }
     const deadlineAt = new Date(Date.now() + slaDays * 24 * 60 * 60 * 1000);
 
+    /* Tố cáo cán bộ, người nhà nước -> gắn cờ ngay trong câu INSERT, như tin
+       người dân tự gửi (ADR-003 việc 12): người nhập hộ cũng có thể là người
+       bị tố cáo, hoặc đồng nghiệp của người đó. */
+    const coCotMat = await coCotCo();
+    const toGiacMat = nhanDienToGiacMat(content).mat;
+
     // Lưu — danh tính MÃ HOÁ như mọi ý kiến khác
     const [result] = await pool.query(
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency)
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?)`,
+        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency${coCotMat ? ', to_giac_mat' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?${coCotMat ? ', ?' : ''})`,
       [
         trackingCode, content, content, catId, catId,
         sha256(content),
@@ -117,6 +125,7 @@ router.post('/submit', async (req, res) => {
         true,                             // cán bộ đã xác minh trực tiếp
         false,
         urgency,
+        ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
       ]
     );
 

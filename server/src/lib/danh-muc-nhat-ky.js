@@ -61,6 +61,14 @@ export const NHOM_NHAT_KY = Object.freeze([
     },
   },
   {
+    ma: 'sang_loc',
+    ten: 'Sàng lọc và chuyển phần',
+    hanhDong: {
+      move_to_secret: 'Chuyển tin vào phần tố giác mật',
+      release_secret: 'Đưa tin ra khỏi phần tố giác mật',
+    },
+  },
+  {
     ma: 'thung_rac',
     ten: 'Thùng rác và xoá vĩnh viễn',
     hanhDong: {

@@ -228,6 +228,9 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
                  có thì bỏ hẳn hai cột khỏi câu lệnh. Bản thân GIÁ TRỊ toạ độ
                  vẫn đi qua dấu ? ở mảng params. */
               || /^coCotToaDo \? '.*' : ''$/.test(bieuThuc)
+              /* Cờ tố giác mật trong câu INSERT (ADR-003 việc 12): chỉ thêm một
+                 tên cột / một dấu ? cố định khi CSDL đã có cột */
+              || /^coCotMat \? '(, to_giac_mat|, \?)' : ''$/.test(bieuThuc)
               /* admin/submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên
                  cột toạ độ vụ việc đã tồn tại chưa (coCotToaDoAd, đọc từ
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa

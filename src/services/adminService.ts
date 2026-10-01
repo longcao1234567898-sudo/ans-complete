@@ -247,6 +247,8 @@ export function fetchSubmissions(params: {
 }
 
 export interface SubmissionDetail extends SubmissionRow {
+  /** Cặp chức danh + hành vi khiến tin vào phần tố giác mật (chỉ lãnh đạo nhận được) */
+  to_giac_mat_nhan_dien?: string[];
   /** Vì sao hệ thống xếp mức khẩn (ADR-003 việc 10) */
   muc_khan?: { muc: string; lyDo: string; tuKhoa: string[] };
   /** Hồ sơ có mã thiết bị hay không (false với đơn gửi trước khi có tính năng chặn
@@ -723,6 +725,17 @@ export const fetchBlacklist = (): Promise<BlacklistItem[]> =>
 
 export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
   adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
+
+/** Chuyển tin vào phần Tin tố giác mật — mọi cán bộ; một chiều (ADR-003 việc 12) */
+export const chuyenVaoToGiacMat = (id: number, lyDo?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/to-giac-mat`, {
+    method: 'POST',
+    body: JSON.stringify({ lyDo: lyDo || '' }),
+  });
+
+/** Đưa tin ra khỏi phần Tin tố giác mật — chỉ lãnh đạo */
+export const duaRaToGiacMat = (id: number) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/to-giac-mat`, { method: 'DELETE' });
 
 /** Đánh dấu tin rác + khoá thiết bị đã gửi (24 giờ) */
 export const markSpam = (id: number, reason?: string): Promise<{

@@ -10,6 +10,8 @@ import { locDanhSachAnh } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
 import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
 import { danhGiaMucKhan } from '../lib/phan-loai.js';
+import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
+import { coCotCo } from '../lib/pham-vi-ho-so.js';
 import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
@@ -385,6 +387,12 @@ router.post('/', async (req, res) => {
        để máy chủ chưa nâng cấp database vẫn nhận được ý kiến bình thường —
        chỉ là không lưu toạ độ. Thà thiếu toạ độ còn hơn chặn cả việc gửi tin. */
     const coCotToaDo = await kiemCotToaDo();
+    /* TIN TỐ GIÁC MẬT (ADR-003 việc 12): tố cáo cán bộ, người nhà nước thì gắn
+       cờ NGAY TRONG câu INSERT — không UPDATE sau: giữa hai câu có một khoảng
+       cán bộ thấy được tin, và UPDATE lỗi thì tin nằm lại luồng thường. Chưa
+       có cột (chưa chạy v26) thì cán bộ vốn không thấy hồ sơ nào (fail-safe). */
+    const coCotMat = await coCotCo();
+    const toGiacMat = nhanDienToGiacMat(content).mat;
 
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
@@ -392,8 +400,8 @@ router.post('/', async (req, res) => {
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
-        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''})
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''})`,
+        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''}${coCotMat ? ', to_giac_mat' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''}${coCotMat ? ', ?' : ''})`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -430,6 +438,7 @@ router.post('/', async (req, res) => {
         /* Toạ độ chỉ thêm vào khi database đã có cột — thứ tự phải khớp với
            phần dựng câu lệnh ở trên. */
         ...(coCotToaDo ? [viTriLat, viTriLng] : []),
+        ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
       ]
     );
 
