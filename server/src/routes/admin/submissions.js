@@ -438,20 +438,17 @@ router.patch('/:id/status', async (req, res) => {
        ở SEC-DEC-009. */
     const phamVi = await dieuKienXem(req.staff, '');
     const [thay] = await pool.query(
-      `SELECT id, status FROM submissions WHERE id = ? AND ${phamVi.sql}`,
+      `SELECT id FROM submissions WHERE id = ? AND ${phamVi.sql}`,
       [req.params.id, ...phamVi.params]
     );
     if (thay.length === 0) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
 
+    /* Thủ tục này TỰ GHI một dòng nhật ký update_status (trạng thái cũ, mới)
+       cùng dòng status_history — route không ghi thêm, kẻo mỗi lần đổi ra hai
+       dòng (TRON_BO_DATABASE_V5.sql, update_submission_status). */
     await pool.query('CALL update_submission_status(?,?,?,?,?)', [
       req.params.id, status, note || null, rejectionReason || null, req.staff.id,
     ]);
-    /* status_history đã có người đổi, nhưng lãnh đạo đọc nhật ký ở MỘT chỗ —
-       không phải mở từng hồ sơ để biết hôm nay ai đóng những gì */
-    await ghiNhatKy(pool, req, {
-      hanhDong: 'update_status', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
-      chiTiet: { cu: thay[0].status, moi: status },
-    });
 
     /* TỰ ĐỘNG XOÁ DANH TÍNH khi hồ sơ ĐÓNG, nếu người dân đã yêu cầu trước đó.
        Theo Nghị định 13/2023: quyền xoá bị hoãn khi dữ liệu còn cần cho việc

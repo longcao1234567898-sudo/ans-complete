@@ -38,7 +38,8 @@ async function tepNguon(thuMuc = GOC, ra = []) {
   return ra;
 }
 const ten = (u) => u.pathname.split('/src/')[1];
-const GHI_LOG = /ghiNhatKy(Truoc)?\(|INSERT INTO staff_activity_logs/;
+/* CALL update_submission_status: thủ tục CSDL tự ghi dòng update_status */
+const GHI_LOG = /ghiNhatKy(Truoc)?\(|INSERT INTO staff_activity_logs|CALL update_submission_status/;
 
 /** Tách thân từng handler: từ router.xxx( tới router.xxx( kế tiếp */
 function cacRoute(nguon) {
@@ -165,13 +166,13 @@ test('không ghi được nhật ký thì KHÔNG mở tin tố giác mật (500,
   assert.doesNotMatch(r.text, /NOIDUNG-12/);
 });
 
-test('đổi trạng thái -> update_status, ghi trạng thái cũ và mới', { skip: BO_QUA }, async () => {
+test('đổi trạng thái -> đúng MỘT dòng update_status (thủ tục CSDL ghi), có trạng thái cũ và mới', { skip: BO_QUA }, async () => {
   const r = await goi(CAN_BO, 'PATCH', '/submissions/10/status', { status: 'resolved', note: 'xong' });
   assert.equal(r.status, 200, r.text);
   const d = dong('update_status');
-  assert.equal(d.length, 1);
+  assert.equal(d.length, 1, 'route ghi thêm một dòng trùng với dòng thủ tục đã ghi');
   assert.equal(d[0].staff_id, CAN_BO.id);
-  assert.deepEqual(chiTiet(d[0]), { cu: 'processing', moi: 'resolved' });
+  assert.deepEqual(chiTiet(d[0]), { old_status: 'processing', new_status: 'resolved' });
 });
 
 test('đóng hồ sơ có yêu cầu xoá danh tính -> erase_identity', { skip: BO_QUA }, async () => {

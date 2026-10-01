@@ -130,14 +130,19 @@ export function dungCsdl(pool, { themCau = [] } = {}) {
 
   pool.query = async (sql, p = []) => {
     /* Thủ tục MySQL update_submission_status(id, trạng thái, ghi chú, lý do từ
-       chối, người đổi): đổi trạng thái và ghi lịch sử, như bản trong CSDL */
+       chối, người đổi): đổi trạng thái, ghi lịch sử VÀ ghi một dòng nhật ký
+       update_status — đúng như bản trong TRON_BO_DATABASE_V5.sql. Thiếu dòng
+       nhật ký ở đây thì test tưởng route phải tự ghi, và MySQL thật ra hai dòng. */
     if (/^\s*CALL\s+update_submission_status/i.test(String(sql))) {
       const [id, moi, ghiChu, lyDo, nguoi] = p.map(norm);
       const cu = db.prepare('SELECT status FROM submissions WHERE id = ?').get(id)?.status ?? null;
       db.prepare('UPDATE submissions SET status = ?, rejection_reason = COALESCE(?, rejection_reason) WHERE id = ?')
         .run(moi, lyDo, id);
       db.prepare('INSERT INTO status_history (submission_id, old_status, new_status, note, changed_by) VALUES (?,?,?,?,?)')
-        .run(id, cu, moi, ghiChu, nguoi);
+        .run(id, cu, moi, moi === 'rejected' ? (lyDo ?? ghiChu) : ghiChu, nguoi);
+      db.prepare(`INSERT INTO staff_activity_logs (staff_id, action, target_type, target_id, details)
+                  VALUES (?, 'update_status', 'submission', ?, json_object('old_status', ?, 'new_status', ?))`)
+        .run(nguoi, id, cu, moi);
       return [{ affectedRows: 1 }, []];
     }
     const [cau, thamSo] = bungMang(sangSqlite(String(sql)), p);
