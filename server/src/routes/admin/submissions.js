@@ -181,7 +181,9 @@ router.get('/', async (req, res) => {
         }
         where.push('s.status = ?');
         params.push(String(status));
-      } else {
+      } else if (!xemNghiRac) {
+        /* Đang soát nghi tin rác thì không áp trạng thái mặc định — tin rác
+           đánh tay mang trạng thái 'spam', áp vào là giấu mất (như lọc cũ) */
         where.push('s.status = ?');
         params.push(phan.macDinh);
       }

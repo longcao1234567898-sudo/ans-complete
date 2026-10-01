@@ -76,6 +76,12 @@ test('Tin tố giác mật, Ngoài thẩm quyền: chỉ lãnh đạo (cán bộ
   assert.deepEqual(await maTrongDs(PHO, 'phan=ngoai_tham_quyen'), ['HS0041']);
 });
 
+test('soát nghi tin rác trong một phần: không áp trạng thái mặc định (tin rác thủ công có trạng thái spam)', { skip: BO_QUA }, async () => {
+  ctl.db.exec(`INSERT INTO submissions (id, tracking_code, original_content, category_id, status, is_anonymous, is_spam)
+               VALUES (50, 'HS0050', 'Tin rác đã đánh tay', 3, 'spam', 0, 1)`);
+  assert.deepEqual(await maTrongDs(CAN_BO, 'phan=xu_ly&nghiRac=1'), ['HS0050']);
+});
+
 test('phần lạ, trạng thái không thuộc phần -> 400', { skip: BO_QUA }, async () => {
   assert.equal((await goi(TRUONG, 'GET', '/submissions?phan=khong_co')).status, 400);
   assert.equal((await goi(TRUONG, 'GET', '/submissions?phan=xu_ly&status=received')).status, 400);
