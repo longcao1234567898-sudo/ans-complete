@@ -79,7 +79,9 @@ Người vận hành đã chốt cả sáu điểm: năm điểm theo phương �
    bị tin cậy và khiếu nại mở khoá.
 3. Hàng sàng lọc có **hai** nút bỏ tin: "Tin rác" **vẫn khoá máy** theo cách của BUG-018 (dùng chung
    đường `/mark-spam` với bảng xử lý, không chép lại luật khoá); "Tin giả" chỉ bỏ vào thùng rác,
-   không khoá. Vì vẫn còn khoá, màn hình "Tạm dừng tiếp nhận" bên người dân giữ nguyên.
+   không khoá. Phía người dân không đổi gì: từ bản vá BUG-015, máy bị khoá **không** còn thấy màn
+   hình "Tạm dừng tiếp nhận" — biểu mẫu luôn mở, tin gửi vào bị chặn ngầm, máy bị khoá loại có tên
+   thấy ô khiếu nại mở khoá phía trên biểu mẫu (`routes/submissions.js`, chú thích `/kiem-tra-khoa`).
    *(Người vận hành chốt sau khi triển khai; bản đầu chỉ có nút "Tin giả" ở hàng sàng lọc.)*
 4. Hạn 72 giờ người dân bổ sung thông tin tính từ lúc gửi.
 5. Cổng xác minh khi vào web dùng Cloudflare Turnstile (chỉ đổi vị trí); máy chủ cấp vé có thời
