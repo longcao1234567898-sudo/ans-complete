@@ -394,6 +394,7 @@ export const fetchMapData = (ngay = 30): Promise<WardPoint[]> =>
 
 export interface ActivityLog {
   id: number;
+  staff_id: number | null;
   action: string;
   target_type: string | null;
   target_id: number | null;
@@ -403,6 +404,11 @@ export interface ActivityLog {
   staff_name: string | null;
   staff_role: string | null;
   tracking_code: string | null;
+  /* Nhãn do máy chủ gắn theo lib/danh-muc-nhat-ky.js */
+  ten_hanh_dong: string;
+  nhom: string;
+  ten_nhom: string;
+  nhay_cam: boolean;
 }
 
 export interface LogsResult {
@@ -413,6 +419,44 @@ export interface LogsResult {
   totalPages: number;
   revealCount30d: number;
 }
+
+/** Bộ lọc nhật ký — mọi giá trị máy chủ kiểm lại bằng allow-list */
+export interface BoLocNhatKy {
+  nhom?: string;
+  action?: string;
+  staffId?: number;
+  tu?: string;   // YYYY-MM-DD
+  den?: string;  // YYYY-MM-DD
+}
+
+export interface NhomNhatKy {
+  ma: string;
+  ten: string;
+  nhayCam: boolean;
+  hanhDong: { ma: string; ten: string }[];
+}
+
+export interface ThongKeNhatKy {
+  tu: string;
+  den: string;
+  theoNgay: { ngay: string; tong: number; nhayCam: number; theoNhom: Record<string, number> }[];
+  theoCanBo: { staffId: number | null; ten: string; vaiTro: string | null; tong: number; nhayCam: number }[];
+}
+
+export interface XuatNhatKy {
+  tu: string;
+  den: string;
+  catBot: boolean;
+  toiDa: number;
+  data: ActivityLog[];
+}
+
+const chuoiLoc = (b: BoLocNhatKy & { page?: number; limit?: number }) => {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(b)) if (v !== undefined && v !== '' && v !== null) p.set(k, String(v));
+  const qs = p.toString();
+  return qs ? `?${qs}` : '';
+};
 
 /** Nhật ký hệ thống (chỉ admin/manager) */
 /* ---------- QUẢN LÝ TIN TỨC ---------- */
@@ -520,14 +564,20 @@ export const xuLyKhieuNai = (id: number, quyetDinh: 'go_khoa' | 'tu_choi', ghiCh
     body: JSON.stringify({ quyetDinh, ghiChu: ghiChu || '' }),
   });
 
-export const fetchLogs = (params: { action?: string; page?: number; limit?: number }): Promise<LogsResult> => {
-  const p = new URLSearchParams();
-  if (params.action) p.set('action', params.action);
-  if (params.page) p.set('page', String(params.page));
-  if (params.limit) p.set('limit', String(params.limit));
-  const qs = p.toString();
-  return adminFetch<LogsResult>(`/api/admin/logs${qs ? '?' + qs : ''}`);
-};
+export const fetchLogs = (params: BoLocNhatKy & { page?: number; limit?: number }): Promise<LogsResult> =>
+  adminFetch<LogsResult>(`/api/admin/logs${chuoiLoc(params)}`);
+
+/** Nhóm và nhãn hành động — một nguồn với máy chủ */
+export const fetchDanhMucNhatKy = (): Promise<NhomNhatKy[]> =>
+  adminFetch<NhomNhatKy[]>('/api/admin/logs/danh-muc');
+
+/** Thống kê theo ngày (mặc định 30 ngày, tối đa 92) */
+export const fetchThongKeNhatKy = (b: { tu?: string; den?: string }): Promise<ThongKeNhatKy> =>
+  adminFetch<ThongKeNhatKy>(`/api/admin/logs/thong-ke${chuoiLoc(b)}`);
+
+/** Lấy dữ liệu để xuất Excel — máy chủ ghi một dòng export_logs trước khi trả */
+export const xuatNhatKy = (b: BoLocNhatKy): Promise<XuatNhatKy> =>
+  adminFetch<XuatNhatKy>(`/api/admin/logs/xuat${chuoiLoc(b)}`);
 
 
 /* ============================================================

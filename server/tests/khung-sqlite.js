@@ -28,6 +28,7 @@ export function sangSqlite(sql) {
     (_m, huong, n, d) => `datetime(NOW(), '${huong.toUpperCase() === 'ADD' ? '+' : '-'}' || ${n} || ' ${dv(d)}')`);
   s = s.replace(/NOW\(\)\s*([-+])\s*INTERVAL\s+(\?|\d+)\s+(SECOND|MINUTE|HOUR|DAY)/gi,
     (_m, dau, n, d) => `datetime(NOW(), '${dau}' || ${n} || ' ${dv(d)}')`);
+  s = s.replace(/DATE_ADD\(\?,\s*INTERVAL\s+(\d+)\s+DAY\)/gi, (_m, n) => `datetime(?, '+${n} days')`);
   s = s.replace(/DATEDIFF\(DATE_ADD\(s\.deleted_at,\s*INTERVAL\s+\?\s+DAY\),\s*NOW\(\)\)/gi,
     'CAST(julianday(s.deleted_at) + ? - julianday(NOW()) AS INT)');
   s = s.replace(/DATEDIFF\(NOW\(\),\s*([\w.]+)\)/gi, 'CAST(julianday(NOW()) - julianday($1) AS INT)');
