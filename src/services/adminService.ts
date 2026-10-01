@@ -688,7 +688,35 @@ export interface ThanhVienNhomSuKien {
   is_anonymous: boolean;
   created_at: string;
   preview: string;
+  urgency?: 'normal' | 'important' | 'urgent';
+  assigned_name?: string | null;
+  /** Đang chờ sàng lọc -> chọn được để xác nhận / đánh tin giả hàng loạt */
+  dang_cho_sang_loc?: boolean;
 }
+
+/** Một hàng trong danh mục Tin trùng (ADR-003 việc 18, 19) */
+export interface NhomTinTrung {
+  id: number;
+  so_tin: number;
+  dau: string;
+  cuoi: string;
+  ward_name: string | null;
+  category_name: string | null;
+  xem_truoc: string;
+  /** Có hai tin giống nhau gần từng chữ — nghi một người gửi lặp */
+  gan_nhu_giong: boolean;
+}
+
+export const fetchTinTrung = (phan: 'sang_loc' | 'xu_ly' | 'to_giac') =>
+  adminFetch<{ data: NhomTinTrung[] }>(`/api/admin/submissions/tin-trung?phan=${phan}`).then((r) => r.data);
+
+/** Xác nhận / đánh tin giả hàng loạt — máy chủ xử lý và ghi nhật ký từng tin */
+export const sangLocHangLoat = (ids: number[], hanhDong: 'xac_nhan' | 'tin_gia', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; soXong: number; message: string;
+    ketQua: { id: number; status: number; message: string }[] }>('/api/admin/submissions/sang-loc-hang-loat', {
+    method: 'POST',
+    body: JSON.stringify({ ids, hanhDong, ghiChu: ghiChu || '' }),
+  });
 
 export const fetchIncidentGroups = (chuaXem = false) =>
   adminFetch<{ data: NhomSuKien[] }>(`/api/admin/incident-groups${chuaXem ? '?chuaXem=1' : ''}`).then((r) => r.data);

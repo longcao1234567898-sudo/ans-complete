@@ -11,6 +11,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissions, fetchStaffList, xuatNgoaiThamQuyen, type PhanDanhSach } from '../../services/adminService';
 import { donDong } from '../../utils/excelAnToan';
+import KhuTinTrung from '../../components/admin/KhuTinTrung';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
 /* ============================================================================
@@ -126,6 +127,9 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
   const manHinh = PHAN_MAN_HINH[phan];
   const cacThe = phanThuc ? manHinh.the : STATUS_TABS;
   const [dangXuat, setDangXuat] = useState(false);
+  /* Danh mục Tin trùng (ADR-003 việc 18, 19) — chỉ ở ba phần có hàng chờ */
+  const coTinTrung = phanThuc === 'sang_loc' || phanThuc === 'xu_ly' || phanThuc === 'to_giac';
+  const [xemTinTrung, setXemTinTrung] = useState(false);
   useEffect(() => {
     const s2 = searchParams.get('sla') || '';
     const a2 = searchParams.get('assigned') || '';
@@ -232,10 +236,10 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
                khoá sẽ trùng nhau, React cảnh báo và có thể vẽ sai. */
             key={t.label}
             onClick={() => {
-              setStatus(t.value); setSla(t.sla); setNghiRac(t.nghiRac); setPage(1);
+              setStatus(t.value); setSla(t.sla); setNghiRac(t.nghiRac); setPage(1); setXemTinTrung(false);
             }}
             className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-              status === t.value && sla === t.sla && nghiRac === t.nghiRac
+              !xemTinTrung && status === t.value && sla === t.sla && nghiRac === t.nghiRac
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300'
             }`}
@@ -243,6 +247,16 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
             {t.label}
           </button>
         ))}
+        {coTinTrung && (
+          <button
+            onClick={() => setXemTinTrung(true)}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              xemTinTrung ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300'
+            }`}
+          >
+            🔁 Tin trùng
+          </button>
+        )}
       </div>
 
       {/* Đang soát tin nghi rác — nói rõ để cán bộ không hiểu nhầm đây là
@@ -443,7 +457,9 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
 
       {error && <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{(error as Error).message}</div>}
 
-      {isLoading ? (
+      {xemTinTrung && coTinTrung ? (
+        <KhuTinTrung phan={phanThuc as 'sang_loc' | 'xu_ly' | 'to_giac'} />
+      ) : isLoading ? (
         <div className="flex items-center gap-2 py-10 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Đang tải...</div>
       ) : data && data.data.length > 0 ? (
         <>
