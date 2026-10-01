@@ -203,6 +203,8 @@ export interface SubmissionRow {
   to_giac_mat?: number;
   /** Tin bị đánh dấu ngoài thẩm quyền — chỉ lãnh đạo thấy */
   ngoai_tham_quyen?: number;
+  /** Lúc sàng lọc bấm "Chưa xác minh" (null = chưa bấm) — ADR-003 việc 14 */
+  chua_xac_minh_luc?: string | null;
   original_content: string;
   ai_processed_content: string | null;
   category_code: string | null;
@@ -230,7 +232,11 @@ export interface SubmissionListResult {
   totalPages: number;
 }
 
+/** Các phần danh sách (ADR-003): định nghĩa ở server/src/lib/sang-loc.js */
+export type PhanDanhSach = 'sang_loc' | 'xu_ly' | 'to_giac' | 'to_giac_mat' | 'ngoai_tham_quyen';
+
 export function fetchSubmissions(params: {
+  phan?: PhanDanhSach;
   status?: string; category?: string; urgency?: string; sla?: string; assigned?: string;
   /** '1' = chỉ xem tin đã bị đánh dấu rác, để soát xem có chặn oan ai không */
   nghiRac?: string;
@@ -246,7 +252,20 @@ export function fetchSubmissions(params: {
   return adminFetch<SubmissionListResult>(`/api/admin/submissions${s ? '?' + s : ''}`);
 }
 
+export interface GhiChuNoiBo {
+  id: number;
+  noi_dung: string;
+  created_at: string;
+  staff_name: string | null;
+}
+
 export interface SubmissionDetail extends SubmissionRow {
+  /** Lúc tin vào thùng rác (null = không ở thùng rác) */
+  deleted_at?: string | null;
+  /** Tin đang ở hàng sàng lọc -> hiện bốn nút sàng lọc (máy chủ vẫn kiểm lại) */
+  dang_cho_sang_loc?: boolean;
+  /** Ghi chú nội bộ, cũ trước mới sau — người dân không thấy */
+  ghi_chu?: GhiChuNoiBo[];
   /** Cặp chức danh + hành vi khiến tin vào phần tố giác mật (chỉ lãnh đạo nhận được) */
   to_giac_mat_nhan_dien?: string[];
   /** Vì sao hệ thống xếp mức khẩn (ADR-003 việc 10) */
@@ -725,6 +744,32 @@ export const fetchBlacklist = (): Promise<BlacklistItem[]> =>
 
 export const removeBlacklist = (id: number): Promise<{ ok: boolean }> =>
   adminFetch(`/api/admin/chat/blacklist/${id}`, { method: 'DELETE' });
+
+/** Bốn nút sàng lọc (ADR-003 việc 14). Tin giả bắt buộc ghiChu (lý do). */
+export const sangLoc = (id: number, hanhDong: 'xac_nhan' | 'chua_xac_minh' | 'tin_gia' | 'ngoai_tham_quyen', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/sang-loc`, {
+    method: 'POST',
+    body: JSON.stringify({ hanhDong, ghiChu: ghiChu || '' }),
+  });
+
+/** Nút của lãnh đạo ở phần Ngoài thẩm quyền (ADR-003 việc 15) */
+export const xuLyNgoaiThamQuyen = (id: number, hanhDong: 'chuyen_lai' | 'xoa' | 'da_chuyen', ghiChu?: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/ngoai-tham-quyen`, {
+    method: 'POST',
+    body: JSON.stringify({ hanhDong, ghiChu: ghiChu || '' }),
+  });
+
+/** Dữ liệu xuất Excel phần Ngoài thẩm quyền — máy chủ ghi nhật ký trước khi trả */
+export const xuatNgoaiThamQuyen = () =>
+  adminFetch<{ trackingCode: string; content: string; category: string; ward: string;
+    status: string; sender: string; createdAt: string }[]>('/api/admin/submissions/ngoai-tham-quyen/xuat');
+
+/** Thêm ghi chú nội bộ (chỉ ghi thêm, không sửa xoá) — ADR-003 việc 16 */
+export const themGhiChuNoiBo = (id: number, noiDung: string) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/submissions/${id}/ghi-chu`, {
+    method: 'POST',
+    body: JSON.stringify({ noiDung }),
+  });
 
 /** Chuyển tin vào phần Tin tố giác mật — mọi cán bộ; một chiều (ADR-003 việc 12) */
 export const chuyenVaoToGiacMat = (id: number, lyDo?: string) =>

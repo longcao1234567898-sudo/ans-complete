@@ -9,7 +9,7 @@ import KhuTepDinhKem from '../../components/admin/KhuTepDinhKem';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
   fetchStaffList, assignSubmission, revealIdentity, markSpam,
-  chuyenVaoToGiacMat, duaRaToGiacMat } from '../../services/adminService';
+  chuyenVaoToGiacMat, duaRaToGiacMat, sangLoc, xuLyNgoaiThamQuyen, themGhiChuNoiBo } from '../../services/adminService';
 import { laLanhDao } from '../../utils/vaiTro';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import AdminChatPanel from '../../components/admin/AdminChatPanel';
@@ -63,6 +63,28 @@ export default function AdminSubmissionDetailPage() {
     },
     onError: (e: Error) => setFeedback(e.message),
   });
+
+  const lanhDao = laLanhDao(staff?.role);
+  const [ghiChuMoi, setGhiChuMoi] = useState('');
+  const [dangGui, setDangGui] = useState(false);
+
+  /** Chạy một thao tác trên hồ sơ rồi làm mới. `diTiep`: hồ sơ rời khỏi tầm
+      nhìn của người bấm (cán bộ chuyển sang phần chỉ lãnh đạo) -> về danh sách. */
+  async function lamViec(viec: () => Promise<{ message: string }>, diTiep?: string) {
+    setDangGui(true);
+    try {
+      const kq = await viec();
+      toast.success(kq.message, { duration: 6000 });
+      qc.invalidateQueries({ queryKey: ['admin-submissions'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      if (diTiep) navigate(diTiep);
+      else qc.invalidateQueries({ queryKey: ['admin-submission', submissionId] });
+    } catch (e) {
+      toast.error((e as Error).message || 'Không thực hiện được.');
+    } finally {
+      setDangGui(false);
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (payload: { status: string; note?: string; rejectionReason?: string }) =>
@@ -176,10 +198,125 @@ export default function AdminSubmissionDetailPage() {
                 ))}
               </div>
             </div>
+
+            {/* GHI CHÚ NỘI BỘ (ADR-003 việc 16) — người dân không thấy. Chỉ thêm
+                được, không sửa xoá (máy chủ và CSDL đều chặn) để giữ diễn biến. */}
+            <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
+              <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Ghi chú nội bộ</h3>
+              {(data.ghi_chu ?? []).length === 0 ? (
+                <p className="mb-3 text-xs text-slate-400">Chưa có ghi chú.</p>
+              ) : (
+                <ul className="mb-3 space-y-2">
+                  {data.ghi_chu!.map((g) => (
+                    <li key={g.id} className="rounded-xl bg-slate-50 p-2.5 text-sm dark:bg-slate-800">
+                      <p className="whitespace-pre-wrap text-slate-700 dark:text-slate-200">{g.noi_dung}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{g.staff_name || 'Không rõ'} · {formatDateTime(g.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <textarea
+                value={ghiChuMoi}
+                onChange={(e) => setGhiChuMoi(e.target.value)}
+                maxLength={2000}
+                rows={2}
+                placeholder="Thêm ghi chú (người dân không thấy, không sửa xoá được sau khi lưu)"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base sm:text-sm dark:border-slate-700 dark:bg-slate-800"
+              />
+              <button
+                type="button"
+                disabled={dangGui || !ghiChuMoi.trim()}
+                onClick={async () => {
+                  await lamViec(() => themGhiChuNoiBo(submissionId, ghiChuMoi.trim()));
+                  setGhiChuMoi('');
+                }}
+                className="mt-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                Lưu ghi chú
+              </button>
+            </div>
           </div>
 
           {/* Cột phải: thông tin liên hệ + xử lý */}
           <div className="space-y-5">
+            {/* SÀNG LỌC (ADR-003 việc 14) — chỉ hiện khi tin đang chờ sàng lọc */}
+            {data.dang_cho_sang_loc && (
+              <div className="rounded-2xl border-2 border-primary-200 bg-white p-5 shadow-soft dark:border-primary-900/40 dark:bg-slate-900">
+                <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">Sàng lọc tin</h3>
+                {data.chua_xac_minh_luc && (
+                  <p className="mb-2 text-xs text-sky-700 dark:text-sky-300">Đã gắn nhãn Chưa xác minh lúc {formatDateTime(data.chua_xac_minh_luc)}.</p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" disabled={dangGui}
+                    onClick={() => lamViec(() => sangLoc(submissionId, 'xac_nhan'))}
+                    className="rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
+                    Xác nhận tin
+                  </button>
+                  <button type="button" disabled={dangGui}
+                    onClick={() => {
+                      const ghi = window.prompt('Gắn nhãn CHƯA XÁC MINH — tin ở lại hàng sàng lọc chờ bổ sung.\n\nGhi chú nội bộ (không bắt buộc):');
+                      if (ghi === null) return;
+                      lamViec(() => sangLoc(submissionId, 'chua_xac_minh', ghi));
+                    }}
+                    className="rounded-xl bg-sky-600 py-2.5 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50">
+                    Chưa xác minh
+                  </button>
+                  <button type="button" disabled={dangGui}
+                    onClick={() => {
+                      const ly = window.prompt('Đánh dấu TIN GIẢ — tin vào thùng rác, KHÔNG khoá máy người gửi.\n\nLý do (bắt buộc, chỉ cán bộ xem):');
+                      if (ly === null) return;
+                      if (ly.trim().length < 5) { toast.error('Phải ghi rõ lý do đánh dấu tin giả.'); return; }
+                      lamViec(() => sangLoc(submissionId, 'tin_gia', ly), '/quan-tri/sang-loc');
+                    }}
+                    className="rounded-xl bg-slate-600 py-2.5 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-50">
+                    Tin giả
+                  </button>
+                  <button type="button" disabled={dangGui}
+                    onClick={() => {
+                      const ghi = window.prompt('Chuyển sang NGOÀI THẨM QUYỀN — chỉ lãnh đạo xem.'
+                        + (lanhDao ? '' : '\nSau khi chuyển, đồng chí sẽ không mở được tin này nữa.')
+                        + '\n\nGhi chú nội bộ (không bắt buộc, ví dụ cơ quan nên chuyển tới):');
+                      if (ghi === null) return;
+                      lamViec(() => sangLoc(submissionId, 'ngoai_tham_quyen', ghi), lanhDao ? undefined : '/quan-tri/sang-loc');
+                    }}
+                    className="rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-50">
+                    Ngoài thẩm quyền
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* NGOÀI THẨM QUYỀN — nút của lãnh đạo (ADR-003 việc 15) */}
+            {lanhDao && Boolean(data.ngoai_tham_quyen) && !data.deleted_at && (
+              <div className="rounded-2xl border-2 border-orange-200 bg-white p-5 shadow-soft dark:border-orange-900/40 dark:bg-slate-900">
+                <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Tin ngoài thẩm quyền</h3>
+                <div className="space-y-2">
+                  <button type="button" disabled={dangGui}
+                    onClick={() => lamViec(() => xuLyNgoaiThamQuyen(submissionId, 'chuyen_lai'))}
+                    className="w-full rounded-xl bg-primary-600 py-2.5 text-sm font-bold text-white hover:bg-primary-700 disabled:opacity-50">
+                    Chuyển lại xử lý
+                  </button>
+                  <button type="button" disabled={dangGui}
+                    onClick={() => {
+                      const noi = window.prompt('Ghi nhận ĐÃ CHUYỂN CƠ QUAN CÓ THẨM QUYỀN — người dân tra cứu sẽ thấy.\n\nCơ quan đã chuyển tới:');
+                      if (noi === null) return;
+                      lamViec(() => xuLyNgoaiThamQuyen(submissionId, 'da_chuyen', noi));
+                    }}
+                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
+                    Đã chuyển cơ quan có thẩm quyền
+                  </button>
+                  <button type="button" disabled={dangGui}
+                    onClick={() => {
+                      if (!window.confirm('Xoá tin này? Tin vào thùng rác, khôi phục được trong 7 ngày.')) return;
+                      lamViec(() => xuLyNgoaiThamQuyen(submissionId, 'xoa'), '/quan-tri/ngoai-tham-quyen');
+                    }}
+                    className="w-full rounded-xl border-2 border-rose-300 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:text-rose-300">
+                    Xoá tin
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
               <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Thông tin người gửi</h3>
               <div className="space-y-2 text-sm">
@@ -192,7 +329,11 @@ export default function AdminSubmissionDetailPage() {
                 {data.ward_name && <p className="text-xs text-slate-500">Địa bàn: <span className="font-semibold text-slate-600 dark:text-slate-300">{data.ward_name}</span></p>}
               </div>
 
-              {!revealed ? (
+              {!revealed && !lanhDao ? (
+                /* ADR-003 §3: cán bộ không bao giờ xem được danh tính — máy chủ
+                   trả 403; ở đây chỉ để không bày một nút bấm vào là báo lỗi */
+                <p className="mt-3 text-[11px] text-slate-500">Chỉ lãnh đạo xem được danh tính người gửi.</p>
+              ) : !revealed ? (
                 <button
                   onClick={handleReveal}
                   disabled={revealing}
@@ -213,7 +354,15 @@ export default function AdminSubmissionDetailPage() {
               )}
             </div>
 
-            {/* V2: PHÂN CÔNG CÁN BỘ */}
+            {/* V2: PHÂN CÔNG CÁN BỘ — chỉ lãnh đạo giao việc (ADR-003 §5); cán bộ
+                chỉ thấy ai đang phụ trách. Máy chủ chặn /assign với cán bộ. */}
+            {!lanhDao ? (
+              data.assigned_name && (
+                <div className="rounded-2xl bg-white p-5 text-xs text-slate-500 shadow-soft dark:bg-slate-900">
+                  Phụ trách: <span className="font-semibold text-primary-600 dark:text-primary-300">{data.assigned_name}</span>
+                </div>
+              )
+            ) : (
             <div className="rounded-2xl bg-white p-5 shadow-soft dark:bg-slate-900">
               <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
                 <UserPlus className="h-4 w-4 text-primary-600" /> Phân công xử lý
@@ -242,6 +391,7 @@ export default function AdminSubmissionDetailPage() {
                 </p>
               )}
             </div>
+            )}
 
             {/* VỊ TRÍ VỤ VIỆC — chỉ hiện khi người dân có gửi toạ độ.
 

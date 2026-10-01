@@ -18,7 +18,8 @@ import { Navigate, Link, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, Inbox, LogOut, ShieldCheck, BarChart3, Map, ScrollText,
-  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert } from 'lucide-react';
+  ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert,
+  Filter, Megaphone, Lock, CornerUpRight } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { LANH_DAO, tenVaiTro } from '../../utils/vaiTro';
 
@@ -37,8 +38,17 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
     ten: 'Xử lý',
     muc: [
       { to: '/quan-tri', label: 'Tổng quan', Icon: LayoutDashboard, exact: true },
-      { to: '/quan-tri/y-kien', label: 'Danh sách ý kiến', Icon: Inbox, exact: false },
-      { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt', Icon: ShieldQuestion, exact: false },
+      /* Đường đi của tin (ADR-003): có danh tính vào Sàng lọc, ẩn danh vào Chờ
+         duyệt; qua rồi thì vào Tin đưa vào xử lý hoặc Tin tố giác. Hai phần
+         chỉ lãnh đạo xem khớp với 403 ở máy chủ (lib/sang-loc.js, lanhDao). */
+      { to: '/quan-tri/sang-loc', label: 'Sàng lọc', Icon: Filter, exact: false },
+      { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt ẩn danh', Icon: ShieldQuestion, exact: false },
+      { to: '/quan-tri/y-kien', label: 'Tin đưa vào xử lý', Icon: Inbox, exact: false },
+      { to: '/quan-tri/to-giac', label: 'Tin tố giác', Icon: Megaphone, exact: false },
+      { to: '/quan-tri/to-giac-mat', label: 'Tin tố giác mật', Icon: Lock, exact: false,
+        vaiTro: [...LANH_DAO] },
+      { to: '/quan-tri/ngoai-tham-quyen', label: 'Ngoài thẩm quyền', Icon: CornerUpRight, exact: false,
+        vaiTro: [...LANH_DAO] },
       { to: '/quan-tri/thung-rac', label: 'Thùng rác', Icon: Trash2, exact: false },
         /* Danh sách khoá thiết bị — đặt cạnh Thùng rác vì cùng nhóm việc
            xử lý tin rác. Chỉ admin và manager xem được, khớp với phân quyền

@@ -1,12 +1,16 @@
-/** Danh sách ý kiến: lọc theo trạng thái/nhóm, tìm kiếm, phân trang */
+/** Danh sách tin theo PHẦN (ADR-003): Sàng lọc · Tin đưa vào xử lý · Tin tố giác ·
+ *  Tin tố giác mật · Ngoài thẩm quyền. Lọc theo trạng thái/nhóm, tìm kiếm, phân trang. */
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Search, Loader2, ChevronLeft, ChevronRight, Flag, MessageSquare, UserRound } from 'lucide-react';
+import { Search, Loader2, ChevronLeft, ChevronRight, Flag, MessageSquare, UserRound, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/admin/AdminLayout';
 import SlaBadge from '../../components/admin/SlaBadge';
-import { fetchSubmissions, fetchStaffList } from '../../services/adminService';
+import { fetchSubmissions, fetchStaffList, xuatNgoaiThamQuyen, type PhanDanhSach } from '../../services/adminService';
+import { donDong } from '../../utils/excelAnToan';
 import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
 
 /* ============================================================================
@@ -45,7 +49,59 @@ const STATUS_TABS = [
   { value: '', label: '🚫 Nghi tin rác', sla: '', nghiRac: '1' },
 ];
 
-export default function AdminSubmissionsPage() {
+type The = { value: string; label: string; sla: string; nghiRac: string };
+const QUA_HAN: The = { value: '', label: '⏰ Quá hạn', sla: 'overdue', nghiRac: '' };
+const NGHI_RAC: The = { value: '', label: '🚫 Nghi tin rác', sla: '', nghiRac: '1' };
+const THE_XU_LY: The[] = [
+  /* Rỗng = máy chủ lấy trạng thái mặc định của phần: Đang xử lý */
+  { value: '', label: 'Đang xử lý', sla: '', nghiRac: '' },
+  { value: 'resolved', label: 'Đã xử lý', sla: '', nghiRac: '' },
+  { value: 'rejected', label: 'Từ chối', sla: '', nghiRac: '' },
+  { value: 'all', label: 'Tất cả', sla: '', nghiRac: '' },
+  QUA_HAN, NGHI_RAC,
+];
+
+/** Mỗi phần: tiêu đề, lời dẫn, các thẻ lọc. Mệnh đề lọc nằm ở máy chủ (lib/sang-loc.js). */
+const PHAN_MAN_HINH: Record<PhanDanhSach, { tieuDe: string; moTa: string; the: The[] }> = {
+  sang_loc: {
+    tieuDe: 'Sàng lọc',
+    moTa: 'Tin có danh tính mới gửi. Xác nhận để đưa vào xử lý; tin khẩn cấp luôn ở đầu hàng. Người sàng lọc không thấy danh tính.',
+    the: [{ value: '', label: 'Chờ sàng lọc', sla: '', nghiRac: '' }, QUA_HAN, NGHI_RAC],
+  },
+  xu_ly: {
+    tieuDe: 'Tin đưa vào xử lý',
+    moTa: 'Khiếu nại, phản ánh, đề xuất đã qua sàng lọc. Tin tố giác nằm ở phần riêng.',
+    the: THE_XU_LY,
+  },
+  to_giac: {
+    tieuDe: 'Tin tố giác',
+    moTa: 'Tố giác tội phạm đã qua sàng lọc hoặc kiểm duyệt ẩn danh.',
+    the: THE_XU_LY,
+  },
+  to_giac_mat: {
+    tieuDe: 'Tin tố giác mật',
+    moTa: 'Tin tố cáo cán bộ, người làm việc trong cơ quan nhà nước, chính quyền. Chỉ lãnh đạo xem; mỗi lượt mở được ghi nhật ký.',
+    the: [
+      { value: '', label: 'Tất cả', sla: '', nghiRac: '' },
+      { value: 'received', label: 'Mới nhận', sla: '', nghiRac: '' },
+      { value: 'pending_review', label: 'Ẩn danh chờ duyệt', sla: '', nghiRac: '' },
+      { value: 'processing', label: 'Đang xử lý', sla: '', nghiRac: '' },
+      { value: 'resolved', label: 'Đã xử lý', sla: '', nghiRac: '' },
+      { value: 'rejected', label: 'Từ chối', sla: '', nghiRac: '' },
+    ],
+  },
+  ngoai_tham_quyen: {
+    tieuDe: 'Ngoài thẩm quyền',
+    moTa: 'Tin sàng lọc đánh dấu ngoài thẩm quyền. Chỉ lãnh đạo xem: chuyển lại xử lý, xoá, hoặc ghi nhận đã chuyển cơ quan có thẩm quyền.',
+    the: [
+      { value: '', label: 'Tất cả', sla: '', nghiRac: '' },
+      { value: 'received', label: 'Chưa xử lý', sla: '', nghiRac: '' },
+      { value: 'resolved', label: 'Đã chuyển / đã xử lý', sla: '', nghiRac: '' },
+    ],
+  },
+};
+
+export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDanhSach }) {
   const [status, setStatus] = useState('');
   const [category, setCategory] = useState('');
   const [urgency, setUrgency] = useState('');
@@ -63,6 +119,13 @@ export default function AdminSubmissionsPage() {
      đầy đủ — cán bộ lại phải tự tìm, mất luôn ý nghĩa của việc bấm.
      ------------------------------------------------------------------------ */
   const [searchParams] = useSearchParams();
+  /* Thẻ trên trang Tổng quan đếm MỌI phần — mở từ đó thì xem như danh sách cũ
+     (không lọc theo phần), để số trên thẻ khớp số trong danh sách. */
+  const tuTongQuan = ['sla', 'assigned', 'urgency'].some((k) => searchParams.get(k));
+  const phanThuc: PhanDanhSach | undefined = tuTongQuan ? undefined : phan;
+  const manHinh = PHAN_MAN_HINH[phan];
+  const cacThe = phanThuc ? manHinh.the : STATUS_TABS;
+  const [dangXuat, setDangXuat] = useState(false);
   useEffect(() => {
     const s2 = searchParams.get('sla') || '';
     const a2 = searchParams.get('assigned') || '';
@@ -85,8 +148,9 @@ export default function AdminSubmissionsPage() {
   });
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['admin-submissions', status, category, urgency, sla, assigned, sort, q, page, nghiRac],
+    queryKey: ['admin-submissions', phanThuc, status, category, urgency, sla, assigned, sort, q, page, nghiRac],
     queryFn: () => fetchSubmissions({
+      phan: phanThuc,
       /* ⚠️ PHẢI truyền `sort`. Trước đây sort nằm trong queryKey nhưng không
          nằm trong lời gọi — đổi ô sắp xếp thì react-query nạp lại đúng một
          lần rồi trả về y hệt thứ tự cũ, ô chọn nhìn như bị hỏng. */
@@ -114,12 +178,54 @@ export default function AdminSubmissionsPage() {
 
   return (
     <AdminLayout>
-      <h1 className="mb-1 text-xl font-extrabold text-slate-800 dark:text-slate-100">Danh sách ý kiến</h1>
-      <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">Tiếp nhận và xử lý ý kiến công dân gửi đến.</p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="mb-1 text-xl font-extrabold text-slate-800 dark:text-slate-100">
+            {phanThuc ? manHinh.tieuDe : 'Tin theo thẻ Tổng quan'}
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {phanThuc ? manHinh.moTa : 'Đang xem theo thẻ trên trang Tổng quan — gồm mọi phần đồng chí được xem.'}
+          </p>
+        </div>
+        {phanThuc === 'ngoai_tham_quyen' && (
+          <button
+            type="button"
+            disabled={dangXuat}
+            onClick={async () => {
+              /* Hồ sơ chuyển cơ quan có thẩm quyền. Máy chủ ghi nhật ký TRƯỚC khi trả. */
+              setDangXuat(true);
+              try {
+                const ds = await xuatNgoaiThamQuyen();
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(ds.map((d) => donDong({
+                  'Mã tra cứu': d.trackingCode,
+                  'Ngày gửi': formatDateTime(d.createdAt),
+                  'Nhóm': d.category,
+                  'Địa bàn': d.ward,
+                  'Người gửi (đã che)': d.sender,
+                  'Trạng thái': STATUS_META[d.status]?.label || d.status,
+                  'Nội dung': d.content,
+                })));
+                ws['!cols'] = [10, 18, 16, 16, 18, 16, 80].map((wch) => ({ wch }));
+                XLSX.utils.book_append_sheet(wb, ws, 'Ngoài thẩm quyền');
+                XLSX.writeFile(wb, `ngoai-tham-quyen_${new Date().toISOString().slice(0, 10)}.xlsx`);
+                toast.success(`Đã xuất ${ds.length} tin.`);
+              } catch (e) {
+                toast.error((e as Error).message || 'Không xuất được.');
+              } finally {
+                setDangXuat(false);
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {dangXuat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Xuất Excel
+          </button>
+        )}
+      </div>
 
       {/* Tab trạng thái */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {STATUS_TABS.map((t) => (
+        {cacThe.map((t) => (
           <button
             /* Dùng NHÃN làm khoá, không dùng value: ba mục "Việc chưa xong",
                "Quá hạn" và "Nghi tin rác" đều gửi value rỗng nên lấy value làm
@@ -377,6 +483,17 @@ export default function AdminSubmissionsPage() {
                         </span>
                       )}
                       {s.is_flagged ? <Flag className="h-3.5 w-3.5 text-rose-500" /> : null}
+                      {s.chua_xac_minh_luc && (
+                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                          Chưa xác minh
+                        </span>
+                      )}
+                      {Boolean(s.to_giac_mat) && (
+                        <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">🔒 Mật</span>
+                      )}
+                      {Boolean(s.ngoai_tham_quyen) && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">↪ Ngoài thẩm quyền</span>
+                      )}
                   <SlaBadge sla={s.sla} daysLeft={s.daysLeft} compact />
                     </div>
                     <p className="mt-0.5 truncate text-sm text-slate-700 dark:text-slate-200">{s.ai_processed_content || s.original_content}</p>

@@ -134,7 +134,13 @@ function AppShell() {
             {/* Khu vực cán bộ — nay nằm CHUNG một trang với khu công dân */}
             <Route path="/dang-nhap" element={<AdminLoginPage />} />
             <Route path="/quan-tri" element={<AdminDashboardPage />} />
-            <Route path="/quan-tri/y-kien" element={<AdminSubmissionsPage />} />
+            {/* Các phần danh sách (ADR-003). `key` riêng: cùng một trang dùng cho
+                năm phần, không có key thì đổi phần mà bộ lọc của phần trước còn nguyên. */}
+            <Route path="/quan-tri/sang-loc" element={<AdminSubmissionsPage key="sang_loc" phan="sang_loc" />} />
+            <Route path="/quan-tri/y-kien" element={<AdminSubmissionsPage key="xu_ly" phan="xu_ly" />} />
+            <Route path="/quan-tri/to-giac" element={<AdminSubmissionsPage key="to_giac" phan="to_giac" />} />
+            <Route path="/quan-tri/to-giac-mat" element={<AdminSubmissionsPage key="to_giac_mat" phan="to_giac_mat" />} />
+            <Route path="/quan-tri/ngoai-tham-quyen" element={<AdminSubmissionsPage key="ngoai_tham_quyen" phan="ngoai_tham_quyen" />} />
             <Route path="/quan-tri/y-kien/:id" element={<AdminSubmissionDetailPage />} />
             <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
             <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
