@@ -103,3 +103,19 @@ Ghi lại để người sau không tưởng là sơ suất. Đây là những �
 - Theo luật 8, sau khi xong cần một phiên `RETEST` độc lập cho lớp phạm vi hồ sơ, danh tính và
   phân công theo ADR này.
 - Chuyển sang nhiều đơn vị dùng chung một database thì xem lại ADR này cùng ADR 001.
+
+## Ghi chú triển khai (P46)
+
+Những chỗ kế hoạch chưa nói rõ, phiên triển khai đã chọn như sau — ghi lại để người sau không tưởng là sơ suất:
+
+| Chỗ | Đã chọn | Vì sao |
+|---|---|---|
+| Trạng thái `received` | Nay nghĩa là "chờ sàng lọc", chỉ cho tin có danh tính. Duyệt tin ẩn danh đưa thẳng vào `processing`; `nang_cap_v28.sql` chuyển tin ẩn danh đã duyệt cũ | Không thêm giá trị ENUM mới (phải sửa cả thủ tục CSDL và bảng lịch sử) |
+| Tin tố giác mật bắt dư | Lãnh đạo được đưa tin ra; cán bộ chỉ chuyển vào | Bộ từ khoá cố ý bắt dư; không có đường ra thì tin thường kẹt ở phần chỉ lãnh đạo |
+| Lý do "Tin giả" | Ghi vào ghi chú nội bộ; người dân tra cứu chỉ thấy lời chung có 113 | Lý do của cán bộ ("nghi bịa đặt") là nội bộ |
+| Tin tố giác bị đánh tin giả | Không tự xoá sau 7 ngày trong thùng rác, chờ lãnh đạo | Một lần bấm không được làm mất tố giác thật |
+| Việc cần ghi nhật ký TRƯỚC | Xem danh tính, mở tin chỉ lãnh đạo xem, mở/xuất nhật ký, xuất dữ liệu, xoá vĩnh viễn: ghi không được thì không làm | Không có lớp nào khác đứng giữa lãnh đạo với các việc này |
+| Nhãn "gần như giống hệt" ở Tin trùng | Chỉ so nội dung, không dùng mã máy hay mạng | Nhãn theo máy nối được tin ẩn danh với tin có tên (BUG-014) |
+| Cảnh báo đột biến với cán bộ | Chỉ hiện khi riêng số tin cán bộ xem được đã chạm ngưỡng | Ngưỡng là số công khai; hiện cảnh báo dưới ngưỡng là lộ có tin bị ẩn (BUG-009) |
+| Vé cổng vào | JWT 6 giờ, không gắn địa chỉ mạng; chưa khai `TURNSTILE_SECRET_KEY` thì không bắt vé | 4G đổi IP liên tục; giữ hành vi cũ khi chưa khai khoá |
+| Chống chụp màn hình | Chữ chìm, làm mờ, chặn in/sao chép, ghi nhật ký phím chụp | Trang web không chặn tuyệt đối được — mục tiêu là răn đe và truy vết |
