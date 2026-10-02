@@ -2,12 +2,13 @@
  * App gốc: bọc ErrorBoundary, React Query, Router; dựng layout Header/Footer,
  * hiệu ứng chuyển trang mượt mà và gắn các thành phần toàn cục (chat AI, toast).
  */
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import CongVao from './components/common/CongVao';
 import TheoDoiMayChu from './components/common/TheoDoiMayChu';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import CanTrang from './components/admin/CanTrang';
 import AppToaster from './components/common/Toast';
 import { ghiNhanTruyCap } from './services/thongKeService';
 import HuongDanBanDau from './components/common/HuongDanBanDau';
@@ -45,6 +46,10 @@ import AdminDiemDenPage from './pages/admin/AdminDiemDenPage';
 import AdminBlacklistPage from './pages/admin/AdminBlacklistPage';
 import PrivacyPage from './pages/PrivacyPage';
 import { AdminAuthProvider } from './hooks/useAdminAuth';
+
+/* Bọc mọi trang /quan-tri: chờ khôi phục phiên và kiểm vai trò TRƯỚC khi trang
+   dựng (ND-046) — xem components/admin/CanTrang.tsx */
+const can = (trang: ReactNode) => <CanTrang>{trang}</CanTrang>;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -135,25 +140,25 @@ function AppShell() {
 
             {/* Khu vực cán bộ — nay nằm CHUNG một trang với khu công dân */}
             <Route path="/dang-nhap" element={<AdminLoginPage />} />
-            <Route path="/quan-tri" element={<AdminDashboardPage />} />
+            <Route path="/quan-tri" element={can(<AdminDashboardPage />)} />
             {/* Các phần danh sách (ADR-003). `key` riêng: cùng một trang dùng cho
                 năm phần, không có key thì đổi phần mà bộ lọc của phần trước còn nguyên. */}
-            <Route path="/quan-tri/sang-loc" element={<AdminSubmissionsPage key="sang_loc" phan="sang_loc" />} />
-            <Route path="/quan-tri/y-kien" element={<AdminSubmissionsPage key="xu_ly" phan="xu_ly" />} />
-            <Route path="/quan-tri/to-giac" element={<AdminSubmissionsPage key="to_giac" phan="to_giac" />} />
-            <Route path="/quan-tri/to-giac-mat" element={<AdminSubmissionsPage key="to_giac_mat" phan="to_giac_mat" />} />
-            <Route path="/quan-tri/ngoai-tham-quyen" element={<AdminSubmissionsPage key="ngoai_tham_quyen" phan="ngoai_tham_quyen" />} />
-            <Route path="/quan-tri/y-kien/:id" element={<AdminSubmissionDetailPage />} />
-            <Route path="/quan-tri/bao-cao" element={<AdminReportsPage />} />
-            <Route path="/quan-tri/ban-do" element={<AdminMapPage />} />
-            <Route path="/quan-tri/nhat-ky" element={<AdminLogsPage />} />
-            <Route path="/quan-tri/kiem-duyet" element={<AdminReviewPage />} />
-            <Route path="/quan-tri/ki-ot" element={<AdminKioskPage />} />
-            <Route path="/quan-tri/thung-rac" element={<AdminTrashPage />} />
-            <Route path="/quan-tri/ma-qr" element={<AdminQrPage />} />
-            <Route path="/quan-tri/tin-tuc" element={<AdminNewsPage />} />
-            <Route path="/quan-tri/diem-den" element={<AdminDiemDenPage />} />
-            <Route path="/quan-tri/danh-sach-khoa" element={<AdminBlacklistPage />} />
+            <Route path="/quan-tri/sang-loc" element={can(<AdminSubmissionsPage key="sang_loc" phan="sang_loc" />)} />
+            <Route path="/quan-tri/y-kien" element={can(<AdminSubmissionsPage key="xu_ly" phan="xu_ly" />)} />
+            <Route path="/quan-tri/to-giac" element={can(<AdminSubmissionsPage key="to_giac" phan="to_giac" />)} />
+            <Route path="/quan-tri/to-giac-mat" element={can(<AdminSubmissionsPage key="to_giac_mat" phan="to_giac_mat" />)} />
+            <Route path="/quan-tri/ngoai-tham-quyen" element={can(<AdminSubmissionsPage key="ngoai_tham_quyen" phan="ngoai_tham_quyen" />)} />
+            <Route path="/quan-tri/y-kien/:id" element={can(<AdminSubmissionDetailPage />)} />
+            <Route path="/quan-tri/bao-cao" element={can(<AdminReportsPage />)} />
+            <Route path="/quan-tri/ban-do" element={can(<AdminMapPage />)} />
+            <Route path="/quan-tri/nhat-ky" element={can(<AdminLogsPage />)} />
+            <Route path="/quan-tri/kiem-duyet" element={can(<AdminReviewPage />)} />
+            <Route path="/quan-tri/ki-ot" element={can(<AdminKioskPage />)} />
+            <Route path="/quan-tri/thung-rac" element={can(<AdminTrashPage />)} />
+            <Route path="/quan-tri/ma-qr" element={can(<AdminQrPage />)} />
+            <Route path="/quan-tri/tin-tuc" element={can(<AdminNewsPage />)} />
+            <Route path="/quan-tri/diem-den" element={can(<AdminDiemDenPage />)} />
+            <Route path="/quan-tri/danh-sach-khoa" element={can(<AdminBlacklistPage />)} />
           </Routes>
         </div>
       </main>
