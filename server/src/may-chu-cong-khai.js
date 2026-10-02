@@ -23,6 +23,7 @@ import { taoApp, ganDuoi } from './nen-tang.js';
 
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
+import { canhBaoTurnstile } from './lib/turnstile.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
@@ -76,6 +77,8 @@ async function start() {
   app.listen(PORT, () => {
     console.log(`🌐 Máy chủ CÔNG KHAI chạy ở cổng ${PORT}`);
     console.log(moTaCheDoEmail());
+    const cb = canhBaoTurnstile();
+    if (cb) console.error(cb);
   });
 }
 start();

@@ -15,6 +15,7 @@ import { aiAvailable } from './lib/ai.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
+import { canhBaoTurnstile } from './lib/turnstile.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
@@ -233,6 +234,8 @@ async function start() {
   console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash'));
   console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
   console.log(moTaCheDoEmail());
+  const cbTurnstile = canhBaoTurnstile();
+  if (cbTurnstile) console.error(cbTurnstile);
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
     if (encryptionEnabled()) {
