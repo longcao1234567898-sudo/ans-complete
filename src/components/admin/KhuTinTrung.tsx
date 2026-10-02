@@ -15,7 +15,7 @@ import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import {
   fetchTinTrung, fetchIncidentGroupDetail, sangLocHangLoat,
 } from '../../services/adminService';
-import { STATUS_META, formatDateTime } from './statusMeta';
+import { STATUS_META, formatDateTime, nhanTrangThai } from './statusMeta';
 
 function NhomMo({ id }: { id: number }) {
   const qc = useQueryClient();
@@ -91,7 +91,7 @@ function NhomMo({ id }: { id: number }) {
                   {m.tracking_code}
                 </Link>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[m.status]?.badge || ''}`}>
-                  {STATUS_META[m.status]?.label || m.status}
+                  {nhanTrangThai(m)}
                 </span>
                 {m.urgency === 'urgent' && <span className="text-[10px] font-bold text-red-600">🔴 KHẨN</span>}
                 <span className="text-[11px] text-slate-400">
