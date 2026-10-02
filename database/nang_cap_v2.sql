@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- =====================================================================
 -- NÂNG CẤP V2 — Điểm Chạm An Ninh
 -- Thêm: Mã hoá danh tính · SLA hạn xử lý · Phân công cán bộ · Địa bàn (bản đồ)

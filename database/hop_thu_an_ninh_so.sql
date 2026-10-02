@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- ============================================================
 -- ĐIỂM CHẠM AN NINH — Database (bản CHỐNG LỖI IMPORT)
 -- Công an thị xã Tân Châu, tỉnh An Giang  |  MySQL 8.0+ / MariaDB 10.4+

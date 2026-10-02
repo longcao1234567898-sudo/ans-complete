@@ -55,6 +55,12 @@ npm run dev              # http://localhost:4000
 Yêu cầu MySQL đang chạy + đã import database (xem mục dưới). Sau khi có backend, đặt `VITE_API_URL=http://localhost:4000` ở `.env` của frontend để 2 phần nói chuyện được với nhau.
 
 ### 3. Database (MySQL/MariaDB)
+Mỗi tệp `.sql` tự mở đầu bằng `SET NAMES utf8mb4;`, nên chạy trên máy nào cũng đọc đúng chữ có dấu,
+kể cả máy chủ Linux mặc định `latin1` (ND-043). Kiểm ngay sau khi cài:
+`SELECT HEX(SUBSTRING(name,2,1)) FROM categories WHERE id = 1;` phải ra `E1BB91` (chữ "ố" của
+"Tố giác tin báo"); ra `C3A1` là chữ đã vỡ, phải cài lại. Đừng kiểm bằng mắt: công cụ cài để
+`latin1` hiện chữ vỡ thành chữ đúng.
+
 Import theo đúng thứ tự:
 ```bash
 mysql -u root -p hop_thu_an_ninh_so < database/TRON_BO_DATABASE_V5.sql   # 1. Nền: schema gốc + nâng cấp V2–V5 + tin tức mẫu

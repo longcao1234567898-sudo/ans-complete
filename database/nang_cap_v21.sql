@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- ============================================================================
 -- NÂNG CẤP V21 — VÒNG ĐỜI DẤU NỐI: XOÁ DÒNG KHOÁ CŨ KHONG_RO VÀ ĐÃ HẾT HẠN, XOÁ MÃ MÁY KHI
 --                XOÁ DANH TÍNH, XOÁ MÃ MÁY VÀ IP ĐÃ BĂM CỦA ĐƠN QUÁ 30 NGÀY

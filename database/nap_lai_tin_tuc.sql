@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- =====================================================================
 -- NẠP LẠI TIN TỨC — Điểm Chạm An Ninh
 -- Dùng khi trang Tin tức trống trơn (bảng news rỗng).
