@@ -33,7 +33,7 @@ SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định lati
 --
 -- SAU KHI CHẠY XONG:
 --   cd server
---   node scripts-them-can-bo.js admin MatKhau@2026 "Quản trị viên" admin
+--   node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự, đủ chữ thường, HOA, số, ký tự đặc biệt>"
 -- =====================================================================
 
 
@@ -62,7 +62,7 @@ SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định lati
 --
 -- SAU KHI CHẠY XONG, ĐỪNG QUÊN tạo mật khẩu admin:
 --    cd server
---    node scripts-create-admin.js MatKhauCuaBan@2026
+--    node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự, đủ chữ thường, HOA, số, ký tự đặc biệt>"
 -- ============================================================
 
 -- CHỐT: database đã có bảng thì DỪNG tại đây, chưa xoá, chưa sửa gì (ND-048).

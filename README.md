@@ -93,7 +93,7 @@ File cũ `hop_thu_an_ninh_so.sql` (bản gốc, trước khi có V2–V11) vẫn
 
 Sau khi import, tạo mật khẩu admin:
 ```bash
-cd server && node scripts-create-admin.js MatKhauCuaBan@2026
+cd server && node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ thường, HOA, số, ký tự đặc biệt>"
 ```
 
 ## Tính năng
