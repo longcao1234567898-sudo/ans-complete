@@ -588,6 +588,11 @@ export interface DiemDenQuanTri {
   muc_do: 'cao' | 'trung_binh' | 'thap';
   khuyen_cao: string | null;
   is_published: number | boolean;
+  /** 'ngap' = đường hay ngập (nang_cap_v31.sql); vắng = chưa nâng cấp CSDL = điểm tai nạn */
+  loai?: 'tai_nan' | 'ngap';
+  /** Máy chủ tính: đang ngập khi cán bộ xác nhận còn trong 12 giờ */
+  dang_ngap?: number | boolean;
+  ngap_xac_nhan_luc?: string | null;
 }
 
 /** Máy chủ trả kèm cờ coBang để giao diện phân biệt "bảng chưa tạo" với
@@ -600,6 +605,12 @@ export const luuDiemDen = (id: number | null, d: Record<string, unknown>) =>
     id ? `/api/admin/diem-den/${id}` : '/api/admin/diem-den',
     { method: id ? 'PUT' : 'POST', body: JSON.stringify(d) }
   );
+
+/** Báo "đang ngập" / "hết ngập" của đường hay ngập — MỌI cán bộ làm được. */
+export const baoNgap = (id: number, dangNgap: boolean) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/ngap`, {
+    method: 'PATCH', body: JSON.stringify({ dangNgap }),
+  });
 
 export const doiHienDiemDen = (id: number, hien: boolean) =>
   adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/hien`, {

@@ -1,18 +1,23 @@
 /**
- * TRANG QUẢN LÝ ĐIỂM ĐEN GIAO THÔNG — cán bộ cập nhật số liệu tai nạn.
+ * TRANG QUẢN LÝ ĐIỂM ĐEN GIAO THÔNG — cán bộ cập nhật số liệu tai nạn và tình
+ * trạng ngập của các đường hay ngập.
  *
  * ⚠️ Mọi vai trò XEM được (cán bộ cơ sở cần biết địa bàn mình có điểm nào nguy
  *    hiểm), chỉ chỉ huy và quản trị THÊM, SỬA, ẨN. Số liệu tai nạn là số liệu
  *    chính thức của đơn vị, phải qua người có trách nhiệm.
+ *
+ *    NGOẠI LỆ: nút "Đang ngập" / "Hết ngập" của đường hay ngập — MỌI cán bộ bấm
+ *    được, vì người đứng ngoài đường lúc mưa là cán bộ cơ sở. Trạng thái tự hết
+ *    sau 12 giờ; máy chủ kiểm lại quyền và ghi nhật ký (routes/admin/diem-den.js).
  */
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { TriangleAlert, Plus, Pencil, Eye, EyeOff, Loader2, X, Save } from 'lucide-react';
+import { TriangleAlert, Plus, Pencil, Eye, EyeOff, Loader2, X, Save, Waves } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import LopPhu from '../../components/common/LopPhu';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import {
-  fetchDiemDenQuanTri, luuDiemDen, doiHienDiemDen, type DiemDenQuanTri,
+  fetchDiemDenQuanTri, luuDiemDen, doiHienDiemDen, baoNgap, type DiemDenQuanTri,
 } from '../../services/adminService';
 import { laLanhDao as laVaiTroLanhDao } from '../../utils/vaiTro';
 
@@ -28,12 +33,13 @@ type Form = {
   lat: string; lng: string;
   soVu: string; soTuVong: string; soBiThuong: string;
   kyThongKe: string; mucDo: 'cao' | 'trung_binh' | 'thap'; khuyenCao: string;
+  loai: 'tai_nan' | 'ngap';
 };
 
 const TRONG: Form = {
   ten: '', moTa: '', lat: '', lng: '',
   soVu: '0', soTuVong: '0', soBiThuong: '0',
-  kyThongKe: '', mucDo: 'trung_binh', khuyenCao: '',
+  kyThongKe: '', mucDo: 'trung_binh', khuyenCao: '', loai: 'tai_nan',
 };
 
 /** "10,81" -> "10.81": bàn phím điện thoại tiếng Việt hay gõ dấu phẩy thập phân.
@@ -89,10 +95,13 @@ export default function AdminDiemDenPage() {
       ten: f.ten, moTa: f.moTa,
       lat: chuanThapPhan(f.lat) === '' ? null : Number(chuanThapPhan(f.lat)),
       lng: chuanThapPhan(f.lng) === '' ? null : Number(chuanThapPhan(f.lng)),
-      soVu: Number(f.soVu) || 0,
-      soTuVong: Number(f.soTuVong) || 0,
-      soBiThuong: Number(f.soBiThuong) || 0,
-      kyThongKe: f.kyThongKe, mucDo: f.mucDo, khuyenCao: f.khuyenCao,
+      /* Đường hay ngập không có số liệu tai nạn: gửi 0 / rỗng, kể cả khi điểm này
+         từng là điểm tai nạn và còn số cũ trong ô ẩn */
+      soVu: f.loai === 'ngap' ? 0 : Number(f.soVu) || 0,
+      soTuVong: f.loai === 'ngap' ? 0 : Number(f.soTuVong) || 0,
+      soBiThuong: f.loai === 'ngap' ? 0 : Number(f.soBiThuong) || 0,
+      kyThongKe: f.loai === 'ngap' ? '' : f.kyThongKe, mucDo: f.mucDo, khuyenCao: f.khuyenCao,
+      loai: f.loai,
     }),
     onSuccess: (r) => {
       setThongBao(r.message);
@@ -125,6 +134,15 @@ export default function AdminDiemDenPage() {
     setForm(cap ? { ...form, lat: cap[0], lng: cap[1] } : { ...form, [o]: v });
   }
 
+  const doiNgap = useMutation({
+    mutationFn: ({ id, dangNgap }: { id: number; dangNgap: boolean }) => baoNgap(id, dangNgap),
+    onSuccess: (r) => {
+      setThongBao(r.message);
+      qc.invalidateQueries({ queryKey: ['admin-diem-den'] });
+    },
+    onError: (e: Error) => setThongBao(e.message),
+  });
+
   const doiHien = useMutation({
     mutationFn: ({ id, hien }: { id: number; hien: boolean }) => doiHienDiemDen(id, hien),
     onSuccess: (r) => {
@@ -142,6 +160,7 @@ export default function AdminDiemDenPage() {
       soVu: String(d.so_vu), soTuVong: String(d.so_tu_vong),
       soBiThuong: String(d.so_bi_thuong),
       kyThongKe: d.ky_thong_ke ?? '', mucDo: d.muc_do, khuyenCao: d.khuyen_cao ?? '',
+      loai: d.loai === 'ngap' ? 'ngap' : 'tai_nan',
     });
   }
 
@@ -158,8 +177,9 @@ export default function AdminDiemDenPage() {
         <TriangleAlert className="h-5 w-5 text-rose-500" /> Điểm đen giao thông
       </h1>
       <p className="mb-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-        Các khu thường xảy ra tai nạn, hiện công khai trên trang người dân để bà con
-        đi qua cẩn thận hơn.
+        Các khu thường xảy ra tai nạn và các đường hay ngập, hiện công khai trên trang
+        người dân để bà con đi qua cẩn thận hơn. Với đường hay ngập, <b>mọi cán bộ</b> có
+        thể bấm "Đang ngập" / "Hết ngập" khi có mưa lớn.
       </p>
 
       {thongBao && (
@@ -212,6 +232,8 @@ export default function AdminDiemDenPage() {
         {ds.map((d) => {
           const m = MUC.find((x) => x.ma === d.muc_do) ?? MUC[1];
           const dangHien = Boolean(Number(d.is_published));
+          const laNgap = d.loai === 'ngap';
+          const dangNgap = laNgap && Boolean(Number(d.dang_ngap));
           return (
             <div
               key={d.id}
@@ -229,16 +251,54 @@ export default function AdminDiemDenPage() {
                     Đang ẩn
                   </span>
                 )}
+                {laNgap && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                    <Waves className="h-3 w-3" /> Đường hay ngập
+                  </span>
+                )}
+                {laNgap && dangNgap && (
+                  <span className="rounded-lg bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">ĐANG NGẬP</span>
+                )}
                 {d.ky_thong_ke && <span className="ml-auto text-xs text-slate-400">{d.ky_thong_ke}</span>}
               </div>
 
               <p className="mb-2 font-bold text-slate-800 dark:text-slate-100">{d.ten}</p>
 
-              <div className="mb-3 flex flex-wrap gap-4 text-sm">
-                <span><b className="text-slate-700 dark:text-slate-200">{d.so_vu}</b> vụ</span>
-                <span><b className="text-rose-600 dark:text-rose-400">{d.so_tu_vong}</b> tử vong</span>
-                <span><b className="text-amber-600 dark:text-amber-400">{d.so_bi_thuong}</b> bị thương</span>
-              </div>
+              {!laNgap && (
+                <div className="mb-3 flex flex-wrap gap-4 text-sm">
+                  <span><b className="text-slate-700 dark:text-slate-200">{d.so_vu}</b> vụ</span>
+                  <span><b className="text-rose-600 dark:text-rose-400">{d.so_tu_vong}</b> tử vong</span>
+                  <span><b className="text-amber-600 dark:text-amber-400">{d.so_bi_thuong}</b> bị thương</span>
+                </div>
+              )}
+
+              {/* BÁO NGẬP — MỌI cán bộ thấy, KHÔNG nằm trong khối chỉ lãnh đạo bên dưới.
+                  Chỉ hiện cho điểm loại 'ngap'. Bấm "Đang ngập" lại là kéo dài thêm 12 giờ. */}
+              {laNgap && (
+                <div data-khoi="bao-ngap" className="mb-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => doiNgap.mutate({ id: d.id, dangNgap: true })}
+                    disabled={doiNgap.isPending}
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-rose-700 disabled:opacity-60"
+                  >
+                    <Waves className="h-4 w-4" /> {dangNgap ? 'Báo lại: vẫn đang ngập' : 'Đang ngập'}
+                  </button>
+                  {dangNgap && (
+                    <button
+                      type="button"
+                      onClick={() => doiNgap.mutate({ id: d.id, dangNgap: false })}
+                      disabled={doiNgap.isPending}
+                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border-2 border-emerald-500 px-3.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+                    >
+                      Hết ngập
+                    </button>
+                  )}
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {dangNgap ? 'Tự hết báo sau 12 giờ nếu không báo lại.' : 'Chưa có báo ngập.'}
+                  </span>
+                </div>
+              )}
 
               {laLanhDao && (
                 <div className="flex flex-wrap gap-2">
@@ -293,6 +353,21 @@ export default function AdminDiemDenPage() {
 
             <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-4 py-3">
               <div>
+                <label className={nhan}>Loại điểm</label>
+                <div className="flex gap-1.5">
+                  {([['tai_nan', 'Điểm đen tai nạn'], ['ngap', 'Đường hay ngập']] as const).map(([ma, ten]) => (
+                    <button key={ma} type="button"
+                      onClick={() => setForm({ ...form, loai: ma })}
+                      className={`min-h-[34px] flex-1 rounded-lg px-2 py-1 text-xs font-bold transition ${
+                        form.loai === ma ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                      }`}>
+                      {ten}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label className={nhan}>Tên khu <span className="font-normal text-slate-400">(ví dụ: Ngã tư cầu Tân An)</span></label>
                 <input type="text" value={form.ten} maxLength={200}
                   onChange={(e) => setForm({ ...form, ten: e.target.value })} className={o} />
@@ -313,6 +388,7 @@ export default function AdminDiemDenPage() {
                 </div>
               </div>
 
+              {form.loai === 'tai_nan' && (
               <div className="grid grid-cols-3 gap-2">
                 {([['soVu', 'Số vụ'], ['soTuVong', 'Tử vong'], ['soBiThuong', 'Bị thương']] as const).map(([k, ten]) => (
                   <div key={k}>
@@ -323,12 +399,15 @@ export default function AdminDiemDenPage() {
                   </div>
                 ))}
               </div>
+              )}
 
+              {form.loai === 'tai_nan' && (
               <div>
                 <label className={nhan}>Kỳ thống kê <span className="font-normal text-slate-400">(ví dụ: 01/2026 – 09/2026)</span></label>
                 <input type="text" value={form.kyThongKe} maxLength={100}
                   onChange={(e) => setForm({ ...form, kyThongKe: e.target.value })} className={o} />
               </div>
+              )}
 
               <div>
                 <div className="grid grid-cols-2 gap-2">
@@ -349,16 +428,20 @@ export default function AdminDiemDenPage() {
               </div>
 
               <div>
-                <label className={nhan}>Đặc điểm nguy hiểm</label>
+                <label className={nhan}>{form.loai === 'ngap' ? 'Đặc điểm ngập' : 'Đặc điểm nguy hiểm'}</label>
                 <textarea value={form.moTa} rows={2} maxLength={2000}
-                  placeholder="Ví dụ: Khúc cua gấp, tầm nhìn bị che, hay xảy ra giờ tan tầm."
+                  placeholder={form.loai === 'ngap'
+                    ? 'Ví dụ: Đoạn trũng, ngập sâu khi mưa lớn, xe máy hay chết máy.'
+                    : 'Ví dụ: Khúc cua gấp, tầm nhìn bị che, hay xảy ra giờ tan tầm.'}
                   onChange={(e) => setForm({ ...form, moTa: e.target.value })} className={o} />
               </div>
 
               <div>
                 <label className={nhan}>Khuyến cáo cho bà con</label>
                 <textarea value={form.khuyenCao} rows={2} maxLength={2000}
-                  placeholder="Ví dụ: Giảm tốc độ, bật đèn, chú ý quan sát hai bên."
+                  placeholder={form.loai === 'ngap'
+                    ? 'Ví dụ: Không lội qua khi nước chảy xiết, đi đường vòng theo biển chỉ dẫn.'
+                    : 'Ví dụ: Giảm tốc độ, bật đèn, chú ý quan sát hai bên.'}
                   onChange={(e) => setForm({ ...form, khuyenCao: e.target.value })} className={o} />
               </div>
             </div>

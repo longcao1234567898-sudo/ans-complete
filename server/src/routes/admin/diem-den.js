@@ -18,7 +18,7 @@ import { authorize } from '../../middleware/authorize.js';
 import { LANH_DAO } from '../../lib/vai-tro.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
-import { chuanLoai, thieuCotNgap } from '../../lib/duong-ngap.js';
+import { chuanLoai, thieuCotNgap, DANG_NGAP_SQL } from '../../lib/duong-ngap.js';
 
 const router = Router();
 
@@ -64,14 +64,30 @@ function docDuLieu(body) {
 /** GET / — danh sách, MỌI vai trò cán bộ xem được */
 router.get('/', async (_req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT h.*, w.name AS dia_ban
-         FROM traffic_hotspots h
-         LEFT JOIN wards w ON w.id = h.ward_id
-        ORDER BY h.is_published DESC,
-                 FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'),
-                 h.so_tu_vong DESC`
-    );
+    /* dang_ngap do MÁY CHỦ tính (cùng biểu thức với trang người dân) — giao diện
+       không tự so giờ, vì đồng hồ điện thoại cán bộ có thể lệch. Chưa chạy
+       nang_cap_v31.sql thì rơi về câu cũ: danh sách vẫn mở, chỉ chưa có phần ngập. */
+    let rows;
+    try {
+      [rows] = await pool.query(
+        `SELECT h.*, ${DANG_NGAP_SQL} AS dang_ngap, w.name AS dia_ban
+           FROM traffic_hotspots h
+           LEFT JOIN wards w ON w.id = h.ward_id
+          ORDER BY h.is_published DESC,
+                   FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'),
+                   h.so_tu_vong DESC`
+      );
+    } catch (e) {
+      if (!thieuCotNgap(e)) throw e;
+      [rows] = await pool.query(
+        `SELECT h.*, w.name AS dia_ban
+           FROM traffic_hotspots h
+           LEFT JOIN wards w ON w.id = h.ward_id
+          ORDER BY h.is_published DESC,
+                   FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'),
+                   h.so_tu_vong DESC`
+      );
+    }
     res.json({ coBang: true, ds: rows });
   } catch (err) {
     /* PHÂN BIỆT RÕ hai trường hợp, vì cách xử lý khác hẳn nhau:

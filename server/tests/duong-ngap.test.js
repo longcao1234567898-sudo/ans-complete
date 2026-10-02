@@ -102,6 +102,25 @@ describe('Đường hay ngập', { skip: BO_QUA }, () => {
     assert.ok(nk.every((x) => x.staff_id === CAN_BO.id), 'nhật ký phải ghi ĐÚNG người báo');
   });
 
+  test('danh sách quản trị: máy chủ tính sẵn dang_ngap (cán bộ thường cũng xem được); CSDL chưa nâng cấp vẫn trả danh sách', async () => {
+    them({ ten: 'Đường Mới ngập 1 giờ', luc: luc(1) });
+    them({ ten: 'Đường Quên bấm hết ngập', luc: luc(14) });
+    them({ ten: 'Đường Ẩn đang ngập', luc: luc(1), hien: 0 });
+    const r = await quanTri(CAN_BO, 'GET', '');
+    assert.equal(r.status, 200, r.text);
+    const theoTen = Object.fromEntries(r.body.ds.map((d) => [d.ten, d]));
+    assert.equal(Number(theoTen['Đường Mới ngập 1 giờ'].dang_ngap), 1);
+    assert.equal(Number(theoTen['Đường Quên bấm hết ngập'].dang_ngap), 0, 'quá 12 giờ là hết');
+    assert.ok(theoTen['Đường Ẩn đang ngập'], 'quản trị thấy cả điểm đang ẩn');
+
+    ctl = dungCsdl(pool, { themCau: [BANG_CU] });
+    ctl.db.prepare(`INSERT INTO traffic_hotspots (ten, so_vu) VALUES ('Ngã tư cũ', 2)`).run();
+    const cu = await quanTri(CAN_BO, 'GET', '');
+    assert.equal(cu.status, 200, cu.text);
+    assert.equal(cu.body.coBang, true);
+    assert.equal(cu.body.ds.length, 1);
+  });
+
   test('báo lại "đang ngập" thì làm mới giờ xác nhận (kéo dài thêm 12 giờ)', async () => {
     them({ ten: 'Đường Hay ngập B', luc: luc(11) });
     await quanTri(CAN_BO, 'PATCH', '/1/ngap', { dangNgap: true });
@@ -143,6 +162,48 @@ describe('Đường hay ngập', { skip: BO_QUA }, () => {
     await quanTri(CAN_BO, 'PATCH', `/${t.body.id}/ngap`, { dangNgap: true });
     await quanTri(TRUONG, 'PUT', `/${t.body.id}`, { ten: 'Đường thử giữ xác nhận (sửa)', loai: 'ngap', mucDo: 'cao', lat: null, lng: null });
     assert.ok(ctl.db.prepare('SELECT ngap_xac_nhan_luc AS l FROM traffic_hotspots WHERE id = ?').get(t.body.id).l);
+  });
+});
+
+describe('Giao diện đường hay ngập', async () => {
+  const goc = (p) => new URL(`../../${p}`, import.meta.url);
+  const BO_QUA_TS = process.features?.typescript ? false : 'cần Node đọc được TypeScript (≥ 22.18)';
+  const m = BO_QUA_TS ? {} : await import(goc('src/utils/duongNgap.ts').href);
+
+  test('linkChiDuong: liên kết chỉ đường Google Maps, không cần khoá API; toạ độ hỏng thì không có liên kết', { skip: BO_QUA_TS }, () => {
+    assert.equal(m.linkChiDuong(11.01, 106.65), 'https://www.google.com/maps/dir/?api=1&destination=11.01,106.65');
+    assert.equal(m.linkChiDuong('11.0123456', '106.6543210'), 'https://www.google.com/maps/dir/?api=1&destination=11.0123456,106.654321');
+    for (const hong of [[null, 106], [11, null], [NaN, 1], ['abc', 1], [91, 106], [11, 181], [undefined, undefined]]) {
+      assert.equal(m.linkChiDuong(...hong), null, JSON.stringify(hong));
+    }
+  });
+
+  test('dinhDangGioNgap: giờ Việt Nam, dạng "HH:mm dd/MM"; chuỗi hỏng thì rỗng', { skip: BO_QUA_TS }, () => {
+    assert.equal(m.dinhDangGioNgap('2026-10-02T07:30:00.000Z'), '14:30 02/10');
+    assert.equal(m.dinhDangGioNgap('2026-12-31T17:05:00.000Z'), '00:05 01/01');
+    assert.equal(m.dinhDangGioNgap('khong-phai-gio'), '');
+    assert.equal(m.dinhDangGioNgap(null), '');
+  });
+
+  test('trang người dân: có phần đường hay ngập, báo ĐANG NGẬP kèm giờ, chỉ đường Google Maps; số liệu tai nạn không lẫn điểm ngập', async () => {
+    const t = await readFile(goc('src/pages/DiemDenGiaoThongPage.tsx'), 'utf8');
+    assert.match(t, /linkChiDuong\(/, 'thiếu nút chỉ đường Google Maps');
+    assert.match(t, /dinhDangGioNgap\(/, 'thiếu giờ xác nhận');
+    assert.match(t, /ĐANG NGẬP/);
+    assert.match(t, /loai === 'ngap'/, 'chưa tách điểm ngập khỏi điểm tai nạn');
+    assert.match(t, /taiNan\.reduce/, 'tổng số vụ phải tính trên riêng điểm tai nạn');
+  });
+
+  test('trang cán bộ: nút báo ngập gọi baoNgap và KHÔNG nằm trong khối chỉ lãnh đạo', async () => {
+    const t = await readFile(goc('src/pages/admin/AdminDiemDenPage.tsx'), 'utf8');
+    assert.match(t, /baoNgap\(/);
+    const khoiLanhDao = t.slice(t.indexOf('{laLanhDao && (\n                <div className="flex flex-wrap gap-2">'));
+    const dauKhoiNgap = t.indexOf('data-khoi="bao-ngap"');
+    assert.ok(dauKhoiNgap > 0, 'thiếu khối báo ngập (data-khoi="bao-ngap")');
+    assert.ok(t.indexOf('{laLanhDao && (\n                <div className="flex flex-wrap gap-2">') > dauKhoiNgap || khoiLanhDao.indexOf('data-khoi="bao-ngap"') === -1,
+      'khối báo ngập đang nằm trong phần chỉ lãnh đạo — cán bộ thường sẽ không thấy nút');
+    const svc = await readFile(goc('src/services/adminService.ts'), 'utf8');
+    assert.match(svc, /\/ngap`/);
   });
 });
 
