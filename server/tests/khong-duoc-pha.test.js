@@ -228,6 +228,11 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
               /* ADR-003 việc 22: cột đếm bổ sung chưa đọc (lib/bo-sung.js, hằng) */
               || bieuThuc === 'await boSungSql()'
               || bieuThuc === 'DANG_CHO_SANG_LOC'
+              /* P50 (đường hay ngập): biểu thức "đang ngập" là HẰNG ở lib/duong-ngap.js
+                 — tên cột cố định và số giờ hiệu lực viết sẵn, không có tham số hay
+                 dữ liệu người dùng. Dùng chung cho cột SELECT và ORDER BY nên viết
+                 một nơi, không chép ba lần rồi lệch số giờ. */
+              || bieuThuc === 'DANG_NGAP_SQL'
               /* submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên cột
                  toạ độ vụ việc đã tồn tại chưa (coCotToaDo, đọc từ
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa
