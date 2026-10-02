@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- =====================================================================
 -- NÂNG CẤP V11 — GỘP SỰ KIỆN TRÙNG LẶP
 --                "nhiều người cùng báo 1 vụ việc"

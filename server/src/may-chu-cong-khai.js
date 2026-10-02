@@ -23,6 +23,7 @@ import { taoApp, ganDuoi } from './nen-tang.js';
 
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
+import { canhBaoTurnstile } from './lib/turnstile.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
@@ -33,6 +34,7 @@ import diemDenRouter from './routes/diem-den.js';
 import ttsRouter from './routes/tts.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
+import { moTaCheDoEmail } from './lib/mailer.js';
 import aiRouter from './routes/ai.js';
 
 const app = taoApp({ ten: 'cong-khai' });
@@ -72,6 +74,11 @@ async function start() {
   } catch (err) {
     console.error('❌ [công khai] KHÔNG kết nối được MySQL:', err.message);
   }
-  app.listen(PORT, () => console.log(`🌐 Máy chủ CÔNG KHAI chạy ở cổng ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`🌐 Máy chủ CÔNG KHAI chạy ở cổng ${PORT}`);
+    console.log(moTaCheDoEmail());
+    const cb = canhBaoTurnstile();
+    if (cb) console.error(cb);
+  });
 }
 start();

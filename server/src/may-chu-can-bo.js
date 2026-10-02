@@ -30,6 +30,7 @@ import adminRouter from './routes/admin/index.js';
 /* Máy chủ cán bộ vẫn cần route đăng nhập để cán bộ lấy phiên. */
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
+import { canhBaoTurnstile } from './lib/turnstile.js';
 
 /* CORS: chỉ cho origin của TRANG CÁN BỘ, khai riêng qua biến ADMIN_CORS_ORIGIN
    — tách khỏi origin trang công khai. Trang cán bộ khi vào nội bộ sẽ có địa chỉ
@@ -65,6 +66,10 @@ async function start() {
   console.log(dsIp
     ? `🔒 Giới hạn IP: BẬT (chỉ cho ${dsIp})`
     : '🔓 Giới hạn IP: TẮT (chưa khai ADMIN_ALLOWED_IPS — dùng cho demo)');
-  app.listen(PORT, () => console.log(`🏢 Máy chủ CÁN BỘ chạy ở cổng ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`🏢 Máy chủ CÁN BỘ chạy ở cổng ${PORT}`);
+    const cb = canhBaoTurnstile();
+    if (cb) console.error(cb);
+  });
 }
 start();

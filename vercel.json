@@ -1,5 +1,4 @@
 {
-  "_comment": "Header bảo mật PHẢI KHỚP với public/_headers (bản dành cho Netlify). Vercel không đọc file _headers, nên thiếu khối headers ở đây là deploy Vercel chạy trần không có lớp bảo vệ nào.",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {

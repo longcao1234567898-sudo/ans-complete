@@ -13,7 +13,7 @@ Yêu cầu: MySQL đang chạy + đã import `../database/hop_thu_an_ninh_so.sql
 
 ## Tạo mật khẩu admin (chạy 1 lần sau khi import DB)
 ```bash
-node scripts-create-admin.js MatKhauCuaBan@2026
+node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ thường, HOA, số, ký tự đặc biệt>"
 ```
 Sau đó đăng nhập: username `admin`, password vừa đặt.
 

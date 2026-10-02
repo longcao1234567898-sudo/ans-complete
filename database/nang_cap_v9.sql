@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- =====================================================================
 -- NÂNG CẤP V9 — TĂNG CƯỜNG BẢO MẬT ĐĂNG NHẬP CÁN BỘ
 --

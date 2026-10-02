@@ -39,14 +39,33 @@ export function getStoredStaff(): StaffInfo | null {
   return currentStaff;
 }
 
+/* DẤU "TRÌNH DUYỆT NÀY TỪNG CÓ PHIÊN CÁN BỘ" (ND-047).
+   Chỉ để quyết có hỏi máy chủ khôi phục phiên khi mở trang công khai hay
+   không — không có dấu thì máy người dân không gọi /api/auth/refresh mỗi lần
+   mở trang. Dấu KHÔNG cấp quyền gì: ai tự đặt cũng chỉ làm trình duyệt hỏi
+   thêm một lần, câu trả lời vẫn do cookie httpOnly ở máy chủ quyết. Không chứa
+   gì về cán bộ (tên, vai trò) — xem lý do không lưu phiên ở comment trên. */
+const KHOA_DAU_PHIEN = 'htans_co_phien_can_bo';
+function ghiDauPhien() {
+  try { localStorage.setItem(KHOA_DAU_PHIEN, '1'); } catch { /* chặn lưu trữ: chỉ mất phần tiện */ }
+}
+function xoaDauPhien() {
+  try { localStorage.removeItem(KHOA_DAU_PHIEN); } catch { /* như trên */ }
+}
+export function coDauPhien(): boolean {
+  try { return localStorage.getItem(KHOA_DAU_PHIEN) === '1'; } catch { return false; }
+}
+
 function saveSession(token: string, staff: StaffInfo) {
   accessToken = token;
   currentStaff = staff;
+  ghiDauPhien();
 }
 
 function clearSession() {
   accessToken = null;
   currentStaff = null;
+  xoaDauPhien();
 }
 
 /** Gọi API có kèm token; tự thử refresh 1 lần nếu token hết hạn */
@@ -114,7 +133,9 @@ export async function login(
 async function tryRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
-    if (!res.ok) return false;
+    /* Máy chủ từ chối: phiên đã hết, bỏ dấu để trang công khai thôi hỏi. Lỗi
+       mạng (catch dưới) thì giữ dấu — phiên có thể vẫn còn. */
+    if (!res.ok) { xoaDauPhien(); return false; }
     const { accessToken, staff } = (await res.json()) as { accessToken: string; staff: StaffInfo };
     saveSession(accessToken, staff);
     return true;

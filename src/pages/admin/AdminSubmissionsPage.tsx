@@ -13,7 +13,7 @@ import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissions, fetchStaffList, xuatNgoaiThamQuyen, type PhanDanhSach } from '../../services/adminService';
 import { donDong } from '../../utils/excelAnToan';
 import KhuTinTrung from '../../components/admin/KhuTinTrung';
-import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
+import { STATUS_META, CATEGORY_LABEL, formatDateTime, nhanTrangThai } from '../../components/admin/statusMeta';
 
 /* ============================================================================
    THẺ LỌC — thêm mục "Quá hạn" đứng riêng
@@ -208,7 +208,7 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
                   'Nhóm': d.category,
                   'Địa bàn': d.ward,
                   'Người gửi (đã che)': d.sender,
-                  'Trạng thái': STATUS_META[d.status]?.label || d.status,
+                  'Trạng thái': nhanTrangThai(d),
                   'Nội dung': d.content,
                 })));
                 ws['!cols'] = [10, 18, 16, 16, 18, 16, 80].map((wch) => ({ wch }));
@@ -530,7 +530,7 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
                       {s.assigned_name ? ` · phụ trách: ${s.assigned_name}` : ''}
                     </p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta?.badge}`}>{meta?.label}</span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta?.badge}`}>{nhanTrangThai(s)}</span>
                 </Link>
               );
             })}

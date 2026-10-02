@@ -1,3 +1,4 @@
+SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định latin1 (ND-043)
 -- ============================================================================
 -- THIẾT LẬP ĐỊA BÀN PHƯỜNG CHÁNH HIỆP, THÀNH PHỐ HỒ CHÍ MINH
 -- Xoá sạch dữ liệu địa bàn cũ · Nạp 8 khu phố · Nạp 80 ý kiến mẫu

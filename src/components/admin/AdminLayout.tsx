@@ -21,7 +21,8 @@ import {
   ShieldQuestion, QrCode, MonitorSmartphone, Trash2, ShieldOff, Newspaper, TriangleAlert,
   Filter, Megaphone, Lock, CornerUpRight } from 'lucide-react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
-import { LANH_DAO, tenVaiTro } from '../../utils/vaiTro';
+import { tenVaiTro } from '../../utils/vaiTro';
+import { duocVaoTrang } from '../../utils/quyenTrang';
 import BaoVeManHinh from './BaoVeManHinh';
 
 interface MucDieuHuong {
@@ -29,8 +30,6 @@ interface MucDieuHuong {
   label: string;
   Icon: LucideIcon;
   exact: boolean;
-  /** Vai trò được phép xem. Không ghi = ai cũng xem được. */
-  vaiTro?: string[];
 }
 
 /* Nhóm điều hướng — thứ tự phản ánh nhịp làm việc, không phải xếp bừa */
@@ -46,16 +45,13 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
       { to: '/quan-tri/kiem-duyet', label: 'Chờ duyệt ẩn danh', Icon: ShieldQuestion, exact: false },
       { to: '/quan-tri/y-kien', label: 'Tin đưa vào xử lý', Icon: Inbox, exact: false },
       { to: '/quan-tri/to-giac', label: 'Tin tố giác', Icon: Megaphone, exact: false },
-      { to: '/quan-tri/to-giac-mat', label: 'Tin tố giác mật', Icon: Lock, exact: false,
-        vaiTro: [...LANH_DAO] },
-      { to: '/quan-tri/ngoai-tham-quyen', label: 'Ngoài thẩm quyền', Icon: CornerUpRight, exact: false,
-        vaiTro: [...LANH_DAO] },
+      { to: '/quan-tri/to-giac-mat', label: 'Tin tố giác mật', Icon: Lock, exact: false },
+      { to: '/quan-tri/ngoai-tham-quyen', label: 'Ngoài thẩm quyền', Icon: CornerUpRight, exact: false },
       { to: '/quan-tri/thung-rac', label: 'Thùng rác', Icon: Trash2, exact: false },
         /* Danh sách khoá thiết bị — đặt cạnh Thùng rác vì cùng nhóm việc
            xử lý tin rác. Chỉ admin và manager xem được, khớp với phân quyền
            ở máy chủ (authorize('admin','manager')). */
-        { to: '/quan-tri/danh-sach-khoa', label: 'Danh sách khoá', Icon: ShieldOff, exact: false,
-          vaiTro: [...LANH_DAO] },
+        { to: '/quan-tri/danh-sach-khoa', label: 'Danh sách khoá', Icon: ShieldOff, exact: false },
     ],
   },
   {
@@ -76,8 +72,7 @@ const NHOM: { ten: string; muc: MucDieuHuong[] }[] = [
          Không ghi = ai cũng xem được.
          Phải KHỚP với authorize(...) ở máy chủ, nếu không cán bộ bấm vào sẽ
          nhận lỗi 403 — trang hiện thông báo lỗi khó hiểu, tưởng hệ thống hỏng. */
-      { to: '/quan-tri/nhat-ky', label: 'Nhật ký', Icon: ScrollText, exact: false,
-        vaiTro: [...LANH_DAO] },
+      { to: '/quan-tri/nhat-ky', label: 'Nhật ký', Icon: ScrollText, exact: false },
     ],
   },
 ];
@@ -160,13 +155,16 @@ export default function AdminLayout({ children, mucDangChon }: { children: React
 
      Ẩn hẳn mục không có quyền thì rõ ràng hơn nhiều: không thấy thì không bấm.
 
+     Trang nào chỉ lãnh đạo vào: utils/quyenTrang.ts — cùng nguồn với lớp canh
+     đường dẫn CanTrang (ND-046), khớp quyền máy chủ.
+
      ⚠️ Đây chỉ là việc dọn giao diện cho gọn, KHÔNG PHẢI biện pháp bảo mật.
-     Chặn thật vẫn nằm ở máy chủ. Ai gõ thẳng địa chỉ vẫn bị 403 như thường.
+     Chặn thật vẫn nằm ở máy chủ.
      --------------------------------------------------------------------- */
   const NHOM_HIEN = NHOM
     .map((nhom) => ({
       ...nhom,
-      muc: nhom.muc.filter((m) => !m.vaiTro || m.vaiTro.includes(staff.role)),
+      muc: nhom.muc.filter((m) => duocVaoTrang(m.to, staff.role)),
     }))
     .filter((nhom) => nhom.muc.length > 0);   // bỏ luôn nhóm rỗng
 

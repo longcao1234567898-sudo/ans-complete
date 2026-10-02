@@ -18,6 +18,22 @@ export function turnstileEnabled() {
   return Boolean((process.env.TURNSTILE_SECRET_KEY || '').trim());
 }
 
+/**
+ * Cảnh báo lúc khởi động khi máy thật thiếu khoá — BUG-026.
+ * Thiếu khoá thì cổng chống máy tự động cho mọi yêu cầu qua (đánh đổi ghi ở
+ * cong-vao.js). Ở máy cá nhân đó là ý muốn; ở máy thật phải có người BIẾT.
+ * Giống BUG-025: chỉ NODE_ENV khai rõ development/test mới được im lặng —
+ * Render không đặt NODE_ENV, không khai nghĩa là máy thật.
+ * Trả chuỗi cảnh báo, hoặc null khi không có gì phải báo.
+ */
+export function canhBaoTurnstile() {
+  if (turnstileEnabled()) return null;
+  if (['development', 'test'].includes((process.env.NODE_ENV || '').trim())) return null;
+  return '🔴 CHỐNG MÁY TỰ ĐỘNG ĐANG TẮT: chưa khai TURNSTILE_SECRET_KEY nên cổng xác minh '
+    + '"không phải người máy" cho MỌI yêu cầu qua. Khai TURNSTILE_SECRET_KEY (máy chủ) và '
+    + 'VITE_TURNSTILE_SITE_KEY (giao diện) — dash.cloudflare.com -> Turnstile.';
+}
+
 /** Trả về { ok: true } hoặc { ok: false, error: '...' } */
 export async function verifyTurnstile(token, ip) {
   if (!turnstileEnabled()) return { ok: true }; // chưa bật -> cho qua

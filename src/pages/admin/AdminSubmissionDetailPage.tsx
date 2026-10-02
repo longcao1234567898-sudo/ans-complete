@@ -14,7 +14,7 @@ import { laLanhDao } from '../../utils/vaiTro';
 import { duongPhanCuaTin, laDuongPhan, TEN_DUONG } from '../../utils/phanTin';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import AdminChatPanel from '../../components/admin/AdminChatPanel';
-import { STATUS_META, CATEGORY_LABEL, formatDateTime } from '../../components/admin/statusMeta';
+import { STATUS_META, CATEGORY_LABEL, formatDateTime, nhanTrangThai } from '../../components/admin/statusMeta';
 
 export default function AdminSubmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -175,7 +175,7 @@ export default function AdminSubmissionDetailPage() {
               <div className="mb-3 flex items-center justify-between">
                 <span className="font-mono text-lg font-extrabold text-primary-600 dark:text-primary-300">{data.tracking_code}</span>
                 <SlaBadge sla={data.sla} daysLeft={data.daysLeft} />
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_META[data.status]?.badge}`}>{STATUS_META[data.status]?.label}</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_META[data.status]?.badge}`}>{nhanTrangThai(data)}</span>
                 {data.urgency === 'urgent' && (
                   <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">🔴 KHẨN CẤP</span>
                 )}

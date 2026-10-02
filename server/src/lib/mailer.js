@@ -15,8 +15,11 @@ import { UNIT } from './unit.js';
  * │    MAIL_PASS=<App Password 16 ký tự>
  * └──────────────────────────────────────────────────────────────
  *
- * ┌─ 3. CHẾ ĐỘ DEMO (không cấu hình gì) ─────────────────────────
- * │  Trả mã ra màn hình -> vẫn bảo vệ đồ án được bình thường.
+ * ┌─ 3. CHẾ ĐỘ DEMO (không cấu hình gì) — CHỈ MÁY CÁ NHÂN ───────
+ * │  Trả mã ra màn hình. Chỉ bật khi NODE_ENV khai rõ development/test
+ * │  (choPhepMaDemo). Nơi khác chưa khai email thì routes/otp.js từ chối
+ * │  503 — trả mã ra màn hình ở máy thật là ai cũng xác thực được email
+ * │  người khác (BUG-025).
  * └──────────────────────────────────────────────────────────────
  */
 import nodemailer from 'nodemailer';
@@ -25,6 +28,28 @@ const env = (k) => (process.env[k] || '').trim();
 
 export function mailConfigured() {
   return Boolean(env('BREVO_API_KEY') || env('RESEND_API_KEY') || (env('MAIL_USER') && env('MAIL_PASS')));
+}
+
+/**
+ * Được trả mã ra màn hình (chế độ DEMO) không — BUG-025.
+ * An toàn là mặc định, nới lỏng phải khai báo tường minh: chỉ khi NODE_ENV
+ * khai ĐÚNG development hoặc test. Không dựa vào NODE_ENV=production để nhận
+ * ra máy thật, vì Render không đặt biến đó (xem routes/auth.js) — không khai
+ * cũng là máy thật.
+ */
+export function choPhepMaDemo() {
+  return ['development', 'test'].includes(env('NODE_ENV'));
+}
+
+/** Dòng báo cách gửi email — in lúc khởi động ở mọi điểm vào có gắn /api/otp */
+export function moTaCheDoEmail() {
+  const mm = mailMode();
+  if (mm === 'brevo') return '📧 Email OTP: Brevo (gửi được tới BẤT KỲ email)';
+  if (mm === 'resend') return '📧 Email OTP: Resend (⚠️ chưa có tên miền -> chỉ gửi tới email của chính bạn)';
+  if (mm === 'gmail') return '📧 Email OTP: Gmail SMTP (⚠️ Render hay chặn cổng SMTP)';
+  return choPhepMaDemo()
+    ? '📧 Email OTP: CHẾ ĐỘ DEMO (máy cá nhân — hiện mã trên màn hình)'
+    : '📧 Email OTP: TẮT — chưa cấu hình email, /api/otp/send trả 503 (BUG-025). Khai BREVO_API_KEY nếu cần xác thực email';
 }
 
 /** Cách nào đang được dùng — hiện ở log lúc khởi động */
@@ -157,9 +182,13 @@ async function sendViaGmail(email, code) {
 export async function sendOtpEmail(email, code) {
   const mode = mailMode();
 
-  // Chưa cấu hình -> DEMO: trả mã ra màn hình
+  /* Chưa cấu hình -> DEMO: trả mã ra màn hình, chỉ ở máy cá nhân.
+     Không ghi email ra log, kể cả ở đây: email là thông tin nhận diện người
+     gửi, log máy chủ không phải nơi giữ nó (BUG-025). Mã đã nằm trong phản
+     hồi nên log cũng không cần chép lại. */
   if (mode === 'demo') {
-    console.warn(`⚠️  CHƯA CẤU HÌNH EMAIL — chế độ DEMO. Mã OTP cho ${email}: ${code}`);
+    if (!choPhepMaDemo()) return { failed: true };
+    console.warn('⚠️  CHƯA CẤU HÌNH EMAIL — chế độ DEMO: mã trả thẳng về trình duyệt.');
     return { sent: false, devCode: code };
   }
 

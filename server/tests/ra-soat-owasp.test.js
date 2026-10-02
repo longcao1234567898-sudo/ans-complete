@@ -183,6 +183,20 @@ describe('A05 — header bảo mật phải có ở CẢ Netlify lẫn Vercel', 
     }
   });
 
+  test('vercel.json chỉ có khoá Vercel nhận (khoá lạ làm hỏng cả lần deploy, header không lên)', async () => {
+    /* Vercel kiểm vercel.json theo schema chặt: một khoá ngoài schema (như
+       "_comment" để ghi chú) là lần deploy hỏng ngay, nên các test header ở
+       trên đều xanh mà trang Vercel vẫn không chạy. JSON không có chú thích —
+       ghi chú đồng bộ hai bên đã nằm ở đầu public/_headers. */
+    const cauHinh = JSON.parse(await doc('../../vercel.json'));
+    const DUOC_PHEP = new Set([
+      '$schema', 'buildCommand', 'devCommand', 'installCommand', 'outputDirectory', 'framework',
+      'rewrites', 'redirects', 'headers', 'cleanUrls', 'trailingSlash',
+    ]);
+    const la = Object.keys(cauHinh).filter((k) => !DUOC_PHEP.has(k));
+    assert.deepEqual(la, [], `vercel.json có khoá Vercel không nhận: ${la.join(', ')}`);
+  });
+
   test('CSP của hai bên KHỚP NHAU (lệch nhau là một bên yếu hơn mà không ai biết)', async () => {
     const cauHinh = JSON.parse(await doc('../../vercel.json'));
     const cspVercel = cauHinh.headers[0].headers

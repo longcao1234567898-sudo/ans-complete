@@ -18,7 +18,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
-import { sendOtpEmail, mailConfigured } from '../lib/mailer.js';
+import { sendOtpEmail, mailConfigured, mailMode, choPhepMaDemo } from '../lib/mailer.js';
 /* Dùng CHUNG khoá đã qua kiểm tra của lib/token.js, không đọc thẳng
    JWT_SECRET. Đọc thẳng là bỏ qua toàn bộ phép kiểm tra ở đó
    (độ dài, chuỗi mặc định, entropy) — vé OTP sẽ được ký bằng một khoá yếu
@@ -41,6 +41,16 @@ function validEmail(e) {
 
 /** POST /api/otp/send — gửi mã về email */
 router.post('/send', async (req, res) => {
+  /* Chưa khai dịch vụ email mà không phải máy cá nhân: từ chối ngay, trước
+     khi tạo mã hay ghi gì (BUG-025, luật 1). Chạy tiếp thì chỉ còn chế độ
+     DEMO — trả mã ra màn hình, ai cũng xác thực được email người khác. */
+  if (mailMode() === 'demo' && !choPhepMaDemo()) {
+    return res.status(503).json({
+      error: 'Hệ thống chưa gửi được mã xác thực qua email. Bà con vui lòng gửi ý kiến không kèm email, '
+        + 'hoặc thử lại sau. Việc khẩn cấp xin gọi ngay 113.',
+    });
+  }
+
   const email = String(req.body?.email || '').trim().toLowerCase();
   const ip = layIpThat(req);
 
@@ -101,8 +111,8 @@ router.post('/send', async (req, res) => {
         ? `Đã gửi mã xác thực đến ${email}. Vui lòng kiểm tra hộp thư (kể cả mục Spam).`
         : 'Hệ thống đang ở CHẾ ĐỘ DEMO (máy chủ chưa cấu hình email).',
       expiresInMinutes: OTP_TTL_MIN,
-      // devCode CHỈ tồn tại khi máy chủ HOÀN TOÀN chưa cấu hình email (chạy thử ở máy cá nhân).
-      // Trên bản chạy thật đã có Brevo -> không bao giờ có trường này.
+      // devCode CHỈ có ở máy cá nhân chưa cấu hình email (NODE_ENV development/test).
+      // Máy thật chưa cấu hình email đã bị từ chối 503 ở đầu route (BUG-025).
       ...(result.devCode ? { devCode: result.devCode, demoMode: true } : {}),
     });
   } catch (err) {
