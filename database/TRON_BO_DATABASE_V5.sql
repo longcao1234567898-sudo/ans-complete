@@ -11,19 +11,25 @@ SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định lati
 --   • Hàng chờ kiểm duyệt tin ẩn danh                           (V5)
 --   • 12 tin tức thật tháng 7/2026 (có ảnh + link bài viết)
 --
--- ⚠️ DÙNG CHO DATABASE MỚI TINH — CHẠY ĐÚNG 1 LẦN.
---    (Database đang chạy đã nâng cấp lẻ tẻ rồi thì KHÔNG chạy file này —
---     các lệnh ALTER sẽ báo "Duplicate column". Cứ dùng các file nâng cấp lẻ.)
+-- ⚠️ CHỈ CHẠY TRÊN DATABASE TRỐNG — CHẠY ĐÚNG 1 LẦN.
+--    Database đã có bảng thì tệp TỰ DỪNG ở chốt chot_csdl_trong() ngay đầu,
+--    trước câu tạo bảng đầu tiên, chưa đụng gì (ND-048). Nâng cấp database
+--    đang chạy thì dùng các tệp nang_cap_vNN, không dùng tệp này.
+--    Tệp KHÔNG tự chọn database (không USE) và KHÔNG có DROP TABLE: trước đây
+--    nó tự USE hop_thu_an_ninh_so rồi xoá 10 bảng, nên chạy nhầm vào tên khác
+--    vẫn xoá sạch database thật. ĐỪNG chạy bằng `mysql --force` — cờ đó bỏ qua
+--    lỗi nên bỏ qua luôn chốt.
 --
--- CÁCH CHẠY (HeidiSQL):
---   1. Kết nối MySQL (Aiven/Railway/XAMPP đều được)
+-- CÁCH CHẠY (dòng lệnh — xem README mục 3):
+--   mysql -u root -p hop_thu_an_ninh_so < database/TRON_BO_DATABASE_V5.sql
+--   (tạo database trống trước, tên đặt trùng DB_NAME của máy chủ)
+--
+-- CÁCH CHẠY (HeidiSQL / phpMyAdmin):
+--   1. Kết nối MySQL, CHỌN SẴN database trống (nhà cung cấp cấp sẵn cũng được)
 --   2. File -> Load SQL file -> chọn file này -> F9
 --   3. CHỜ CHẠY XONG HẲN (30-60 giây)
 --   4. Kiểm tra cuối file tự chạy — xem bảng kết quả
---
--- NẾU NHÀ CUNG CẤP KHÔNG CHO TẠO DATABASE (lỗi ngay dòng CREATE DATABASE):
---   -> Xoá 3 dòng CREATE DATABASE + USE đầu tiên, chọn sẵn database họ cấp,
---      và đặt DB_NAME trên Render đúng tên đó.
+--   Chưa chọn database thì tệp báo "No database selected" và dừng — đúng ý.
 --
 -- SAU KHI CHẠY XONG:
 --   cd server
@@ -41,7 +47,7 @@ SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định lati
 -- Công an thị xã Tân Châu, tỉnh An Giang  |  MySQL 8.0+ / MariaDB 10.4+
 --
 -- File này tạo TOÀN BỘ: 10 bảng + dữ liệu mẫu + trigger + procedure + view.
--- Chạy được nhiều lần, không lỗi "table already exists".
+-- Chỉ chạy trên database trống (xem chốt bên dưới).
 --
 -- DÙNG CHO NHÀ CUNG CẤP NÀO CŨNG ĐƯỢC (Aiven, Railway, XAMPP, Clever Cloud...)
 --
@@ -51,20 +57,29 @@ SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định lati
 --   3. Bấm F9, CHỜ CHẠY XONG HẲN (đừng tắt giữa chừng)
 --   4. Kiểm tra:  SELECT COUNT(*) FROM banned_words;   -> phải ra 26
 --
--- ⚠️ NẾU NHÀ CUNG CẤP KHÔNG CHO TẠO DATABASE MỚI
---    (báo lỗi ở dòng CREATE DATABASE / USE — thường gặp ở gói free hạn chế):
---    -> Xoá 3 dòng CREATE DATABASE + USE bên dưới,
---       rồi chọn sẵn database họ cấp cho bạn trước khi bấm F9.
---    -> Nhớ đặt DB_NAME trên Render đúng bằng tên database đó.
+-- Database dùng tên gì cũng được (nhà cung cấp cấp sẵn tên khác thì dùng tên đó)
+-- — nhớ đặt DB_NAME của máy chủ đúng bằng tên database đó.
 --
 -- SAU KHI CHẠY XONG, ĐỪNG QUÊN tạo mật khẩu admin:
 --    cd server
 --    node scripts-create-admin.js MatKhauCuaBan@2026
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS hop_thu_an_ninh_so
-    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE hop_thu_an_ninh_so;
+-- CHỐT: database đã có bảng thì DỪNG tại đây, chưa xoá, chưa sửa gì (ND-048).
+-- Đếm mọi bảng và view trong database đang chọn — tệp này chỉ dành cho
+-- database trống, nên có một bảng bất kỳ là đủ để dừng.
+DROP PROCEDURE IF EXISTS chot_csdl_trong;
+DELIMITER //
+CREATE PROCEDURE chot_csdl_trong()
+BEGIN
+    IF (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()) > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT =
+            'DUNG: database nay da co bang. TRON_BO chi chay tren database trong; nang cap thi chay nang_cap_vNN. Chua xoa gi.';
+    END IF;
+END//
+DELIMITER ;
+CALL chot_csdl_trong();
+DROP PROCEDURE chot_csdl_trong;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -76,16 +91,6 @@ DROP PROCEDURE IF EXISTS update_submission_status;
 DROP PROCEDURE IF EXISTS get_submission_by_tracking;
 DROP PROCEDURE IF EXISTS check_spam;
 DROP FUNCTION IF EXISTS generate_tracking_code;
-DROP TABLE IF EXISTS refresh_tokens;
-DROP TABLE IF EXISTS staff_activity_logs;
-DROP TABLE IF EXISTS status_history;
-DROP TABLE IF EXISTS submission_images;
-DROP TABLE IF EXISTS submissions;
-DROP TABLE IF EXISTS banned_words;
-DROP TABLE IF EXISTS system_settings;
-DROP TABLE IF EXISTS news;
-DROP TABLE IF EXISTS staff;
-DROP TABLE IF EXISTS categories;
 
 -- 1. categories
 CREATE TABLE categories (
@@ -482,7 +487,6 @@ GROUP BY c.id, c.name;
 --          Chạy được nhiều lần (có IF NOT EXISTS / bỏ qua lỗi trùng).
 -- =====================================================================
 
-USE hop_thu_an_ninh_so;
 
 -- ---------------------------------------------------------------
 -- 1) SLA — hạn xử lý theo từng nhóm (căn cứ quy định pháp luật)
@@ -614,7 +618,6 @@ SELECT * FROM vw_sla_stats;
 -- AN TOÀN: KHÔNG mất dữ liệu. Chỉ thêm 1 bảng và vài cột.
 -- =====================================================================
 
-USE hop_thu_an_ninh_so;
 
 -- ---------------------------------------------------------------
 -- 1) BẢNG MÃ OTP — xác thực email công dân trước khi gửi ý kiến
@@ -671,12 +674,12 @@ SELECT 'otp_codes' AS bang, COUNT(*) AS so_dong FROM otp_codes;
 
 SELECT COLUMN_NAME AS cot_moi_trong_submissions
 FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'hop_thu_an_ninh_so'
+WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'submissions' AND COLUMN_NAME = 'is_verified_otp';
 
 SELECT COLUMN_NAME AS cot_moi_trong_submission_images
 FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'hop_thu_an_ninh_so'
+WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'submission_images'
   AND COLUMN_NAME IN ('cloudinary_id', 'storage');
 
@@ -696,7 +699,6 @@ WHERE TABLE_SCHEMA = 'hop_thu_an_ninh_so'
 -- AN TOÀN: không mất dữ liệu, chỉ thêm 1 cột + nới ràng buộc.
 -- =====================================================================
 
-USE hop_thu_an_ninh_so;
 
 -- 1) Cột đánh dấu ý kiến ẩn danh
 ALTER TABLE submissions
@@ -711,7 +713,7 @@ ALTER TABLE submissions
 -- KIỂM TRA
 SELECT COLUMN_NAME, IS_NULLABLE
 FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='submissions'
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='submissions'
   AND COLUMN_NAME IN ('is_anonymous','sender_name','sender_phone');
 
 
@@ -732,7 +734,6 @@ WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='submissions'
 -- AN TOÀN: không mất dữ liệu.
 -- =====================================================================
 
-USE hop_thu_an_ninh_so;
 
 -- ---------------------------------------------------------------
 -- 1) Thêm 2 trạng thái mới cho hàng chờ kiểm duyệt
@@ -824,7 +825,6 @@ SELECT status, COUNT(*) AS so_luong FROM submissions GROUP BY status;
 -- KHÔNG cần deploy. Chạy xong bấm F5 trên web là thấy ngay.
 -- =====================================================================
 
-USE hop_thu_an_ninh_so;
 
 -- (TÙY CHỌN) Ẩn hết tin cũ. Muốn giữ tin cũ thì để nguyên dấu -- ở đầu dòng.
 -- UPDATE news SET is_published = FALSE;
@@ -960,7 +960,6 @@ WHERE is_published = TRUE
 -- ╔════════════════════════════════════════════╗
 -- ║  KIỂM TRA TỔNG — chạy xong xem các bảng này
 -- ╚════════════════════════════════════════════╝
-USE hop_thu_an_ninh_so;
 
 SELECT 'banned_words (phải 26)'      AS kiem_tra, COUNT(*) AS ket_qua FROM banned_words
 UNION ALL SELECT 'categories (phải 4)',            COUNT(*) FROM categories
@@ -968,10 +967,10 @@ UNION ALL SELECT 'wards (phải >= 14)',             COUNT(*) FROM wards
 UNION ALL SELECT 'news đang hiện (phải 12)',       COUNT(*) FROM news WHERE is_published = TRUE
 UNION ALL SELECT 'cột is_anonymous (phải 1)',
   (SELECT COUNT(*) FROM information_schema.COLUMNS
-   WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='submissions' AND COLUMN_NAME='is_anonymous')
+   WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='submissions' AND COLUMN_NAME='is_anonymous')
 UNION ALL SELECT 'cột reviewed_by (phải 1)',
   (SELECT COUNT(*) FROM information_schema.COLUMNS
-   WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='submissions' AND COLUMN_NAME='reviewed_by')
+   WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='submissions' AND COLUMN_NAME='reviewed_by')
 UNION ALL SELECT 'bảng otp_codes (phải 1)',
   (SELECT COUNT(*) FROM information_schema.TABLES
-   WHERE TABLE_SCHEMA='hop_thu_an_ninh_so' AND TABLE_NAME='otp_codes');
+   WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='otp_codes');

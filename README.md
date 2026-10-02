@@ -61,9 +61,10 @@ kể cả máy chủ Linux mặc định `latin1` (ND-043). Kiểm ngay sau khi 
 "Tố giác tin báo"); ra `C3A1` là chữ đã vỡ, phải cài lại. Đừng kiểm bằng mắt: công cụ cài để
 `latin1` hiện chữ vỡ thành chữ đúng.
 
-Import theo đúng thứ tự:
+Tạo database trống (tên trùng `DB_NAME` của máy chủ), rồi import theo đúng thứ tự:
 ```bash
-mysql -u root -p hop_thu_an_ninh_so < database/TRON_BO_DATABASE_V5.sql   # 1. Nền: schema gốc + nâng cấp V2–V5 + tin tức mẫu
+mysql -u root -p -e "CREATE DATABASE hop_thu_an_ninh_so CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p hop_thu_an_ninh_so < database/TRON_BO_DATABASE_V5.sql   # 1. Nền: schema gốc + nâng cấp V2–V5 + tin tức mẫu — CHỈ database trống, MỘT lần (ND-048)
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v6.sql            # 2. Mức độ khẩn cấp
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v7.sql            #    Thùng rác (xoá mềm 7 ngày)
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v8.sql            #    Quyền xoá dữ liệu cá nhân (NĐ 13/2023/NĐ-CP)
@@ -84,6 +85,8 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v28.sql           #    H
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v29.sql           #    Người dân bổ sung thông tin trong 72 giờ (ADR-003) — chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v30.sql           #    Cảnh báo số đơn đột biến theo địa bàn (ADR-003) — chạy lúc nào cũng được
 ```
+`TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
+
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
 
 File cũ `hop_thu_an_ninh_so.sql` (bản gốc, trước khi có V2–V11) vẫn còn trong repo để tham khảo lịch sử — **không dùng để cài đặt mới**, dùng `TRON_BO_DATABASE_V5.sql` ở trên.
