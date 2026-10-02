@@ -16,35 +16,60 @@
  */
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { DANG_NGAP_SQL, thieuCotNgap } from '../lib/duong-ngap.js';
 
 const router = Router();
 
+/* Câu truy vấn đầy đủ (đã chạy nang_cap_v31.sql) và bản cũ (chưa có hai cột loai,
+   ngap_xac_nhan_luc). Chưa nâng cấp CSDL thì trang vẫn hiện điểm tai nạn như
+   trước, chỉ chưa có phần đường ngập — không để cả trang lỗi vì thiếu một cột. */
+const SQL_MOI = `SELECT h.id, h.ten, h.mo_ta, h.lat, h.lng, h.so_vu, h.so_tu_vong,
+       h.so_bi_thuong, h.ky_thong_ke, h.muc_do, h.khuyen_cao, h.loai,
+       ${DANG_NGAP_SQL} AS dang_ngap, h.ngap_xac_nhan_luc, w.name AS dia_ban
+  FROM traffic_hotspots h LEFT JOIN wards w ON w.id = h.ward_id
+ WHERE h.is_published = 1
+ ORDER BY ${DANG_NGAP_SQL} DESC, FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'), h.so_tu_vong DESC, h.so_vu DESC`;
+const SQL_CU = `SELECT h.id, h.ten, h.mo_ta, h.lat, h.lng, h.so_vu, h.so_tu_vong,
+       h.so_bi_thuong, h.ky_thong_ke, h.muc_do, h.khuyen_cao, w.name AS dia_ban
+  FROM traffic_hotspots h LEFT JOIN wards w ON w.id = h.ward_id
+ WHERE h.is_published = 1
+ ORDER BY FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'), h.so_tu_vong DESC, h.so_vu DESC`;
+
+async function docDiem() {
+  try {
+    return (await pool.query(SQL_MOI))[0];
+  } catch (err) {
+    if (!thieuCotNgap(err)) throw err;
+    return (await pool.query(SQL_CU))[0];
+  }
+}
+
 router.get('/', async (_req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT h.id, h.ten, h.mo_ta, h.lat, h.lng, h.so_vu, h.so_tu_vong,
-              h.so_bi_thuong, h.ky_thong_ke, h.muc_do, h.khuyen_cao,
-              w.name AS dia_ban
-         FROM traffic_hotspots h
-         LEFT JOIN wards w ON w.id = h.ward_id
-        WHERE h.is_published = 1
-        ORDER BY FIELD(h.muc_do, 'cao', 'trung_binh', 'thap'), h.so_tu_vong DESC, h.so_vu DESC`
-    );
+    const rows = await docDiem();
 
-    res.json(rows.map((r) => ({
-      id: r.id,
-      ten: r.ten,
-      moTa: r.mo_ta,
-      lat: r.lat === null ? null : Number(r.lat),
-      lng: r.lng === null ? null : Number(r.lng),
-      soVu: Number(r.so_vu || 0),
-      soTuVong: Number(r.so_tu_vong || 0),
-      soBiThuong: Number(r.so_bi_thuong || 0),
-      kyThongKe: r.ky_thong_ke,
-      mucDo: r.muc_do,
-      khuyenCao: r.khuyen_cao,
-      diaBan: r.dia_ban,
-    })));
+    res.json(rows.map((r) => {
+      const dangNgap = Boolean(Number(r.dang_ngap));
+      return {
+        id: r.id,
+        ten: r.ten,
+        moTa: r.mo_ta,
+        lat: r.lat === null ? null : Number(r.lat),
+        lng: r.lng === null ? null : Number(r.lng),
+        soVu: Number(r.so_vu || 0),
+        soTuVong: Number(r.so_tu_vong || 0),
+        soBiThuong: Number(r.so_bi_thuong || 0),
+        kyThongKe: r.ky_thong_ke,
+        mucDo: r.muc_do,
+        khuyenCao: r.khuyen_cao,
+        diaBan: r.dia_ban,
+        loai: r.loai === 'ngap' ? 'ngap' : 'tai_nan',
+        dangNgap,
+        /* Giờ xác nhận chỉ trả khi ĐANG ngập: giờ của lần xác nhận đã hết hạn
+           không có ích gì cho người dân và lộ nhịp làm việc của cán bộ. */
+        ngapLuc: dangNgap && r.ngap_xac_nhan_luc ? new Date(r.ngap_xac_nhan_luc).toISOString() : null,
+      };
+    }));
   } catch (err) {
     /* Bảng chưa tạo (chưa chạy nang_cap_v18.sql) -> trả danh sách rỗng, trang
        vẫn mở được và hiện lời nhắn "chưa có dữ liệu". Thà trang trống có giải
