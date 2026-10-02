@@ -84,6 +84,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v27.sql           #    N
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v28.sql           #    Hàng sàng lọc, ghi chú nội bộ chỉ ghi thêm, giữ tin tố giác bị đánh tin giả chờ lãnh đạo (ADR-003) — chạy bằng root, dừng máy chủ, chạy tệp, rồi cập nhật mã
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v29.sql           #    Người dân bổ sung thông tin trong 72 giờ (ADR-003) — chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v30.sql           #    Cảnh báo số đơn đột biến theo địa bàn (ADR-003) — chạy lúc nào cũng được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v31.sql           #    Đường hay ngập: cán bộ báo "đang ngập / hết ngập" trên trang Điểm đen giao thông (thêm 2 cột traffic_hotspots) — chạy trước hay sau khi cập nhật mã đều được, chạy lại không lỗi
 ```
 `TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
 
