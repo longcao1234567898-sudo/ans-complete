@@ -21,6 +21,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import submissionsRouter from './submissions.js';
 import sangLocRouter from './sang-loc.js';
+import trichChuRouter from './trich-chu.js';
 import suKienManHinhRouter from './su-kien-man-hinh.js';
 import dashboardRouter from './dashboard.js';
 import bannedWordsRouter from './banned-words.js';
@@ -43,6 +44,8 @@ router.use(requireAuth);
 
 /* Sàng lọc, ngoài thẩm quyền, ghi chú (ADR-003) — đường dẫn con của hồ sơ, tách tệp cho gọn */
 router.use('/submissions', sangLocRouter);
+/* Trích chữ tệp đính kèm (OCR nội bộ, ADR-005) — đọc / tìm chữ trong Word, PDF, ảnh */
+router.use('/submissions', trichChuRouter);
 router.use('/submissions', submissionsRouter);
 router.use('/dashboard', dashboardRouter);
 /* Truy vết chụp / in màn hình trang cán bộ (ADR-003 việc 26) */

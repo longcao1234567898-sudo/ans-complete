@@ -62,6 +62,7 @@ export const NHOM_NHAT_KY = Object.freeze([
       kiosk_submit: 'Nhập hộ tại trụ sở',
       ack_incident_group: 'Đánh dấu đã xem nhóm sự kiện',
       erase_identity: 'Xoá danh tính theo yêu cầu của người dân',
+      trich_chu_tep: 'Yêu cầu trích chữ tệp đính kèm (OCR)',
     },
   },
   {

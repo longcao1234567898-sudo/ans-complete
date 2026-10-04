@@ -17,6 +17,8 @@ import {
 import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
 import { timPhan, coCotSangLoc, sangLocSql } from '../../lib/sang-loc.js';
 import { coBangBoSung, boSungSql } from '../../lib/bo-sung.js';
+import { coBangTrichChu } from '../../lib/hang-doi-trich-chu.js';
+import { dangTim } from '../../lib/chuan-hoa-van-ban.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -205,7 +207,20 @@ router.get('/', async (req, res) => {
     where.push("s.status IN ('received','processing')");
   }
   if (category) { where.push('c.code = ?'); params.push(category); }
-  if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
+  /* Tìm cả CHỮ TRONG TỆP ĐÍNH KÈM đã trích (ADR-005), dạng không dấu: gõ "huynh van
+     luy" ra "Huỳnh Văn Lũy". Vẫn nằm trong `where` chung nên phạm vi xem bên dưới áp
+     cho cả phần khớp trong tệp — hồ sơ ngoài phạm vi không lộ qua chữ trong tệp.
+     Hồ sơ ĐÃ XOÁ DANH TÍNH không tìm qua chữ trong tệp: xoá danh tính chưa đụng tới
+     tệp đính kèm (đơn có tên, chữ ký — ND-053), không để ô tìm kiếm biến tên người
+     đã xin xoá thành thứ gõ là ra. */
+  const qTep = q ? dangTim(q) : '';
+  const timTep = qTep.length >= 2 && await coBangTrichChu();
+  if (q && timTep) {
+    where.push(`(s.original_content LIKE ? OR s.tracking_code = ?
+      OR (COALESCE(s.identity_erased, 0) = 0
+          AND EXISTS (SELECT 1 FROM trich_chu_tep t WHERE t.submission_id = s.id AND t.noi_dung_tim LIKE ?)))`);
+    params.push(`%${q}%`, String(q).toUpperCase(), `%${qTep}%`);
+  } else if (q) { where.push('(s.original_content LIKE ? OR s.tracking_code = ?)'); params.push(`%${q}%`, String(q).toUpperCase()); }
   if (sla === 'overdue') where.push("s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW()");
   /* ---------------------------------------------------------------------
      ẨN VIỆC QUÁ HẠN KHỎI CÁC MỤC KHÁC
@@ -299,11 +314,24 @@ router.get('/', async (req, res) => {
       `SELECT COUNT(*) AS total FROM submissions s LEFT JOIN categories c ON s.category_id = c.id ${whereSql}`,
       params
     );
+    /* Hồ sơ nào khớp nhờ chữ trong tệp — giao diện ghi rõ, kẻo cán bộ thấy hồ sơ
+       không có từ khoá trong nội dung lại tưởng tìm sai. Chỉ hỏi trong các hồ sơ
+       của trang này (đã qua phạm vi xem). */
+    let khopTep = new Set();
+    if (timTep && rows.length > 0) {
+      const [k] = await pool.query(
+        `SELECT DISTINCT t.submission_id FROM trich_chu_tep t JOIN submissions s ON s.id = t.submission_id
+          WHERE t.submission_id IN (?) AND t.noi_dung_tim LIKE ? AND COALESCE(s.identity_erased, 0) = 0`,
+        [rows.map((r) => r.id), `%${qTep}%`]
+      );
+      khopTep = new Set(k.map((x) => Number(x.submission_id)));
+    }
     // Giải mã tên rồi CHE BỚT — danh sách không bao giờ hiện danh tính đầy đủ
     const data = rows.map((r) => ({
       ...r,
       sender_name: r.is_anonymous ? '🕶️ Người gửi ẩn danh' : maskName(decrypt(r.sender_name)),
       ...slaOf(r),
+      ...(q ? { khop_tep: khopTep.has(Number(r.id)) } : {}),
     }));
     res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {

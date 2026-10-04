@@ -62,6 +62,8 @@ const CAC_DUONG_DAN = [
   ['/api/admin/submissions/1/sang-loc', 'POST'],
   // ADR-003 việc 26 — ghi nhật ký phím chụp màn hình, lệnh in
   ['/api/admin/su-kien-man-hinh', 'POST'],
+  // ADR-005 — trích chữ tệp đính kèm (OCR nội bộ) (routes/admin/trich-chu.js)
+  ['/api/admin/submissions/1/trich-chu', 'GET'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {

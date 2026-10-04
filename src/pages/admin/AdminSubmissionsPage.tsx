@@ -447,7 +447,7 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
           <Search className="h-4 w-4 text-slate-400" />
           <input
             className="w-full bg-transparent py-2 text-sm outline-none"
-            placeholder="Tìm theo nội dung hoặc mã tra cứu..."
+            placeholder="Tìm nội dung, mã tra cứu, chữ trong tệp đính kèm (gõ không dấu được)..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applySearch()}
@@ -518,6 +518,13 @@ export default function AdminSubmissionsPage({ phan = 'xu_ly' }: { phan?: PhanDa
                       )}
                       {Boolean(s.to_giac_mat) && (
                         <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">🔒 Mật</span>
+                      )}
+                      {/* Khớp nhờ chữ trong tệp đính kèm đã trích (ADR-005) — không ghi rõ thì cán bộ
+                          thấy nội dung không có từ khoá lại tưởng tìm sai */}
+                      {s.khop_tep && (
+                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                          📎 Khớp chữ trong tệp
+                        </span>
                       )}
                       {Boolean(s.ngoai_tham_quyen) && (
                         <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">↪ Ngoài thẩm quyền</span>
