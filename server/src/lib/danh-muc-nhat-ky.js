@@ -117,6 +117,7 @@ export const NHOM_NHAT_KY = Object.freeze([
       hotspot_hide: 'Ẩn điểm đen giao thông',
       hotspot_flood_on: 'Báo đường đang ngập',
       hotspot_flood_off: 'Báo đường hết ngập',
+      hotspot_flood_threshold: 'Đặt ngưỡng mưa gây ngập của đường',
       qr_create: 'Tạo điểm QR',
       qr_update: 'Bật/tắt điểm QR',
       qr_delete: 'Xoá điểm QR',

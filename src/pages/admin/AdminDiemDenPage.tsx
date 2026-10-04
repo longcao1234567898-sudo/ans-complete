@@ -16,6 +16,7 @@ import { TriangleAlert, Plus, Pencil, Eye, EyeOff, Loader2, X, Save, Waves } fro
 import AdminLayout from '../../components/admin/AdminLayout';
 import LopPhu from '../../components/common/LopPhu';
 import KhungDuBaoMua from '../../components/DuBaoMua/KhungDuBaoMua';
+import NguongMuaDuong from '../../components/admin/NguongMuaDuong';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import {
   fetchDiemDenQuanTri, luuDiemDen, doiHienDiemDen, baoNgap, type DiemDenQuanTri,
@@ -304,6 +305,9 @@ export default function AdminDiemDenPage() {
                   </span>
                 </div>
               )}
+
+              {/* Ngưỡng mưa riêng của tuyến (P53): mọi cán bộ xem lịch sử, lãnh đạo đặt */}
+              {laNgap && <NguongMuaDuong d={d} laLanhDao={laLanhDao} coBang={data?.coBangNguong !== false} />}
 
               {laLanhDao && (
                 <div className="flex flex-wrap gap-2">

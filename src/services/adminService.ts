@@ -595,12 +595,32 @@ export interface DiemDenQuanTri {
   /** Máy chủ tính: đang ngập khi cán bộ xác nhận còn trong 12 giờ */
   dang_ngap?: number | boolean;
   ngap_xac_nhan_luc?: string | null;
+  /** Ngưỡng riêng của tuyến (mm mưa dồn 3 giờ, nang_cap_v34.sql); null = theo mức chung */
+  nguong_mua_3h?: number | null;
+  /** Các lần cán bộ báo ngập kèm lượng mưa lúc đó, và ngưỡng máy gợi ý (P53) */
+  ngap_theo_mua?: LichSuNgapTheoMua | null;
+}
+
+export interface LichSuNgapTheoMua {
+  /** Số lần ngập có số mưa (dùng để gợi ý) */
+  soLan: number;
+  tongLanNgap: number;
+  thapNhat: number | null;
+  caoNhat: number | null;
+  goiY: number | null;
+  ganDay: { luc: string; mua3h: number | null; mua12h: number | null }[];
 }
 
 /** Máy chủ trả kèm cờ coBang để giao diện phân biệt "bảng chưa tạo" với
     "bảng có nhưng chưa có dữ liệu" — hai việc cần xử lý khác hẳn nhau. */
-export const fetchDiemDenQuanTri = (): Promise<{ coBang: boolean; ds: DiemDenQuanTri[] }> =>
-  adminFetch<{ coBang: boolean; ds: DiemDenQuanTri[] }>('/api/admin/diem-den');
+export const fetchDiemDenQuanTri = (): Promise<{ coBang: boolean; coBangNguong?: boolean; ds: DiemDenQuanTri[] }> =>
+  adminFetch<{ coBang: boolean; coBangNguong?: boolean; ds: DiemDenQuanTri[] }>('/api/admin/diem-den');
+
+/** Đặt / bỏ (null) ngưỡng mưa riêng của một đường hay ngập — chỉ lãnh đạo (P53) */
+export const datNguongMua = (id: number, nguongMua3h: number | null) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/nguong-mua`, {
+    method: 'PUT', body: JSON.stringify({ nguongMua3h }),
+  });
 
 export const luuDiemDen = (id: number | null, d: Record<string, unknown>) =>
   adminFetch<{ ok: boolean; message: string }>(
