@@ -105,6 +105,7 @@ cd server && node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ 
 - Trợ lý AI hỏi đáp (chatbot) — chạy qua backend proxy nếu có, fallback về câu trả lời mẫu nếu không.
 - Tra cứu tiến độ bằng mã 6 ký tự.
 - Tin tức đơn vị.
+- Điểm đen giao thông và đường hay ngập (cán bộ báo "đang ngập", tự hết sau 12 giờ), kèm **dự báo mưa tự động** 4 mức từ Open-Meteo — máy chủ lấy giùm, không cần khoá; tuỳ chỉnh bằng `DU_BAO_MUA_TOA_DO` ([ADR-004](docs/adr/004-canh-bao-mua-tu-dong-open-meteo.md)).
 - CAPTCHA Cloudflare Turnstile chống bot (tuỳ chọn, bật khi có `TURNSTILE_SECRET_KEY`).
 - Ảnh bằng chứng: kiểm duyệt AI + tái mã hoá qua canvas, tải lên Cloudinary nếu đã cấu hình (`VITE_CLOUDINARY_CLOUD_NAME`/`VITE_CLOUDINARY_PRESET`), fallback lưu base64 nếu chưa.
 - PWA: `manifest.json` + `sw.js`.
