@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TriangleAlert, Plus, Pencil, Eye, EyeOff, Loader2, X, Save, Waves } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import LopPhu from '../../components/common/LopPhu';
+import KhungDuBaoMua from '../../components/DuBaoMua/KhungDuBaoMua';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import {
   fetchDiemDenQuanTri, luuDiemDen, doiHienDiemDen, baoNgap, type DiemDenQuanTri,
@@ -181,6 +182,10 @@ export default function AdminDiemDenPage() {
         người dân để bà con đi qua cẩn thận hơn. Với đường hay ngập, <b>mọi cán bộ</b> có
         thể bấm "Đang ngập" / "Hết ngập" khi có mưa lớn.
       </p>
+
+      {/* Dự báo mưa tự động (P51): mức Cảnh báo trở lên là lúc cử người đi xem
+          các tuyến hay ngập — dự báo không tự bấm "Đang ngập" thay cán bộ */}
+      <KhungDuBaoMua canBo />
 
       {thongBao && (
         <p className="mb-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-300">

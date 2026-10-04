@@ -19,6 +19,7 @@ import { LANH_DAO } from '../../lib/vai-tro.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 import { chuanLoai, thieuCotNgap, DANG_NGAP_SQL } from '../../lib/duong-ngap.js';
+import { duBaoMua, NGUON_GHI_CONG } from '../../lib/du-bao-mua.js';
 
 const router = Router();
 
@@ -254,6 +255,23 @@ router.patch('/:id/ngap', authorize(), async (req, res) => {
     }
     console.error('Báo ngập lỗi:', err.message);
     res.status(500).json({ error: 'Không lưu được.' });
+  }
+});
+
+/**
+ * GET /du-bao-mua — cùng dự báo người dân thấy (lib/du-bao-mua.js, dùng chung bộ
+ * nhớ đệm), thêm toạ độ đang dự báo và nó lấy từ đâu để cán bộ kiểm được đúng
+ * địa bàn. Mức Cảnh báo trở lên là lúc nên cử người đi xem các tuyến hay ngập.
+ * Máy chủ cán bộ chạy tách (may-chu-can-bo.js) không có route công khai, nên
+ * trang cán bộ lấy dự báo qua đây.
+ */
+router.get('/du-bao-mua', authorize(), async (_req, res) => {
+  try {
+    const kq = await duBaoMua.lay();
+    res.json(kq.trangThai === 'co_du_lieu' ? { ...kq, nguon: NGUON_GHI_CONG } : kq);
+  } catch (err) {
+    console.error('Lỗi dự báo mưa:', err.message);
+    res.json({ trangThai: 'khong_co_du_lieu' });
   }
 });
 

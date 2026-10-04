@@ -271,14 +271,16 @@ describe('A10 — không có SSRF: mọi URL gọi ra ngoài đều là hằng s
         if (!muc.name.endsWith('.js')) continue;
 
         const nguon = await readFile(duong, 'utf8');
-        // fetch(`...${...}`) hoặc fetch(bien) — chỉ chấp nhận hằng số / hàm dựng URL cố định
-        for (const khop of nguon.matchAll(/fetch\(\s*([^,]+?)\s*,/g)) {
+        // fetch(`...${...}`) hoặc fetch(bien) — chỉ chấp nhận hằng số / hàm dựng URL cố định.
+        // goiMang( = fetch tiêm vào được của lib/du-bao-mua.js (để kiểm thử) — kiểm như fetch.
+        for (const khop of nguon.matchAll(/\b(?:fetch|goiMang)\(\s*([^,]+?)\s*,/g)) {
           const doiSo = khop[1].trim();
           const anToan = /^['"`]https:\/\//.test(doiSo)     // URL hằng, ghi thẳng
             || doiSo === 'VERIFY_URL'                        // hằng Turnstile
             || doiSo === 'urlOf(model)'                      // model từ biến MÔI TRƯỜNG, không phải người dùng
             || doiSo === 'duongDan'                          // tts.js cũ: host cố định + query đã encodeURIComponent
-            || doiSo === 'taoUrl(q)';                        // tts.js: host cố định trong TTS_NGUON, q đã encodeURIComponent
+            || doiSo === 'taoUrl(q)'                         // tts.js: host cố định trong TTS_NGUON, q đã encodeURIComponent
+            || doiSo === 'taoUrlDuBao(toaDo)';               // du-bao-mua.js: host cố định NGUON_URL, toạ độ là số đã kiểm
           if (!anToan) loi.push(`${muc.name}: fetch(${doiSo})`);
         }
       }
