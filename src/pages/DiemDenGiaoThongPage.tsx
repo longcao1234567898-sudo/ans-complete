@@ -22,6 +22,9 @@ import { TriangleAlert, Loader2, Info, MapPin, Waves, Navigation } from 'lucide-
 import PageBackground from '../components/common/PageBackground';
 import SpeakButton from '../components/common/SpeakButton';
 import { linkChiDuong, dinhDangGioNgap } from '../utils/duongNgap';
+import KhungDuBaoMua from '../components/DuBaoMua/KhungDuBaoMua';
+import { useDuBaoMua } from '../hooks/useDuBaoMua';
+import { coNguyCoNgap, HIEN_MUC, type MucMua } from '../utils/duBaoMua';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '') || '';
 /* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
@@ -67,6 +70,12 @@ export default function DiemDenGiaoThongPage() {
     queryFn: fetchDiemDen,
   });
 
+  /* Cùng truy vấn với KhungDuBaoMua (cùng khoá) -> chỉ một lượt gọi máy chủ */
+  const { data: duBao } = useDuBaoMua();
+  /* Dự báo mưa to trở lên: đường hay ngập được ghi "Nguy cơ ngập". KHÔNG bao giờ
+     thành "đang ngập" — "đang ngập" chỉ đến từ cán bộ xác nhận (d.dangNgap). */
+  const nguyCo = coNguyCoNgap(duBao);
+
   const ds = data ?? [];
   const taiNan = ds.filter((d) => d.loai !== 'ngap');
   const ngap = ds.filter((d) => d.loai === 'ngap');
@@ -77,6 +86,9 @@ export default function DiemDenGiaoThongPage() {
 
   /* Lời đọc cho người mắt kém — gộp thành một đoạn liền mạch. Báo ngập đọc trước. */
   const loiDoc = [
+    nguyCo && duBao?.muc !== undefined
+      ? `Dự báo mưa: mức ${HIEN_MUC[duBao.muc as MucMua].ten}. ${HIEN_MUC[duBao.muc as MucMua].loiKhuyen}`
+      : '',
     dangNgap.length
       ? `Đang có ${dangNgap.length} tuyến đường ngập: ${dangNgap.map((d) => d.ten).join('. ')}. Bà con tránh đi qua hoặc đi thật cẩn thận.`
       : '',
@@ -129,6 +141,30 @@ export default function DiemDenGiaoThongPage() {
           <b> {t('dd.xinDiChamVa')}</b> {t('dd.bietTruocLaTranh')}
         </p>
 
+        {/* ĐANG NGẬP — đứng đầu trang: thông tin cần thấy trước tiên lúc mưa lớn */}
+        {dangNgap.length > 0 && (
+          <div role="alert" className="mb-5 rounded-2xl border-2 border-rose-500 bg-rose-50 p-4 dark:border-rose-700 dark:bg-rose-900/20">
+            <p className="flex items-center gap-2 text-base font-extrabold text-rose-700 dark:text-rose-300">
+              <Waves className="h-5 w-5" /> Đang có {dangNgap.length} tuyến đường ngập
+            </p>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm font-semibold text-rose-800 dark:text-rose-200">
+              {dangNgap.map((d) => (
+                <li key={d.id}>
+                  {d.ten}
+                  {d.ngapLuc && <span className="font-normal text-rose-700/80 dark:text-rose-300/80"> — cán bộ xác nhận lúc {dinhDangGioNgap(d.ngapLuc)}</span>}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-rose-700/90 dark:text-rose-300/90">
+              Bà con nên đi đường khác. Không lội qua nơi nước chảy xiết hoặc không thấy mặt đường.
+            </p>
+          </div>
+        )}
+
+        {/* DỰ BÁO MƯA (P51) — sau báo ngập đã xác nhận, trước danh sách. Hiện cả khi
+            danh sách điểm chưa tải được: dự báo không phụ thuộc danh sách. */}
+        <KhungDuBaoMua soDuongHayNgap={ngap.length} />
+
         {isLoading && (
           <p className="flex items-center gap-2 text-sm text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin" /> {t('dd.dangTai')}
@@ -154,26 +190,6 @@ export default function DiemDenGiaoThongPage() {
 
         {ds.length > 0 && (
           <>
-            {/* ĐANG NGẬP — đứng đầu trang: thông tin cần thấy trước tiên lúc mưa lớn */}
-            {dangNgap.length > 0 && (
-              <div role="alert" className="mb-5 rounded-2xl border-2 border-rose-500 bg-rose-50 p-4 dark:border-rose-700 dark:bg-rose-900/20">
-                <p className="flex items-center gap-2 text-base font-extrabold text-rose-700 dark:text-rose-300">
-                  <Waves className="h-5 w-5" /> Đang có {dangNgap.length} tuyến đường ngập
-                </p>
-                <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm font-semibold text-rose-800 dark:text-rose-200">
-                  {dangNgap.map((d) => (
-                    <li key={d.id}>
-                      {d.ten}
-                      {d.ngapLuc && <span className="font-normal text-rose-700/80 dark:text-rose-300/80"> — cán bộ xác nhận lúc {dinhDangGioNgap(d.ngapLuc)}</span>}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-rose-700/90 dark:text-rose-300/90">
-                  Bà con nên đi đường khác. Không lội qua nơi nước chảy xiết hoặc không thấy mặt đường.
-                </p>
-              </div>
-            )}
-
             {/* SỐ LIỆU CHUNG — chỉ điểm đen tai nạn, không lẫn đường hay ngập */}
             {taiNan.length > 0 && (
             <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -206,8 +222,8 @@ export default function DiemDenGiaoThongPage() {
                   />
                   {coToaDo.map((d) => {
                     const laNgap = d.loai === 'ngap';
-                    /* Đường hay ngập: xanh dương; ĐANG ngập: đỏ đậm, to hơn */
-                    const mau = laNgap ? (d.dangNgap ? '#dc2626' : '#0ea5e9') : MUC[d.mucDo].mau;
+                    /* Đường hay ngập: xanh dương; nguy cơ theo dự báo: cam; ĐANG ngập: đỏ đậm, to hơn */
+                    const mau = laNgap ? (d.dangNgap ? '#dc2626' : nguyCo ? '#ea580c' : '#0ea5e9') : MUC[d.mucDo].mau;
                     return (
                       <CircleMarker
                         key={d.id}
@@ -224,7 +240,7 @@ export default function DiemDenGiaoThongPage() {
                           <div className="text-xs">
                             <p className="font-bold">{d.ten}</p>
                             {laNgap
-                              ? <p>{d.dangNgap ? `ĐANG NGẬP (xác nhận ${dinhDangGioNgap(d.ngapLuc)})` : 'Hay ngập khi mưa lớn'}</p>
+                              ? <p>{d.dangNgap ? `ĐANG NGẬP (xác nhận ${dinhDangGioNgap(d.ngapLuc)})` : nguyCo ? 'Nguy cơ ngập — dự báo mưa to' : 'Hay ngập khi mưa lớn'}</p>
                               : <p>{d.soVu} vụ · {d.soTuVong} tử vong</p>}
                           </div>
                         </LeafletTooltip>
@@ -248,13 +264,19 @@ export default function DiemDenGiaoThongPage() {
                       className={`rounded-2xl border-2 p-4 ${
                         d.dangNgap
                           ? 'border-rose-500 bg-rose-50 dark:border-rose-700 dark:bg-rose-900/15'
-                          : 'border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-900/15'
+                          : nguyCo
+                            ? 'border-orange-400 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/15'
+                            : 'border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-900/15'
                       }`}
                     >
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         {d.dangNgap ? (
                           <span className="rounded-lg bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
                             ĐANG NGẬP{d.ngapLuc ? ` — cán bộ xác nhận lúc ${dinhDangGioNgap(d.ngapLuc)}` : ''}
+                          </span>
+                        ) : nguyCo ? (
+                          <span className="rounded-lg bg-orange-600 px-2 py-0.5 text-xs font-bold text-white">
+                            Nguy cơ ngập — dự báo mưa to
                           </span>
                         ) : (
                           <span className="rounded-lg bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">
@@ -265,7 +287,11 @@ export default function DiemDenGiaoThongPage() {
                       </div>
                       <p className="mb-1 text-base font-extrabold text-slate-800 dark:text-slate-100">{d.ten}</p>
                       {!d.dangNgap && (
-                        <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">Hiện chưa có báo ngập.</p>
+                        <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                          {nguyCo
+                            ? 'Dự báo mưa to: đường này có thể ngập. Chưa có cán bộ xác nhận đang ngập — đi qua hãy quan sát kỹ.'
+                            : 'Hiện chưa có báo ngập.'}
+                        </p>
                       )}
                       {d.moTa && (
                         <p className="mb-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{d.moTa}</p>
@@ -283,7 +309,8 @@ export default function DiemDenGiaoThongPage() {
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                   <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                     Tình trạng ngập do cán bộ cập nhật thủ công khi có mưa lớn, có thể chậm hơn thực tế và tự hết sau
-                    12 giờ nếu không được báo lại. Không có báo ngập không có nghĩa là đường an toàn — bà con luôn quan sát mặt đường trước khi đi qua.
+                    12 giờ nếu không được báo lại. "Nguy cơ ngập" là dự báo tự động theo lượng mưa, không phải xác nhận.
+                    Không có báo ngập không có nghĩa là đường an toàn — bà con luôn quan sát mặt đường trước khi đi qua.
                   </p>
                 </div>
               </>

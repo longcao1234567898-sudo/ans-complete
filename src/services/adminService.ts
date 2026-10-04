@@ -612,6 +612,9 @@ export const baoNgap = (id: number, dangNgap: boolean) =>
     method: 'PATCH', body: JSON.stringify({ dangNgap }),
   });
 
+/** Dự báo mưa cho cán bộ — như người dân thấy, kèm toạ độ đang dự báo (P51) */
+export const layDuBaoMuaQuanTri = () => adminFetch<unknown>('/api/admin/diem-den/du-bao-mua');
+
 export const doiHienDiemDen = (id: number, hien: boolean) =>
   adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/hien`, {
     method: 'PATCH', body: JSON.stringify({ hien }),

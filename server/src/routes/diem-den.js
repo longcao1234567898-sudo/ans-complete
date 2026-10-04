@@ -17,6 +17,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { DANG_NGAP_SQL, thieuCotNgap } from '../lib/duong-ngap.js';
+import { duBaoMua, banCongKhai } from '../lib/du-bao-mua.js';
 
 const router = Router();
 
@@ -77,6 +78,24 @@ router.get('/', async (_req, res) => {
     if (String(err.message).includes("doesn't exist")) return res.json([]);
     console.error('Lỗi điểm đen:', err.message);
     res.status(500).json({ error: 'Chưa xem được lúc này.' });
+  }
+});
+
+/**
+ * GET /api/diem-den/du-bao-mua — mức nguy cơ ngập theo lượng mưa dự báo (P51).
+ * Máy chủ tự lấy từ Open-Meteo và giữ 30 phút (lib/du-bao-mua.js); người dân
+ * chỉ gọi máy chủ mình. Luôn trả 200 kèm `trangThai` — lỗi lấy dữ liệu là
+ * "khong_co_du_lieu", không phải 500 và không phải mức Bình thường.
+ */
+router.get('/du-bao-mua', async (_req, res) => {
+  try {
+    /* Không đặt Cache-Control cho trình duyệt giữ: máy chủ đã giữ 30 phút, giữ thêm
+       ở trình duyệt chỉ chồng thêm độ cũ — vd. máy chủ đã thôi báo vì mất dữ liệu mà
+       trình duyệt vẫn hiện mức cũ. */
+    res.json(banCongKhai(await duBaoMua.lay()));
+  } catch (err) {
+    console.error('Lỗi dự báo mưa:', err.message);
+    res.json({ trangThai: 'khong_co_du_lieu' });
   }
 });
 

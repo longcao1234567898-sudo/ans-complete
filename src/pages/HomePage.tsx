@@ -10,6 +10,7 @@ import HeroSection from '../components/Hero/HeroSection';
 import FeaturesSection from '../components/Features/FeaturesSection';
 import CanhGiacLuaDao from '../components/Hero/CanhGiacLuaDao';
 import KhuThongKe from '../components/Home/KhuThongKe';
+import CanhBaoMuaTrangChu from '../components/DuBaoMua/CanhBaoMuaTrangChu';
 import Reveal from '../components/common/Reveal';
 import NewsGrid from '../components/News/NewsGrid';
 import { fetchNews } from '../services/newsService';
@@ -22,6 +23,8 @@ export default function HomePage() {
 
   return (
     <div>
+      {/* Dự báo mưa to trở lên (P51) — đứng trên cùng; ngày thường không hiện gì */}
+      <CanhBaoMuaTrangChu />
       <HeroSection />
       <CanhGiacLuaDao />
       {/* Số liệu hoạt động — đặt sau dải cảnh giác, trước các khu chức năng.
