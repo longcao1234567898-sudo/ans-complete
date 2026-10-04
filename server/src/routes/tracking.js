@@ -254,31 +254,29 @@ router.post('/:code/request-deletion', async (req, res) => {
              + 'Ngay sau khi hồ sơ đóng, hệ thống sẽ tự động xoá.',
     });
   } catch (err) {
-    console.error('Lỗi yêu cầu xoá dữ liệu:', err.message);
-
-    /* CHẨN ĐOÁN CỤ THỂ thay vì báo chung chung.
-       Lỗi hay gặp nhất: file nâng cấp SQL dừng giữa chừng vì cột đã tồn tại,
-       khiến BẢNG data_deletion_requests chưa được tạo. Nói rõ ra để người
-       quản trị biết chính xác phải làm gì. */
-    let goiY = 'Vui lòng liên hệ trực ban đơn vị để được hỗ trợ.';
-
+    /* CHẨN ĐOÁN CỤ THỂ — nhưng chỉ ở LOG MÁY CHỦ (BUG-028).
+       Lỗi hay gặp nhất: file nâng cấp SQL dừng giữa chừng, bảng
+       data_deletion_requests hoặc một cột chưa có. Quản trị viên đọc log là biết
+       phải làm gì. Phản hồi thì đi tới người ngoài (route công khai, chỉ cần mã
+       tra cứu): tên bảng, tên cột, câu lỗi CSDL, địa chỉ máy CSDL không được ra. */
+    let chanDoan = 'lỗi không rõ loại — xem câu lỗi ở trên';
     if (err.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(err.message)) {
-      goiY = 'Hệ thống chưa tạo bảng data_deletion_requests. '
-           + 'Quản trị viên cần chạy lại file nang_cap_v8.sql (bản mới).';
+      chanDoan = 'chưa có bảng data_deletion_requests — chạy lại nang_cap_v8.sql (bản mới)';
     } else if (err.code === 'ER_BAD_FIELD_ERROR' || /unknown column/i.test(err.message)) {
-      /* Lấy ĐÚNG tên cột bị thiếu từ thông báo của MySQL.
-         Trước đây ghi cứng 'identity_erased' -> báo sai chỗ, gây mất thời gian
-         tìm nhầm hướng. Giờ nói đúng cột nào đang thiếu. */
+      /* Lấy ĐÚNG tên cột bị thiếu từ thông báo của MySQL — ghi cứng một tên cột
+         thì báo sai chỗ, mất thời gian tìm nhầm hướng */
       const m = /unknown column '([^']+)'/i.exec(err.message);
-      const tenCot = m ? m[1] : 'không rõ';
-      goiY = `Hệ thống thiếu cột ${tenCot} trong cơ sở dữ liệu. `
-           + 'Quản trị viên xem /api/health/schema để biết chính xác thiếu gì.';
+      chanDoan = `thiếu cột ${m ? m[1] : 'không rõ'} — mở /api/health/schema để biết chính xác thiếu gì`;
     }
+    console.error('Lỗi yêu cầu xoá dữ liệu:', err.message, '| chẩn đoán:', chanDoan);
 
+    /* Nới lỏng phải khai tường minh: chỉ máy cá nhân khai ĐÚNG development/test
+       mới thấy chi tiết. Không dựa vào việc NODE_ENV là production — Render không
+       đặt biến này, máy thật sẽ rơi vào nhánh lộ (cùng mẫu BUG-025). */
+    const mayCaNhan = ['development', 'test'].includes(process.env.NODE_ENV || '');
     res.status(500).json({
-      error: 'Chưa xử lý được yêu cầu. ' + goiY,
-      // Chi tiết kỹ thuật để quản trị viên xem trong Console, không hiện cho dân
-      detail: process.env.NODE_ENV === 'production' ? undefined : err.message,
+      error: 'Chưa xử lý được yêu cầu. Vui lòng liên hệ trực ban đơn vị để được hỗ trợ.',
+      ...(mayCaNhan ? { detail: `${err.message} | ${chanDoan}` } : {}),
     });
   }
 });
