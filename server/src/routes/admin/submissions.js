@@ -210,9 +210,8 @@ router.get('/', async (req, res) => {
   /* Tìm cả CHỮ TRONG TỆP ĐÍNH KÈM đã trích (ADR-005), dạng không dấu: gõ "huynh van
      luy" ra "Huỳnh Văn Lũy". Vẫn nằm trong `where` chung nên phạm vi xem bên dưới áp
      cho cả phần khớp trong tệp — hồ sơ ngoài phạm vi không lộ qua chữ trong tệp.
-     Hồ sơ ĐÃ XOÁ DANH TÍNH không tìm qua chữ trong tệp: xoá danh tính chưa đụng tới
-     tệp đính kèm (đơn có tên, chữ ký — ND-053), không để ô tìm kiếm biến tên người
-     đã xin xoá thành thứ gõ là ra. */
+     Hồ sơ ĐÃ XOÁ DANH TÍNH không tìm qua chữ trong tệp: người dân đã xin xoá danh
+     tính thì chữ trong tệp của họ không được thành thứ gõ là ra (BUG-029). */
   const qTep = q ? dangTim(q) : '';
   const timTep = qTep.length >= 2 && await coBangTrichChu();
   if (q && timTep) {

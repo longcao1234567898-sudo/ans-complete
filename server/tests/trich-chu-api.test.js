@@ -230,7 +230,7 @@ describe('Tìm trong tệp đính kèm ở danh sách hồ sơ', { skip: BO_QUA,
     assert.equal(noiDung.body.data[0].khop_tep, false, 'khớp ở nội dung, không phải ở tệp');
   });
 
-  test('hồ sơ đã XOÁ DANH TÍNH không tìm ra được qua chữ trong tệp (đơn trong tệp thường có tên, chữ ký)', async () => {
+  test('hồ sơ đã XOÁ DANH TÍNH không tìm ra được qua chữ trong tệp (BUG-029)', async () => {
     hoSo(1, { noiDung: 'Phản ánh tiếng ồn' });
     ctl.db.prepare('UPDATE submissions SET identity_erased = 1 WHERE id = 1').run();
     hoSo(2, { noiDung: 'Phản ánh khác' });
