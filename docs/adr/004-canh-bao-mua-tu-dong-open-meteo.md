@@ -1,11 +1,11 @@
 # ADR 004 — Cảnh báo nguy cơ ngập tự động theo lượng mưa (Open-Meteo)
 
-- **Trạng thái**: Đã chấp nhận
+- **Trạng thái**: Đã chấp nhận — **bổ sung mục 8** (ngưỡng theo từng tuyến, P53, 2026-10-04)
 - **Ngày**: 2026-10-04
 - **Người quyết định**: người vận hành, phiên P51 ("lấy API Open-Meteo làm tự động cảnh báo lũ
   dựa vào lượng mưa để cảnh báo người dân, lập ra các mức dự báo"). Claude đề xuất phương án
 - **Liên quan**: P50 — đường hay ngập, "đang ngập" do cán bộ xác nhận (`server/src/lib/duong-ngap.js`)
-- **Mở**: nợ kỹ thuật ND-051 (ngưỡng chưa hiệu chỉnh theo địa bàn, chưa tính triều)
+- **Mở**: nợ kỹ thuật ND-051 (chưa tính triều; phần hiệu chỉnh theo địa bàn đã làm ở mục 8)
 
 ---
 
@@ -88,6 +88,27 @@ thêm nhãn "Nguy cơ ngập — dự báo mưa to" cho đường hay ngập và
 - Trang Điểm đen: khung mọi mức, sau khung "đang ngập" của cán bộ, kèm bảng giải thích các mức.
 - Trang cán bộ Điểm đen: như trên, thêm lý do, điểm dự báo và lời nhắc đi kiểm tra.
 - Mọi nơi ghi "Dữ liệu thời tiết: Open-Meteo.com (CC BY 4.0)".
+
+### 8. Ngưỡng theo từng tuyến, học từ các lần báo ngập (bổ sung P53, 2026-10-04)
+
+Người vận hành: "xem lại việc gắn lượng mưa phù hợp với mức địa bàn địa phương". Không có nguồn công
+khai nào cho mức mưa gây ngập ở từng tuyến của địa bàn (đã tra; báo chí chỉ nói chung kiểu "gần
+100 mm trong vài giờ là ngập"). Nên hệ thống học từ chính địa bàn (`lib/nguong-ngap.js`,
+`nang_cap_v34.sql`):
+
+- Mỗi lần cán bộ bấm "Đang ngập", ghi lượng mưa lúc đó: mưa dồn 3 giờ lớn nhất trong 12 giờ trước
+  (trận mưa gây ngập thường đã qua lúc cán bộ ra tới nơi) và tổng 12 giờ — số của mô hình thời tiết.
+- Từ 3 lần có số mưa -> gợi ý ngưỡng = hạng thấp của tứ phân vị dưới, làm tròn xuống 5 mm. Chọn phía
+  thấp: thà báo sớm còn hơn báo muộn.
+- **Lãnh đạo** đặt ngưỡng (5–300 mm mưa dồn 3 giờ); máy chỉ gợi ý. Mỗi lần đặt ghi nhật ký cũ -> mới.
+- Dự báo báo nguy cơ cho **từng tuyến**: có ngưỡng riêng -> mưa dồn 3 giờ dự báo đạt ngưỡng; chưa có ->
+  theo mức chung (Cảnh báo trở lên); **mức Nguy hiểm -> mọi tuyến** — lưới an toàn để một ngưỡng đặt
+  nhầm cao không làm im cảnh báo mưa rất to.
+- Ngưỡng riêng cho phép cả hai chiều: tuyến trũng báo ngay ở mức Theo dõi; tuyến cống tốt không bị
+  báo oan ở mức Cảnh báo.
+
+Đánh đổi: số mưa là của mô hình thời tiết (ô lưới vài km), không phải trạm đo tại tuyến — gợi ý có
+sai số. Vì thế máy không tự đặt ngưỡng, và có lưới an toàn ở mức Nguy hiểm.
 
 ## Phương án đã loại
 
