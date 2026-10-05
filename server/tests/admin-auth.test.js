@@ -64,6 +64,8 @@ const CAC_DUONG_DAN = [
   ['/api/admin/su-kien-man-hinh', 'POST'],
   // ADR-005 — trích chữ tệp đính kèm (OCR nội bộ) (routes/admin/trich-chu.js)
   ['/api/admin/submissions/1/trich-chu', 'GET'],
+  // BUG-029 — tệp của hồ sơ đã xoá danh tính (routes/admin/tep-sau-xoa-danh-tinh.js)
+  ['/api/admin/submissions/1/tep-sau-xoa-danh-tinh', 'POST'],
 ];
 
 for (const [duongDan, method] of CAC_DUONG_DAN) {

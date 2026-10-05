@@ -336,6 +336,11 @@ export interface SubmissionDetail extends SubmissionRow {
   resolution_note: string | null;
   resolved_by_name: string | null;
   images: Array<{ image_url: string; mime_type: string; moderation_status: string }>;
+  /** Hồ sơ đã xoá danh tính theo yêu cầu người dân (1/true) */
+  identity_erased?: number | boolean | null;
+  /** Hồ sơ đã xoá danh tính: số tệp bị che (images, ảnh bổ sung đều rỗng) — BUG-029.
+      Chỉ lãnh đạo mở được, bằng moTepSauXoaDanhTinh (ghi nhật ký). */
+  tep_an_sau_xoa_danh_tinh?: number;
   /** Toạ độ nơi XẢY RA VỤ VIỆC — do người dân tự nguyện gửi. Rỗng nếu không gửi. */
   incident_lat?: number | string | null;
   incident_lng?: number | string | null;
@@ -669,6 +674,25 @@ export interface DanhSachChuTrongTep {
 
 export const layChuTrongTep = (id: number | string) =>
   adminFetch<DanhSachChuTrongTep>(`/api/admin/submissions/${id}/trich-chu`);
+
+/** Tệp của hồ sơ đã xoá danh tính — chỉ lãnh đạo, mỗi lần mở ghi nhật ký (BUG-029) */
+export interface TepSauXoaDanhTinh {
+  tepId: number;
+  image_url: string;
+  mime_type: string;
+  moderation_status: string;
+  /** Tệp người dân gửi bổ sung (null = gửi lúc đầu) */
+  boSungId: number | null;
+}
+
+export const moTepSauXoaDanhTinh = (id: number | string) =>
+  adminFetch<{ tep: TepSauXoaDanhTinh[] }>(`/api/admin/submissions/${id}/tep-sau-xoa-danh-tinh`, {
+    method: 'POST', body: '{}',
+  });
+
+export const xoaHanTep = (id: number | string, tepId: number, lyDo: string) =>
+  adminFetch<{ ok: boolean; khoAnh: 'da_xoa' | 'khong_con' | 'khong_co'; message: string }>(
+    `/api/admin/submissions/${id}/tep/${tepId}`, { method: 'DELETE', body: JSON.stringify({ lyDo }) });
 
 export const yeuCauTrichChu = (id: number | string, yeuCau: { tepId?: number; lai?: boolean; ngonNgu?: NgonNguOcr | null } = {}) =>
   adminFetch<{ ok: boolean; soViec: number; message: string }>(`/api/admin/submissions/${id}/trich-chu`, {

@@ -140,6 +140,12 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
  *
  * "XOÁ" ở đây là ẨN DANH HOÁ: bóc danh tính, giữ nội dung nghiệp vụ.
  */
+/* Tệp gửi kèm không bị xoá theo danh tính mà bị che (BUG-029, quyết định P55):
+   có thể là chứng cứ. Nói rõ cho người dân, kèm cách xin xoá hẳn. */
+const TEP_DUOC_GIU = 'Ảnh, giấy tờ bà con gửi kèm (nếu có) được giữ làm chứng cứ nhưng bị che: '
+  + 'trong hệ thống chỉ lãnh đạo đơn vị mở được và mỗi lần mở đều ghi nhật ký. Bà con cần xoá hẳn tệp nào '
+  + '(ví dụ ảnh căn cước) thì liên hệ trực ban đơn vị.';
+
 router.post('/:code/request-deletion', async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) {
@@ -228,8 +234,11 @@ router.post('/:code/request-deletion', async (req, res) => {
       return res.json({
         ok: true,
         status: 'done',
-        message: 'Đã xoá toàn bộ thông tin cá nhân của bà con khỏi hệ thống. '
-               + 'Nội dung ý kiến được giữ lại ở dạng không còn danh tính, phục vụ thống kê nghiệp vụ.',
+        /* Nói thật phần được giữ (BUG-029): tệp gửi kèm thường có chính danh tính,
+           hứa "xoá toàn bộ" trong khi tệp còn là đánh lừa người tố giác */
+        message: 'Đã xoá họ tên, số điện thoại, email của bà con khỏi hồ sơ. '
+               + 'Nội dung ý kiến được giữ lại ở dạng không còn danh tính, phục vụ thống kê nghiệp vụ. '
+               + TEP_DUOC_GIU,
       });
     }
 
@@ -251,7 +260,7 @@ router.post('/:code/request-deletion', async (req, res) => {
       status: 'pending',
       message: 'Đã ghi nhận yêu cầu của bà con. Hiện ý kiến đang trong quá trình xử lý '
              + 'nên chưa xoá được ngay — thông tin cá nhân cần thiết để cán bộ xác minh. '
-             + 'Ngay sau khi hồ sơ đóng, hệ thống sẽ tự động xoá.',
+             + 'Ngay sau khi hồ sơ đóng, hệ thống sẽ tự động xoá. ' + TEP_DUOC_GIU,
     });
   } catch (err) {
     /* CHẨN ĐOÁN CỤ THỂ — nhưng chỉ ở LOG MÁY CHỦ (BUG-028).

@@ -31,6 +31,8 @@ export const NHOM_NHAT_KY = Object.freeze([
       view_logs: 'Mở nhật ký hệ thống',
       export_logs: 'Xuất nhật ký ra Excel',
       screen_capture_attempt: 'Bấm phím chụp màn hình / lệnh in trên trang cán bộ',
+      view_erased_attachments: 'Mở tệp đính kèm của hồ sơ đã xoá danh tính',
+      delete_erased_attachment: 'Xoá hẳn tệp đính kèm của hồ sơ đã xoá danh tính',
     },
   },
   {

@@ -20,6 +20,8 @@ import { dieuKienXem, hoSoMangCo } from '../../lib/pham-vi-ho-so.js';
 import { ghiNhatKy, ghiNhatKyTruoc } from '../../lib/helpers.js';
 import { coBangTrichChu, xepViec, chayHangDoi, NGON_NGU_OCR } from '../../lib/hang-doi-trich-chu.js';
 import { ocrDangBat } from '../../lib/trich-chu/index.js';
+import { laLanhDao } from '../../lib/vai-tro.js';
+import { hoSoDaXoaDanhTinh } from '../../lib/tep-sau-xoa-danh-tinh.js';
 
 const router = Router();
 
@@ -46,6 +48,13 @@ async function xemDuoc(staff, id) {
   return r.length > 0;
 }
 
+/* Hồ sơ đã xoá danh tính: chữ trong tệp là bản sao nội dung tệp — che y như tệp
+   (BUG-029). Cán bộ không đọc / không trích; lãnh đạo được, ghi nhật ký trước. */
+const LOI_DA_XOA = {
+  error: 'Hồ sơ đã xoá danh tính theo yêu cầu người dân — chỉ lãnh đạo mở được tệp đính kèm và chữ trong tệp.',
+  daXoaDanhTinh: true,
+};
+
 const loaiTep = (mime) => {
   const m = String(mime || '').toLowerCase();
   if (m.startsWith('image/')) return 'anh';
@@ -60,6 +69,14 @@ router.get('/:id/trich-chu', authorize(), async (req, res) => {
   const id = Number(req.params.id);
   try {
     if (!(await xemDuoc(req.staff, id))) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (await hoSoDaXoaDanhTinh(id)) {
+      if (!laLanhDao(req.staff)) return res.status(403).json(LOI_DA_XOA);
+      /* Khu chữ trong tệp hỏi lại vài giây một lần khi đang trích — gộp 10 phút
+         để nhật ký không chìm trong dòng lặp; ghi không được thì không trả */
+      await ghiNhatKyTruoc(pool, req, {
+        hanhDong: 'view_erased_attachments', loaiDoiTuong: 'submission', doiTuongId: id, gopPhut: 10,
+      });
+    }
 
     const luotMo = { loaiDoiTuong: 'submission', doiTuongId: id, gopPhut: 10 };
     if (await hoSoMangCo(id)) await ghiNhatKyTruoc(pool, req, { ...luotMo, hanhDong: 'view_flagged_submission' });
@@ -118,6 +135,7 @@ router.post('/:id/trich-chu', authorize(), gioiHanYeuCau, async (req, res) => {
       return res.status(409).json({ error: 'Cần chạy tệp database/nang_cap_v33.sql trên cơ sở dữ liệu trước.' });
     }
     if (!(await xemDuoc(req.staff, id))) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (!laLanhDao(req.staff) && await hoSoDaXoaDanhTinh(id)) return res.status(403).json(LOI_DA_XOA);
     if (tepId !== null) {
       const [r] = await pool.query('SELECT id FROM submission_images WHERE id = ? AND submission_id = ?', [Number(tepId), id]);
       if (r.length === 0) return res.status(404).json({ error: 'Không tìm thấy tệp.' });

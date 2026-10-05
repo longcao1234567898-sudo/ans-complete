@@ -18,6 +18,7 @@ import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
 import { timPhan, coCotSangLoc, sangLocSql } from '../../lib/sang-loc.js';
 import { coBangBoSung, boSungSql } from '../../lib/bo-sung.js';
 import { coBangTrichChu } from '../../lib/hang-doi-trich-chu.js';
+import { demTep } from '../../lib/tep-sau-xoa-danh-tinh.js';
 import { dangTim } from '../../lib/chuan-hoa-van-ban.js';
 
 const router = Router();
@@ -342,14 +343,15 @@ router.get('/', async (req, res) => {
 /** Các lần người dân bổ sung (ADR-003 việc 21), cũ trước mới sau, kèm ảnh của
     từng lần. Đánh dấu ĐÃ ĐỌC ngay khi một cán bộ mở hồ sơ — tắt chấm đỏ (việc
     22). Chỉ gọi SAU khi đã kiểm phạm vi hồ sơ. */
-async function docBoSung(id) {
+async function docBoSung(id, { cheAnh = false } = {}) {
   const [ds] = await pool.query(
     `SELECT id, thu_tu, noi_dung, created_at, da_doc_luc
        FROM bo_sung_thong_tin WHERE submission_id = ? ORDER BY thu_tu ASC`,
     [id]
   );
   if (ds.length === 0) return [];
-  const [anh] = await pool.query(
+  /* Hồ sơ đã xoá danh tính: ảnh bổ sung bị che như tệp gửi đầu (BUG-029) */
+  const [anh] = cheAnh ? [[]] : await pool.query(
     `SELECT bo_sung_id, image_url, mime_type, moderation_status
        FROM submission_images WHERE submission_id = ? AND bo_sung_id IS NOT NULL`,
     [id]
@@ -446,9 +448,15 @@ router.get('/:id', async (req, res) => {
     else await ghiNhatKy(pool, req, { ...luotMo, hanhDong: 'view_submission' });
 
     /* Ảnh gửi kèm lúc đầu; ảnh của các lần bổ sung đi theo từng lần bổ sung
-       (ADR-003 việc 21) — trộn chung thì không biết ảnh nào người dân gửi sau */
+       (ADR-003 việc 21) — trộn chung thì không biết ảnh nào người dân gửi sau.
+
+       HỒ SƠ ĐÃ XOÁ DANH TÍNH (BUG-029): không trả tệp nào, cho cả lãnh đạo — đơn,
+       ảnh CCCD người dân gửi kèm thường mang chính danh tính họ đã xin xoá. Chỉ
+       báo số tệp bị che; lãnh đạo muốn mở phải bấm riêng, ghi nhật ký trước
+       (routes/admin/tep-sau-xoa-danh-tinh.js) — y như che danh tính và /reveal. */
+    const daXoaDanhTinh = Number(rows[0].identity_erased) === 1;
     const coBoSung = await coBangBoSung();
-    const [images] = coBoSung
+    const [images] = daXoaDanhTinh ? [[]] : coBoSung
       ? await pool.query(
         'SELECT image_url, mime_type, moderation_status FROM submission_images WHERE submission_id = ? AND bo_sung_id IS NULL',
         [req.params.id]
@@ -457,7 +465,7 @@ router.get('/:id', async (req, res) => {
         'SELECT image_url, mime_type, moderation_status FROM submission_images WHERE submission_id = ?',
         [req.params.id]
       );
-    const boSung = coBoSung ? await docBoSung(Number(req.params.id)) : [];
+    const boSung = coBoSung ? await docBoSung(Number(req.params.id), { cheAnh: daXoaDanhTinh }) : [];
     const [history] = await pool.query(
       `SELECT h.old_status, h.new_status, h.note, h.changed_at, st.full_name AS changed_by_name
        FROM status_history h LEFT JOIN staff st ON h.changed_by = st.id
@@ -490,6 +498,7 @@ router.get('/:id', async (req, res) => {
       ...(Number(row.to_giac_mat) === 1 ? { to_giac_mat_nhan_dien: nhanDienToGiacMat(row.original_content).lyDo } : {}),
       ...slaOf(row),
       images,
+      ...(daXoaDanhTinh ? { tep_an_sau_xoa_danh_tinh: await demTep(Number(req.params.id)) } : {}),
       history,
     };
     res.json(out);
