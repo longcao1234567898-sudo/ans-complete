@@ -131,5 +131,20 @@ services:
       - key: ADMIN_ALLOWED_IPS
         sync: false
 
+      # ---------- Kho ảnh Cloudinary (máy chủ cán bộ) ----------
+      # Tên kho: để trích chữ (OCR) ảnh nằm trên kho của đơn vị (ADR-005) — thiếu
+      # thì máy chỉ đọc được ảnh lưu trong CSDL. Khoá API + bí mật: để lãnh đạo xoá
+      # hẳn ảnh của hồ sơ đã xoá danh tính trên kho (ADR-005 mục 8) — thiếu thì
+      # máy từ chối xoá, không báo đã xoá. Lấy ở Cloudinary > Settings > API Keys.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Máy 512 MB: đặt "tat" để không OCR ảnh / PDF scan (Word, PDF có chữ vẫn đọc)
+      - key: TRICH_CHU_OCR
+        sync: false
+
       - key: NODE_ENV
         value: production

@@ -116,7 +116,8 @@ cd server && node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ 
 ### Quản trị (cán bộ, cần đăng nhập — mọi route dưới `/api/admin` đều qua `requireAuth`)
 - Dashboard thống kê.
 - Danh sách/chi tiết ý kiến: lọc, tìm kiếm, phân trang, đổi trạng thái, phân công cán bộ, xem danh tính (`/reveal`, giới hạn quyền).
-- Đọc và tìm chữ trong tệp đính kèm Word, PDF, ảnh — **OCR nội bộ** tiếng Việt và tiếng Anh, chuẩn hoá phông .VnTime, không gửi tệp ra ngoài ([ADR-005](docs/adr/005-trich-chu-tep-dinh-kem-ocr-noi-bo.md)). Máy nhỏ thì đặt `TRICH_CHU_OCR=tat`.
+- Đọc và tìm chữ trong tệp đính kèm Word (.docx và .doc đời cũ), PDF, ảnh — **OCR nội bộ** tiếng Việt và tiếng Anh, chuẩn hoá phông .VnTime (TCVN3) và VNI, không gửi tệp ra ngoài ([ADR-005](docs/adr/005-trich-chu-tep-dinh-kem-ocr-noi-bo.md)). Máy nhỏ thì đặt `TRICH_CHU_OCR=tat`.
+- Hồ sơ người dân đã xin xoá danh tính: tệp đính kèm và chữ trong tệp bị che, chỉ lãnh đạo mở (có nhật ký) và xoá hẳn được từng tệp, cả bản trên Cloudinary (cần `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` ở máy chủ — ADR-005 mục 8).
 - Duyệt tin (review).
 - Bản đồ vụ việc (Leaflet).
 - Gộp sự kiện trùng lặp — nhiều người cùng báo một vụ việc.
