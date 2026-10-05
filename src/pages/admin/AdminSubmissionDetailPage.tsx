@@ -7,6 +7,7 @@ import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Cl
 import AdminLayout from '../../components/admin/AdminLayout';
 import KhuTepDinhKem from '../../components/admin/KhuTepDinhKem';
 import KhuChuTrongTep from '../../components/admin/KhuChuTrongTep';
+import KhuTepSauXoaDanhTinh from '../../components/admin/KhuTepSauXoaDanhTinh';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
   fetchStaffList, assignSubmission, revealIdentity, markSpam,
@@ -233,8 +234,13 @@ export default function AdminSubmissionDetailPage() {
                 </>
               )}
               {/* Chữ trong tệp (OCR nội bộ, ADR-005) — tự lấy danh sách tệp của hồ sơ,
-                  gồm cả tệp người dân gửi bổ sung; không có tệp thì không hiện */}
-              {id && <KhuChuTrongTep hoSoId={id} />}
+                  gồm cả tệp người dân gửi bổ sung; không có tệp thì không hiện.
+                  Hồ sơ đã xoá danh tính: máy chủ che tệp và chữ trong tệp (BUG-029) —
+                  chỉ lãnh đạo mở, bằng nút riêng trong khung bên dưới */}
+              {id && !data.identity_erased && <KhuChuTrongTep hoSoId={id} />}
+              {id && Boolean(data.identity_erased) && (
+                <KhuTepSauXoaDanhTinh hoSoId={id} soTep={data.tep_an_sau_xoa_danh_tinh ?? 0} lanhDao={lanhDao} />
+              )}
             </div>
 
             {/* Timeline */}

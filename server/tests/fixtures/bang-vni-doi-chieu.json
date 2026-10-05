@@ -1,0 +1,545 @@
+{
+ "nguon": "vietnamese-conversion@2.0.0 (npm), dist/charsets.js — https://github.com/duydev/vietnamese-conversion",
+ "giayPhep": "MIT",
+ "ghiChu": "Bảng độc lập để đối chiếu bảng VNI dựng theo quy tắc trong lib/chuan-hoa-van-ban.js. Bốn ô ỷ ỹ Ỷ Ỹ của bảng này tự mâu thuẫn (trùng mã của ì và của dấu ặ) nên để riêng ở boQua.",
+ "bang": [
+  {
+   "unicode": "À",
+   "vni": "AØ"
+  },
+  {
+   "unicode": "Á",
+   "vni": "AÙ"
+  },
+  {
+   "unicode": "Â",
+   "vni": "AÂ"
+  },
+  {
+   "unicode": "Ã",
+   "vni": "AÕ"
+  },
+  {
+   "unicode": "È",
+   "vni": "EØ"
+  },
+  {
+   "unicode": "É",
+   "vni": "EÙ"
+  },
+  {
+   "unicode": "Ê",
+   "vni": "EÂ"
+  },
+  {
+   "unicode": "Ì",
+   "vni": "Ì"
+  },
+  {
+   "unicode": "Í",
+   "vni": "Í"
+  },
+  {
+   "unicode": "Ò",
+   "vni": "OØ"
+  },
+  {
+   "unicode": "Ó",
+   "vni": "OÙ"
+  },
+  {
+   "unicode": "Ô",
+   "vni": "OÂ"
+  },
+  {
+   "unicode": "Õ",
+   "vni": "OÕ"
+  },
+  {
+   "unicode": "Ù",
+   "vni": "UØ"
+  },
+  {
+   "unicode": "Ú",
+   "vni": "UÙ"
+  },
+  {
+   "unicode": "Ý",
+   "vni": "YÙ"
+  },
+  {
+   "unicode": "à",
+   "vni": "aø"
+  },
+  {
+   "unicode": "á",
+   "vni": "aù"
+  },
+  {
+   "unicode": "â",
+   "vni": "aâ"
+  },
+  {
+   "unicode": "ã",
+   "vni": "aõ"
+  },
+  {
+   "unicode": "è",
+   "vni": "eø"
+  },
+  {
+   "unicode": "é",
+   "vni": "eù"
+  },
+  {
+   "unicode": "ê",
+   "vni": "eâ"
+  },
+  {
+   "unicode": "ì",
+   "vni": "ì"
+  },
+  {
+   "unicode": "í",
+   "vni": "í"
+  },
+  {
+   "unicode": "ò",
+   "vni": "oø"
+  },
+  {
+   "unicode": "ó",
+   "vni": "où"
+  },
+  {
+   "unicode": "ô",
+   "vni": "oâ"
+  },
+  {
+   "unicode": "õ",
+   "vni": "oõ"
+  },
+  {
+   "unicode": "ù",
+   "vni": "uø"
+  },
+  {
+   "unicode": "ú",
+   "vni": "uù"
+  },
+  {
+   "unicode": "ý",
+   "vni": "yù"
+  },
+  {
+   "unicode": "Ă",
+   "vni": "AÊ"
+  },
+  {
+   "unicode": "Đ",
+   "vni": "Ñ"
+  },
+  {
+   "unicode": "Ĩ",
+   "vni": "Ó"
+  },
+  {
+   "unicode": "Ũ",
+   "vni": "UÕ"
+  },
+  {
+   "unicode": "Ơ",
+   "vni": "Ô"
+  },
+  {
+   "unicode": "Ư",
+   "vni": "Ö"
+  },
+  {
+   "unicode": "ă",
+   "vni": "aê"
+  },
+  {
+   "unicode": "đ",
+   "vni": "ñ"
+  },
+  {
+   "unicode": "ĩ",
+   "vni": "ó"
+  },
+  {
+   "unicode": "ũ",
+   "vni": "uõ"
+  },
+  {
+   "unicode": "ơ",
+   "vni": "ô"
+  },
+  {
+   "unicode": "ư",
+   "vni": "ö"
+  },
+  {
+   "unicode": "Ạ",
+   "vni": "AÏ"
+  },
+  {
+   "unicode": "Ả",
+   "vni": "AÛ"
+  },
+  {
+   "unicode": "Ấ",
+   "vni": "AÁ"
+  },
+  {
+   "unicode": "Ầ",
+   "vni": "AÀ"
+  },
+  {
+   "unicode": "Ẩ",
+   "vni": "AÅ"
+  },
+  {
+   "unicode": "Ẫ",
+   "vni": "AÃ"
+  },
+  {
+   "unicode": "Ậ",
+   "vni": "AÄ"
+  },
+  {
+   "unicode": "Ắ",
+   "vni": "AÉ"
+  },
+  {
+   "unicode": "Ằ",
+   "vni": "AÈ"
+  },
+  {
+   "unicode": "Ẳ",
+   "vni": "AÚ"
+  },
+  {
+   "unicode": "Ẵ",
+   "vni": "AÜ"
+  },
+  {
+   "unicode": "Ặ",
+   "vni": "AË"
+  },
+  {
+   "unicode": "Ẹ",
+   "vni": "EÏ"
+  },
+  {
+   "unicode": "Ẻ",
+   "vni": "EÛ"
+  },
+  {
+   "unicode": "Ẽ",
+   "vni": "EÕ"
+  },
+  {
+   "unicode": "Ế",
+   "vni": "EÁ"
+  },
+  {
+   "unicode": "Ề",
+   "vni": "EÀ"
+  },
+  {
+   "unicode": "Ể",
+   "vni": "EÅ"
+  },
+  {
+   "unicode": "Ễ",
+   "vni": "EÃ"
+  },
+  {
+   "unicode": "Ệ",
+   "vni": "EÄ"
+  },
+  {
+   "unicode": "Ỉ",
+   "vni": "Æ"
+  },
+  {
+   "unicode": "Ị",
+   "vni": "Ò"
+  },
+  {
+   "unicode": "Ọ",
+   "vni": "OÏ"
+  },
+  {
+   "unicode": "Ỏ",
+   "vni": "OÛ"
+  },
+  {
+   "unicode": "Ố",
+   "vni": "OÁ"
+  },
+  {
+   "unicode": "Ồ",
+   "vni": "OÀ"
+  },
+  {
+   "unicode": "Ổ",
+   "vni": "OÅ"
+  },
+  {
+   "unicode": "Ỗ",
+   "vni": "OÃ"
+  },
+  {
+   "unicode": "Ộ",
+   "vni": "OÄ"
+  },
+  {
+   "unicode": "Ớ",
+   "vni": "ÔÙ"
+  },
+  {
+   "unicode": "Ờ",
+   "vni": "ÔØ"
+  },
+  {
+   "unicode": "Ở",
+   "vni": "ÔÛ"
+  },
+  {
+   "unicode": "Ỡ",
+   "vni": "ÔÕ"
+  },
+  {
+   "unicode": "Ợ",
+   "vni": "ÔÏ"
+  },
+  {
+   "unicode": "Ụ",
+   "vni": "UÏ"
+  },
+  {
+   "unicode": "Ủ",
+   "vni": "UÛ"
+  },
+  {
+   "unicode": "Ứ",
+   "vni": "ÖÙ"
+  },
+  {
+   "unicode": "Ừ",
+   "vni": "ÖØ"
+  },
+  {
+   "unicode": "Ử",
+   "vni": "ÖÛ"
+  },
+  {
+   "unicode": "Ữ",
+   "vni": "ÖÕ"
+  },
+  {
+   "unicode": "Ự",
+   "vni": "ÖÏ"
+  },
+  {
+   "unicode": "Ỳ",
+   "vni": "YØ"
+  },
+  {
+   "unicode": "Ỵ",
+   "vni": "Î"
+  },
+  {
+   "unicode": "ạ",
+   "vni": "aï"
+  },
+  {
+   "unicode": "ả",
+   "vni": "aû"
+  },
+  {
+   "unicode": "ấ",
+   "vni": "aá"
+  },
+  {
+   "unicode": "ầ",
+   "vni": "aà"
+  },
+  {
+   "unicode": "ẩ",
+   "vni": "aå"
+  },
+  {
+   "unicode": "ẫ",
+   "vni": "aã"
+  },
+  {
+   "unicode": "ậ",
+   "vni": "aä"
+  },
+  {
+   "unicode": "ắ",
+   "vni": "aé"
+  },
+  {
+   "unicode": "ằ",
+   "vni": "aè"
+  },
+  {
+   "unicode": "ẳ",
+   "vni": "aú"
+  },
+  {
+   "unicode": "ẵ",
+   "vni": "aü"
+  },
+  {
+   "unicode": "ặ",
+   "vni": "aë"
+  },
+  {
+   "unicode": "ẹ",
+   "vni": "eï"
+  },
+  {
+   "unicode": "ẻ",
+   "vni": "eû"
+  },
+  {
+   "unicode": "ẽ",
+   "vni": "eõ"
+  },
+  {
+   "unicode": "ế",
+   "vni": "eá"
+  },
+  {
+   "unicode": "ề",
+   "vni": "eà"
+  },
+  {
+   "unicode": "ể",
+   "vni": "eå"
+  },
+  {
+   "unicode": "ễ",
+   "vni": "eã"
+  },
+  {
+   "unicode": "ệ",
+   "vni": "eä"
+  },
+  {
+   "unicode": "ỉ",
+   "vni": "æ"
+  },
+  {
+   "unicode": "ị",
+   "vni": "ò"
+  },
+  {
+   "unicode": "ọ",
+   "vni": "oï"
+  },
+  {
+   "unicode": "ỏ",
+   "vni": "oû"
+  },
+  {
+   "unicode": "ố",
+   "vni": "oá"
+  },
+  {
+   "unicode": "ồ",
+   "vni": "oà"
+  },
+  {
+   "unicode": "ổ",
+   "vni": "oå"
+  },
+  {
+   "unicode": "ỗ",
+   "vni": "oã"
+  },
+  {
+   "unicode": "ộ",
+   "vni": "oä"
+  },
+  {
+   "unicode": "ớ",
+   "vni": "ôù"
+  },
+  {
+   "unicode": "ờ",
+   "vni": "ôø"
+  },
+  {
+   "unicode": "ở",
+   "vni": "ôû"
+  },
+  {
+   "unicode": "ỡ",
+   "vni": "ôõ"
+  },
+  {
+   "unicode": "ợ",
+   "vni": "ôï"
+  },
+  {
+   "unicode": "ụ",
+   "vni": "uï"
+  },
+  {
+   "unicode": "ủ",
+   "vni": "uû"
+  },
+  {
+   "unicode": "ứ",
+   "vni": "öù"
+  },
+  {
+   "unicode": "ừ",
+   "vni": "öø"
+  },
+  {
+   "unicode": "ử",
+   "vni": "öû"
+  },
+  {
+   "unicode": "ữ",
+   "vni": "öõ"
+  },
+  {
+   "unicode": "ự",
+   "vni": "öï"
+  },
+  {
+   "unicode": "ỳ",
+   "vni": "yø"
+  },
+  {
+   "unicode": "ỵ",
+   "vni": "î"
+  }
+ ],
+ "boQua": [
+  {
+   "unicode": "Ỷ",
+   "vni": "Ë"
+  },
+  {
+   "unicode": "Ỹ",
+   "vni": "Ì"
+  },
+  {
+   "unicode": "ỷ",
+   "vni": "ë"
+  },
+  {
+   "unicode": "ỹ",
+   "vni": "ì"
+  }
+ ]
+}

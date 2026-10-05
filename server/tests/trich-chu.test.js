@@ -222,8 +222,9 @@ describe('Trích chữ trong TIẾN TRÌNH CON', { timeout: 180_000 }, () => {
     await assert.rejects(trich.trichChu({ mime: 'image/png', duLieu: png }), /quá lớn/);
   });
 
-  test('loại tệp không hỗ trợ (Word .doc cũ, video) -> báo rõ, không treo', async () => {
-    await assert.rejects(trich.trichChu({ mime: 'application/msword', duLieu: Buffer.from('d0cf11e0a1b11ae1', 'hex') }), /chưa hỗ trợ/);
+  test('loại tệp không hỗ trợ (video), Word .doc hỏng -> báo rõ, không treo', async () => {
+    /* Word .doc đời cũ đọc được từ ND-052 (tests/trich-chu-vni-doc.test.js); tệp cụt thì báo hỏng */
+    await assert.rejects(trich.trichChu({ mime: 'application/msword', duLieu: Buffer.from('d0cf11e0a1b11ae1', 'hex') }), /hỏng/);
     await assert.rejects(trich.trichChu({ mime: 'video/mp4', duLieu: Buffer.alloc(10) }), /chưa hỗ trợ/);
   });
 

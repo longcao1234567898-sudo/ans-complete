@@ -34,6 +34,7 @@ export default function DataRightsBox({ code, isAnonymous }: Props) {
         'Yêu cầu xoá thông tin cá nhân?\n\n' +
           '• Hệ thống sẽ xoá họ tên, số điện thoại, email của bà con\n' +
           '• Nội dung ý kiến được GIỮ LẠI ở dạng không còn danh tính\n' +
+          '• Ảnh, giấy tờ gửi kèm được GIỮ LÀM CHỨNG CỨ nhưng bị che — trong hệ thống chỉ lãnh đạo đơn vị mở được, có ghi nhật ký\n' +
           '• Nếu hồ sơ đang xử lý, việc xoá sẽ thực hiện ngay sau khi đóng hồ sơ\n\n' +
           'Sau khi xoá, cán bộ KHÔNG thể liên hệ lại để thông báo kết quả.'
       )
@@ -108,6 +109,11 @@ export default function DataRightsBox({ code, isAnonymous }: Props) {
                         • Hệ thống xoá <b>họ tên, số điện thoại, email</b> — nhưng{' '}
                         <b>giữ lại nội dung</b> ý kiến ở dạng không còn danh tính, phục vụ
                         thống kê nghiệp vụ.
+                      </li>
+                      <li>
+                        • <b>Ảnh, giấy tờ</b> bà con gửi kèm được <b>giữ làm chứng cứ</b> nhưng bị che: trong hệ thống chỉ{' '}
+                        <b>lãnh đạo đơn vị</b> mở được, mỗi lần mở đều ghi nhật ký. Cần xoá hẳn tệp nào (ví dụ
+                        ảnh căn cước) thì bà con liên hệ trực ban đơn vị.
                       </li>
                       <li>
                         • Nếu hồ sơ <b>đang xử lý</b>, hệ thống ghi nhận yêu cầu và xoá{' '}

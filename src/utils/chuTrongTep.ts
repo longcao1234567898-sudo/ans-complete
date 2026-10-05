@@ -27,6 +27,7 @@ export function moTaPhuongPhap(t: { phuongPhap: string | null; soTrang: number |
   const tinCay = t.doTinCay != null ? ` · máy tự đánh giá độ tin cậy ${t.doTinCay}%` : '';
   switch (t.phuongPhap) {
     case 'docx': return 'Đọc thẳng chữ trong tệp Word — đúng từng ký tự';
+    case 'doc': return 'Đọc thẳng chữ trong tệp Word đời cũ (.doc) — đúng từng ký tự';
     case 'pdf_chu': return `Đọc lớp chữ của PDF${t.soTrang ? ` (${t.soTrang} trang)` : ''} — đúng từng ký tự`;
     case 'ocr_pdf': return `Nhận dạng chữ (OCR) trang scan của PDF${t.soTrang ? `, ${t.soTrang} trang` : ''}${nn}${tinCay}`;
     case 'ocr_anh': return `Nhận dạng chữ (OCR) trong ảnh${nn}${tinCay}`;

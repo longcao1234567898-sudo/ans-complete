@@ -27,6 +27,7 @@ import { STORAGE_KEYS } from '../../utils/constants';
 import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
 import type { KhoaChu } from '../../i18n/chu';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
+import { duocTuHienHuongDan } from '../../utils/huongDan';
 
 /** Khoá nhớ đã xem hướng dẫn. */
 const KHOA = STORAGE_KEYS.daXemHuongDan ?? 'ans_da_xem_huong_dan';
@@ -237,14 +238,17 @@ export default function HuongDanBanDau() {
     } catch {
       return;   // trình duyệt chặn lưu trữ -> không hiện, tránh hiện lại mỗi lần
     }
-    /* ⚠️ KHÔNG TỰ HIỆN khi bà con đang ở trang gửi ý kiến.
+    /* ⚠️ CHỈ TỰ HIỆN Ở TRANG CHỦ (ND-050, utils/huongDan.ts).
 
-       Lỗi đã xảy ra thật: hướng dẫn tự hiện mỗi giờ, gặp lúc bà con đang viết
-       thì cắt ngang, chèn dữ liệu mẫu và khoá nút gửi. Đang làm việc mà bị cắt
-       ngang là phiền nhất, còn tệ hơn không có hướng dẫn.
+       Ba lỗi thật dẫn tới luật này: hướng dẫn cắt ngang bà con đang viết ở trang
+       gửi ý kiến (chèn dữ liệu mẫu, khoá nút gửi); phủ lên khu cán bộ ở máy mới
+       (bấm Thêm, Thôi không ăn) rồi kéo cán bộ về trang chủ; kéo người mở liên
+       kết báo ngập /diem-den về trang chủ đúng lúc mưa lớn. Chặn từng trang thì
+       sót trang sau — nên chỉ cho trang chủ.
 
-       Hướng dẫn chỉ tự hiện ở trang khác; muốn xem khi đang ở trang gửi thì
-       bấm "Xem lại hướng dẫn" ở trang Giới thiệu — lúc đó là chủ động. */
+       Hiệu ứng chạy lại khi đổi trang: người vào từ liên kết sâu rồi bấm về
+       trang chủ vẫn được hướng dẫn. */
+    if (hien || !duocTuHienHuongDan(location.pathname)) return;
     const t = setTimeout(() => {
       if (daHuy) return;
       /* ⚠️ KIỂM ĐƯỜNG DẪN ĐÚNG LÚC ĐỊNH HIỆN, không phải lúc trang mới mở.
@@ -252,16 +256,12 @@ export default function HuongDanBanDau() {
          Kiểm lúc mở thì sai: bà con mở trang chủ rồi bấm sang gửi ý kiến trong
          vòng một giây, hẹn giờ đã đặt xong nên hướng dẫn vẫn nhảy ra giữa lúc
          họ bắt đầu viết. */
-      if (window.location.pathname.startsWith('/gui-y-kien')) return;
-      /* KHÔNG TỰ HIỆN ở khu cán bộ: đây là hướng dẫn cho người dân. Từng tự
-         hiện trên trang cán bộ ở máy mới vào lần đầu — lớp hướng dẫn phủ lên
-         khung đang nhập (bấm Thêm, Thôi không ăn) rồi kéo cán bộ về trang chủ. */
-      if (/^\/(quan-tri|dang-nhap)(\/|$)/.test(window.location.pathname)) return;
+      if (!duocTuHienHuongDan(window.location.pathname)) return;
       setBoBuoc(window.innerWidth < 768 ? BUOC_DIEN_THOAI : BUOC_MAY_TINH);
       setHien(true);
     }, 1200);
     return () => { daHuy = true; clearTimeout(t); };
-  }, []);
+  }, [location.pathname, hien]);
 
   /* Cho phép mở lại từ nơi khác (trang Giới thiệu) bằng một sự kiện chung. */
   useEffect(() => {

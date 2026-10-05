@@ -70,15 +70,11 @@
       bị vẽ đè hoặc cắt cụt -> "ĐIỂM CHẠM AN NINH" hiện thành "...SÔ".
       Be Vietnam Pro dựng riêng từng glyph cho dấu 2 tầng nên luôn hiển thị đủ.
 
-      Google tự gửi kèm bộ ký tự tiếng Việt qua unicode-range (không cần &subset=,
-      tham số này KHÔNG hợp lệ với API css2 và có thể làm hỏng cả file font).
+      Phông ĐI CÙNG BẢN DỰNG (src/main.tsx, gói @fontsource/be-vietnam-pro, giấy
+      phép OFL), KHÔNG tải từ Google Fonts (ND-053): tải từ Google thì Google biết
+      IP và giờ người mở trang gửi tố giác. Bộ chữ Việt tách riêng theo
+      unicode-range — trình duyệt chỉ tải phần cần.
     -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
     <!--
       Áp dụng dark mode sớm để tránh nháy màn hình khi tải trang.
       Để ở file riêng chứ KHÔNG viết inline: CSP chặn script inline (xem

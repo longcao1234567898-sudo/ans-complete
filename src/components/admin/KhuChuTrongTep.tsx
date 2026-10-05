@@ -61,8 +61,8 @@ function MotTep({ t, thuTu, tuKhoa, onTrichLai, dangGui }: {
         </span>
         {t.daChuyenTcvn3 && (
           <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
-            title="Văn bản gõ phông .VnTime (TCVN3) cũ — đã tự chuyển sang Unicode">
-            Đã chuyển phông .VnTime
+            title="Văn bản gõ phông cũ (.VnTime – TCVN3, hoặc VNI-Times – VNI) — đã tự chuyển sang Unicode">
+            Đã chuyển phông cũ (.VnTime / VNI)
           </span>
         )}
       </div>

@@ -284,7 +284,11 @@ describe('A10 — không có SSRF: mọi URL gọi ra ngoài đều là hằng s
             /* hang-doi-trich-chu.js: ảnh trong kho Cloudinary CỦA ĐƠN VỊ — kiểm lại bằng
                kiemTraLinkCloudinary (https, đúng res.cloudinary.com/<CLOUDINARY_CLOUD_NAME>/),
                chưa khai kho thì ném lỗi; fetch đặt redirect: 'error' */
-            || doiSo === 'urlKhoAnh(tep.image_url)';
+            || doiSo === 'urlKhoAnh(tep.image_url)'
+            /* tep-sau-xoa-danh-tinh.js (BUG-029): lệnh xoá ảnh trên kho của đơn vị — host
+               cố định api.cloudinary.com; kho kiểm /^[A-Za-z0-9_-]+$/ từ biến môi trường,
+               loại trong allow-list image|video|raw; redirect: 'error' */
+            || doiSo === 'urlXoaKhoAnh(keHoach)';
           if (!anToan) loi.push(`${muc.name}: fetch(${doiSo})`);
         }
       }

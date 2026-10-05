@@ -22,6 +22,7 @@ import { requireAuth } from '../../middleware/auth.js';
 import submissionsRouter from './submissions.js';
 import sangLocRouter from './sang-loc.js';
 import trichChuRouter from './trich-chu.js';
+import tepSauXoaDanhTinhRouter from './tep-sau-xoa-danh-tinh.js';
 import suKienManHinhRouter from './su-kien-man-hinh.js';
 import dashboardRouter from './dashboard.js';
 import bannedWordsRouter from './banned-words.js';
@@ -46,6 +47,8 @@ router.use(requireAuth);
 router.use('/submissions', sangLocRouter);
 /* Trích chữ tệp đính kèm (OCR nội bộ, ADR-005) — đọc / tìm chữ trong Word, PDF, ảnh */
 router.use('/submissions', trichChuRouter);
+/* Tệp của hồ sơ đã xoá danh tính — chỉ lãnh đạo mở / xoá hẳn, ghi nhật ký trước (BUG-029) */
+router.use('/submissions', tepSauXoaDanhTinhRouter);
 router.use('/submissions', submissionsRouter);
 router.use('/dashboard', dashboardRouter);
 /* Truy vết chụp / in màn hình trang cán bộ (ADR-003 việc 26) */

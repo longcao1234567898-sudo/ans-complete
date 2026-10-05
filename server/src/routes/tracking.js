@@ -140,6 +140,12 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
  *
  * "XOÁ" ở đây là ẨN DANH HOÁ: bóc danh tính, giữ nội dung nghiệp vụ.
  */
+/* Tệp gửi kèm không bị xoá theo danh tính mà bị che (BUG-029, quyết định P55):
+   có thể là chứng cứ. Nói rõ cho người dân, kèm cách xin xoá hẳn. */
+const TEP_DUOC_GIU = 'Ảnh, giấy tờ bà con gửi kèm (nếu có) được giữ làm chứng cứ nhưng bị che: '
+  + 'trong hệ thống chỉ lãnh đạo đơn vị mở được và mỗi lần mở đều ghi nhật ký. Bà con cần xoá hẳn tệp nào '
+  + '(ví dụ ảnh căn cước) thì liên hệ trực ban đơn vị.';
+
 router.post('/:code/request-deletion', async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) {
@@ -228,8 +234,11 @@ router.post('/:code/request-deletion', async (req, res) => {
       return res.json({
         ok: true,
         status: 'done',
-        message: 'Đã xoá toàn bộ thông tin cá nhân của bà con khỏi hệ thống. '
-               + 'Nội dung ý kiến được giữ lại ở dạng không còn danh tính, phục vụ thống kê nghiệp vụ.',
+        /* Nói thật phần được giữ (BUG-029): tệp gửi kèm thường có chính danh tính,
+           hứa "xoá toàn bộ" trong khi tệp còn là đánh lừa người tố giác */
+        message: 'Đã xoá họ tên, số điện thoại, email của bà con khỏi hồ sơ. '
+               + 'Nội dung ý kiến được giữ lại ở dạng không còn danh tính, phục vụ thống kê nghiệp vụ. '
+               + TEP_DUOC_GIU,
       });
     }
 
@@ -251,34 +260,32 @@ router.post('/:code/request-deletion', async (req, res) => {
       status: 'pending',
       message: 'Đã ghi nhận yêu cầu của bà con. Hiện ý kiến đang trong quá trình xử lý '
              + 'nên chưa xoá được ngay — thông tin cá nhân cần thiết để cán bộ xác minh. '
-             + 'Ngay sau khi hồ sơ đóng, hệ thống sẽ tự động xoá.',
+             + 'Ngay sau khi hồ sơ đóng, hệ thống sẽ tự động xoá. ' + TEP_DUOC_GIU,
     });
   } catch (err) {
-    console.error('Lỗi yêu cầu xoá dữ liệu:', err.message);
-
-    /* CHẨN ĐOÁN CỤ THỂ thay vì báo chung chung.
-       Lỗi hay gặp nhất: file nâng cấp SQL dừng giữa chừng vì cột đã tồn tại,
-       khiến BẢNG data_deletion_requests chưa được tạo. Nói rõ ra để người
-       quản trị biết chính xác phải làm gì. */
-    let goiY = 'Vui lòng liên hệ trực ban đơn vị để được hỗ trợ.';
-
+    /* CHẨN ĐOÁN CỤ THỂ — nhưng chỉ ở LOG MÁY CHỦ (BUG-028).
+       Lỗi hay gặp nhất: file nâng cấp SQL dừng giữa chừng, bảng
+       data_deletion_requests hoặc một cột chưa có. Quản trị viên đọc log là biết
+       phải làm gì. Phản hồi thì đi tới người ngoài (route công khai, chỉ cần mã
+       tra cứu): tên bảng, tên cột, câu lỗi CSDL, địa chỉ máy CSDL không được ra. */
+    let chanDoan = 'lỗi không rõ loại — xem câu lỗi ở trên';
     if (err.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(err.message)) {
-      goiY = 'Hệ thống chưa tạo bảng data_deletion_requests. '
-           + 'Quản trị viên cần chạy lại file nang_cap_v8.sql (bản mới).';
+      chanDoan = 'chưa có bảng data_deletion_requests — chạy lại nang_cap_v8.sql (bản mới)';
     } else if (err.code === 'ER_BAD_FIELD_ERROR' || /unknown column/i.test(err.message)) {
-      /* Lấy ĐÚNG tên cột bị thiếu từ thông báo của MySQL.
-         Trước đây ghi cứng 'identity_erased' -> báo sai chỗ, gây mất thời gian
-         tìm nhầm hướng. Giờ nói đúng cột nào đang thiếu. */
+      /* Lấy ĐÚNG tên cột bị thiếu từ thông báo của MySQL — ghi cứng một tên cột
+         thì báo sai chỗ, mất thời gian tìm nhầm hướng */
       const m = /unknown column '([^']+)'/i.exec(err.message);
-      const tenCot = m ? m[1] : 'không rõ';
-      goiY = `Hệ thống thiếu cột ${tenCot} trong cơ sở dữ liệu. `
-           + 'Quản trị viên xem /api/health/schema để biết chính xác thiếu gì.';
+      chanDoan = `thiếu cột ${m ? m[1] : 'không rõ'} — mở /api/health/schema để biết chính xác thiếu gì`;
     }
+    console.error('Lỗi yêu cầu xoá dữ liệu:', err.message, '| chẩn đoán:', chanDoan);
 
+    /* Nới lỏng phải khai tường minh: chỉ máy cá nhân khai ĐÚNG development/test
+       mới thấy chi tiết. Không dựa vào việc NODE_ENV là production — Render không
+       đặt biến này, máy thật sẽ rơi vào nhánh lộ (cùng mẫu BUG-025). */
+    const mayCaNhan = ['development', 'test'].includes(process.env.NODE_ENV || '');
     res.status(500).json({
-      error: 'Chưa xử lý được yêu cầu. ' + goiY,
-      // Chi tiết kỹ thuật để quản trị viên xem trong Console, không hiện cho dân
-      detail: process.env.NODE_ENV === 'production' ? undefined : err.message,
+      error: 'Chưa xử lý được yêu cầu. Vui lòng liên hệ trực ban đơn vị để được hỗ trợ.',
+      ...(mayCaNhan ? { detail: `${err.message} | ${chanDoan}` } : {}),
     });
   }
 });

@@ -20,7 +20,10 @@ import { ocr } from './ocr.js';
 
 /** Số trang tối đa đọc lớp chữ / OCR (OCR chậm: vài giây mỗi trang) */
 export const TRANG_TOI_DA = 200;
-export const TRANG_OCR_TOI_DA = 10;
+/* 30 trang OCR (P52 là 10 — ND-052): đơn, biên bản người dân scan hiếm khi dài
+   hơn. Mỗi trang ~2 giây trên máy thử; máy yếu chậm hơn vài lần — hết giờ của
+   tiến trình con (index.js) nới theo */
+export const TRANG_OCR_TOI_DA = 30;
 /** Trang ít hơn chừng này ký tự mà có ảnh -> coi là trang scan */
 const CHU_TOI_THIEU_MOT_TRANG = 25;
 

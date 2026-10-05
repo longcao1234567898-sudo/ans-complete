@@ -14,6 +14,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import { docDocx } from './docx.js';
+import { docDoc } from './doc.js';
 import { docPdf } from './pdf.js';
 import { ocr } from './ocr.js';
 import { kichThuocAnh, quaLon } from './anh.js';
@@ -38,7 +39,7 @@ async function xuLy({ mime, duLieu, ngonNgu, ocrBat }) {
     const kq = await ocr(buf, { ngonNgu });
     return { ...kq, noiDung: chuanHoa(kq.noiDung), phuongPhap: 'ocr_anh', soTrang: 1, doTinCay: Math.round(kq.doTinCay) };
   }
-  if (mime === 'application/msword') throw new Error('Word đời cũ (.doc) chưa hỗ trợ trích chữ — tải về mở bằng Word.');
+  if (mime === 'application/msword') return docDoc(buf);
   throw new Error('Loại tệp này chưa hỗ trợ trích chữ.');
 }
 
