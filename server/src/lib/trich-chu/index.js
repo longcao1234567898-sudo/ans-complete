@@ -15,8 +15,8 @@ import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 export const NGON_NGU_OCR = ['vie', 'eng', 'vie+eng'];
-/** PDF scan 10 trang trên máy chủ yếu có thể mất vài phút */
-export const HET_GIO_MS = 180_000;
+/** PDF scan 30 trang (ND-052) trên máy chủ yếu có thể mất vài phút — 6 phút rồi giết */
+export const HET_GIO_MS = 360_000;
 const NGHI_SAU_MS = 3 * 60_000;
 const DUONG_CON = fileURLToPath(new URL('./tien-trinh-con.js', import.meta.url));
 

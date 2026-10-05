@@ -12,9 +12,10 @@
  * nằm ở từng đoạn chữ (w:rFonts), ở kiểu (styles.xml) hoặc mặc định của tài
  * liệu — đọc đủ ba tầng để biết đoạn nào phải chuyển, không phải đoán.
  * Chữ cao hơn 0x7F dùng phông w:hAnsi, nên ưu tiên hAnsi hơn ascii.
+ * Phông VNI (VNI-Times...) cũng vậy: chữ gốc + ký tự dấu Latin-1 (ND-052).
  */
 import { docZip } from './zip.js';
-import { tcvn3SangUnicode, chuanHoa, DO_DAI_TOI_DA } from '../chuan-hoa-van-ban.js';
+import { tcvn3SangUnicode, vniSangUnicode, chuanHoa, DO_DAI_TOI_DA } from '../chuan-hoa-van-ban.js';
 
 const THE = /<(\/?)([A-Za-z][\w.:-]*)([^>]*?)(\/?)>|([^<]+)/g;
 
@@ -89,6 +90,10 @@ export function docDocx(buf) {
       const giaiMa = giaiMaXml(chu);
       if (phong && /^\.vn/i.test(phong)) {
         ra += tcvn3SangUnicode(giaiMa, { inHoa: /H$/.test(phong) });
+        daChuyenTcvn3 = true;
+      } else if (phong && /^VNI[-\s]/i.test(phong)) {
+        /* Phông VNI (VNI-Times, VNI-Helve...): chữ gốc + ký tự dấu (ND-052) */
+        ra += vniSangUnicode(giaiMa);
         daChuyenTcvn3 = true;
       } else {
         ra += giaiMa;
