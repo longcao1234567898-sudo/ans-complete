@@ -232,6 +232,8 @@ export const fetchCanhBaoDotBien = () =>
   adminFetch<{ data: CanhBaoDotBien[] }>('/api/admin/dashboard/canh-bao-dot-bien').then((r) => r.data);
 
 export interface SubmissionRow {
+  /** Có ô tìm kiếm: hồ sơ khớp nhờ CHỮ TRONG TỆP ĐÍNH KÈM đã trích (ADR-005) */
+  khop_tep?: boolean;
   /** Số tin nhắn người dân gửi mà cán bộ chưa đọc — dùng hiện chấm đỏ */
   tin_chua_doc?: number;
   /** Số lần người dân bổ sung mà chưa cán bộ nào mở hồ sơ (ADR-003 việc 22) */
@@ -593,12 +595,32 @@ export interface DiemDenQuanTri {
   /** Máy chủ tính: đang ngập khi cán bộ xác nhận còn trong 12 giờ */
   dang_ngap?: number | boolean;
   ngap_xac_nhan_luc?: string | null;
+  /** Ngưỡng riêng của tuyến (mm mưa dồn 3 giờ, nang_cap_v34.sql); null = theo mức chung */
+  nguong_mua_3h?: number | null;
+  /** Các lần cán bộ báo ngập kèm lượng mưa lúc đó, và ngưỡng máy gợi ý (P53) */
+  ngap_theo_mua?: LichSuNgapTheoMua | null;
+}
+
+export interface LichSuNgapTheoMua {
+  /** Số lần ngập có số mưa (dùng để gợi ý) */
+  soLan: number;
+  tongLanNgap: number;
+  thapNhat: number | null;
+  caoNhat: number | null;
+  goiY: number | null;
+  ganDay: { luc: string; mua3h: number | null; mua12h: number | null }[];
 }
 
 /** Máy chủ trả kèm cờ coBang để giao diện phân biệt "bảng chưa tạo" với
     "bảng có nhưng chưa có dữ liệu" — hai việc cần xử lý khác hẳn nhau. */
-export const fetchDiemDenQuanTri = (): Promise<{ coBang: boolean; ds: DiemDenQuanTri[] }> =>
-  adminFetch<{ coBang: boolean; ds: DiemDenQuanTri[] }>('/api/admin/diem-den');
+export const fetchDiemDenQuanTri = (): Promise<{ coBang: boolean; coBangNguong?: boolean; ds: DiemDenQuanTri[] }> =>
+  adminFetch<{ coBang: boolean; coBangNguong?: boolean; ds: DiemDenQuanTri[] }>('/api/admin/diem-den');
+
+/** Đặt / bỏ (null) ngưỡng mưa riêng của một đường hay ngập — chỉ lãnh đạo (P53) */
+export const datNguongMua = (id: number, nguongMua3h: number | null) =>
+  adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/nguong-mua`, {
+    method: 'PUT', body: JSON.stringify({ nguongMua3h }),
+  });
 
 export const luuDiemDen = (id: number | null, d: Record<string, unknown>) =>
   adminFetch<{ ok: boolean; message: string }>(
@@ -618,6 +640,39 @@ export const layDuBaoMuaQuanTri = () => adminFetch<unknown>('/api/admin/diem-den
 export const doiHienDiemDen = (id: number, hien: boolean) =>
   adminFetch<{ ok: boolean; message: string }>(`/api/admin/diem-den/${id}/hien`, {
     method: 'PATCH', body: JSON.stringify({ hien }),
+  });
+
+/* ---------- TRÍCH CHỮ TỆP ĐÍNH KÈM (OCR nội bộ, ADR-005) ---------- */
+
+export type NgonNguOcr = 'vie' | 'eng' | 'vie+eng';
+export interface ChuTrongTep {
+  tepId: number;
+  loai: 'anh' | 'pdf' | 'word' | 'video' | 'khac';
+  trangThai: 'chua' | 'cho' | 'dang_lam' | 'xong' | 'loi';
+  phuongPhap: 'docx' | 'pdf_chu' | 'ocr_pdf' | 'ocr_anh' | null;
+  /** Chỉ có khi trangThai = 'xong' */
+  noiDung: string | null;
+  doTinCay: number | null;
+  soTrang: number | null;
+  ngonNgu: NgonNguOcr | null;
+  ngonNguChon: NgonNguOcr | null;
+  daChuyenTcvn3: boolean;
+  ghiChu: string | null;
+  capNhatLuc: string | null;
+}
+export interface DanhSachChuTrongTep {
+  coBang: boolean;
+  ocrBat: boolean;
+  ngonNgu: NgonNguOcr[];
+  tep: ChuTrongTep[];
+}
+
+export const layChuTrongTep = (id: number | string) =>
+  adminFetch<DanhSachChuTrongTep>(`/api/admin/submissions/${id}/trich-chu`);
+
+export const yeuCauTrichChu = (id: number | string, yeuCau: { tepId?: number; lai?: boolean; ngonNgu?: NgonNguOcr | null } = {}) =>
+  adminFetch<{ ok: boolean; soViec: number; message: string }>(`/api/admin/submissions/${id}/trich-chu`, {
+    method: 'POST', body: JSON.stringify(yeuCau),
   });
 
 /* ---------- KHIẾU NẠI MỞ KHOÁ ---------- */

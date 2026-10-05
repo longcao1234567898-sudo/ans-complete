@@ -23,6 +23,12 @@ export interface DuBaoMua {
   /** true = máy chủ chưa làm mới được, đang dùng bản lấy lúc capNhatLuc */
   cu?: boolean;
   nguon?: { ten: string; giayPhep: string; url: string };
+  /**
+   * Tuyến hay ngập có nguy cơ theo dự báo — máy chủ tính theo NGƯỠNG RIÊNG của từng
+   * tuyến nếu lãnh đạo đã đặt (P53), không thì theo mức chung. nguong null = mức chung.
+   * Vắng (máy chủ cũ) -> giao diện tự theo mức chung.
+   */
+  duongNguyCo?: { id: number; ten: string; nguong: number | null }[];
   /** Chỉ có ở API cán bộ */
   toaDo?: { lat: number; lng: number };
   nguonToaDo?: 'bien_moi_truong' | 'duong_hay_ngap' | 'diem_den';
@@ -50,18 +56,34 @@ export function chuanDuBao(x: unknown): DuBaoMua {
     && !Number.isNaN(Date.parse(dinh.tu)) && !Number.isNaN(Date.parse(dinh.den))
     ? { tu: dinh.tu, den: dinh.den }
     : null;
+  const duongNguyCo = Array.isArray(d.duongNguyCo)
+    ? d.duongNguyCo.filter((x): x is { id: number; ten: string; nguong: number | null } => Boolean(x)
+      && typeof x === 'object' && Number.isInteger((x as { id: unknown }).id) && typeof (x as { ten: unknown }).ten === 'string'
+      && ((x as { nguong: unknown }).nguong === null || laSo((x as { nguong: unknown }).nguong)))
+    : undefined;
   return {
     ...(d as unknown as DuBaoMua),
     muc,
+    duongNguyCo,
     lyDo: Array.isArray(d.lyDo) ? d.lyDo.filter((l): l is string => typeof l === 'string') : [],
     dinhMua,
     cu: d.cu === true,
   };
 }
 
-/** Mức có nguy cơ ngập ở các tuyến hay ngập (Cảnh báo trở lên) */
+/**
+ * Có tuyến nào nguy cơ ngập: mức chung Cảnh báo trở lên, HOẶC có tuyến đạt ngưỡng
+ * riêng của nó (P53 — tuyến trũng có thể ngập cả khi mức chung mới là Theo dõi).
+ */
 export const coNguyCoNgap = (d: DuBaoMua | undefined | null): boolean =>
-  d?.trangThai === 'co_du_lieu' && (d.muc ?? 0) >= 2;
+  d?.trangThai === 'co_du_lieu' && ((d.muc ?? 0) >= 2 || (d.duongNguyCo?.length ?? 0) > 0);
+
+/** Tuyến `id` có nguy cơ không — theo kết luận của máy chủ; máy chủ cũ thì theo mức chung */
+export function duongCoNguyCo(d: DuBaoMua | undefined | null, id: number): boolean {
+  if (d?.trangThai !== 'co_du_lieu') return false;
+  if (d.duongNguyCo) return d.duongNguyCo.some((x) => x.id === id);
+  return (d.muc ?? 0) >= 2;
+}
 
 export const HIEN_MUC: Record<MucMua, { ten: string; loiKhuyen: string; khung: string; nhan: string; chu: string }> = {
   0: {

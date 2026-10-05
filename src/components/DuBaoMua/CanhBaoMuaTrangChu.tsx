@@ -1,8 +1,9 @@
 /**
  * DẢI CẢNH BÁO MƯA Ở TRANG CHỦ (P51).
  *
- * Chỉ hiện từ mức Cảnh báo (mưa to) trở lên — ngày thường không chiếm chỗ, để
- * khi hiện thì người ta còn để ý. Bấm vào sang trang Điểm đen xem đường hay ngập.
+ * Chỉ hiện khi có nguy cơ ngập: mức Cảnh báo (mưa to) trở lên, hoặc có tuyến đạt
+ * ngưỡng riêng của địa bàn (P53) — ngày thường không chiếm chỗ, để khi hiện thì
+ * người ta còn để ý. Bấm vào sang trang Điểm đen xem đường hay ngập.
  */
 import { Link } from 'react-router-dom';
 import { CloudRain, ArrowRight } from 'lucide-react';
@@ -12,8 +13,11 @@ import { HIEN_MUC, coNguyCoNgap, gioCapNhat, khoangGio, type MucMua } from '../.
 export default function CanhBaoMuaTrangChu() {
   const { data } = useDuBaoMua();
   if (!data || !coNguyCoNgap(data)) return null;
-  const muc = data.muc as MucMua;
+  /* Mức chung có thể mới là Theo dõi mà tuyến trũng đã đạt ngưỡng riêng (P53) —
+     dải vẫn hiện, màu ít nhất là Cảnh báo để người ta còn để ý */
+  const muc = Math.max(data.muc ?? 0, 2) as MucMua;
   const h = HIEN_MUC[muc];
+  const soTuyen = data.duongNguyCo?.length ?? 0;
 
   return (
     /* role="alert" ở khung ngoài, không đặt lên chính liên kết — đặt lên liên kết
@@ -27,9 +31,10 @@ export default function CanhBaoMuaTrangChu() {
         <CloudRain className={`h-5 w-5 shrink-0 ${h.chu}`} />
         <span className={`rounded-lg px-2 py-0.5 text-xs font-bold text-white ${h.nhan}`}>{h.ten}</span>
         <span className={`flex-1 text-sm font-semibold ${h.chu}`}>
-          {muc === 3 ? 'Dự báo mưa rất to' : 'Dự báo mưa to'}
-          {data.dinhMua && (data.mua3hLonNhat ?? 0) > 0 ? `, dồn nhiều nhất ${khoangGio(data.dinhMua.tu, data.dinhMua.den)}` : ''}
-          {' — '}các tuyến đường hay ngập có thể bị ngập.
+          {data.muc === 3 ? 'Dự báo mưa rất to' : data.muc === 2 ? 'Dự báo mưa to' : 'Dự báo mưa dồn'}
+          {data.dinhMua && (data.mua3hLonNhat ?? 0) > 0 ? `, nhiều nhất ${khoangGio(data.dinhMua.tu, data.dinhMua.den)}` : ''}
+          {' — '}
+          {soTuyen > 0 ? `${soTuyen} tuyến đường hay ngập có thể bị ngập.` : 'các tuyến đường hay ngập có thể bị ngập.'}
         </span>
         <span className={`inline-flex items-center gap-1 text-sm font-bold underline ${h.chu}`}>
           Xem đường hay ngập <ArrowRight className="h-4 w-4" />

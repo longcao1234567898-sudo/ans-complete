@@ -91,6 +91,20 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
       </div>
 
       <p className={`mt-1.5 text-sm font-semibold leading-snug ${h.chu}`}>{h.loiKhuyen}</p>
+      {/* Tuyến có nguy cơ theo ngưỡng riêng của địa bàn (P53) — kể cả khi mức chung
+          mới là Theo dõi: tuyến trũng ngập sớm hơn cả vùng */}
+      {(d.duongNguyCo?.length ?? 0) > 0 && (
+        <div className={`mt-1.5 rounded-lg bg-white/60 p-2 text-sm dark:bg-slate-900/40 ${h.chu}`}>
+          <b>Tuyến có nguy cơ ngập:</b>{' '}
+          {d.duongNguyCo!.map((x, i) => (
+            <span key={x.id}>
+              {i > 0 && ', '}
+              {x.ten}
+              {x.nguong !== null && <span className="text-xs font-normal"> (ngưỡng địa bàn {x.nguong} mm/3 giờ)</span>}
+            </span>
+          ))}
+        </div>
+      )}
       {nguyCo && soDuongHayNgap > 0 && !canBo && (
         <p className={`mt-1 text-sm ${h.chu}`}>
           Xem {soDuongHayNgap} tuyến đường hay ngập bên dưới — chỗ ghi <b>"Nguy cơ ngập"</b> là theo dự báo,
@@ -153,6 +167,10 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
             </li>
           ))}
           <li>Tính trên 3 giờ vừa qua và 24 giờ tới, theo cách phân loại mưa của ngành khí tượng thuỷ văn.</li>
+          <li>
+            Tuyến có <b>ngưỡng riêng của địa bàn</b> (lãnh đạo đặt, học từ các lần cán bộ báo ngập): báo nguy cơ khi mưa
+            dồn 3 giờ dự báo đạt ngưỡng của tuyến đó. Mức Nguy hiểm thì mọi tuyến hay ngập đều báo.
+          </li>
         </ul>
       </details>
 

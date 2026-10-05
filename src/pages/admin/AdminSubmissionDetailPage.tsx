@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { AlertTriangle, Eye, UserPlus, ArrowLeft, Loader2, Phone, Mail, User, Clock, CheckCircle2, XCircle, PlayCircle, Ban, MapPin } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import KhuTepDinhKem from '../../components/admin/KhuTepDinhKem';
+import KhuChuTrongTep from '../../components/admin/KhuChuTrongTep';
 import SlaBadge from '../../components/admin/SlaBadge';
 import { fetchSubmissionDetail, updateSubmissionStatus,
   fetchStaffList, assignSubmission, revealIdentity, markSpam,
@@ -231,6 +232,9 @@ export default function AdminSubmissionDetailPage() {
                   <KhuTepDinhKem tep={data.images} />
                 </>
               )}
+              {/* Chữ trong tệp (OCR nội bộ, ADR-005) — tự lấy danh sách tệp của hồ sơ,
+                  gồm cả tệp người dân gửi bổ sung; không có tệp thì không hiện */}
+              {id && <KhuChuTrongTep hoSoId={id} />}
             </div>
 
             {/* Timeline */}

@@ -79,7 +79,7 @@ const LUOC_DO = [
      chua_xac_minh_luc TEXT, sang_loc_boi INT, sang_loc_luc TEXT, giu_cho_lanh_dao INT NOT NULL DEFAULT 0)`,
   `CREATE TABLE ghi_chu_noi_bo (id INTEGER PRIMARY KEY, submission_id INT NOT NULL, staff_id INT NOT NULL,
      noi_dung TEXT NOT NULL, created_at TEXT DEFAULT (NOW()))`,
-  `CREATE TABLE submission_images (submission_id INT, image_url TEXT, cloudinary_id TEXT, storage TEXT,
+  `CREATE TABLE submission_images (id INTEGER PRIMARY KEY, submission_id INT, image_url TEXT, cloudinary_id TEXT, storage TEXT,
      mime_type TEXT, is_verified INT, moderation_status TEXT, bo_sung_id INT)`,
   `CREATE TABLE bo_sung_thong_tin (id INTEGER PRIMARY KEY, submission_id INT NOT NULL, thu_tu INT NOT NULL,
      noi_dung TEXT NOT NULL, created_at TEXT DEFAULT (NOW()), da_doc_luc TEXT, UNIQUE (submission_id, thu_tu))`,

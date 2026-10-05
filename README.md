@@ -85,6 +85,9 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v28.sql           #    H
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v29.sql           #    Người dân bổ sung thông tin trong 72 giờ (ADR-003) — chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v30.sql           #    Cảnh báo số đơn đột biến theo địa bàn (ADR-003) — chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v31.sql           #    Đường hay ngập: cán bộ báo "đang ngập / hết ngập" trên trang Điểm đen giao thông (thêm 2 cột traffic_hotspots) — chạy trước hay sau khi cập nhật mã đều được, chạy lại không lỗi
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v32.sql           #    SỬA: tệp Word (.docx) người dân gửi kèm bị mất khi lưu (nới cột mime_type) — chạy càng sớm càng tốt
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v33.sql           #    Trích chữ tệp đính kèm (OCR nội bộ, ADR-005) — bảng trich_chu_tep
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v34.sql           #    Ngưỡng mưa riêng từng đường hay ngập, học từ các lần báo ngập (ADR-004 mục 8)
 ```
 `TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
 
@@ -105,7 +108,7 @@ cd server && node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ 
 - Trợ lý AI hỏi đáp (chatbot) — chạy qua backend proxy nếu có, fallback về câu trả lời mẫu nếu không.
 - Tra cứu tiến độ bằng mã 6 ký tự.
 - Tin tức đơn vị.
-- Điểm đen giao thông và đường hay ngập (cán bộ báo "đang ngập", tự hết sau 12 giờ), kèm **dự báo mưa tự động** 4 mức từ Open-Meteo — máy chủ lấy giùm, không cần khoá; tuỳ chỉnh bằng `DU_BAO_MUA_TOA_DO` ([ADR-004](docs/adr/004-canh-bao-mua-tu-dong-open-meteo.md)).
+- Điểm đen giao thông và đường hay ngập (cán bộ báo "đang ngập", tự hết sau 12 giờ), kèm **dự báo mưa tự động** 4 mức từ Open-Meteo — máy chủ lấy giùm, không cần khoá; tuỳ chỉnh bằng `DU_BAO_MUA_TOA_DO` ([ADR-004](docs/adr/004-canh-bao-mua-tu-dong-open-meteo.md)). Ngưỡng mưa riêng từng tuyến học từ các lần cán bộ báo ngập.
 - CAPTCHA Cloudflare Turnstile chống bot (tuỳ chọn, bật khi có `TURNSTILE_SECRET_KEY`).
 - Ảnh bằng chứng: kiểm duyệt AI + tái mã hoá qua canvas, tải lên Cloudinary nếu đã cấu hình (`VITE_CLOUDINARY_CLOUD_NAME`/`VITE_CLOUDINARY_PRESET`), fallback lưu base64 nếu chưa.
 - PWA: `manifest.json` + `sw.js`.
@@ -113,6 +116,7 @@ cd server && node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ 
 ### Quản trị (cán bộ, cần đăng nhập — mọi route dưới `/api/admin` đều qua `requireAuth`)
 - Dashboard thống kê.
 - Danh sách/chi tiết ý kiến: lọc, tìm kiếm, phân trang, đổi trạng thái, phân công cán bộ, xem danh tính (`/reveal`, giới hạn quyền).
+- Đọc và tìm chữ trong tệp đính kèm Word, PDF, ảnh — **OCR nội bộ** tiếng Việt và tiếng Anh, chuẩn hoá phông .VnTime, không gửi tệp ra ngoài ([ADR-005](docs/adr/005-trich-chu-tep-dinh-kem-ocr-noi-bo.md)). Máy nhỏ thì đặt `TRICH_CHU_OCR=tat`.
 - Duyệt tin (review).
 - Bản đồ vụ việc (Leaflet).
 - Gộp sự kiện trùng lặp — nhiều người cùng báo một vụ việc.

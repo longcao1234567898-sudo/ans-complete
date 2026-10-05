@@ -139,6 +139,21 @@ export function tinhMuc(chuoi, bayGioMs) {
   ];
   const muc = Math.max(...xet.map((x) => x[0]));
   const { ma, ten } = MUC_DO[muc];
+  /* Mưa 12 giờ VỪA QUA (P53): để ghi kèm mỗi lần cán bộ báo ngập — trận mưa gây
+     ngập thường đã qua lúc cán bộ ra tới nơi, nên lấy mưa dồn 3 giờ lớn nhất trong
+     12 giờ trước, không chỉ 3 giờ cuối. Thiếu số thì để null, không làm hỏng mức. */
+  const dauQua = chuoi.gio.indexOf(gioHienTai - 11 * 3600);
+  let mua12hVuaQua = null;
+  let mua3hLonNhat12hQua = null;
+  if (dauQua >= 0) {
+    const qua = chuoi.mua.slice(dauQua, dauQua + 12);
+    if (qua.length === 12 && qua.every((v) => v !== null)) {
+      mua12hVuaQua = lam1(qua.reduce((x, y) => x + y, 0));
+      mua3hLonNhat12hQua = 0;
+      for (let i = 0; i + 3 <= 12; i += 1) mua3hLonNhat12hQua = Math.max(mua3hLonNhat12hQua, lam1(qua[i] + qua[i + 1] + qua[i + 2]));
+    }
+  }
+
   /* Mốc giờ t mang lượng mưa của giờ (t − 1h, t] -> khung 3 mốc bắt đầu từ mốc đầu − 1h */
   const mocDau = chuoi.gio[dau + dinh];
   return {
@@ -150,6 +165,8 @@ export function tinhMuc(chuoi, bayGioMs) {
     mua12hLonNhat,
     mua3hLonNhat,
     mua3hVuaQua,
+    mua12hVuaQua,
+    mua3hLonNhat12hQua,
     dinhMua: dinh < 0 ? null : {
       tu: new Date((mocDau - 3600) * 1000).toISOString(),
       den: new Date((mocDau + 2 * 3600) * 1000).toISOString(),

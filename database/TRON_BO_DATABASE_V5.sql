@@ -169,7 +169,7 @@ CREATE TABLE submission_images (
     image_url LONGTEXT NOT NULL COMMENT 'Ảnh base64 (data URL) - phải LONGTEXT vì rất dài',
     original_name VARCHAR(255),
     file_size INT,
-    mime_type VARCHAR(50),
+    mime_type VARCHAR(100),  -- đủ cho kiểu tệp Word .docx (71 ký tự) — nang_cap_v32.sql
     is_verified BOOLEAN DEFAULT FALSE,
     moderation_status ENUM('safe','suspicious','blocked') DEFAULT 'safe',
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,

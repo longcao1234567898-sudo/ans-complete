@@ -18,6 +18,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { DANG_NGAP_SQL, thieuCotNgap } from '../lib/duong-ngap.js';
 import { duBaoMua, banCongKhai } from '../lib/du-bao-mua.js';
+import { duongNguyCo } from '../lib/nguong-ngap.js';
 
 const router = Router();
 
@@ -92,7 +93,13 @@ router.get('/du-bao-mua', async (_req, res) => {
     /* Không đặt Cache-Control cho trình duyệt giữ: máy chủ đã giữ 30 phút, giữ thêm
        ở trình duyệt chỉ chồng thêm độ cũ — vd. máy chủ đã thôi báo vì mất dữ liệu mà
        trình duyệt vẫn hiện mức cũ. */
-    res.json(banCongKhai(await duBaoMua.lay()));
+    const kq = await duBaoMua.lay();
+    const ra = banCongKhai(kq);
+    /* Tuyến nào có nguy cơ — theo ngưỡng riêng của từng tuyến nếu lãnh đạo đã đặt
+       (P53), không thì theo mức chung. Tính ở máy chủ: trang chủ và trang Điểm đen
+       cùng một kết luận. */
+    if (kq.trangThai === 'co_du_lieu') ra.duongNguyCo = await duongNguyCo(pool, kq).catch(() => []);
+    res.json(ra);
   } catch (err) {
     console.error('Lỗi dự báo mưa:', err.message);
     res.json({ trangThai: 'khong_co_du_lieu' });

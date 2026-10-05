@@ -24,7 +24,7 @@ import SpeakButton from '../components/common/SpeakButton';
 import { linkChiDuong, dinhDangGioNgap } from '../utils/duongNgap';
 import KhungDuBaoMua from '../components/DuBaoMua/KhungDuBaoMua';
 import { useDuBaoMua } from '../hooks/useDuBaoMua';
-import { coNguyCoNgap, HIEN_MUC, type MucMua } from '../utils/duBaoMua';
+import { coNguyCoNgap, duongCoNguyCo, HIEN_MUC, type MucMua } from '../utils/duBaoMua';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '') || '';
 /* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
@@ -75,6 +75,13 @@ export default function DiemDenGiaoThongPage() {
   /* Dự báo mưa to trở lên: đường hay ngập được ghi "Nguy cơ ngập". KHÔNG bao giờ
      thành "đang ngập" — "đang ngập" chỉ đến từ cán bộ xác nhận (d.dangNgap). */
   const nguyCo = coNguyCoNgap(duBao);
+  /* Từng tuyến: máy chủ đã xét ngưỡng riêng của tuyến (P53) — tuyến trũng báo sớm
+     hơn mức chung, tuyến cống tốt không báo oan */
+  const nguyCoDuong = (d: DiemDen) => duongCoNguyCo(duBao, d.id);
+  const nguongDuong = (d: DiemDen) => duBao?.duongNguyCo?.find((x) => x.id === d.id)?.nguong ?? null;
+  const nhanNguyCo = (d: DiemDen) => (nguongDuong(d) !== null
+    ? `Nguy cơ ngập — dự báo mưa dồn từ ${nguongDuong(d)} mm/3 giờ`
+    : 'Nguy cơ ngập — dự báo mưa to');
 
   const ds = data ?? [];
   const taiNan = ds.filter((d) => d.loai !== 'ngap');
@@ -223,7 +230,7 @@ export default function DiemDenGiaoThongPage() {
                   {coToaDo.map((d) => {
                     const laNgap = d.loai === 'ngap';
                     /* Đường hay ngập: xanh dương; nguy cơ theo dự báo: cam; ĐANG ngập: đỏ đậm, to hơn */
-                    const mau = laNgap ? (d.dangNgap ? '#dc2626' : nguyCo ? '#ea580c' : '#0ea5e9') : MUC[d.mucDo].mau;
+                    const mau = laNgap ? (d.dangNgap ? '#dc2626' : nguyCoDuong(d) ? '#ea580c' : '#0ea5e9') : MUC[d.mucDo].mau;
                     return (
                       <CircleMarker
                         key={d.id}
@@ -240,7 +247,7 @@ export default function DiemDenGiaoThongPage() {
                           <div className="text-xs">
                             <p className="font-bold">{d.ten}</p>
                             {laNgap
-                              ? <p>{d.dangNgap ? `ĐANG NGẬP (xác nhận ${dinhDangGioNgap(d.ngapLuc)})` : nguyCo ? 'Nguy cơ ngập — dự báo mưa to' : 'Hay ngập khi mưa lớn'}</p>
+                              ? <p>{d.dangNgap ? `ĐANG NGẬP (xác nhận ${dinhDangGioNgap(d.ngapLuc)})` : nguyCoDuong(d) ? nhanNguyCo(d) : 'Hay ngập khi mưa lớn'}</p>
                               : <p>{d.soVu} vụ · {d.soTuVong} tử vong</p>}
                           </div>
                         </LeafletTooltip>
@@ -264,7 +271,7 @@ export default function DiemDenGiaoThongPage() {
                       className={`rounded-2xl border-2 p-4 ${
                         d.dangNgap
                           ? 'border-rose-500 bg-rose-50 dark:border-rose-700 dark:bg-rose-900/15'
-                          : nguyCo
+                          : nguyCoDuong(d)
                             ? 'border-orange-400 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/15'
                             : 'border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-900/15'
                       }`}
@@ -274,9 +281,9 @@ export default function DiemDenGiaoThongPage() {
                           <span className="rounded-lg bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
                             ĐANG NGẬP{d.ngapLuc ? ` — cán bộ xác nhận lúc ${dinhDangGioNgap(d.ngapLuc)}` : ''}
                           </span>
-                        ) : nguyCo ? (
+                        ) : nguyCoDuong(d) ? (
                           <span className="rounded-lg bg-orange-600 px-2 py-0.5 text-xs font-bold text-white">
-                            Nguy cơ ngập — dự báo mưa to
+                            {nhanNguyCo(d)}
                           </span>
                         ) : (
                           <span className="rounded-lg bg-sky-600 px-2 py-0.5 text-xs font-bold text-white">
@@ -288,8 +295,8 @@ export default function DiemDenGiaoThongPage() {
                       <p className="mb-1 text-base font-extrabold text-slate-800 dark:text-slate-100">{d.ten}</p>
                       {!d.dangNgap && (
                         <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-                          {nguyCo
-                            ? 'Dự báo mưa to: đường này có thể ngập. Chưa có cán bộ xác nhận đang ngập — đi qua hãy quan sát kỹ.'
+                          {nguyCoDuong(d)
+                            ? 'Theo dự báo, đường này có thể ngập. Chưa có cán bộ xác nhận đang ngập — đi qua hãy quan sát kỹ.'
                             : 'Hiện chưa có báo ngập.'}
                         </p>
                       )}

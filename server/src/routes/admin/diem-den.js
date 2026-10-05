@@ -20,6 +20,7 @@ import { ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 import { chuanLoai, thieuCotNgap, DANG_NGAP_SQL } from '../../lib/duong-ngap.js';
 import { duBaoMua, NGUON_GHI_CONG } from '../../lib/du-bao-mua.js';
+import { docNguong, docLichSu, duongNguyCo, ghiMuaKhiNgap, nguongHopLe } from '../../lib/nguong-ngap.js';
 
 const router = Router();
 
@@ -89,7 +90,17 @@ router.get('/', async (_req, res) => {
                    h.so_tu_vong DESC`
       );
     }
-    res.json({ coBang: true, ds: rows });
+    /* Ngưỡng riêng và lịch sử ngập theo mưa của từng tuyến (P53). Chưa chạy
+       nang_cap_v34.sql thì coBangNguong = false, danh sách vẫn đủ như cũ. */
+    const nguong = await docNguong(pool);
+    const lichSu = await docLichSu(pool, rows.filter((r) => r.loai === 'ngap').map((r) => r.id));
+    res.json({
+      coBang: true,
+      coBangNguong: nguong !== null,
+      ds: rows.map((r) => (r.loai === 'ngap'
+        ? { ...r, nguong_mua_3h: nguong?.get(Number(r.id)) ?? null, ngap_theo_mua: lichSu.get(Number(r.id)) ?? null }
+        : r)),
+    });
   } catch (err) {
     /* PHÂN BIỆT RÕ hai trường hợp, vì cách xử lý khác hẳn nhau:
          - Bảng CHƯA TẠO  -> cần chạy nang_cap_v18.sql
@@ -243,6 +254,9 @@ router.patch('/:id/ngap', authorize(), async (req, res) => {
       hanhDong: bat ? 'hotspot_flood_on' : 'hotspot_flood_off',
       loaiDoiTuong: 'traffic_hotspot', doiTuongId: id, chiTiet: { ten: rows[0].ten },
     });
+    /* Ghi lượng mưa lúc ngập để học ngưỡng của tuyến (P53) — chạy sau, cán bộ
+       không phải chờ lấy dự báo */
+    if (bat) ghiMuaKhiNgap(pool, { hotspotId: id, staffId: req.staff.id, layDuBao: () => duBaoMua.lay() });
     res.json({
       ok: true,
       message: bat
@@ -268,10 +282,54 @@ router.patch('/:id/ngap', authorize(), async (req, res) => {
 router.get('/du-bao-mua', authorize(), async (_req, res) => {
   try {
     const kq = await duBaoMua.lay();
-    res.json(kq.trangThai === 'co_du_lieu' ? { ...kq, nguon: NGUON_GHI_CONG } : kq);
+    res.json(kq.trangThai === 'co_du_lieu'
+      ? { ...kq, nguon: NGUON_GHI_CONG, duongNguyCo: await duongNguyCo(pool, kq).catch(() => []) }
+      : kq);
   } catch (err) {
     console.error('Lỗi dự báo mưa:', err.message);
     res.json({ trangThai: 'khong_co_du_lieu' });
+  }
+});
+
+/**
+ * PUT /:id/nguong-mua — ngưỡng ngập riêng của một tuyến hay ngập (P53): mưa dồn 3
+ * giờ từ bao nhiêu mm thì tuyến này có nguy cơ ngập. CHỈ lãnh đạo: con số này quyết
+ * định người dân có được cảnh báo hay không. null = bỏ ngưỡng riêng, theo mức chung.
+ * Mọi lần đặt ghi nhật ký (cũ -> mới).
+ */
+router.put('/:id/nguong-mua', authorize(...LANH_DAO), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Mã không hợp lệ.' });
+  const moi = req.body?.nguongMua3h ?? null;
+  if (!nguongHopLe(moi)) return res.status(400).json({ error: 'Ngưỡng phải là số nguyên từ 5 đến 300 mm (hoặc để trống để theo mức chung).' });
+  try {
+    const cu = await docNguong(pool);
+    if (cu === null) return res.status(409).json({ error: 'Cần chạy tệp database/nang_cap_v34.sql trên cơ sở dữ liệu trước.' });
+    const [rows] = await pool.query('SELECT id, ten, loai FROM traffic_hotspots WHERE id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy.' });
+    if (rows[0].loai !== 'ngap') return res.status(400).json({ error: 'Chỉ đường hay ngập mới có ngưỡng mưa.' });
+    if (moi === null) {
+      await pool.query('DELETE FROM nguong_ngap_duong WHERE hotspot_id = ?', [id]);
+    } else {
+      await pool.query(
+        `INSERT INTO nguong_ngap_duong (hotspot_id, nguong_mua_3h, cap_nhat_boi) VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE nguong_mua_3h = VALUES(nguong_mua_3h), cap_nhat_boi = VALUES(cap_nhat_boi), cap_nhat_luc = NOW()`,
+        [id, moi, req.staff.id]
+      );
+    }
+    await ghiNhatKy(pool, req, {
+      hanhDong: 'hotspot_flood_threshold', loaiDoiTuong: 'traffic_hotspot', doiTuongId: id,
+      chiTiet: { ten: rows[0].ten, cu: cu.get(id) ?? null, moi },
+    });
+    res.json({
+      ok: true,
+      message: moi === null
+        ? 'Đã bỏ ngưỡng riêng — tuyến này theo mức cảnh báo chung.'
+        : `Đã đặt: báo nguy cơ ngập khi dự báo mưa dồn 3 giờ từ ${moi} mm.`,
+    });
+  } catch (err) {
+    console.error('Đặt ngưỡng ngập lỗi:', err.message);
+    res.status(500).json({ error: 'Không lưu được.' });
   }
 });
 
