@@ -154,6 +154,9 @@ Dự án từng trải qua một đợt vá bảo mật khẩn cấp lớn (2026
 Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/utils/constants.ts` (hằng số `UNIT`) và `server/src/lib/unit.js` (dùng trong email OTP).
 
 ## Deploy công khai
+
+**Hướng dẫn từng bước cho người mới** (Vercel, máy chủ Viettel Cloud, CSDL VNPT, thay Cloudinary): [docs/HUONG-DAN-TRIEN-KHAI.md](docs/HUONG-DAN-TRIEN-KHAI.md).
+
 - **Netlify Drop (nhanh nhất):** `npm run build` → kéo thả `dist` vào https://app.netlify.com/drop. `public/_redirects` đã cấu hình sẵn cho SPA.
 - **Vercel + GitHub (tự động):** đẩy code lên GitHub → import vào vercel.com → thêm `VITE_API_URL` (+ `VITE_CLOUDINARY_*` nếu dùng) → Deploy. `vercel.json` đã cấu hình security headers — **phải giữ khớp** với `public/_headers` (bản Netlify), Vercel không đọc file `_headers`.
 - **Backend (Render):** xem `render.yaml` — bắt buộc đặt `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`, `TURNSTILE_SECRET_KEY`, `BREVO_API_KEY`/`MAIL_USER` thật trước khi deploy.

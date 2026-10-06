@@ -9,6 +9,7 @@ Vào đây trước. Mỗi tệp trong `docs/` có đúng một việc; bảng d
 | Bạn là | Đọc theo thứ tự này |
 |---|---|
 | **Người mới, muốn hiểu hệ thống** | [TONG-QUAN-HE-THONG.md](TONG-QUAN-HE-THONG.md) → [../README.md](../README.md) (cách chạy) |
+| **Người đưa hệ thống lên mạng** (Vercel, Viettel, VNPT, kho ảnh) | [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md) |
 | **Người lập trình, sắp làm việc với Claude** | [SO-TAY-NGUOI-LAP-TRINH.md](SO-TAY-NGUOI-LAP-TRINH.md) → [TIEN-DO.md](TIEN-DO.md) |
 | **Người muốn biết dự án đang ở đâu** | [TIEN-DO.md](TIEN-DO.md) → [NO-KY-THUAT.md](NO-KY-THUAT.md) |
 | **Người làm đợt kiểm thử bảo mật** | [kiem-thu-bao-mat/README.md](kiem-thu-bao-mat/README.md) |
@@ -32,6 +33,8 @@ docs/
 │                                 ghim theo nội dung. Chỉ thêm khi người vận hành duyệt
 │
 ├── TONG-QUAN-HE-THONG.md        Hệ thống này là gì, gồm những phần nào
+├── HUONG-DAN-TRIEN-KHAI.md      Đưa lên mạng từng bước cho người mới: Vercel,
+│                                 máy chủ Viettel, CSDL VNPT, thay Cloudinary
 ├── adr/                         Quyết định kiến trúc, mỗi quyết định một tệp
 │
 ├── TIEN-DO.md                   Nhật ký phiên — đang làm tới đâu   ← cập nhật liên tục
