@@ -129,7 +129,7 @@ function catNgoac(chu, mo, dong) {
  * lần định nghĩa đối tượng `so` (một số có thể bị định nghĩa nhiều lần qua các bản sửa
  * nối tiếp — trình đọc dùng bản nào tuỳ bảng xref, nên lần nào cũng phải an toàn).
  */
-function openActionAnToan(giaTri, cacDinhNghia, choPhepThamChieu = true) {
+function openActionAnToan(giaTri, cacDinhNghia, choPhepThamChieu = true, nho = new Map()) {
   const v = giaTri.replace(/^[\0\t\n\f\r ]+/, '');
   if (v.startsWith('[')) {
     const mang = catNgoac(v, '[', ']');
@@ -143,9 +143,18 @@ function openActionAnToan(giaTri, cacDinhNghia, choPhepThamChieu = true) {
   }
   const ref = /^(\d+)[\0\t\n\f\r ]+\d+[\0\t\n\f\r ]+R/.exec(v);
   if (!ref || !choPhepThamChieu) return false;
-  const dn = cacDinhNghia(Number(ref[1]));
-  return dn.length > 0 && dn.every((than) => openActionAnToan(than, cacDinhNghia, false));
+  /* Nhớ kết quả theo số đối tượng: tệp dựng tay lặp k lần "/OpenAction 6 0 R" với m
+     định nghĩa trùng của đối tượng 6 là k×m lần kiểm — bậc hai, treo máy (trọng tài P58) */
+  const so = Number(ref[1]);
+  if (!nho.has(so)) {
+    const dn = cacDinhNghia(so);
+    nho.set(so, dn.length > 0 && dn.every((than) => openActionAnToan(than, cacDinhNghia, false)));
+  }
+  return nho.get(so);
 }
+
+/* Đầu đối tượng "n g obj" — trình đọc tìm đối tượng theo vị trí ghi ở bảng xref */
+const DAU_DOI_TUONG = /(?:^|[\0\t\n\f\r ])\d+[\0\t\n\f\r ]+\d+[\0\t\n\f\r ]+obj(?=[\0\t\n\f\r ()<>[\]{}/%]|$)/;
 
 /**
  * Soi một PDF. @returns {null | string} null = không thấy gì nguy hiểm; chuỗi = lý do chặn.
@@ -174,7 +183,12 @@ function soiPdf(buf) {
 
   /* Đối tượng cấp đầu: "n g obj … endobj" (luồng đã tách nên không bắt nhầm bên trong) */
   const dinhNghia = new Map();
-  const them = (so, than) => dinhNghia.set(so, [...(dinhNghia.get(so) ?? []), than]);
+  /* Thêm tại chỗ — chép lại mảng mỗi lần là bậc hai với tệp lặp một số đối tượng
+     hàng chục nghìn lần (2 MB treo máy chủ một phút, trọng tài P58) */
+  const them = (so, than) => {
+    const ds = dinhNghia.get(so);
+    if (ds) ds.push(than); else dinhNghia.set(so, [than]);
+  };
   for (const m of chuNgoai.matchAll(/(\d+)[\0\t\n\f\r ]+\d+[\0\t\n\f\r ]+obj\b([\s\S]*?)(?=endobj|\d+[\0\t\n\f\r ]+\d+[\0\t\n\f\r ]+obj\b|$)/g)) {
     them(Number(m[1]), m[2]);
   }
@@ -188,6 +202,11 @@ function soiPdf(buf) {
     const tenDict = cacTen(l.dict).map((t) => t.ten);
     if (!tenDict.includes('ObjStm')) {
       if (cacTen(l.than).some((t) => TEN_NGUY_TRONG_LUONG.has(t.ten))) return LY_DO_PDF_NGUY;
+      /* Đầu đối tượng nằm trong byte luồng: luồng khai /Length ngắn, trình đọc (đã thử
+         pdfium) dừng luồng theo /Length rồi đọc các đối tượng phía sau qua bảng xref,
+         còn bộ kiểm — cắt theo "endstream" — coi chúng là byte luồng và chỉ soi tên
+         dài. PDF thật không có đầu đối tượng trong luồng; gặp là chặn (trọng tài P58) */
+      if (DAU_DOI_TUONG.test(l.than)) return LY_DO_PDF_KHONG_KIEM_DUOC;
       continue;
     }
     /* Tệp mã hoá thì nội dung luồng là bản mã — không soi được bên trong */
@@ -219,10 +238,11 @@ function soiPdf(buf) {
   }
 
   const cacDinhNghia = (so) => dinhNghia.get(so) ?? [];
+  const nho = new Map();
   for (const chuTD of cacChuTuDien) {
     for (const t of cacTen(chuTD)) {
       if (TEN_NGUY.has(t.ten)) return LY_DO_PDF_NGUY;
-      if (t.ten === 'OpenAction' && !openActionAnToan(chuTD.slice(t.cuoi), cacDinhNghia)) return LY_DO_PDF_NGUY;
+      if (t.ten === 'OpenAction' && !openActionAnToan(chuTD.slice(t.cuoi), cacDinhNghia, true, nho)) return LY_DO_PDF_NGUY;
     }
   }
   return null;

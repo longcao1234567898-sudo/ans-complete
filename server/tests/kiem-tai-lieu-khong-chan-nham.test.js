@@ -306,3 +306,51 @@ describe('BUG-034 (f) — Word: macro trong .doc 97–2003 cũng bị chặn', (
     chan(kiem(hong, 'don.doc', MIME_DOC), 'hỏng');
   });
 });
+
+/* ---------------------------------------- lỗi trọng tài P58 tìm ra ở bản vá đầu */
+
+describe('BUG-034 — trọng tài: bản vá không được tạo lỗi mới', () => {
+  const doThoiGian = (buf) => { const t = Date.now(); const kq = kiem(buf); return { kq, ms: Date.now() - t }; };
+
+  test('DoS: nhiều đối tượng trùng số không làm máy treo (trước: 40k bản ≈ 8,5 giây)', () => {
+    const lap = Array(40000).fill('9 0 obj\n[3 0 R /Fit]\nendobj\n').join('');
+    const pdf = Buffer.concat([pdfDon(), Buffer.from(lap, 'latin1')]);
+    const { ms } = doThoiGian(pdf);
+    assert.ok(ms < 2000, `mất ${ms} ms`);
+  });
+
+  test('DoS: nhiều /OpenAction trỏ cùng đối tượng định nghĩa nhiều lần không thành bậc hai', () => {
+    const dinh = Array(20000).fill('6 0 obj\n[3 0 R /Fit]\nendobj\n').join('');
+    const tro = Array(20000).fill('<< /OpenAction 6 0 R >>\n').join('');
+    const pdf = Buffer.concat([pdfDon(), Buffer.from(dinh + tro, 'latin1')]);
+    const { kq, ms } = doThoiGian(pdf);
+    assert.ok(ms < 3000, `mất ${ms} ms`);
+    nhan(kq, 'đích hợp lệ lặp lại');
+  });
+
+  /* Luồng khai /Length ngắn: trình đọc (đã thử pdfium) dừng luồng theo /Length và
+     đọc các đối tượng nằm sau đó qua bảng xref — bộ kiểm cắt theo "endstream" đầu
+     tiên thì coi chúng là byte luồng. */
+  const luongKheHo = (them) => Buffer.from(`<< /Length 5 >>\nstream\nABCDE\n${them}\nendstream`, 'latin1');
+
+  test('đối tượng /GoToR giấu sau /Length của một luồng bị chặn', () => {
+    const pdf = pdfDon({
+      trangThem: '/Annots [7 0 R] ',
+      them: [luongKheHo('7 0 obj\n<< /Type /Annot /Subtype /Link /Rect [0 0 9 9] /A << /S /GoToR /F (http://ke-xau.example/x) /D [0 /Fit] >> >>\nendobj')],
+    });
+    chan(kiem(pdf), 'GoToR sau /Length');
+  });
+
+  test('định nghĩa lại đối tượng của /OpenAction giấu sau /Length bị chặn', () => {
+    const pdf = pdfDon({
+      catalogThem: '/OpenAction 6 0 R ',
+      them: ['[3 0 R /Fit]', luongKheHo('6 0 obj\n<< /S /GoToE /T << /R /C /N (x) >> >>\nendobj')],
+    });
+    chan(kiem(pdf), 'OpenAction định nghĩa lại');
+  });
+
+  test('/AA, /XFA giấu sau /Length bị chặn', () => {
+    chan(kiem(pdfDon({ them: [luongKheHo('3 0 obj\n<< /Type /Page /Parent 2 0 R /AA << /O 8 0 R >> >>\nendobj')] })), 'AA');
+    chan(kiem(pdfDon({ them: [luongKheHo('1 0 obj\n<< /Type /Catalog /Pages 2 0 R /AcroForm << /XFA 9 0 R >> >>\nendobj')] })), 'XFA');
+  });
+});
