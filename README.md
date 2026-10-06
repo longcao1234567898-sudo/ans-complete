@@ -88,6 +88,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v31.sql           #    �
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v32.sql           #    SỬA: tệp Word (.docx) người dân gửi kèm bị mất khi lưu (nới cột mime_type) — chạy càng sớm càng tốt
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v33.sql           #    Trích chữ tệp đính kèm (OCR nội bộ, ADR-005) — bảng trich_chu_tep
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v34.sql           #    Ngưỡng mưa riêng từng đường hay ngập, học từ các lần báo ngập (ADR-004 mục 8)
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v35.sql           #    Ghi lại tệp đính kèm không nhận được để cán bộ biết (BUG-035) — bảng tep_khong_nhan, không lưu tên tệp; chạy lúc nào cũng được
 ```
 `TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
 
@@ -154,6 +155,9 @@ Dự án từng trải qua một đợt vá bảo mật khẩn cấp lớn (2026
 Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/utils/constants.ts` (hằng số `UNIT`) và `server/src/lib/unit.js` (dùng trong email OTP).
 
 ## Deploy công khai
+
+**Hướng dẫn từng bước cho người mới** (Vercel, máy chủ Viettel Cloud, CSDL VNPT, thay Cloudinary): [docs/HUONG-DAN-TRIEN-KHAI.md](docs/HUONG-DAN-TRIEN-KHAI.md).
+
 - **Netlify Drop (nhanh nhất):** `npm run build` → kéo thả `dist` vào https://app.netlify.com/drop. `public/_redirects` đã cấu hình sẵn cho SPA.
 - **Vercel + GitHub (tự động):** đẩy code lên GitHub → import vào vercel.com → thêm `VITE_API_URL` (+ `VITE_CLOUDINARY_*` nếu dùng) → Deploy. `vercel.json` đã cấu hình security headers — **phải giữ khớp** với `public/_headers` (bản Netlify), Vercel không đọc file `_headers`.
 - **Backend (Render):** xem `render.yaml` — bắt buộc đặt `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`, `TURNSTILE_SECRET_KEY`, `BREVO_API_KEY`/`MAIL_USER` thật trước khi deploy.

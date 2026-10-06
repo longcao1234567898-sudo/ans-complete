@@ -202,9 +202,16 @@ export function locDanhSachAnh(danhSach, { cloudName = '', canhBaoNoiDung = fals
 
   for (let i = 0; i < ds.length; i += 1) {
     const anh = ds[i];
-    const kq = (typeof anh === 'object' && anh?.url)
-      ? kiemTraLinkCloudinary(anh, cloudName)
-      : kiemTraAnhBase64(anh);
+    /* Một ảnh dựng tay lạ ({ url: { toString: 1 } }) làm hàm kiểm ném lỗi — chỉ chặn
+       đúng ảnh đó, không kéo cả danh sách và cả lần gửi thành lỗi 500 (BUG-035) */
+    let kq;
+    try {
+      kq = (typeof anh === 'object' && anh?.url)
+        ? kiemTraLinkCloudinary(anh, cloudName)
+        : kiemTraAnhBase64(anh);
+    } catch {
+      kq = { trangThai: 'blocked', lyDo: 'Dữ liệu ảnh không hợp lệ.' };
+    }
 
     if (kq.trangThai === 'blocked') {
       biChan.push({ viTri: i + 1, lyDo: kq.lyDo });
@@ -216,7 +223,7 @@ export function locDanhSachAnh(danhSach, { cloudName = '', canhBaoNoiDung = fals
     const trangThai = canhBaoNoiDung ? 'review' : 'safe';
     if (trangThai === 'review') canDuyet = true;
 
-    hopLe.push({ anh, trangThai, dinhDang: kq.dinhDang || null });
+    hopLe.push({ anh, trangThai, dinhDang: kq.dinhDang || null, viTri: i + 1 });
   }
 
   return { hopLe, biChan, canDuyet };

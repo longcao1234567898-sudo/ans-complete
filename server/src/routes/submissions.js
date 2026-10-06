@@ -6,8 +6,9 @@ import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
-import { locDanhSachAnh } from '../lib/anh-an-toan.js';
-import { locDanhSachTaiLieu } from '../lib/tai-lieu-an-toan.js';
+import { locDanhSachAnh, SO_ANH_TOI_DA } from '../lib/anh-an-toan.js';
+import { locDanhSachTaiLieu, MAX_SO_TAI_LIEU } from '../lib/tai-lieu-an-toan.js';
+import { ghiTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI, moTaThua, moTaSaiDang } from '../lib/tep-khong-nhan.js';
 import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
 import { danhGiaMucKhan } from '../lib/phan-loai.js';
 import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
@@ -104,7 +105,8 @@ router.post('/', async (req, res) => {
     const email = sanitizeText(body.email || '', 100);
     const category = body.category;
     const normalizedContent = sanitizeText(body.normalizedContent || content, 2500);
-    const images = Array.isArray(body.images) ? body.images.slice(0, 3) : [];
+    const anhGui = Array.isArray(body.images) ? body.images : [];
+    const images = anhGui.slice(0, SO_ANH_TOI_DA);
     const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
     const isAnonymous = body.isAnonymous === true;
     /* MỨC KHẨN DO HỆ THỐNG TỰ ĐÁNH GIÁ (ADR-003 việc 10). Trường urgency gửi
@@ -487,8 +489,18 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 8) Lưu ảnh — bỏ qua nếu lỗi để không chặn ý kiến
+    /* TỆP KHÔNG NHẬN ĐƯỢC (BUG-035, hướng B): bị chặn, thừa số lượng, hay lưu lỗi thì
+       ý kiến vẫn nhận, nhưng phải BÁO — phản hồi kèm danh sách cho người dân, bảng
+       tep_khong_nhan cho cán bộ (lib/tep-khong-nhan.js). Trước đây chỉ console.warn:
+       người tố giác tưởng chứng cứ đã tới, cán bộ không biết từng có tệp. */
+    const khongNhan = [];
+    if (body.images !== undefined && body.images !== null && !Array.isArray(body.images)) khongNhan.push(moTaSaiDang('anh'));
+    /* Phần thừa gộp MỘT mục — mỗi phần tử một mục thì mảng dựng tay dài là hàng triệu câu INSERT */
+    if (anhGui.length > SO_ANH_TOI_DA) khongNhan.push(moTaThua('anh', anhGui.length - SO_ANH_TOI_DA, SO_ANH_TOI_DA));
+
+    // 8) Lưu ảnh — lỗi không chặn ý kiến, nhưng được báo (BUG-035)
     if (images.length > 0) {
+      let ketQuaAnh = null;
       try {
         /* ---------------------------------------------------------------
            KIỂM TRA AN TOÀN ẢNH NGAY TẠI MÁY CHỦ.
@@ -502,43 +514,59 @@ router.post('/', async (req, res) => {
            gói nén nối ở đuôi tệp, và với ảnh dạng link thì bắt buộc phải
            thuộc kho ảnh của đơn vị.
            --------------------------------------------------------------- */
-        const { hopLe, biChan, canDuyet } = locDanhSachAnh(images, {
+        ketQuaAnh = locDanhSachAnh(images, {
           cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim(),
           // Trình duyệt báo có ảnh nghi nhạy cảm -> đánh dấu chờ cán bộ xem
           canhBaoNoiDung: body.anhNghiNgo === true,
         });
-
+      } catch (e) {
+        console.error(`[ẢNH] Không kiểm được ảnh của ${trackingCode}:`, e.message);
+        for (let i = 0; i < images.length; i += 1) khongNhan.push({ ten: `Ảnh ${i + 1}`, loai: 'anh', lyDo: LY_DO_LUU_LOI });
+      }
+      if (ketQuaAnh) {
+        const { hopLe, biChan, canDuyet } = ketQuaAnh;
         if (biChan.length > 0) {
           console.warn(
             `[ẢNH] Chặn ${biChan.length} ảnh của ${trackingCode}: `
             + biChan.map((b) => `#${b.viTri} ${b.lyDo}`).join(' | ')
           );
+          for (const b of biChan) khongNhan.push({ ten: `Ảnh ${b.viTri}`, loai: 'anh', lyDo: b.lyDo });
         }
 
-        /* Có ảnh cần cán bộ xem -> cả ý kiến chuyển sang hàng chờ duyệt,
-           ảnh không hiện ra ngoài cho tới khi được duyệt. */
+        /* Có ảnh cần cán bộ xem -> cả ý kiến chuyển sang hàng chờ duyệt, ảnh không
+           hiện ra ngoài cho tới khi được duyệt. Chuyển không được thì KHÔNG lưu ảnh
+           (như trước), nhưng báo — mỗi ảnh đúng một lần (trọng tài P58) */
+        let luuDuoc = true;
         if (canDuyet) {
-          await pool.query(
-            `UPDATE submissions SET status = 'pending_review' WHERE id = ?`,
-            [result.insertId]
-          );
+          try {
+            await pool.query(
+              `UPDATE submissions SET status = 'pending_review' WHERE id = ?`,
+              [result.insertId]
+            );
+          } catch (e) {
+            console.error(`[ẢNH] Không chuyển ${trackingCode} sang chờ duyệt:`, e.message);
+            luuDuoc = false;
+          }
         }
 
-        const values = hopLe.map(({ anh, trangThai }) => {
-          if (typeof anh === 'object' && anh?.url) {
-            return [result.insertId, String(anh.url), anh.publicId || null, 'cloudinary', 'image/jpeg', true, trangThai];
+        /* Từng ảnh một: một ảnh lưu lỗi không kéo các ảnh còn lại mất theo */
+        for (const { anh, trangThai, viTri } of hopLe) {
+          if (!luuDuoc) { khongNhan.push({ ten: `Ảnh ${viTri}`, loai: 'anh', lyDo: LY_DO_LUU_LOI }); continue; }
+          const laLink = typeof anh === 'object' && anh?.url;
+          try {
+            await pool.query(
+              `INSERT INTO submission_images
+               (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status)
+               VALUES (?,?,?,?,?,?,?)`,
+              laLink
+                ? [result.insertId, String(anh.url), anh.publicId || null, 'cloudinary', 'image/jpeg', true, trangThai]
+                : [result.insertId, String(anh), null, 'base64', 'image/jpeg', true, trangThai]
+            );
+          } catch (e) {
+            console.error(`[ẢNH] Lưu ảnh của ${trackingCode} lỗi:`, e.message);
+            khongNhan.push({ ten: `Ảnh ${viTri}`, loai: 'anh', lyDo: LY_DO_LUU_LOI });
           }
-          return [result.insertId, String(anh), null, 'base64', 'image/jpeg', true, trangThai];
-        });
-        if (values.length === 0) throw new Error('Không có ảnh nào hợp lệ');
-        await pool.query(
-          `INSERT INTO submission_images
-           (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status)
-           VALUES ?`,
-          [values]
-        );
-      } catch (e) {
-        console.warn('Không lưu được ảnh đính kèm:', e.message);
+        }
       }
     }
 
@@ -552,25 +580,40 @@ router.post('/', async (req, res) => {
        chạy được macro. Bộ kiểm ở lib/tai-lieu-an-toan.js soi bốn lớp: chữ ký
        nhị phân, macro, phần tự chạy trong PDF, và kích thước. Xem chú thích
        dài ở tệp đó. */
+    if (body.taiLieu !== undefined && body.taiLieu !== null && !Array.isArray(body.taiLieu)) khongNhan.push(moTaSaiDang('tai_lieu'));
     if (Array.isArray(body.taiLieu) && body.taiLieu.length > 0) {
+      /* Tên chỉ nhận chuỗi — đối tượng dựng tay làm String() ném lỗi ngay trong nhánh báo lỗi */
+      const tenTL = (t, i) => (typeof t?.ten === 'string' && t.ten ? t.ten : `Tài liệu ${i + 1}`).slice(0, 150);
+      if (body.taiLieu.length > MAX_SO_TAI_LIEU) {
+        khongNhan.push(moTaThua('tai_lieu', body.taiLieu.length - MAX_SO_TAI_LIEU, MAX_SO_TAI_LIEU));
+      }
       try {
         const { hopLe, biChan } = locDanhSachTaiLieu(body.taiLieu);
+        /* Từng tệp một: một tệp lưu lỗi không kéo các tệp sau mất theo */
         for (const t of hopLe) {
-          await pool.query(
-            `INSERT INTO submission_images
-             (submission_id, image_url, storage, mime_type, is_verified, moderation_status)
-             VALUES (?,?,?,?,?,?)`,
-            [result.insertId, t.data, 'base64', t.mime, false, 'suspicious']
-          );
+          try {
+            await pool.query(
+              `INSERT INTO submission_images
+               (submission_id, image_url, storage, mime_type, is_verified, moderation_status)
+               VALUES (?,?,?,?,?,?)`,
+              [result.insertId, t.data, 'base64', t.mime, false, 'suspicious']
+            );
+          } catch (e) {
+            console.error(`[TÀI LIỆU] Lưu tệp của ${trackingCode} lỗi:`, e.message);
+            khongNhan.push({ ten: t.ten, loai: 'tai_lieu', lyDo: LY_DO_LUU_LOI });
+          }
         }
         if (biChan.length) {
           console.warn(`[TÀI LIỆU] ${trackingCode}: chặn ${biChan.length} tệp —`,
             biChan.map((x) => x.lyDo).join(' | '));
+          for (const b of biChan) khongNhan.push({ ten: b.ten || 'Tài liệu', loai: 'tai_lieu', lyDo: b.lyDo });
         }
       } catch (e) {
-        console.warn('Không lưu được tài liệu đính kèm:', e.message);
+        console.error(`[TÀI LIỆU] Không kiểm được tài liệu của ${trackingCode}:`, e.message);
+        body.taiLieu.slice(0, MAX_SO_TAI_LIEU).forEach((t, i) => khongNhan.push({ ten: tenTL(t, i), loai: 'tai_lieu', lyDo: LY_DO_LUU_LOI }));
       }
     }
+    await ghiTepKhongNhan(result.insertId, khongNhan);
 
     res.status(201).json({
       trackingCode,
@@ -579,6 +622,9 @@ router.post('/', async (req, res) => {
          nhận phải nhắc bà con lưu lại cùng mã tra cứu. */
       chatPin,
       pendingReview: isAnonymous,   // ẩn danh -> đang chờ cán bộ duyệt
+      /* Tệp không nhận được + lý do — giao diện phải báo rõ (BUG-035). Có tên tệp vì
+         chỉ trả về đúng trình duyệt người gửi; CSDL không lưu tên. */
+      tepKhongNhan: choNguoiDan(khongNhan),
       content,
       normalizedContent,
       category,

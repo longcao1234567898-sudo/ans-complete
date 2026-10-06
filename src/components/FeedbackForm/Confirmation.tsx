@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Check, Copy, Download, Home, RotateCcw, Search } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Download, Home, RotateCcw, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { FeedbackDraft, FeedbackSubmission } from '../../types/feedback';
 import { CATEGORY_MAP } from '../../utils/constants';
@@ -112,6 +112,24 @@ export default function Confirmation({ draft, submission, isSubmitting, onSubmit
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {t('cf.camOnBaCon')}
         </p>
+
+        {/* TỆP KHÔNG NHẬN ĐƯỢC (BUG-035): máy chủ chặn hoặc lưu lỗi. Trước đây bỏ âm
+            thầm — bà con tưởng chứng cứ đã tới nên không gửi lại. Phải nói rõ tệp nào,
+            vì sao, và cách gửi lại. */}
+        {submission.tepKhongNhan && submission.tepKhongNhan.length > 0 && (
+          <div role="alert" data-khoi="tep-khong-nhan"
+            className="mx-auto mt-4 max-w-md rounded-xl border-2 border-rose-300 bg-rose-50 p-3 text-left dark:border-rose-800 dark:bg-rose-900/20">
+            <p className="flex items-start gap-1.5 text-sm font-bold text-rose-800 dark:text-rose-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {t('cf.tepKhongNhanTieuDe')}
+            </p>
+            <ul className="mt-2 space-y-1.5 text-xs text-rose-900 dark:text-rose-100">
+              {submission.tepKhongNhan.map((tep, i) => (
+                <li key={i}><span className="font-semibold break-all">{tep.ten}</span> — {tep.lyDo}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs leading-relaxed text-rose-800 dark:text-rose-200">{t('cf.tepKhongNhanHuongDan')}</p>
+          </div>
+        )}
 
         <div className="mx-auto mt-5 max-w-xs rounded-2xl border-2 border-dashed border-primary-300 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-900/10">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('cf.maTraCuuCua')}</p>
