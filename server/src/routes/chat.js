@@ -35,7 +35,7 @@ import { pool } from '../db.js';
 import { sanitizeText, scanTextForThreats } from '../lib/security.js';
 import { containsProfanity } from '../lib/security.js';
 import { locDanhSachAnh, SO_ANH_TOI_DA } from '../lib/anh-an-toan.js';
-import { ghiTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI } from '../lib/tep-khong-nhan.js';
+import { ghiTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI, moTaThua, moTaSaiDang } from '../lib/tep-khong-nhan.js';
 import {
   GIO_BO_SUNG, SO_LAN_BO_SUNG_TOI_DA, TRANG_THAI_NHAN_BO_SUNG, coBangBoSung,
 } from '../lib/bo-sung.js';
@@ -359,11 +359,23 @@ router.post('/bo-sung', async (req, res) => {
        nhưng phải BÁO người dân và để dấu cho cán bộ (BUG-035) — không bỏ âm thầm. */
     let soAnh = 0;
     const khongNhan = [];
-    for (let i = SO_ANH_TOI_DA; i < anhDayDu.length; i += 1) {
-      khongNhan.push({ ten: `Ảnh ${i + 1}`, loai: 'anh', lyDo: `Mỗi lần bổ sung chỉ nhận tối đa ${SO_ANH_TOI_DA} ảnh.` });
+    const rb = req.body ?? {};
+    if (rb.images !== undefined && rb.images !== null && !Array.isArray(rb.images)) khongNhan.push(moTaSaiDang('anh'));
+    /* Phần thừa gộp MỘT mục — mảng dựng tay dài không thành hàng triệu câu INSERT */
+    if (anhDayDu.length > SO_ANH_TOI_DA) khongNhan.push(moTaThua('anh', anhDayDu.length - SO_ANH_TOI_DA, SO_ANH_TOI_DA, 'Mỗi lần bổ sung'));
+    /* Phần bổ sung không nhận tài liệu — gửi kèm thì báo, không bỏ âm thầm */
+    if (rb.taiLieu !== undefined && rb.taiLieu !== null) {
+      khongNhan.push({ ten: 'Tài liệu', loai: 'tai_lieu', lyDo: 'Phần bổ sung chỉ nhận ảnh. Bà con chụp ảnh từng trang tài liệu rồi gửi.' });
     }
     if (anhGui.length > 0) {
-      const { hopLe, biChan } = locDanhSachAnh(anhGui, { cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim() });
+      let kq = { hopLe: [], biChan: [] };
+      try {
+        kq = locDanhSachAnh(anhGui, { cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim() });
+      } catch (e) {
+        console.error(`[BỔ SUNG] Không kiểm được ảnh của hồ sơ ${submissionId}:`, e.message);
+        anhGui.forEach((_, i) => khongNhan.push({ ten: `Ảnh ${i + 1}`, loai: 'anh', lyDo: LY_DO_LUU_LOI }));
+      }
+      const { hopLe, biChan } = kq;
       if (biChan.length) console.warn(`[BỔ SUNG] chặn ${biChan.length} ảnh:`, biChan.map((b) => b.lyDo).join(' | '));
       for (const b of biChan) khongNhan.push({ ten: `Ảnh ${b.viTri}`, loai: 'anh', lyDo: b.lyDo });
       for (const { anh, trangThai, viTri } of hopLe) {

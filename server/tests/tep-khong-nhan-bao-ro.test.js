@@ -95,7 +95,9 @@ describe('BUG-035 — gửi ý kiến', () => {
     const r = await gui(donCoTen(1, { images: [JPEG, JPEG, JPEG, JPEG] }));
     assert.equal(r.status, 201, r.text.slice(0, 300));
     assert.equal(r.body.tepKhongNhan?.length, 1);
-    assert.equal(r.body.tepKhongNhan[0].ten, 'Ảnh 4');
+    /* Phần thừa gộp một mục (trọng tài P58: mỗi phần tử một mục là khuếch đại) */
+    assert.match(r.body.tepKhongNhan[0].ten, /^1 ảnh gửi thừa$/);
+    assert.match(r.body.tepKhongNhan[0].lyDo, /tối đa 3 ảnh/);
     assert.equal(dongKhongNhan().length, 1);
   });
 
@@ -208,3 +210,100 @@ describe('BUG-035 — tệp nâng cấp và giao diện', () => {
   });
 });
 
+
+/* ------------------------------------------- lỗi trọng tài P58 tìm ra ở bản vá đầu */
+
+describe('BUG-035 — trọng tài: bản vá không được tạo lỗi mới', () => {
+  const NHIEU = 5000;
+  const soDong = () => ctl.db.prepare('SELECT COUNT(*) AS n FROM tep_khong_nhan').get().n;
+
+  test('N1 mảng tệp rất dài: không khuếch đại thành hàng nghìn dòng / mục báo', { skip: BO_QUA }, async () => {
+    const r1 = await gui(donCoTen(5, { images: Array(NHIEU).fill('0') }));
+    assert.equal(r1.status, 201, r1.text.slice(0, 200));
+    assert.ok(r1.body.tepKhongNhan.length <= 4, `phản hồi có ${r1.body.tepKhongNhan.length} mục`);
+    const r2 = await gui(donCoTen(6, { taiLieu: Array(NHIEU).fill('0') }));
+    assert.equal(r2.status, 201, r2.text.slice(0, 200));
+    assert.ok(r2.body.tepKhongNhan.length <= 4, `phản hồi có ${r2.body.tepKhongNhan.length} mục`);
+    assert.ok(soDong() <= 8, `ghi ${soDong()} dòng cho hai đơn`);
+    assert.ok(r1.body.tepKhongNhan.some((t) => /4997|vượt|tối đa/.test(`${t.ten} ${t.lyDo}`)), 'vẫn phải báo có tệp thừa');
+  });
+
+  test('N1 bổ sung với mảng ảnh rất dài cũng không khuếch đại', { skip: BO_QUA }, async () => {
+    ctl.db.prepare(`INSERT INTO submissions (id, tracking_code, original_content, category_id, status, is_anonymous,
+        chat_pin_hash, created_at) VALUES (20, 'BSA020', 'Đèn đường hỏng', 3, 'received', 1, ?, ?)`).run(PIN_BAM, ctl.luc(60));
+    const r = await guiBoSung(20, { noiDung: 'Bổ sung: đèn hỏng ở cột số 14, sát nhà văn hoá thôn.', images: Array(NHIEU).fill('0') });
+    assert.equal(r.status, 201, r.text.slice(0, 200));
+    assert.ok(r.body.tepKhongNhan.length <= 4);
+    assert.ok(soDong() <= 4);
+  });
+
+  test('N1 trang cán bộ đọc có giới hạn số dấu', { skip: BO_QUA }, async () => {
+    ctl.db.prepare(`INSERT INTO submissions (id, tracking_code, original_content, category_id, status, is_anonymous)
+        VALUES (21, 'HSO021', 'Phản ánh', 3, 'processing', 0)`).run();
+    const them = ctl.db.prepare(`INSERT INTO tep_khong_nhan (submission_id, loai, ly_do) VALUES (21, 'anh', 'x')`);
+    for (let i = 0; i < 500; i += 1) them.run();
+    const r = await API(TRUONG, 'GET', '/submissions/21');
+    assert.equal(r.status, 200);
+    assert.ok(r.body.tep_khong_nhan.length <= 50, `trả ${r.body.tep_khong_nhan.length} mục`);
+  });
+
+  const TEN_LA = { toString: 1, valueOf: 1 };
+  for (const [ten, taiLieu] of [
+    ['ở tệp thứ 1', [{ ten: TEN_LA, data: PDF_SCAN }, { ten: 'b.pdf', data: PDF_SCAN }]],
+    ['ở tệp thứ 4 (thừa)', [{ ten: 'a.pdf', data: PDF_SCAN }, { ten: 'b.pdf', data: PDF_SCAN }, { ten: 'c.pdf', data: PDF_SCAN }, { ten: TEN_LA, data: PDF_SCAN }]],
+  ]) {
+    test(`N2 tên tệp không phải chuỗi ${ten}: vẫn 201, tài liệu hợp lệ vẫn lưu`, { skip: BO_QUA }, async () => {
+      const r = await gui(donCoTen(7, { taiLieu }));
+      assert.equal(r.status, 201, r.text.slice(0, 200));
+      assert.ok(soTep() >= taiLieu.length - 1, `chỉ lưu ${soTep()} tệp`);
+      assert.ok(r.body.tepKhongNhan.every((t) => typeof t.ten === 'string'));
+    });
+  }
+
+  test('N3 lỗi khi chuyển hồ sơ sang chờ duyệt: mỗi ảnh chỉ báo một lần', { skip: BO_QUA }, async () => {
+    const goc = pool.query;
+    pool.query = async (sql, p) => {
+      if (/UPDATE submissions SET status = 'pending_review'/i.test(String(sql))) throw new Error('mat ket noi');
+      return goc(sql, p);
+    };
+    try {
+      const r = await gui(donCoTen(8, { images: [JPEG, GIA_ANH], anhNghiNgo: true }));
+      assert.equal(r.status, 201, r.text.slice(0, 200));
+      const ten = r.body.tepKhongNhan.map((t) => t.ten);
+      assert.deepEqual([...new Set(ten)].sort(), [...ten].sort(), `báo trùng: ${JSON.stringify(ten)}`);
+      assert.equal(ten.length, 2);
+      assert.equal(soDong(), 2);
+    } finally {
+      pool.query = goc;
+    }
+  });
+
+  test('N4 lý do lưu cho cán bộ không mang chữ người gửi tự điền', { skip: BO_QUA }, async () => {
+    const r = await gui({ isAnonymous: true, category: 'to_giac', content: TO_GIAC,
+      images: [{ url: 'https://tran-thi-mai.0912345678.example/a.jpg' }, 'data:tranthimai/0912345678;base64,AAAA'] });
+    assert.equal(r.status, 201, r.text.slice(0, 200));
+    const lyDo = JSON.stringify(dongKhongNhan().map((d) => d.ly_do));
+    assert.ok(dongKhongNhan().length >= 2);
+    assert.doesNotMatch(lyDo, /tran-thi-mai|0912345678|tranthimai/);
+  });
+
+  test('S1/S2 trường tệp sai kiểu (không phải mảng): báo, không bỏ âm thầm', { skip: BO_QUA }, async () => {
+    const r1 = await gui(donCoTen(9, { images: JPEG }));
+    assert.equal(r1.status, 201, r1.text.slice(0, 200));
+    assert.ok(r1.body.tepKhongNhan.length >= 1);
+    const r2 = await gui(donCoTen(10, { taiLieu: { ten: 'a.pdf', data: PDF_SCAN } }));
+    assert.equal(r2.status, 201, r2.text.slice(0, 200));
+    assert.ok(r2.body.tepKhongNhan.length >= 1);
+  });
+
+  test('B1/B4 bổ sung kèm tài liệu, hoặc ảnh dạng lạ: báo, không 500', { skip: BO_QUA }, async () => {
+    ctl.db.prepare(`INSERT INTO submissions (id, tracking_code, original_content, category_id, status, is_anonymous,
+        chat_pin_hash, created_at) VALUES (22, 'BSA022', 'Đèn đường hỏng', 3, 'received', 0, ?, ?)`).run(PIN_BAM, ctl.luc(60));
+    const r1 = await guiBoSung(22, { noiDung: 'Bổ sung: đèn hỏng ở cột số 14, sát nhà văn hoá thôn.', taiLieu: [{ ten: 'a.pdf', data: PDF_SCAN }] });
+    assert.equal(r1.status, 201, r1.text.slice(0, 200));
+    assert.equal(r1.body.tepKhongNhan?.length, 1);
+    const r2 = await guiBoSung(22, { noiDung: 'Bổ sung lần hai: thêm thông tin về cột đèn số 14.', images: [{ url: { toString: 1 } }] });
+    assert.equal(r2.status, 201, r2.text.slice(0, 200));
+    assert.equal(r2.body.tepKhongNhan?.length, 1);
+  });
+});

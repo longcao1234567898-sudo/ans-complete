@@ -340,7 +340,8 @@ export function locDanhSachTaiLieu(ds) {
   const biChan = [];
   for (const t of (Array.isArray(ds) ? ds.slice(0, MAX_SO_TAI_LIEU) : [])) {
     const dataUrl = typeof t === 'string' ? t : t?.data;
-    const ten = typeof t === 'object' ? t?.ten : '';
+    /* Tên chỉ nhận chuỗi: đối tượng dựng tay ({"toString":1}) làm String() ném lỗi */
+    const ten = typeof t === 'object' && typeof t?.ten === 'string' ? t.ten : '';
     const kq = kiemTaiLieu(dataUrl, ten);
     if (kq.hopLe) hopLe.push({ data: dataUrl, ten: String(ten || 'tai-lieu').slice(0, 150), mime: kq.mime });
     else biChan.push({ ten: String(ten || '').slice(0, 150), lyDo: kq.lyDo });

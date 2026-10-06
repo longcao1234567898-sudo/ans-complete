@@ -20,6 +20,35 @@ import { pool } from '../db.js';
 export const LY_DO_LUU_LOI = 'Máy chủ gặp lỗi khi lưu tệp này. Bà con gửi lại tệp (chụp ảnh từng trang) '
   + 'qua phần bổ sung thông tin, hoặc mang bản giấy tới trụ sở.';
 
+/** Trần số dấu ghi / đọc cho một lần gửi và một hồ sơ — mảng tệp dựng tay dài bao
+    nhiêu cũng không thành hàng nghìn câu INSERT (trọng tài P58, mối đe doạ 3) */
+const TRAN_GHI = 20;
+const TRAN_DOC = 50;
+
+/** Phần trong ngoặc kép của lý do là chữ người gửi tự khai (tên miền link ảnh, kiểu
+    tệp…) — người dân thấy được (của chính họ), nhưng KHÔNG lưu cho cán bộ đọc */
+export const lyDoChoCanBo = (lyDo) => String(lyDo).replace(/"[^"]*"/g, '"…"').slice(0, 300);
+
+/**
+ * Gộp phần thừa số lượng thành MỘT mục, không phải mỗi phần tử một mục.
+ * @param {'anh'|'tai_lieu'} loai
+ */
+export function moTaThua(loai, soThua, toiDa, noi = 'Mỗi ý kiến') {
+  const ten = loai === 'anh' ? 'ảnh' : 'tài liệu';
+  return {
+    ten: `${soThua} ${ten} gửi thừa`,
+    loai,
+    lyDo: `${noi} chỉ nhận tối đa ${toiDa} ${ten} — ${soThua} ${ten} sau không được nhận.`,
+  };
+}
+
+/** Trường tệp có mặt mà không phải danh sách (chỉ yêu cầu dựng tay mới gặp) */
+export const moTaSaiDang = (loai) => ({
+  ten: loai === 'anh' ? 'Ảnh' : 'Tài liệu',
+  loai,
+  lyDo: 'Dữ liệu tệp gửi lên không đúng dạng nên không nhận được.',
+});
+
 let coBang = false;
 
 /** Đã chạy nang_cap_v35.sql chưa. Chỉ nhớ khi CÓ — chạy SQL xong không cần khởi động lại. */
@@ -42,7 +71,8 @@ export const quenBangTepKhongNhan = () => { coBang = false; };
  * phản hồi; chỉ phần cho cán bộ là hỏng, nên ghi log thật rõ để người vận hành sửa.
  * @param {{ ten: string, loai: 'anh'|'tai_lieu', lyDo: string }[]} ds
  */
-export async function ghiTepKhongNhan(submissionId, ds, { boSungId = null } = {}) {
+export async function ghiTepKhongNhan(submissionId, dsDayDu, { boSungId = null } = {}) {
+  const ds = dsDayDu.slice(0, TRAN_GHI);
   if (!ds.length) return;
   if (!(await coBangTepKhongNhan())) {
     console.error(`[TỆP KHÔNG NHẬN] Chưa chạy database/nang_cap_v35.sql — hồ sơ ${submissionId} có ${ds.length} tệp `
@@ -53,7 +83,7 @@ export async function ghiTepKhongNhan(submissionId, ds, { boSungId = null } = {}
     try {
       await pool.query(
         'INSERT INTO tep_khong_nhan (submission_id, bo_sung_id, loai, ly_do) VALUES (?, ?, ?, ?)',
-        [submissionId, boSungId, t.loai, String(t.lyDo).slice(0, 300)]
+        [submissionId, boSungId, t.loai, lyDoChoCanBo(t.lyDo)]
       );
     } catch (e) {
       console.error(`[TỆP KHÔNG NHẬN] Không ghi được dấu cho cán bộ (hồ sơ ${submissionId}):`, e.message);
@@ -69,8 +99,8 @@ export async function docTepKhongNhan(submissionId) {
   if (!(await coBangTepKhongNhan())) return [];
   try {
     const [r] = await pool.query(
-      'SELECT loai, ly_do, bo_sung_id, created_at FROM tep_khong_nhan WHERE submission_id = ? ORDER BY id',
-      [submissionId]
+      'SELECT loai, ly_do, bo_sung_id, created_at FROM tep_khong_nhan WHERE submission_id = ? ORDER BY id LIMIT ?',
+      [submissionId, TRAN_DOC]
     );
     return r.map((x) => ({ ...x, bo_sung_id: x.bo_sung_id == null ? null : Number(x.bo_sung_id) }));
   } catch (e) {
@@ -80,4 +110,4 @@ export async function docTepKhongNhan(submissionId) {
 }
 
 /** Phần trả về cho trình duyệt người gửi — có tên tệp, không có loại nội bộ */
-export const choNguoiDan = (ds) => ds.map((t) => ({ ten: t.ten, lyDo: t.lyDo }));
+export const choNguoiDan = (ds) => ds.slice(0, TRAN_GHI).map((t) => ({ ten: String(t.ten), lyDo: String(t.lyDo) }));
