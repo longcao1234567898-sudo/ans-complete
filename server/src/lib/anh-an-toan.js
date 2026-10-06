@@ -216,7 +216,7 @@ export function locDanhSachAnh(danhSach, { cloudName = '', canhBaoNoiDung = fals
     const trangThai = canhBaoNoiDung ? 'review' : 'safe';
     if (trangThai === 'review') canDuyet = true;
 
-    hopLe.push({ anh, trangThai, dinhDang: kq.dinhDang || null });
+    hopLe.push({ anh, trangThai, dinhDang: kq.dinhDang || null, viTri: i + 1 });
   }
 
   return { hopLe, biChan, canDuyet };

@@ -34,7 +34,8 @@ import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { sanitizeText, scanTextForThreats } from '../lib/security.js';
 import { containsProfanity } from '../lib/security.js';
-import { locDanhSachAnh } from '../lib/anh-an-toan.js';
+import { locDanhSachAnh, SO_ANH_TOI_DA } from '../lib/anh-an-toan.js';
+import { ghiTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI } from '../lib/tep-khong-nhan.js';
 import {
   GIO_BO_SUNG, SO_LAN_BO_SUNG_TOI_DA, TRANG_THAI_NHAN_BO_SUNG, coBangBoSung,
 } from '../lib/bo-sung.js';
@@ -308,7 +309,8 @@ router.post('/bo-sung', async (req, res) => {
   const quet = scanTextForThreats(tho);
   if (!quet.safe) return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${quet.reasons.join(', ')}).` });
   if (containsProfanity(noiDung)) return res.status(400).json({ error: 'Nội dung chứa ngôn từ không phù hợp.' });
-  const anhGui = Array.isArray(req.body?.images) ? req.body.images.slice(0, 3) : [];
+  const anhDayDu = Array.isArray(req.body?.images) ? req.body.images : [];
+  const anhGui = anhDayDu.slice(0, SO_ANH_TOI_DA);
 
   if (!(await coBangBoSung())) {
     return res.status(503).json({ error: 'Hệ thống tạm chưa nhận bổ sung. Việc khẩn cấp xin gọi ngay 113.' });
@@ -353,27 +355,40 @@ router.post('/bo-sung', async (req, res) => {
       throw e;
     }
 
-    /* Ảnh: cùng lớp kiểm như lúc gửi. Ảnh bị chặn thì bỏ, phần chữ vẫn nhận. */
+    /* Ảnh: cùng lớp kiểm như lúc gửi. Ảnh bị chặn hay lưu lỗi thì phần chữ vẫn nhận,
+       nhưng phải BÁO người dân và để dấu cho cán bộ (BUG-035) — không bỏ âm thầm. */
     let soAnh = 0;
+    const khongNhan = [];
+    for (let i = SO_ANH_TOI_DA; i < anhDayDu.length; i += 1) {
+      khongNhan.push({ ten: `Ảnh ${i + 1}`, loai: 'anh', lyDo: `Mỗi lần bổ sung chỉ nhận tối đa ${SO_ANH_TOI_DA} ảnh.` });
+    }
     if (anhGui.length > 0) {
       const { hopLe, biChan } = locDanhSachAnh(anhGui, { cloudName: (process.env.CLOUDINARY_CLOUD_NAME || '').trim() });
       if (biChan.length) console.warn(`[BỔ SUNG] chặn ${biChan.length} ảnh:`, biChan.map((b) => b.lyDo).join(' | '));
-      for (const { anh, trangThai } of hopLe) {
+      for (const b of biChan) khongNhan.push({ ten: `Ảnh ${b.viTri}`, loai: 'anh', lyDo: b.lyDo });
+      for (const { anh, trangThai, viTri } of hopLe) {
         const laLink = typeof anh === 'object' && anh?.url;
-        await pool.query(
-          `INSERT INTO submission_images
-             (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status, bo_sung_id)
-           VALUES (?,?,?,?,?,?,?,?)`,
-          [submissionId, laLink ? String(anh.url) : String(anh), laLink ? anh.publicId || null : null,
-            laLink ? 'cloudinary' : 'base64', 'image/jpeg', true, trangThai, boSungId]
-        );
-        soAnh += 1;
+        try {
+          await pool.query(
+            `INSERT INTO submission_images
+               (submission_id, image_url, cloudinary_id, storage, mime_type, is_verified, moderation_status, bo_sung_id)
+             VALUES (?,?,?,?,?,?,?,?)`,
+            [submissionId, laLink ? String(anh.url) : String(anh), laLink ? anh.publicId || null : null,
+              laLink ? 'cloudinary' : 'base64', 'image/jpeg', true, trangThai, boSungId]
+          );
+          soAnh += 1;
+        } catch (e) {
+          console.error(`[BỔ SUNG] Lưu ảnh của hồ sơ ${submissionId} lỗi:`, e.message);
+          khongNhan.push({ ten: `Ảnh ${viTri}`, loai: 'anh', lyDo: LY_DO_LUU_LOI });
+        }
       }
     }
+    await ghiTepKhongNhan(submissionId, khongNhan, { boSungId });
 
     res.status(201).json({
       ok: true,
       soAnh,
+      tepKhongNhan: choNguoiDan(khongNhan),
       message: 'Đã nhận phần bổ sung. Cán bộ sẽ thấy ngay trên hồ sơ của bà con.',
     });
   } catch (err) {

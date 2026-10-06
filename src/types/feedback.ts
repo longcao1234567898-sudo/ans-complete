@@ -98,5 +98,7 @@ export interface FeedbackSubmission {
   contact: Partial<ContactInfo>;
   /** Ảnh minh chứng đính kèm (data URL) */
   images?: string[];
+  /** Tệp gửi kèm mà máy chủ KHÔNG nhận được + lý do (BUG-035) — phải báo rõ cho bà con */
+  tepKhongNhan?: { ten: string; lyDo: string }[];
   createdAt: string; // ISO string
 }

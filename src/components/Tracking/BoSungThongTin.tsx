@@ -10,7 +10,7 @@
  * như ở bước gửi ý kiến; máy chủ kiểm lại lần nữa.
  */
 import { useState } from 'react';
-import { ImagePlus, Loader2, PlusCircle, X } from 'lucide-react';
+import { AlertTriangle, ImagePlus, Loader2, PlusCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { guiBoSung } from '../../services/trackingService';
 import { validateImageFile } from '../../utils/security';
@@ -24,6 +24,9 @@ export default function BoSungThongTin({ code, onDaGui }: { code: string; onDaGu
   const [anh, setAnh] = useState<string[]>([]);
   const [dangGui, setDangGui] = useState(false);
   const [loi, setLoi] = useState('');
+  /* Ảnh máy chủ không nhận được (BUG-035) — giữ lại sau khi khung đóng, để bà con
+     thấy rõ ảnh nào chưa tới cán bộ thay vì tưởng đã gửi đủ */
+  const [khongNhan, setKhongNhan] = useState<{ ten: string; lyDo: string }[]>([]);
 
   async function chonAnh(files: FileList | null) {
     if (!files) return;
@@ -46,6 +49,7 @@ export default function BoSungThongTin({ code, onDaGui }: { code: string; onDaGu
     try {
       const kq = await guiBoSung(code, noiDung.trim(), anh);
       toast.success(kq.message, { duration: 6000 });
+      setKhongNhan(kq.tepKhongNhan ?? []);
       setNoiDung('');
       setAnh([]);
       setMo(false);
@@ -57,12 +61,28 @@ export default function BoSungThongTin({ code, onDaGui }: { code: string; onDaGu
     }
   }
 
+  const baoKhongNhan = khongNhan.length > 0 && (
+    <div role="alert" data-khoi="tep-khong-nhan"
+      className="mt-2 rounded-xl border border-rose-300 bg-rose-50 p-2.5 text-xs text-rose-900 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-100">
+      <p className="flex items-start gap-1.5 font-bold">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        Phần chữ đã được nhận, nhưng các ảnh dưới đây KHÔNG gửi tới được cán bộ:
+      </p>
+      <ul className="mt-1 space-y-1">
+        {khongNhan.map((t, i) => <li key={i}><span className="font-semibold">{t.ten}</span> — {t.lyDo}</li>)}
+      </ul>
+    </div>
+  );
+
   if (!mo) {
     return (
-      <button type="button" onClick={() => setMo(true)}
-        className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline dark:text-primary-300">
-        <PlusCircle className="h-3.5 w-3.5" /> Bổ sung thông tin, ảnh cho hồ sơ (trong 72 giờ kể từ lúc gửi)
-      </button>
+      <>
+        <button type="button" onClick={() => setMo(true)}
+          className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline dark:text-primary-300">
+          <PlusCircle className="h-3.5 w-3.5" /> Bổ sung thông tin, ảnh cho hồ sơ (trong 72 giờ kể từ lúc gửi)
+        </button>
+        {baoKhongNhan}
+      </>
     );
   }
 

@@ -19,6 +19,7 @@ import { timPhan, coCotSangLoc, sangLocSql } from '../../lib/sang-loc.js';
 import { coBangBoSung, boSungSql } from '../../lib/bo-sung.js';
 import { coBangTrichChu } from '../../lib/hang-doi-trich-chu.js';
 import { demTep } from '../../lib/tep-sau-xoa-danh-tinh.js';
+import { docTepKhongNhan } from '../../lib/tep-khong-nhan.js';
 import { dangTim } from '../../lib/chuan-hoa-van-ban.js';
 
 const router = Router();
@@ -499,6 +500,9 @@ router.get('/:id', async (req, res) => {
       ...slaOf(row),
       images,
       ...(daXoaDanhTinh ? { tep_an_sau_xoa_danh_tinh: await demTep(Number(req.params.id)) } : {}),
+      /* Tệp người dân gửi kèm mà hệ thống không nhận được (BUG-035): chỉ loại + lý
+         do, không có tên tệp — để cán bộ biết mà xin lại */
+      tep_khong_nhan: await docTepKhongNhan(Number(req.params.id)),
       history,
     };
     res.json(out);

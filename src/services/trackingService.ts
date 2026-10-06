@@ -109,7 +109,11 @@ export async function layTinNhan(code: string): Promise<{
  * phòng trao đổi (đã nhập mã PIN). Ảnh là data URL đã nén lại ở trình duyệt —
  * máy chủ vẫn kiểm lại như lúc gửi.
  */
-export async function guiBoSung(code: string, noiDung: string, images: string[]): Promise<{ message: string }> {
+export async function guiBoSung(code: string, noiDung: string, images: string[]): Promise<{
+  message: string;
+  /** Ảnh máy chủ KHÔNG nhận được + lý do (BUG-035) */
+  tepKhongNhan?: { ten: string; lyDo: string }[];
+}> {
   const ve = layVeChat(code);
   return apiFetch('/api/chat/bo-sung', {
     method: 'POST',

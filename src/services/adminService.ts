@@ -341,6 +341,9 @@ export interface SubmissionDetail extends SubmissionRow {
   /** Hồ sơ đã xoá danh tính: số tệp bị che (images, ảnh bổ sung đều rỗng) — BUG-029.
       Chỉ lãnh đạo mở được, bằng moTepSauXoaDanhTinh (ghi nhật ký). */
   tep_an_sau_xoa_danh_tinh?: number;
+  /** Tệp người dân gửi kèm mà hệ thống KHÔNG nhận được (BUG-035) — chỉ loại + lý do,
+      không có tên tệp. Máy chủ cũ / chưa chạy nang_cap_v35.sql: vắng hoặc rỗng. */
+  tep_khong_nhan?: Array<{ loai: 'anh' | 'tai_lieu'; ly_do: string; bo_sung_id: number | null; created_at: string }>;
   /** Toạ độ nơi XẢY RA VỤ VIỆC — do người dân tự nguyện gửi. Rỗng nếu không gửi. */
   incident_lat?: number | string | null;
   incident_lng?: number | string | null;

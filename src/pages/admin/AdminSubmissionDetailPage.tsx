@@ -241,6 +241,28 @@ export default function AdminSubmissionDetailPage() {
               {id && Boolean(data.identity_erased) && (
                 <KhuTepSauXoaDanhTinh hoSoId={id} soTep={data.tep_an_sau_xoa_danh_tinh ?? 0} lanhDao={lanhDao} />
               )}
+              {/* Tệp người dân gửi kèm mà hệ thống không nhận được (BUG-035): trước đây
+                  bỏ âm thầm, cán bộ không biết từng có tệp. Không có tên tệp — tên hay
+                  chứa họ tên người gửi. */}
+              {(data.tep_khong_nhan?.length ?? 0) > 0 && (
+                <div data-khoi="tep-khong-nhan" className="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm dark:border-rose-800 dark:bg-rose-900/20">
+                  <p className="flex items-start gap-1.5 font-semibold text-rose-900 dark:text-rose-200">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    Người gửi có đính kèm {data.tep_khong_nhan!.length} tệp nhưng hệ thống không nhận được
+                  </p>
+                  <ul className="mt-1.5 space-y-1 text-xs text-rose-900 dark:text-rose-100">
+                    {data.tep_khong_nhan!.map((t, i) => (
+                      <li key={i}>
+                        {t.loai === 'anh' ? 'Ảnh' : 'Tài liệu'}
+                        {t.bo_sung_id != null ? ' (gửi bổ sung)' : ''} — {t.ly_do}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-xs text-rose-800 dark:text-rose-300">
+                    Người gửi đã được báo lúc gửi. Cần tệp này cho vụ việc thì nhắn hỏi qua khung trao đổi, hoặc hẹn mang bản giấy.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Timeline */}
