@@ -107,7 +107,7 @@ export function docCfb(buf) {
     luongMini = noiChuoi(goc.dau, fat, coSector, laySector, TRAN_LUONG);
   };
 
-  return function docLuong(ten) {
+  function docLuong(ten) {
     const m = muc.find((x) => x && x.loai === 2 && x.ten === ten);
     if (!m) return null;
     if (m.co > TRAN_LUONG) throw loi('Tệp Word quá lớn để trích chữ.');
@@ -122,7 +122,12 @@ export function docCfb(buf) {
     const ra = noiChuoi(m.dau, fat, coSector, laySector, m.co);
     if (ra.length < m.co) throw loi(LOI_HONG);
     return ra.subarray(0, m.co);
-  };
+  }
+  /* Tên mọi mục trong thư mục (kể cả mục không nối vào cây) — để bộ kiểm tài liệu
+     soi kho macro "Macros"/"_VBA_PROJECT" (BUG-034); đọc thẳng danh sách, không đi theo
+     cây, nên mục bị giấu khỏi cây vẫn hiện ra */
+  docLuong.cacMuc = muc.filter(Boolean).map((m) => ({ ten: m.ten, loai: m.loai }));
+  return docLuong;
 }
 
 /* windows-1252 cho mảnh "nén" (mỗi ký tự một byte, [MS-DOC] 2.9.73) */
