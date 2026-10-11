@@ -3,13 +3,14 @@
  *
  * Mức do máy chủ tính từ lượng mưa Open-Meteo (server/src/lib/du-bao-mua.js).
  * Không có dữ liệu thì nói thẳng là không có — KHÔNG hiện "Bình thường" thay.
- * `canBo`: thêm lý do, toạ độ đang dự báo và lời nhắc cử người đi kiểm tra.
+ * `canBo`: thêm lý do, toạ độ đang dự báo, lời nhắc cử người đi kiểm tra và vì sao
+ * máy chủ chưa lấy được dự báo (P61 — API công khai không gửi phần này).
  */
 import { CloudRain, Info, MapPin } from 'lucide-react';
 import SpeakButton from '../common/SpeakButton';
 import { useDuBaoMua } from '../../hooks/useDuBaoMua';
 import {
-  HIEN_MUC, MO_TA_MUC, coNguyCoNgap, gioCapNhat, khoangGio, soMm, type MucMua,
+  HIEN_MUC, MO_TA_MUC, coNguyCoNgap, gioCapNhat, khoangGio, moTaLoiDuBao, soMm, type MucMua,
 } from '../../utils/duBaoMua';
 
 const NGUON_TOA_DO: Record<string, string> = {
@@ -62,6 +63,9 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
           Chưa lấy được dự báo mưa lúc này. <b>Không có dự báo không có nghĩa là trời yên</b> — bà con theo dõi bản
           tin thời tiết chính thức tại{' '}
           <a href={BAN_TIN_CHINH_THUC} target="_blank" rel="noopener noreferrer" className="underline">nchmf.gov.vn</a>.
+          {canBo && d.loiGanNhat && (
+            <span className="mt-1 block text-slate-700 dark:text-slate-300">{moTaLoiDuBao(d.loiGanNhat)}</span>
+          )}
         </p>
       </div>
     );
@@ -154,6 +158,9 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
         Cập nhật {d.capNhatLuc ? gioCapNhat(d.capNhatLuc) : '—'}
         {d.cu && <b className="text-amber-700 dark:text-amber-400"> — chưa làm mới được, số liệu có thể đã cũ</b>}
       </p>
+      {canBo && d.loiGanNhat && (
+        <p className="mt-0.5 text-[11px] text-amber-800 dark:text-amber-300">{moTaLoiDuBao(d.loiGanNhat)}</p>
+      )}
 
       <details className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
         <summary className="cursor-pointer select-none font-semibold">

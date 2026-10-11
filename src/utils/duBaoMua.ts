@@ -8,6 +8,17 @@
 export type TrangThaiDuBao = 'co_du_lieu' | 'khong_co_du_lieu' | 'chua_cau_hinh' | 'tat' | 'cau_hinh_sai';
 export type MucMua = 0 | 1 | 2 | 3;
 
+/**
+ * Lý do lần gần nhất máy chủ không lấy được dự báo (P61) — CHỈ có ở API cán bộ.
+ * Máy chủ chỉ gửi mã cố định, không gửi câu lỗi gốc.
+ */
+export interface LoiDuBao {
+  ma: 'http' | 'het_gio' | 'ket_noi' | 'du_lieu_sai' | 'khac';
+  /** Mã HTTP Open-Meteo trả, chỉ khi ma = 'http' */
+  maHttp?: number;
+  luc: string;
+}
+
 export interface DuBaoMua {
   trangThai: TrangThaiDuBao;
   muc?: MucMua;
@@ -32,11 +43,27 @@ export interface DuBaoMua {
   /** Chỉ có ở API cán bộ */
   toaDo?: { lat: number; lng: number };
   nguonToaDo?: 'bien_moi_truong' | 'duong_hay_ngap' | 'diem_den';
+  /** Chỉ có ở API cán bộ: vì sao đang không có dự báo, hoặc vì sao bản đang hiện đã cũ */
+  loiGanNhat?: LoiDuBao;
 }
 
 const TRANG_THAI: TrangThaiDuBao[] = ['co_du_lieu', 'khong_co_du_lieu', 'chua_cau_hinh', 'tat', 'cau_hinh_sai'];
 const laSo = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0;
 const KHONG_CO: DuBaoMua = { trangThai: 'khong_co_du_lieu' };
+const MA_LOI: LoiDuBao['ma'][] = ['http', 'het_gio', 'ket_noi', 'du_lieu_sai', 'khac'];
+
+/** Kiểm lý do lỗi; lạ chỗ nào thì bỏ hẳn (không làm hỏng phần dự báo đi kèm) */
+function chuanLoi(x: unknown): LoiDuBao | undefined {
+  if (!x || typeof x !== 'object') return undefined;
+  const l = x as Record<string, unknown>;
+  if (!MA_LOI.includes(l.ma as LoiDuBao['ma'])) return undefined;
+  if (typeof l.luc !== 'string' || Number.isNaN(Date.parse(l.luc))) return undefined;
+  const ma = l.ma as LoiDuBao['ma'];
+  if (ma !== 'http') return { ma, luc: l.luc };
+  const maHttp = l.maHttp;
+  if (typeof maHttp !== 'number' || !Number.isInteger(maHttp) || maHttp < 100 || maHttp > 599) return undefined;
+  return { ma, maHttp, luc: l.luc };
+}
 
 /**
  * Kiểm dạng trả về từ máy chủ. Lạ bất kỳ chỗ nào -> "khong_co_du_lieu":
@@ -46,7 +73,10 @@ export function chuanDuBao(x: unknown): DuBaoMua {
   if (!x || typeof x !== 'object') return KHONG_CO;
   const d = x as Record<string, unknown>;
   if (!TRANG_THAI.includes(d.trangThai as TrangThaiDuBao)) return KHONG_CO;
-  if (d.trangThai !== 'co_du_lieu') return { trangThai: d.trangThai as TrangThaiDuBao };
+  const loiGanNhat = chuanLoi(d.loiGanNhat);
+  if (d.trangThai !== 'co_du_lieu') {
+    return loiGanNhat ? { trangThai: d.trangThai as TrangThaiDuBao, loiGanNhat } : { trangThai: d.trangThai as TrangThaiDuBao };
+  }
   const muc = d.muc;
   if (muc !== 0 && muc !== 1 && muc !== 2 && muc !== 3) return KHONG_CO;
   for (const k of ['mua24h', 'mua12hLonNhat', 'mua3hLonNhat', 'mua3hVuaQua']) if (!laSo(d[k])) return KHONG_CO;
@@ -68,7 +98,41 @@ export function chuanDuBao(x: unknown): DuBaoMua {
     lyDo: Array.isArray(d.lyDo) ? d.lyDo.filter((l): l is string => typeof l === 'string') : [],
     dinhMua,
     cu: d.cu === true,
+    loiGanNhat,
   };
+}
+
+/**
+ * Lời giải thích cho cán bộ (P61). Viết để người không chuyên biết nên làm gì tiếp,
+ * không chỉ chép mã lỗi.
+ */
+export function moTaLoiDuBao(loi: LoiDuBao, bayGio: Date = new Date()): string {
+  const luc = gioCapNhat(loi.luc, bayGio);
+  let lyDo: string;
+  switch (loi.ma) {
+    case 'http':
+      if (loi.maHttp === 429) {
+        lyDo = 'Open-Meteo từ chối (mã 429 — vượt hạn mức lượt gọi theo địa chỉ IP). Hay gặp khi máy chủ chạy trên '
+          + 'dịch vụ dùng chung IP với nhiều web khác (vd. Render bản miễn phí); máy chủ có IP riêng sẽ hết';
+      } else if ((loi.maHttp ?? 0) >= 500) {
+        lyDo = `Open-Meteo đang lỗi phía họ (mã ${loi.maHttp}); thường tự hết sau ít phút`;
+      } else {
+        lyDo = `Open-Meteo trả mã ${loi.maHttp}`;
+      }
+      break;
+    case 'het_gio':
+      lyDo = 'Open-Meteo không trả lời trong 8 giây (mạng chậm hoặc họ đang quá tải)';
+      break;
+    case 'ket_noi':
+      lyDo = 'Máy chủ không kết nối được tới Open-Meteo — kiểm tra mạng, tường lửa (cho phép ra ngoài) của máy chủ';
+      break;
+    case 'du_lieu_sai':
+      lyDo = 'Open-Meteo trả dữ liệu không đúng dạng — đã bỏ qua để không hiện sai mức';
+      break;
+    default:
+      lyDo = 'Lỗi chưa phân loại — xem log máy chủ, dòng "Dự báo mưa"';
+  }
+  return `Lần gần nhất máy chủ không lấy được dự báo (${luc}): ${lyDo}. Máy chủ thử lại khi có người mở trang, cách lần hỏng ít nhất 5 phút.`;
 }
 
 /**

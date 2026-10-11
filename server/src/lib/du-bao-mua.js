@@ -238,6 +238,31 @@ async function docDiemCsdl() {
 /* --------------------------------- Nguồn dự báo -------------------------------- */
 
 /**
+ * Lý do lỗi gần nhất cho TRANG CÁN BỘ (P61). Chỉ giữ MÃ CỐ ĐỊNH trong danh sách này
+ * (+ mã HTTP), không giữ câu lỗi gốc: câu lỗi của mạng/thư viện có thể mang địa chỉ
+ * nội bộ, cấu hình — đưa ra trình duyệt là lộ (bài học BUG-028). Câu gốc vẫn ở log.
+ */
+export const MA_LOI = ['http', 'het_gio', 'ket_noi', 'du_lieu_sai', 'khac'];
+
+class LoiPhanLoai extends Error {
+  constructor(ma, thongDiep, maHttp) {
+    super(thongDiep);
+    this.ma = ma;
+    if (maHttp !== undefined) this.maHttp = maHttp;
+  }
+}
+
+/** Lỗi khi GỌI mạng (chưa có phản hồi) hoặc khi đọc thân phản hồi */
+function phanLoaiLoiMang(err) {
+  if (err instanceof LoiPhanLoai) return err;
+  const ten = err?.name;
+  if (ten === 'TimeoutError' || ten === 'AbortError') return new LoiPhanLoai('het_gio', err?.message);
+  /* fetch của Node báo mọi lỗi DNS/TCP/TLS là TypeError "fetch failed" */
+  if (err instanceof TypeError) return new LoiPhanLoai('ket_noi', err?.message);
+  return new LoiPhanLoai('khac', err?.message);
+}
+
+/**
  * Tạo một nguồn dự báo có bộ nhớ đệm. Mọi thứ bên ngoài (mạng, đồng hồ, CSDL,
  * biến môi trường) truyền vào để kiểm thử được; mã chạy thật dùng `duBaoMua`.
  */
@@ -268,19 +293,33 @@ export function taoNguonDuBao({
   let trangThaiCauHinh = null;
   let loiLuc = -Infinity;
   let dangLay = null;
+  let loiGanNhat = null;   // { ma, maHttp?, luc } — chỉ cho trang cán bộ
 
   async function goiOpenMeteo(toaDo) {
-    const r = await goiMang(taoUrlDuBao(toaDo), {
-      headers: { Accept: 'application/json' },
-      redirect: 'error',
-      signal: AbortSignal.timeout(HET_GIO_MS),
-    });
-    if (!r.ok) throw new Error(`Open-Meteo trả mã ${r.status}`);
-    /* Báo trước kích thước quá lớn thì bỏ, khỏi đọc vào bộ nhớ (vẫn kiểm lại sau khi đọc) */
-    if (Number(r.headers?.get?.('content-length')) > TOI_DA_KY_TU) throw new Error('phản hồi quá lớn');
-    const chu = await r.text();
-    if (chu.length > TOI_DA_KY_TU) throw new Error('phản hồi quá lớn');
-    return kiemPhanHoi(JSON.parse(chu));
+    let r;
+    let chu;
+    try {
+      r = await goiMang(taoUrlDuBao(toaDo), {
+        headers: { Accept: 'application/json' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(HET_GIO_MS),
+      });
+      if (!r.ok) {
+        const maHttp = Number.isInteger(r.status) && r.status >= 100 && r.status <= 599 ? r.status : undefined;
+        throw new LoiPhanLoai(maHttp ? 'http' : 'khac', `Open-Meteo trả mã ${r.status}`, maHttp);
+      }
+      /* Báo trước kích thước quá lớn thì bỏ, khỏi đọc vào bộ nhớ (vẫn kiểm lại sau khi đọc) */
+      if (Number(r.headers?.get?.('content-length')) > TOI_DA_KY_TU) throw new LoiPhanLoai('du_lieu_sai', 'phản hồi quá lớn');
+      chu = await r.text();
+    } catch (err) {
+      throw phanLoaiLoiMang(err);
+    }
+    if (chu.length > TOI_DA_KY_TU) throw new LoiPhanLoai('du_lieu_sai', 'phản hồi quá lớn');
+    try {
+      return kiemPhanHoi(JSON.parse(chu));
+    } catch (err) {
+      throw new LoiPhanLoai('du_lieu_sai', err?.message);
+    }
   }
 
   async function lamMoi() {
@@ -297,8 +336,12 @@ export function taoNguonDuBao({
       trangThaiCauHinh = null;
       const chuoi = await goiOpenMeteo(toaDo);
       boNho = { chuoi, layLuc: bayGio(), toaDo };
+      loiGanNhat = null;
     } catch (err) {
       loiLuc = bayGio();
+      /* Lỗi ngoài goiOpenMeteo (vd. đọc CSDL chọn toạ độ) không có `ma` -> 'khac' */
+      const ma = MA_LOI.includes(err?.ma) ? err.ma : 'khac';
+      loiGanNhat = { ma, ...(ma === 'http' ? { maHttp: err.maHttp } : {}), luc: new Date(loiLuc).toISOString() };
       ghiLog('Dự báo mưa: chưa lấy được từ Open-Meteo —', err?.message);
     }
   }
@@ -312,13 +355,16 @@ export function taoNguonDuBao({
       await dangLay;
     }
     if (trangThaiCauHinh) return { trangThai: trangThaiCauHinh };
-    if (!boNho) return { trangThai: 'khong_co_du_lieu' };
+    /* Bản sao: người gọi sửa kết quả cũng không đụng được trạng thái bên trong */
+    const loi = loiGanNhat ? { loiGanNhat: { ...loiGanNhat } } : {};
+    if (!boNho) return { trangThai: 'khong_co_du_lieu', ...loi };
     const tuoi = bayGio() - boNho.layLuc;
-    if (tuoi > DUNG_BAN_CU_TOI_DA_MS) return { trangThai: 'khong_co_du_lieu' };
+    if (tuoi > DUNG_BAN_CU_TOI_DA_MS) return { trangThai: 'khong_co_du_lieu', ...loi };
     const kq = tinhMuc(boNho.chuoi, bayGio());
-    if (!kq) return { trangThai: 'khong_co_du_lieu' };
+    if (!kq) return { trangThai: 'khong_co_du_lieu', ...loi };
     return {
       trangThai: 'co_du_lieu',
+      ...loi,
       ...kq,
       capNhatLuc: new Date(boNho.layLuc).toISOString(),
       cu: tuoi >= LAM_MOI_SAU_MS,
@@ -332,6 +378,7 @@ export function taoNguonDuBao({
     trangThaiCauHinh = null;
     loiLuc = -Infinity;
     dangLay = null;
+    loiGanNhat = null;
   }
 
   /** Chỉ cho kiểm thử: thay mạng giả (null = trả lại mạng gốc) và xoá bộ nhớ đệm */
@@ -349,10 +396,13 @@ export const duBaoMua = taoNguonDuBao();
 /** Chỉ cho kiểm thử route: thay mạng giả cho bản chạy thật (null = mạng thật). */
 export const thayFetchChoThu = (fn) => duBaoMua.thayMang(fn);
 
-/** Phần trả cho NGƯỜI DÂN: bỏ toạ độ và nguồn toạ độ (không cần cho cảnh báo). */
+/**
+ * Phần trả cho NGƯỜI DÂN: bỏ toạ độ, nguồn toạ độ và lý do lỗi (người dân không cần;
+ * lý do lỗi nói cách máy chủ ra mạng — chỉ cán bộ xem).
+ */
 export function banCongKhai(kq) {
   if (kq.trangThai !== 'co_du_lieu') return { trangThai: kq.trangThai };
-  const { toaDo: _toaDo, nguonToaDo: _nguon, ...con } = kq;
+  const { toaDo: _toaDo, nguonToaDo: _nguon, loiGanNhat: _loi, ...con } = kq;
   return { ...con, nguon: NGUON_GHI_CONG };
 }
 

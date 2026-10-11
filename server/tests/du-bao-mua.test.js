@@ -298,6 +298,62 @@ describe('Nguồn dự báo: bộ nhớ đệm, lỗi mạng, dữ liệu cũ', 
   });
 });
 
+describe('Lý do lỗi gần nhất cho cán bộ (P61)', () => {
+  /* Máy chủ thật trả "khong_co_du_lieu" mãi mà trang không nói vì sao — lý do chỉ nằm
+     trong log máy chủ. Nay giữ lỗi gần nhất dưới dạng MÃ CỐ ĐỊNH (không chép câu lỗi
+     gốc: câu lỗi có thể mang địa chỉ, cấu hình — bài học BUG-028), chỉ trả cho cán bộ. */
+  let dongHo;
+  const nguon = (fetchFn) => mua.taoNguonDuBao({
+    fetchFn, bayGio: () => dongHo, env: { DU_BAO_MUA_TOA_DO: '11.01,106.65' }, docDiem: async () => [], ghiLog: () => {},
+  });
+  beforeEach(() => { dongHo = BAY_GIO; });
+  const loiCua = async (kichBan) => (await nguon(fetchGia(kichBan).fn).lay()).loiGanNhat;
+  const loiTen = (ten, thongDiep = 'x') => Object.assign(new Error(thongDiep), { name: ten });
+
+  test('Open-Meteo trả mã HTTP -> ma "http" kèm mã số, ghi lúc xảy ra', async () => {
+    assert.deepEqual(await loiCua(429), { ma: 'http', maHttp: 429, luc: new Date(BAY_GIO).toISOString() });
+    assert.deepEqual(await loiCua(503), { ma: 'http', maHttp: 503, luc: new Date(BAY_GIO).toISOString() });
+  });
+
+  test('hết giờ, mất kết nối, dữ liệu lạ -> mỗi loại một mã riêng', async () => {
+    assert.equal((await loiCua(loiTen('TimeoutError'))).ma, 'het_gio');
+    assert.equal((await loiCua(loiTen('AbortError'))).ma, 'het_gio');
+    assert.equal((await loiCua(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } }))).ma, 'ket_noi');
+    assert.equal((await loiCua('{không phải json')).ma, 'du_lieu_sai');
+    assert.equal((await loiCua(JSON.stringify({ hourly: {} }))).ma, 'du_lieu_sai');
+    assert.equal((await loiCua('x'.repeat(300_000))).ma, 'du_lieu_sai');
+  });
+
+  test('không bao giờ chép câu lỗi gốc ra ngoài — chỉ ma, maHttp, luc', async () => {
+    const loi = await loiCua(new Error('connect ECONNREFUSED 10.0.0.5:3306 mat-khau=bi-mat'));
+    assert.deepEqual(Object.keys(loi).sort(), ['luc', 'ma']);
+    assert.equal(loi.ma, 'khac');
+    assert.doesNotMatch(JSON.stringify(loi), /10\.0\.0\.5|bi-mat|ECONNREFUSED/);
+  });
+
+  test('lấy lại được thì xoá lỗi; làm mới hỏng khi còn bản cũ thì vẫn báo lỗi kèm bản cũ', async () => {
+    const f = fetchGia((lan) => (lan === 1 ? 429 : lan === 2 ? chuoiGia(() => 0) : 503));
+    const n = nguon(f.fn);
+    assert.equal((await n.lay()).loiGanNhat.maHttp, 429);
+    dongHo += 6 * 60_000;
+    const tot = await n.lay();
+    assert.equal(tot.trangThai, 'co_du_lieu');
+    assert.equal(tot.loiGanNhat, undefined, 'lấy được rồi thì không còn báo lỗi cũ');
+    dongHo += 31 * 60_000;
+    const cu = await n.lay();
+    assert.equal(cu.trangThai, 'co_du_lieu');
+    assert.equal(cu.cu, true);
+    assert.equal(cu.loiGanNhat.maHttp, 503, 'đang dùng bản cũ vì làm mới hỏng — cán bộ cần biết vì sao');
+  });
+
+  test('phần cho NGƯỜI DÂN không bao giờ mang lỗi', async () => {
+    for (const kq of [
+      { trangThai: 'khong_co_du_lieu', loiGanNhat: { ma: 'http', maHttp: 429, luc: 'x' } },
+      { trangThai: 'co_du_lieu', muc: 0, cu: true, toaDo: {}, nguonToaDo: 'x', loiGanNhat: { ma: 'het_gio', luc: 'x' } },
+    ]) assert.equal('loiGanNhat' in mua.banCongKhai(kq), false);
+  });
+});
+
 describe('Chọn điểm dự báo', () => {
   const chon = async (env, diem, lay = 'lay') => {
     const f = fetchGia(chuoiGia(() => 0));
@@ -436,6 +492,20 @@ describe('API dự báo mưa', { skip: BO_QUA }, () => {
     assert.equal(r.body.nguonToaDo, 'bien_moi_truong');
     assert.equal(r.body.muc, 0);
   });
+
+  test('P61: Open-Meteo trả 429 -> người dân chỉ thấy trạng thái, cán bộ thấy lý do', async () => {
+    process.env.DU_BAO_MUA_TOA_DO = '11.01,106.65';
+    mua.thayFetchChoThu(fetchGia(429).fn);
+    const r = await congKhai();
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body, { trangThai: 'khong_co_du_lieu' });
+    mua.thayFetchChoThu(fetchGia(429).fn);
+    const c = await quanTri(CAN_BO);
+    assert.equal(c.status, 200, c.text);
+    assert.equal(c.body.trangThai, 'khong_co_du_lieu');
+    assert.equal(c.body.loiGanNhat?.ma, 'http');
+    assert.equal(c.body.loiGanNhat?.maHttp, 429);
+  });
 });
 
 describe('Giao diện dự báo mưa', () => {
@@ -505,5 +575,25 @@ describe('Giao diện dự báo mưa', () => {
     assert.equal(u.khoangGio('2026-10-15T20:00:00Z', '2026-10-15T23:00:00Z', bayGio), '03:00–06:00 ngày mai');
     assert.equal(u.khoangGio('2026-10-15T15:00:00Z', '2026-10-15T18:00:00Z', bayGio), '22:00 hôm nay – 01:00 ngày mai');
     assert.equal(u.khoangGio('2026-10-17T01:00:00Z', '2026-10-17T04:00:00Z', bayGio), '08:00–11:00 ngày 17/10');
+  });
+
+  test('P61: chuanDuBao giữ lý do lỗi hợp lệ, bỏ dữ liệu lạ', { skip: BO_QUA_TS }, async () => {
+    const u = await import(goc('src/utils/duBaoMua.ts').href);
+    const luc = '2026-10-11T18:05:00.000Z';
+    assert.deepEqual(u.chuanDuBao({ trangThai: 'khong_co_du_lieu', loiGanNhat: { ma: 'http', maHttp: 429, luc } }).loiGanNhat,
+      { ma: 'http', maHttp: 429, luc });
+    assert.equal(u.chuanDuBao({ trangThai: 'khong_co_du_lieu', loiGanNhat: { ma: '<b>la</b>', luc } }).loiGanNhat, undefined);
+    assert.equal(u.chuanDuBao({ trangThai: 'khong_co_du_lieu', loiGanNhat: { ma: 'http', maHttp: 'x', luc } }).loiGanNhat, undefined);
+    assert.equal(u.chuanDuBao({ trangThai: 'khong_co_du_lieu', loiGanNhat: { ma: 'het_gio', luc: 'khong-phai-ngay' } }).loiGanNhat, undefined);
+    assert.ok(u.moTaLoiDuBao({ ma: 'http', maHttp: 429, luc }).includes('429'));
+    for (const ma of ['http', 'het_gio', 'ket_noi', 'du_lieu_sai', 'khac']) {
+      assert.ok(u.moTaLoiDuBao({ ma, maHttp: 500, luc }).length > 20, `chưa có lời giải thích cho mã ${ma}`);
+    }
+  });
+
+  test('P61: khung dự báo chỉ hiện lý do lỗi ở trang cán bộ', async () => {
+    const ma = await readFile(goc('src/components/DuBaoMua/KhungDuBaoMua.tsx'), 'utf8');
+    assert.match(ma, /canBo\s*&&\s*d\.loiGanNhat/, 'lý do lỗi phải nằm sau điều kiện canBo');
+    assert.match(ma, /moTaLoiDuBao\(/);
   });
 });
