@@ -223,7 +223,7 @@ router.post('/trusted-devices', authorize(...LANH_DAO), async (req, res) => {
     res.status(201).json({ ok: true });
   } catch (err) {
     console.error('Thêm thiết bị tin cậy lỗi:', err.message);
-    res.status(500).json({ error: 'Không thêm được. Đã chạy nang_cap_v12.sql chưa?' });
+    res.status(500).json({ error: 'Không thêm được. Đã chạy nang_cap_v36.sql chưa?' });
   }
 });
 
