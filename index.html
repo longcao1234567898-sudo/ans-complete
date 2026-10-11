@@ -40,12 +40,8 @@
     html.san-sang #root { visibility: visible; animation: hien-muot .25s ease-out; }
     @keyframes hien-muot { from { opacity: 0 } to { opacity: 1 } }
   </style>
-  <script>
-    /* Lối thoát: 3 giây không thấy ứng dụng báo sẵn sàng thì cứ hiện */
-    setTimeout(function () {
-      document.documentElement.classList.add('san-sang');
-    }, 3000);
-  </script>
+  <!-- Lối thoát: 3 giây chưa thấy ứng dụng báo sẵn sàng thì cứ hiện. Tệp riêng vì CSP chặn script viết thẳng (ND-059) -->
+  <script src="/hien-du-phong.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1B5E20" />
     <!-- SEO -->
