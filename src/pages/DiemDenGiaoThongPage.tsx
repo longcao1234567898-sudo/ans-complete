@@ -79,9 +79,19 @@ export default function DiemDenGiaoThongPage() {
      hơn mức chung, tuyến cống tốt không báo oan */
   const nguyCoDuong = (d: DiemDen) => duongCoNguyCo(duBao, d.id);
   const nguongDuong = (d: DiemDen) => duBao?.duongNguyCo?.find((x) => x.id === d.id)?.nguong ?? null;
-  const nhanNguyCo = (d: DiemDen) => (nguongDuong(d) !== null
+  const nhanNguyCoGoc = (d: DiemDen) => (nguongDuong(d) !== null
     ? `Nguy cơ ngập — dự báo mưa dồn từ ${nguongDuong(d)} mm/3 giờ`
     : 'Nguy cơ ngập — dự báo mưa to');
+  /* Giờ nguy cơ của RIÊNG tuyến: máy chủ tính theo ngưỡng của tuyến (ngưỡng thấp báo
+     sớm hơn). Máy chủ cũ chưa có thì lấy khung mưa dồn mạnh nhất chung cho cả vùng. */
+  const gioNguyCo = (d: DiemDen) => {
+    const k = duBao?.duongNguyCo?.find((x) => x.id === d.id)?.khung ?? duBao?.dinhMua ?? null;
+    return k ? khoangGio(k.tu, k.den) : null;
+  };
+  const nhanNguyCo = (d: DiemDen) => {
+    const gio = gioNguyCo(d);
+    return gio ? `${nhanNguyCoGoc(d)}, khoảng ${gio}` : nhanNguyCoGoc(d);
+  };
 
   const ds = data ?? [];
   const taiNan = ds.filter((d) => d.loai !== 'ngap');
@@ -179,23 +189,26 @@ export default function DiemDenGiaoThongPage() {
             <p className="flex items-center gap-2 text-base font-extrabold text-orange-800 dark:text-orange-200">
               <CloudRain className="h-5 w-5" /> {nguyCoChuaXacNhan.length} tuyến đường có thể ngập theo dự báo mưa
             </p>
-            {/* Khung 3 giờ mưa dồn nhiều nhất trong 24 giờ tới — dự báo chỉ có một khung cho
-                cả vùng, không có giờ riêng từng tuyến; nước thường rút chậm hơn mưa. */}
-            {duBao?.dinhMua && (
-              <p className="mt-1 text-sm font-bold text-orange-900 dark:text-orange-100">
-                Dễ ngập nhất khoảng {khoangGio(duBao.dinhMua.tu, duBao.dinhMua.den)} (lúc mưa dồn nhiều nhất) và một lúc sau đó.
-              </p>
-            )}
-            <ul className="mt-1.5 space-y-1 text-sm text-orange-900 dark:text-orange-100">
+            <ul className="mt-1.5 space-y-1.5 text-sm text-orange-900 dark:text-orange-100">
               {nguyCoChuaXacNhan.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="relative top-[-1px] inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />
-                  <b className="font-semibold">{d.ten}</b>
-                  <span className="text-xs text-orange-800/90 dark:text-orange-200/90">{nhanNguyCo(d)}{d.diaBan ? ` · ${d.diaBan}` : ''}</span>
+                <li key={d.id} className="flex gap-2">
+                  <span className="mt-[7px] inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <b className="font-semibold">{d.ten}</b>
+                      {gioNguyCo(d) && (
+                        <span className="rounded-md bg-orange-200/70 px-1.5 font-bold text-orange-900 dark:bg-orange-800/50 dark:text-orange-100">
+                          khoảng {gioNguyCo(d)}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-orange-800/90 dark:text-orange-200/90">{nhanNguyCoGoc(d)}{d.diaBan ? ` · ${d.diaBan}` : ''}</span>
+                  </div>
                 </li>
               ))}
             </ul>
             <p className="mt-2 text-xs text-orange-800/90 dark:text-orange-200/90">
+              Giờ ghi là lúc dự báo mưa dồn đạt ngưỡng của từng tuyến — nước có thể còn đọng một lúc sau đó.
               Dự báo tự động, chưa có cán bộ xác nhận đang ngập. Đi qua các tuyến này hãy quan sát kỹ; hết mưa to danh sách tự mất.
             </p>
           </div>

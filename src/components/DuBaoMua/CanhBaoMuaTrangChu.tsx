@@ -35,8 +35,8 @@ export default function CanhBaoMuaTrangChu() {
           {data.dinhMua && (data.mua3hLonNhat ?? 0) > 0 ? `, nhiều nhất ${khoangGio(data.dinhMua.tu, data.dinhMua.den)}` : ''}
           {' — '}
           {soTuyen > 0
-            /* P65: kể tên (tối đa 3) — người đọc biết ngay đường mình hay đi có trong đó không */
-            ? `có thể ngập: ${data.duongNguyCo!.slice(0, 3).map((x) => x.ten).join(', ')}${soTuyen > 3 ? ` và ${soTuyen - 3} tuyến khác` : ''}.`
+            /* P65: kể tên (tối đa 3) kèm giờ riêng từng tuyến — người đọc biết ngay đường mình hay đi có trong đó không, lúc nào */
+            ? `có thể ngập: ${data.duongNguyCo!.slice(0, 3).map((x) => (x.khung ? `${x.ten} (${khoangGio(x.khung.tu, x.khung.den)})` : x.ten)).join(', ')}${soTuyen > 3 ? ` và ${soTuyen - 3} tuyến khác` : ''}.`
             : 'các tuyến đường hay ngập có thể bị ngập.'}
         </span>
         <span className={`inline-flex items-center gap-1 text-sm font-bold underline ${h.chu}`}>

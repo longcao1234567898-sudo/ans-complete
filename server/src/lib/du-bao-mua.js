@@ -224,7 +224,35 @@ export function tinhMuc(chuoi, bayGioMs) {
       tu: new Date((mocDau - 3600) * 1000).toISOString(),
       den: new Date((mocDau + 2 * 3600) * 1000).toISOString(),
     },
+    /* Mưa từng giờ trong phần được xét (ket = mốc KẾT THÚC của giờ) — để tính khung giờ
+       nguy cơ riêng từng tuyến theo ngưỡng của tuyến đó (khungMuaDon). Chỉ dùng trong
+       máy chủ: banCongKhai bỏ đi. */
+    muaTheoGio: s.slice(batDau).map((mm, j) => ({ ket: gioHienTai + (batDau + j - (GIO_DA_QUA - 1)) * 3600, mm })),
   };
+}
+
+/**
+ * Khung giờ mưa dồn đạt `nguong` (mm/3 giờ): từ giờ CÓ MƯA đầu tiên tới giờ có mưa
+ * cuối cùng của các khung 3 giờ đạt ngưỡng. Cắt các giờ không mưa ở hai đầu khung —
+ * khung 3 giờ chỉ có một giờ mưa thì báo đúng giờ đó, không báo rộng ra 3 giờ. Hai đợt
+ * mưa đều đạt thì từ đợt đầu tới đợt cuối (người dân cần biết lúc nào thôi phải để ý).
+ * Không khung nào đạt -> null: không bịa giờ.
+ */
+export function khungMuaDon(muaTheoGio, nguong) {
+  if (!Array.isArray(muaTheoGio)) return null;
+  let tu = null;
+  let den = null;
+  for (let i = 0; i + 3 <= muaTheoGio.length; i += 1) {
+    const ba = muaTheoGio.slice(i, i + 3);
+    const t = lam1(ba.reduce((x, y) => x + y.mm, 0));
+    if (t <= 0 || t < nguong) continue;
+    const coMua = ba.filter((x) => x.mm > 0);
+    const dau = coMua[0].ket - 3600;
+    const cuoi = coMua[coMua.length - 1].ket;
+    if (tu === null || dau < tu) tu = dau;
+    if (den === null || cuoi > den) den = cuoi;
+  }
+  return tu === null ? null : { tu: new Date(tu * 1000).toISOString(), den: new Date(den * 1000).toISOString() };
 }
 
 /* ------------------------------ Chọn điểm dự báo ------------------------------ */
@@ -494,7 +522,7 @@ export const thayFetchChoThu = (fn) => duBaoMua.thayMang(fn);
  */
 export function banCongKhai(kq) {
   if (kq.trangThai !== 'co_du_lieu') return { trangThai: kq.trangThai };
-  const { toaDo: _toaDo, nguonToaDo: _nguon, loiGanNhat: _loi, duPhong: _duPhong, ...con } = kq;
+  const { toaDo: _toaDo, nguonToaDo: _nguon, loiGanNhat: _loi, duPhong: _duPhong, muaTheoGio: _gio, ...con } = kq;
   return { ...con, nguon: nguonGhiCong(kq) };
 }
 

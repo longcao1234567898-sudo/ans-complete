@@ -32,12 +32,12 @@ test('bản đồ: tuyến nguy cơ có vòng nhấp nháy, vẽ trên cùng; t�
 
 test('dải cảnh báo trang chủ kể tên tuyến có nguy cơ', async () => {
   const ma = await doc('src/components/DuBaoMua/CanhBaoMuaTrangChu.tsx');
-  assert.match(ma, /duongNguyCo[\s\S]*\.map\(\(x\) => x\.ten\)/);
+  assert.match(ma, /duongNguyCo[\s\S]*\.map\(\(x\) => \(x\.khung \? `\$\{x\.ten\} \(\$\{khoangGio\(x\.khung\.tu, x\.khung\.den\)\}\)` : x\.ten\)\)/, 'kể tên kèm giờ từng tuyến');
 });
 
-test('khối nguy cơ nói KHOẢNG GIỜ dễ ngập nhất (khung mưa dồn của dự báo), không có khung thì không bịa', async () => {
+test('khối nguy cơ nói KHOẢNG GIỜ của từng tuyến; máy chủ cũ thì khung mưa dồn chung; không có thì không bịa', async () => {
   const ma = await doc('src/pages/DiemDenGiaoThongPage.tsx');
   const khoi = ma.slice(ma.indexOf('data-khoi="nguy-co-ngap"'), ma.indexOf('data-khoi="nguy-co-ngap"') + 2500);
-  assert.match(khoi, /duBao\?\.dinhMua\s*&&/, 'chỉ ghi giờ khi máy chủ có khung mưa dồn');
-  assert.match(khoi, /khoangGio\(duBao\.dinhMua\.tu,\s*duBao\.dinhMua\.den\)/);
+  assert.match(khoi, /\{gioNguyCo\(d\) &&/, 'chỉ ghi giờ khi có khung');
+  assert.match(ma, /\?\.khung \?\? duBao\?\.dinhMua \?\? null/, 'giờ riêng của tuyến trước, khung chung sau');
 });

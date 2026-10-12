@@ -19,6 +19,9 @@ export interface LoiDuBao {
   luc: string;
 }
 
+export interface KhungGio { tu: string; den: string }
+export interface DuongNguyCo { id: number; ten: string; nguong: number | null; khung?: KhungGio }
+
 export interface DuBaoMua {
   trangThai: TrangThaiDuBao;
   muc?: MucMua;
@@ -40,7 +43,8 @@ export interface DuBaoMua {
    * tuyến nếu lãnh đạo đã đặt (P53), không thì theo mức chung. nguong null = mức chung.
    * Vắng (máy chủ cũ) -> giao diện tự theo mức chung.
    */
-  duongNguyCo?: { id: number; ten: string; nguong: number | null }[];
+  /** khung: giờ nguy cơ của RIÊNG tuyến đó (theo ngưỡng của tuyến); máy chủ cũ không có */
+  duongNguyCo?: DuongNguyCo[];
   /** Chỉ có ở API cán bộ */
   toaDo?: { lat: number; lng: number };
   nguonToaDo?: 'bien_moi_truong' | 'duong_hay_ngap' | 'diem_den';
@@ -54,6 +58,9 @@ export interface DuBaoMua {
 
 const TRANG_THAI: TrangThaiDuBao[] = ['co_du_lieu', 'khong_co_du_lieu', 'chua_cau_hinh', 'tat', 'cau_hinh_sai'];
 const laSo = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0;
+const khungHopLe = (k: unknown): k is KhungGio => Boolean(k) && typeof k === 'object'
+  && typeof (k as KhungGio).tu === 'string' && typeof (k as KhungGio).den === 'string'
+  && !Number.isNaN(Date.parse((k as KhungGio).tu)) && !Number.isNaN(Date.parse((k as KhungGio).den));
 const KHONG_CO: DuBaoMua = { trangThai: 'khong_co_du_lieu' };
 const MA_LOI: LoiDuBao['ma'][] = ['http', 'het_gio', 'ket_noi', 'du_lieu_sai', 'khac'];
 
@@ -94,9 +101,11 @@ export function chuanDuBao(x: unknown): DuBaoMua {
     ? { tu: dinh.tu, den: dinh.den }
     : null;
   const duongNguyCo = Array.isArray(d.duongNguyCo)
-    ? d.duongNguyCo.filter((x): x is { id: number; ten: string; nguong: number | null } => Boolean(x)
+    ? d.duongNguyCo.filter((x): x is DuongNguyCo => Boolean(x)
       && typeof x === 'object' && Number.isInteger((x as { id: unknown }).id) && typeof (x as { ten: unknown }).ten === 'string'
       && ((x as { nguong: unknown }).nguong === null || laSo((x as { nguong: unknown }).nguong)))
+      /* Khung giờ lạ thì bỏ riêng khung, vẫn giữ tuyến (tuyến vẫn có nguy cơ) */
+      .map(({ id, ten, nguong, khung }) => (khungHopLe(khung) ? { id, ten, nguong, khung: { tu: khung.tu, den: khung.den } } : { id, ten, nguong }))
     : undefined;
   return {
     ...(d as unknown as DuBaoMua),

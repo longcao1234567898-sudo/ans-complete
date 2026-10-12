@@ -21,6 +21,8 @@
  * Chưa chạy nang_cap_v34.sql: không có ngưỡng riêng, mọi tuyến theo mức chung,
  * không ghi lịch sử — không lỗi.
  */
+import { khungMuaDon } from './du-bao-mua.js';
+
 export const NGUONG_TOI_THIEU = 5;
 export const NGUONG_TOI_DA = 300;
 const SO_LAN_TOI_THIEU = 3;
@@ -104,6 +106,14 @@ export async function duongNguyCo(pool, kq) {
       if (kq.muc >= 3) return true;
       if (d.nguong !== null) return Number(kq.mua3hLonNhat) >= d.nguong;
       return kq.muc >= 2;
+    })
+    .map((d) => {
+      /* Khung giờ của RIÊNG tuyến này: tuyến đạt ngưỡng riêng -> lúc mưa dồn đạt ngưỡng
+         đó (ngưỡng thấp báo sớm hơn); tuyến chưa có ngưỡng hay báo vì lưới an toàn ->
+         lúc mưa dồn mạnh nhất. Không tính được thì không kèm giờ. */
+      const datRieng = d.nguong !== null && Number(kq.mua3hLonNhat) >= d.nguong;
+      const khung = khungMuaDon(kq.muaTheoGio, datRieng ? d.nguong : Number(kq.mua3hLonNhat));
+      return khung ? { ...d, khung } : d;
     });
 }
 

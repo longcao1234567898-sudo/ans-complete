@@ -282,9 +282,11 @@ router.patch('/:id/ngap', authorize(), async (req, res) => {
 router.get('/du-bao-mua', authorize(), async (_req, res) => {
   try {
     const kq = await duBaoMua.lay();
+    /* Chuỗi mưa theo giờ chỉ để tính khung giờ từng tuyến — không gửi đi */
+    const { muaTheoGio: _gio, ...ra } = kq;
     res.json(kq.trangThai === 'co_du_lieu'
-      ? { ...kq, nguon: nguonGhiCong(kq), duongNguyCo: await duongNguyCo(pool, kq).catch(() => []) }
-      : kq);
+      ? { ...ra, nguon: nguonGhiCong(kq), duongNguyCo: await duongNguyCo(pool, kq).catch(() => []) }
+      : ra);
   } catch (err) {
     console.error('Lỗi dự báo mưa:', err.message);
     res.json({ trangThai: 'khong_co_du_lieu' });
