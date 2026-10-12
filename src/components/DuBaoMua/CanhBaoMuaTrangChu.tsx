@@ -43,7 +43,7 @@ export default function CanhBaoMuaTrangChu() {
           Xem đường hay ngập <ArrowRight className="h-4 w-4" />
         </span>
         <span className="w-full text-[11px] text-slate-500 dark:text-slate-400">
-          Dự báo tự động, cập nhật {data.capNhatLuc ? gioCapNhat(data.capNhatLuc) : '—'} · Dữ liệu thời tiết: Open-Meteo.com
+          Dự báo tự động, cập nhật {data.capNhatLuc ? gioCapNhat(data.capNhatLuc) : '—'} · Dữ liệu thời tiết: {data.nguonDuLieu === 'met-no' ? 'MET Norway' : 'Open-Meteo.com'}
         </span>
       </Link>
     </div>

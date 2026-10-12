@@ -186,3 +186,9 @@ describe('Giao diện đọc dữ liệu nguồn dự phòng', () => {
     assert.match(u.moTaDuPhong({ ma: 'http', maHttp: 429, luc }), /MET Norway.*429.*24 giờ tới/s);
   });
 });
+
+test('dải cảnh báo trang chủ ghi công đúng nguồn đang dùng, không cố định Open-Meteo', async () => {
+  const dai = await readFile(new URL('../../src/components/DuBaoMua/CanhBaoMuaTrangChu.tsx', import.meta.url), 'utf8');
+  assert.match(dai, /nguonDuLieu\s*===\s*'met-no'\s*\?\s*'MET Norway'/, 'phải đổi tên nguồn theo nguonDuLieu');
+  assert.doesNotMatch(dai, /Dữ liệu thời tiết: Open-Meteo\.com/, 'không được ghi cố định Open-Meteo khi đang dùng dự phòng');
+});
