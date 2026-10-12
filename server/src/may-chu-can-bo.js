@@ -22,6 +22,7 @@
 import 'dotenv/config';
 import { pool } from './db.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
+import { batGiuThuc } from './lib/giu-thuc.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { layIpThat } from './lib/helpers.js';
 import { taoApp, ganDuoi, chanTheoIp } from './nen-tang.js';
@@ -56,6 +57,8 @@ async function start() {
      nào. Bật TRƯỚC khi kiểm kết nối: CSDL chưa lên thì lượt đầu ghi lỗi, các
      chu kỳ sau tự thử lại. Xem lib/vong-doi-dau-noi.js. */
   batTuDonDauNoi(pool);
+  /* Render gói miễn phí: tự gọi chính mình để không ngủ sau 15 phút vắng — chỉ khi GIU_THUC=1 (lib/giu-thuc.js). */
+  batGiuThuc();
   try {
     await pool.query('SELECT 1');
     console.log('✅ [cán bộ] Kết nối MySQL thành công');

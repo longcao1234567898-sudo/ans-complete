@@ -187,6 +187,23 @@ này nên làm trong một phiên Claude có kiểm, vì sai header là mất l�
 
 ---
 
+## Máy chủ trên Render ngủ sau 15 phút — giữ cho chạy liên tục
+
+Render **gói miễn phí** cho máy chủ ngủ khi 15 phút không có ai gọi. Người mở trang
+đầu tiên sau đó phải chờ 30–60 giây; trang tưởng máy chủ hỏng và bật trang dự phòng.
+Ba cách, chọn một:
+
+| Cách | Làm gì | Ghi chú |
+|---|---|---|
+| **Gói trả phí** (khuyên dùng khi chạy thật) | Render → dịch vụ → Settings → Instance Type → Starter | Không bao giờ ngủ. Cần cho trường hợp chạy **hai** máy chủ (công khai + cán bộ). |
+| **GIU_THUC=1** (miễn phí) | Render → dịch vụ → Environment → thêm `GIU_THUC` = `1` → Save | Máy chủ tự gọi `/api/health` của chính nó mỗi 10 phút. Log khởi động có dòng "☕ Giữ thức: BẬT". |
+| Chuyển sang máy chủ riêng | Phần B dưới đây | Không ngủ, có IP riêng (hết luôn lỗi 429 của dự báo mưa). |
+
+⚠️ **GIU_THUC chỉ bật cho MỘT dịch vụ miễn phí trên cả tài khoản Render.** Gói miễn
+phí có 750 giờ chạy mỗi tháng cho mọi dịch vụ miễn phí cộng lại; một dịch vụ thức
+suốt tháng đã tốn khoảng 744 giờ. Bật cho hai dịch vụ (kể cả web khác cùng tài khoản)
+là hết giờ giữa tháng và Render **dừng mọi dịch vụ miễn phí** tới đầu tháng sau.
+
 ## Phần B — Dựng máy chủ trên Viettel Cloud (thay Render)
 
 Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên máy chủ ảo (VPS) của Viettel,
