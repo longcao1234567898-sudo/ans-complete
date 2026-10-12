@@ -24,7 +24,7 @@ import SpeakButton from '../components/common/SpeakButton';
 import { linkChiDuong, dinhDangGioNgap } from '../utils/duongNgap';
 import KhungDuBaoMua from '../components/DuBaoMua/KhungDuBaoMua';
 import { useDuBaoMua } from '../hooks/useDuBaoMua';
-import { coNguyCoNgap, duongCoNguyCo, HIEN_MUC, type MucMua } from '../utils/duBaoMua';
+import { coNguyCoNgap, duongCoNguyCo, HIEN_MUC, khoangGio, type MucMua } from '../utils/duBaoMua';
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '') || '';
 /* Tâm bản đồ: phường Chánh Hiệp, TP. Hồ Chí Minh (khu vực Định Hoà và
@@ -179,6 +179,13 @@ export default function DiemDenGiaoThongPage() {
             <p className="flex items-center gap-2 text-base font-extrabold text-orange-800 dark:text-orange-200">
               <CloudRain className="h-5 w-5" /> {nguyCoChuaXacNhan.length} tuyến đường có thể ngập theo dự báo mưa
             </p>
+            {/* Khung 3 giờ mưa dồn nhiều nhất trong 24 giờ tới — dự báo chỉ có một khung cho
+                cả vùng, không có giờ riêng từng tuyến; nước thường rút chậm hơn mưa. */}
+            {duBao?.dinhMua && (
+              <p className="mt-1 text-sm font-bold text-orange-900 dark:text-orange-100">
+                Dễ ngập nhất khoảng {khoangGio(duBao.dinhMua.tu, duBao.dinhMua.den)} (lúc mưa dồn nhiều nhất) và một lúc sau đó.
+              </p>
+            )}
             <ul className="mt-1.5 space-y-1 text-sm text-orange-900 dark:text-orange-100">
               {nguyCoChuaXacNhan.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-baseline gap-x-2">
