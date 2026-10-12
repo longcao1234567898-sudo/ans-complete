@@ -34,7 +34,10 @@ export default function CanhBaoMuaTrangChu() {
           {data.muc === 3 ? 'Dự báo mưa rất to' : data.muc === 2 ? 'Dự báo mưa to' : 'Dự báo mưa dồn'}
           {data.dinhMua && (data.mua3hLonNhat ?? 0) > 0 ? `, nhiều nhất ${khoangGio(data.dinhMua.tu, data.dinhMua.den)}` : ''}
           {' — '}
-          {soTuyen > 0 ? `${soTuyen} tuyến đường hay ngập có thể bị ngập.` : 'các tuyến đường hay ngập có thể bị ngập.'}
+          {soTuyen > 0
+            /* P65: kể tên (tối đa 3) — người đọc biết ngay đường mình hay đi có trong đó không */
+            ? `có thể ngập: ${data.duongNguyCo!.slice(0, 3).map((x) => x.ten).join(', ')}${soTuyen > 3 ? ` và ${soTuyen - 3} tuyến khác` : ''}.`
+            : 'các tuyến đường hay ngập có thể bị ngập.'}
         </span>
         <span className={`inline-flex items-center gap-1 text-sm font-bold underline ${h.chu}`}>
           Xem đường hay ngập <ArrowRight className="h-4 w-4" />

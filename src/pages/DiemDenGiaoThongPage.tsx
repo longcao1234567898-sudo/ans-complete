@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNgonNgu } from '../i18n/useNgonNgu';
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { TriangleAlert, Loader2, Info, MapPin, Waves, Navigation } from 'lucide-react';
+import { TriangleAlert, Loader2, Info, MapPin, Waves, Navigation, CloudRain } from 'lucide-react';
 import PageBackground from '../components/common/PageBackground';
 import SpeakButton from '../components/common/SpeakButton';
 import { linkChiDuong, dinhDangGioNgap } from '../utils/duongNgap';
@@ -87,6 +87,10 @@ export default function DiemDenGiaoThongPage() {
   const taiNan = ds.filter((d) => d.loai !== 'ngap');
   const ngap = ds.filter((d) => d.loai === 'ngap');
   const dangNgap = ngap.filter((d) => d.dangNgap);
+  /* P65: tuyến có nguy cơ theo dự báo mà cán bộ CHƯA xác nhận đang ngập — có khối riêng
+     ở đầu trang và vòng nhấp nháy trên bản đồ. Tự hiện khi dự báo vượt ngưỡng của tuyến,
+     tự mất khi hết; không bao giờ thành "đang ngập" (ADR-004 §5). */
+  const nguyCoChuaXacNhan = ngap.filter((d) => !d.dangNgap && nguyCoDuong(d));
   const coToaDo = ds.filter((d) => d.lat !== null && d.lng !== null);
   const tongVu = taiNan.reduce((s, d) => s + d.soVu, 0);
   const tongTuVong = taiNan.reduce((s, d) => s + d.soTuVong, 0);
@@ -168,6 +172,28 @@ export default function DiemDenGiaoThongPage() {
           </div>
         )}
 
+        {/* NGUY CƠ NGẬP THEO DỰ BÁO (P65) — sau báo ngập đã xác nhận: thông tin cần biết
+            trước khi ra đường lúc sắp mưa to. Màu cam, lời lẽ "có thể ngập", không khẳng định. */}
+        {nguyCoChuaXacNhan.length > 0 && (
+          <div data-khoi="nguy-co-ngap" className="mb-5 rounded-2xl border-2 border-orange-400 bg-orange-50 p-4 dark:border-orange-700 dark:bg-orange-900/20">
+            <p className="flex items-center gap-2 text-base font-extrabold text-orange-800 dark:text-orange-200">
+              <CloudRain className="h-5 w-5" /> {nguyCoChuaXacNhan.length} tuyến đường có thể ngập theo dự báo mưa
+            </p>
+            <ul className="mt-1.5 space-y-1 text-sm text-orange-900 dark:text-orange-100">
+              {nguyCoChuaXacNhan.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="relative top-[-1px] inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />
+                  <b className="font-semibold">{d.ten}</b>
+                  <span className="text-xs text-orange-800/90 dark:text-orange-200/90">{nhanNguyCo(d)}{d.diaBan ? ` · ${d.diaBan}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-orange-800/90 dark:text-orange-200/90">
+              Dự báo tự động, chưa có cán bộ xác nhận đang ngập. Đi qua các tuyến này hãy quan sát kỹ; hết mưa to danh sách tự mất.
+            </p>
+          </div>
+        )}
+
         {/* DỰ BÁO MƯA (P51) — sau báo ngập đã xác nhận, trước danh sách. Hiện cả khi
             danh sách điểm chưa tải được: dự báo không phụ thuộc danh sách. */}
         <KhungDuBaoMua soDuongHayNgap={ngap.length} />
@@ -227,7 +253,14 @@ export default function DiemDenGiaoThongPage() {
                     attribution="&copy; OpenStreetMap"
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                  {coToaDo.map((d) => {
+                  {/* Vòng nhấp nháy quanh tuyến có nguy cơ (P65) — vẽ trước để chấm nằm trên */}
+                  {nguyCoChuaXacNhan.filter((d) => d.lat !== null && d.lng !== null).map((d) => (
+                    /* className truyền thẳng (tuỳ chọn lúc tạo): qua pathOptions thì Leaflet không gắn lớp */
+                    <CircleMarker key={'vong-' + d.id} center={[d.lat!, d.lng!]} radius={20} interactive={false} className="vong-nguy-co"
+                      pathOptions={{ color: '#ea580c', fill: false, weight: 3 }} />
+                  ))}
+                  {/* Tuyến nguy cơ / đang ngập vẽ sau cùng để nằm trên các điểm khác */}
+                  {[...coToaDo].sort((a, b) => Number(Boolean(a.dangNgap) || nguyCoDuong(a)) - Number(Boolean(b.dangNgap) || nguyCoDuong(b))).map((d) => {
                     const laNgap = d.loai === 'ngap';
                     /* Đường hay ngập: xanh dương; nguy cơ theo dự báo: cam; ĐANG ngập: đỏ đậm, to hơn */
                     const mau = laNgap ? (d.dangNgap ? '#dc2626' : nguyCoDuong(d) ? '#ea580c' : '#0ea5e9') : MUC[d.mucDo].mau;
@@ -235,11 +268,11 @@ export default function DiemDenGiaoThongPage() {
                       <CircleMarker
                         key={d.id}
                         center={[d.lat!, d.lng!]}
-                        radius={laNgap ? (d.dangNgap ? 14 : 9) : 8 + Math.min(14, d.soVu * 2)}
+                        radius={laNgap ? (d.dangNgap ? 14 : nguyCoDuong(d) ? 12 : 9) : 8 + Math.min(14, d.soVu * 2)}
                         pathOptions={{
                           color: mau,
                           fillColor: mau,
-                          fillOpacity: laNgap && d.dangNgap ? 0.8 : 0.55,
+                          fillOpacity: laNgap && (d.dangNgap || nguyCoDuong(d)) ? 0.8 : 0.55,
                           weight: 2,
                         }}
                       >

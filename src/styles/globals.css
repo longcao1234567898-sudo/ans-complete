@@ -381,3 +381,14 @@ h1, h2, h3, h4, h5, h6 {
   padding-top: 0.15em;
   overflow: visible;
 }
+
+/* Vòng nhấp nháy quanh tuyến có nguy cơ ngập trên bản đồ (P65). Chỉ đổi độ đậm và độ dày
+   nét — phần tử SVG của Leaflet đổi transform thì lệch tâm. Giảm chuyển động: vòng đứng yên. */
+.vong-nguy-co { animation: vong-nguy-co 1.6s ease-out infinite; }
+@keyframes vong-nguy-co {
+  0% { stroke-opacity: .9; stroke-width: 3; }
+  100% { stroke-opacity: 0; stroke-width: 16; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vong-nguy-co { animation: none; stroke-opacity: .6; }
+}
