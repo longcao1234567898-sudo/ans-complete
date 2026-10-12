@@ -10,7 +10,7 @@ import { CloudRain, Info, MapPin } from 'lucide-react';
 import SpeakButton from '../common/SpeakButton';
 import { useDuBaoMua } from '../../hooks/useDuBaoMua';
 import {
-  HIEN_MUC, MO_TA_MUC, coNguyCoNgap, gioCapNhat, khoangGio, moTaLoiDuBao, soMm, type MucMua,
+  HIEN_MUC, MO_TA_MUC, coNguyCoNgap, gioCapNhat, khoangGio, moTaDuPhong, moTaLoiDuBao, soMm, type MucMua,
 } from '../../utils/duBaoMua';
 
 const NGUON_TOA_DO: Record<string, string> = {
@@ -21,13 +21,20 @@ const NGUON_TOA_DO: Record<string, string> = {
 
 const BAN_TIN_CHINH_THUC = 'https://nchmf.gov.vn/';
 
-function GhiChuNguon() {
+/* Ghi công theo CC BY 4.0 đúng nguồn đang dùng (P64: Open-Meteo hoặc dự phòng MET Norway) */
+const NGUON_HIEN = {
+  'open-meteo': { ten: 'Open-Meteo.com', url: 'https://open-meteo.com/' },
+  'met-no': { ten: 'MET Norway', url: 'https://www.met.no/en' },
+} as const;
+
+function GhiChuNguon({ nguon = 'open-meteo' }: { nguon?: keyof typeof NGUON_HIEN }) {
+  const n = NGUON_HIEN[nguon] ?? NGUON_HIEN['open-meteo'];
   return (
     <p className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
       Dự báo tự động từ mô hình thời tiết, có thể sai lệch — nhất là với mưa dông. Bản tin chính thức:{' '}
       <a href={BAN_TIN_CHINH_THUC} target="_blank" rel="noopener noreferrer" className="underline">nchmf.gov.vn</a>.
       {' '}Dữ liệu thời tiết:{' '}
-      <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline">Open-Meteo.com</a>
+      <a href={n.url} target="_blank" rel="noopener noreferrer" className="underline">{n.ten}</a>
       {' '}(<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>).
     </p>
   );
@@ -161,6 +168,9 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
       {canBo && d.loiGanNhat && (
         <p className="mt-0.5 text-[11px] text-amber-800 dark:text-amber-300">{moTaLoiDuBao(d.loiGanNhat)}</p>
       )}
+      {canBo && d.duPhong && (
+        <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">{moTaDuPhong(d.duPhong)}</p>
+      )}
 
       <details className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
         <summary className="cursor-pointer select-none font-semibold">
@@ -181,7 +191,7 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
         </ul>
       </details>
 
-      <GhiChuNguon />
+      <GhiChuNguon nguon={d.nguonDuLieu} />
     </section>
   );
 }

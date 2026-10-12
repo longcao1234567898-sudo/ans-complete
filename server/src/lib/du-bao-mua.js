@@ -33,6 +33,18 @@ import { thieuCotNgap } from './duong-ngap.js';
 /** Địa chỉ DUY NHẤT được gọi — cố định, không ghép từ dữ liệu người dùng */
 export const NGUON_URL = 'https://api.open-meteo.com/v1/forecast';
 
+/**
+ * NGUỒN DỰ PHÒNG — MET Norway (viện khí tượng Na Uy, Locationforecast 2.0, P64).
+ * Open-Meteo giới hạn lượt gọi theo IP; Render gói miễn phí dùng chung IP với rất
+ * nhiều web nên hay bị 429 dù mình chỉ gọi 30 phút một lần. Open-Meteo lỗi thì lấy từ
+ * đây: miễn phí, không cần khoá, phủ toàn cầu, nhưng BẮT BUỘC User-Agent có cách liên
+ * hệ (thiếu là bị chặn 403). Dữ liệu CC BY 4.0 — giao diện ghi công "MET Norway".
+ * Không có số mưa đã qua: dùng nguồn này thì mức chỉ tính theo 24 giờ tới.
+ * Tắt: DU_BAO_MUA_DU_PHONG=tat.
+ */
+export const NGUON_DU_PHONG_URL = 'https://api.met.no/weatherapi/locationforecast/2.0/compact';
+const UA_DU_PHONG = 'HopThuAnNinhSo/1.0 github.com/longcao1234567898-sudo/ans-complete';
+
 export const LAM_MOI_SAU_MS = 30 * 60_000;
 /** Bản cũ dùng tạm khi không làm mới được. Quá 3 giờ thì thà không báo còn hơn báo cũ. */
 export const DUNG_BAN_CU_TOI_DA_MS = 3 * 3_600_000;
@@ -103,6 +115,35 @@ export function kiemPhanHoi(d) {
   return { gio: [...h.time], mua: [...h.precipitation] };
 }
 
+/**
+ * Kiểm phản hồi MET Norway (compact). Sai bất kỳ điểm nào -> ném lỗi.
+ * MET ghi mưa của giờ (t, t+1h] ở mốc t (next_1_hours); đổi về quy ước của Open-Meteo
+ * (mốc = giờ KẾT THÚC). Chỉ lấy đoạn theo giờ liền nhau ở đầu; tới mốc không có
+ * next_1_hours (chuyển sang bước 6 giờ) thì dừng. coGioQua: false = không có giờ đã qua.
+ */
+export function kiemPhanHoiMetNo(d) {
+  const ts = d?.properties?.timeseries;
+  if (!Array.isArray(ts) || ts.length === 0 || ts.length > 24 * 16) throw new Error('thiếu properties.timeseries');
+  const donVi = d.properties.meta?.units?.precipitation_amount;
+  if (donVi !== undefined && donVi !== 'mm') throw new Error(`đơn vị lượng mưa lạ: ${String(donVi).slice(0, 20)}`);
+  const gio = [];
+  const mua = [];
+  for (const muc of ts) {
+    const ms = Date.parse(muc?.time);
+    if (!Number.isFinite(ms) || ms % 3_600_000 !== 0) throw new Error('mốc giờ không hợp lệ');
+    const chiTiet = muc?.data?.next_1_hours?.details;
+    if (!chiTiet) break;
+    const v = chiTiet.precipitation_amount;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > MUA_GIO_TOI_DA) throw new Error('lượng mưa không hợp lệ');
+    const ket = ms / 1000 + 3600;
+    if (gio.length && ket !== gio[gio.length - 1] + 3600) break;
+    gio.push(ket);
+    mua.push(v);
+  }
+  if (!gio.length) throw new Error('không có dữ liệu theo giờ');
+  return { gio, mua, coGioQua: false };
+}
+
 function xetNguong(giaTri, ng, nhan) {
   if (giaTri > ng.ratTo) return [3, `${nhan} khoảng ${giaTri} mm — mưa rất to (trên ${ng.ratTo} mm)`];
   if (giaTri > ng.to) return [2, `${nhan} khoảng ${giaTri} mm — mưa to (trên ${ng.to} mm)`];
@@ -116,19 +157,31 @@ function xetNguong(giaTri, ng, nhan) {
  */
 export function tinhMuc(chuoi, bayGioMs) {
   const gioHienTai = Math.floor(bayGioMs / 3_600_000) * 3600;
-  const dau = chuoi.gio.indexOf(gioHienTai - (GIO_DA_QUA - 1) * 3600);
-  if (dau < 0 || dau + DO_DAI_KHUNG > chuoi.gio.length) return null;
-  const s = chuoi.mua.slice(dau, dau + DO_DAI_KHUNG);
+  /* Nguồn không có giờ đã qua (MET Norway): ba ô "vừa qua" đặt 0 CHỈ để giữ nguyên chỉ
+     số trong khung; mọi phép quét bắt đầu từ ô đầu của 24 giờ tới (batDau) nên số 0 đó
+     không vào tổng nào, và các số "vừa qua" trả null — không phải 0. */
+  const coGioQua = chuoi.coGioQua !== false;
+  let s;
+  if (coGioQua) {
+    const dau = chuoi.gio.indexOf(gioHienTai - (GIO_DA_QUA - 1) * 3600);
+    if (dau < 0 || dau + DO_DAI_KHUNG > chuoi.gio.length) return null;
+    s = chuoi.mua.slice(dau, dau + DO_DAI_KHUNG);
+  } else {
+    const dau = chuoi.gio.indexOf(gioHienTai + 3600);
+    if (dau < 0 || dau + GIO_TOI > chuoi.gio.length) return null;
+    s = [...new Array(GIO_DA_QUA).fill(0), ...chuoi.mua.slice(dau, dau + GIO_TOI)];
+  }
   if (s.some((v) => v === null)) return null;
+  const batDau = coGioQua ? 0 : GIO_DA_QUA;
 
   const tong = (a, b) => lam1(s.slice(a, b).reduce((x, y) => x + y, 0));
   const mua24h = tong(GIO_DA_QUA, DO_DAI_KHUNG);
-  const mua3hVuaQua = tong(0, GIO_DA_QUA);
+  const mua3hVuaQua = coGioQua ? tong(0, GIO_DA_QUA) : null;
   let mua12hLonNhat = 0;
-  for (let i = 0; i + 12 <= DO_DAI_KHUNG; i += 1) mua12hLonNhat = Math.max(mua12hLonNhat, tong(i, i + 12));
+  for (let i = batDau; i + 12 <= DO_DAI_KHUNG; i += 1) mua12hLonNhat = Math.max(mua12hLonNhat, tong(i, i + 12));
   let mua3hLonNhat = 0;
   let dinh = -1;
-  for (let i = 0; i + 3 <= DO_DAI_KHUNG; i += 1) {
+  for (let i = batDau; i + 3 <= DO_DAI_KHUNG; i += 1) {
     const t = tong(i, i + 3);
     if (t > mua3hLonNhat) { mua3hLonNhat = t; dinh = i; }
   }
@@ -155,7 +208,7 @@ export function tinhMuc(chuoi, bayGioMs) {
   }
 
   /* Mốc giờ t mang lượng mưa của giờ (t − 1h, t] -> khung 3 mốc bắt đầu từ mốc đầu − 1h */
-  const mocDau = chuoi.gio[dau + dinh];
+  const mocDau = gioHienTai + (dinh - (GIO_DA_QUA - 1)) * 3600;
   return {
     muc,
     ma,
@@ -285,8 +338,20 @@ export function taoUrlDuBao(toaDo) {
   return url.toString();
 }
 
+/** URL gọi MET Norway: host, đường dẫn cố định; chỉ có toạ độ là số đã kiểm, làm tròn. */
+export function taoUrlDuPhong(toaDo) {
+  const url = new URL(NGUON_DU_PHONG_URL);
+  url.search = new URLSearchParams({ lat: Number(toaDo.lat).toFixed(2), lon: Number(toaDo.lng).toFixed(2) }).toString();
+  return url.toString();
+}
+
+/** Bản chạy thật bật nguồn dự phòng trừ khi khai DU_BAO_MUA_DU_PHONG=tat. */
+export const batDuPhong = (env) => String(env.DU_BAO_MUA_DU_PHONG ?? '').trim().toLowerCase() !== 'tat';
+
+/** `duPhong`: Open-Meteo lỗi thì thử MET Norway. Mặc định tắt (kiểm thử gọi đúng số lượt). */
 export function taoNguonDuBao({
   fetchFn = globalThis.fetch.bind(globalThis), bayGio = Date.now, docDiem = docDiemCsdl, env = process.env, ghiLog = console.warn,
+  duPhong = false,
 } = {}) {
   let goiMang = fetchFn;
   let boNho = null;        // { chuoi, layLuc, toaDo }
@@ -295,18 +360,24 @@ export function taoNguonDuBao({
   let dangLay = null;
   let loiGanNhat = null;   // { ma, maHttp?, luc } — chỉ cho trang cán bộ
 
-  async function goiOpenMeteo(toaDo) {
+  const tuyChonGoi = (headers = {}) => ({
+    headers: { Accept: 'application/json', ...headers },
+    redirect: 'error',
+    signal: AbortSignal.timeout(HET_GIO_MS),
+  });
+  /**
+   * Gọi một nguồn, đọc và kiểm; mọi lỗi đều ra LoiPhanLoai (mã cố định, không chép câu lỗi
+   * ra ngoài). `goi` là hàm gọi mạng của TỪNG nguồn: mỗi nguồn gọi mạng ở một chỗ riêng với
+   * hàm dựng URL cố định — để bài kiểm SSRF (ra-soat-owasp.test.js, A10) đọc được địa chỉ là hằng.
+   */
+  async function goiNguon(goi, tenNguon, kiem) {
     let r;
     let chu;
     try {
-      r = await goiMang(taoUrlDuBao(toaDo), {
-        headers: { Accept: 'application/json' },
-        redirect: 'error',
-        signal: AbortSignal.timeout(HET_GIO_MS),
-      });
+      r = await goi();
       if (!r.ok) {
         const maHttp = Number.isInteger(r.status) && r.status >= 100 && r.status <= 599 ? r.status : undefined;
-        throw new LoiPhanLoai(maHttp ? 'http' : 'khac', `Open-Meteo trả mã ${r.status}`, maHttp);
+        throw new LoiPhanLoai(maHttp ? 'http' : 'khac', `${tenNguon} trả mã ${r.status}`, maHttp);
       }
       /* Báo trước kích thước quá lớn thì bỏ, khỏi đọc vào bộ nhớ (vẫn kiểm lại sau khi đọc) */
       if (Number(r.headers?.get?.('content-length')) > TOI_DA_KY_TU) throw new LoiPhanLoai('du_lieu_sai', 'phản hồi quá lớn');
@@ -316,11 +387,18 @@ export function taoNguonDuBao({
     }
     if (chu.length > TOI_DA_KY_TU) throw new LoiPhanLoai('du_lieu_sai', 'phản hồi quá lớn');
     try {
-      return kiemPhanHoi(JSON.parse(chu));
+      return kiem(JSON.parse(chu));
     } catch (err) {
       throw new LoiPhanLoai('du_lieu_sai', err?.message);
     }
   }
+  const goiOpenMeteo = (toaDo) => goiNguon(() => goiMang(taoUrlDuBao(toaDo), tuyChonGoi()), 'Open-Meteo', kiemPhanHoi);
+  const goiMetNo = (toaDo) => goiNguon(() => goiMang(taoUrlDuPhong(toaDo), tuyChonGoi({ 'User-Agent': UA_DU_PHONG })), 'MET Norway', kiemPhanHoiMetNo);
+  const thanhLoi = (err, luc) => {
+    /* Lỗi ngoài lúc gọi nguồn (vd. đọc CSDL chọn toạ độ) không có `ma` -> 'khac' */
+    const ma = MA_LOI.includes(err?.ma) ? err.ma : 'khac';
+    return { ma, ...(ma === 'http' ? { maHttp: err.maHttp } : {}), luc: new Date(luc).toISOString() };
+  };
 
   async function lamMoi() {
     try {
@@ -334,15 +412,26 @@ export function taoNguonDuBao({
         return;
       }
       trangThaiCauHinh = null;
-      const chuoi = await goiOpenMeteo(toaDo);
-      boNho = { chuoi, layLuc: bayGio(), toaDo };
+      try {
+        const chuoi = await goiOpenMeteo(toaDo);
+        boNho = { chuoi, layLuc: bayGio(), toaDo, nguonDuLieu: 'open-meteo', duPhong: null };
+      } catch (loiChinh) {
+        if (!duPhong) throw loiChinh;
+        ghiLog('Dự báo mưa: Open-Meteo lỗi —', loiChinh?.message, '— thử nguồn dự phòng MET Norway');
+        try {
+          const chuoi = await goiMetNo(toaDo);
+          /* Giữ lý do phải dùng dự phòng để trang cán bộ biết (vd. 429 vì IP dùng chung) */
+          boNho = { chuoi, layLuc: bayGio(), toaDo, nguonDuLieu: 'met-no', duPhong: thanhLoi(loiChinh, bayGio()) };
+        } catch (loiPhu) {
+          ghiLog('Dự báo mưa: nguồn dự phòng MET Norway cũng lỗi —', loiPhu?.message);
+          throw loiChinh;   // cán bộ thấy lỗi của nguồn chính — nguyên nhân gốc
+        }
+      }
       loiGanNhat = null;
     } catch (err) {
       loiLuc = bayGio();
-      /* Lỗi ngoài goiOpenMeteo (vd. đọc CSDL chọn toạ độ) không có `ma` -> 'khac' */
-      const ma = MA_LOI.includes(err?.ma) ? err.ma : 'khac';
-      loiGanNhat = { ma, ...(ma === 'http' ? { maHttp: err.maHttp } : {}), luc: new Date(loiLuc).toISOString() };
-      ghiLog('Dự báo mưa: chưa lấy được từ Open-Meteo —', err?.message);
+      loiGanNhat = thanhLoi(err, loiLuc);
+      ghiLog('Dự báo mưa: chưa lấy được dự báo —', err?.message);
     }
   }
 
@@ -365,6 +454,8 @@ export function taoNguonDuBao({
     return {
       trangThai: 'co_du_lieu',
       ...loi,
+      nguonDuLieu: boNho.nguonDuLieu,
+      ...(boNho.duPhong ? { duPhong: { ...boNho.duPhong } } : {}),
       ...kq,
       capNhatLuc: new Date(boNho.layLuc).toISOString(),
       cu: tuoi >= LAM_MOI_SAU_MS,
@@ -391,20 +482,24 @@ export function taoNguonDuBao({
 }
 
 /* Bản chạy thật — dùng chung cho route công khai và route cán bộ trong một tiến trình */
-export const duBaoMua = taoNguonDuBao();
+export const duBaoMua = taoNguonDuBao({ duPhong: batDuPhong(process.env) });
 
 /** Chỉ cho kiểm thử route: thay mạng giả cho bản chạy thật (null = mạng thật). */
 export const thayFetchChoThu = (fn) => duBaoMua.thayMang(fn);
 
 /**
- * Phần trả cho NGƯỜI DÂN: bỏ toạ độ, nguồn toạ độ và lý do lỗi (người dân không cần;
- * lý do lỗi nói cách máy chủ ra mạng — chỉ cán bộ xem).
+ * Phần trả cho NGƯỜI DÂN: bỏ toạ độ, nguồn toạ độ, lý do lỗi và lý do dùng dự phòng
+ * (người dân không cần; các lý do đó nói cách máy chủ ra mạng — chỉ cán bộ xem).
+ * Giữ nguonDuLieu và `nguon` để giao diện ghi công đúng nguồn đang dùng.
  */
 export function banCongKhai(kq) {
   if (kq.trangThai !== 'co_du_lieu') return { trangThai: kq.trangThai };
-  const { toaDo: _toaDo, nguonToaDo: _nguon, loiGanNhat: _loi, ...con } = kq;
-  return { ...con, nguon: NGUON_GHI_CONG };
+  const { toaDo: _toaDo, nguonToaDo: _nguon, loiGanNhat: _loi, duPhong: _duPhong, ...con } = kq;
+  return { ...con, nguon: nguonGhiCong(kq) };
 }
 
 /** Ghi công theo CC BY 4.0 — điều kiện dùng dữ liệu miễn phí của Open-Meteo */
 export const NGUON_GHI_CONG = { ten: 'Open-Meteo.com', giayPhep: 'CC BY 4.0', url: 'https://open-meteo.com/' };
+/** Ghi công MET Norway (CC BY 4.0) khi đang dùng nguồn dự phòng */
+export const NGUON_GHI_CONG_DU_PHONG = { ten: 'MET Norway', giayPhep: 'CC BY 4.0', url: 'https://www.met.no/en' };
+export const nguonGhiCong = (kq) => (kq?.nguonDuLieu === 'met-no' ? NGUON_GHI_CONG_DU_PHONG : NGUON_GHI_CONG);

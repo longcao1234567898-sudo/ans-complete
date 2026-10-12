@@ -281,6 +281,7 @@ describe('A10 — không có SSRF: mọi URL gọi ra ngoài đều là hằng s
             || doiSo === 'duongDan'                          // tts.js cũ: host cố định + query đã encodeURIComponent
             || doiSo === 'taoUrl(q)'                         // tts.js: host cố định trong TTS_NGUON, q đã encodeURIComponent
             || doiSo === 'taoUrlDuBao(toaDo)'                // du-bao-mua.js: host cố định NGUON_URL, toạ độ là số đã kiểm
+            || doiSo === 'taoUrlDuPhong(toaDo)'              // du-bao-mua.js (P64): host cố định NGUON_DU_PHONG_URL (api.met.no), toạ độ là số đã kiểm
             /* hang-doi-trich-chu.js: ảnh trong kho Cloudinary CỦA ĐƠN VỊ — kiểm lại bằng
                kiemTraLinkCloudinary (https, đúng res.cloudinary.com/<CLOUDINARY_CLOUD_NAME>/),
                chưa khai kho thì ném lỗi; fetch đặt redirect: 'error' */

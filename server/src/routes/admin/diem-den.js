@@ -19,7 +19,7 @@ import { LANH_DAO } from '../../lib/vai-tro.js';
 import { ghiNhatKy } from '../../lib/helpers.js';
 import { sanitizeText } from '../../lib/security.js';
 import { chuanLoai, thieuCotNgap, DANG_NGAP_SQL } from '../../lib/duong-ngap.js';
-import { duBaoMua, NGUON_GHI_CONG } from '../../lib/du-bao-mua.js';
+import { duBaoMua, nguonGhiCong } from '../../lib/du-bao-mua.js';
 import { docNguong, docLichSu, duongNguyCo, ghiMuaKhiNgap, nguongHopLe } from '../../lib/nguong-ngap.js';
 
 const router = Router();
@@ -283,7 +283,7 @@ router.get('/du-bao-mua', authorize(), async (_req, res) => {
   try {
     const kq = await duBaoMua.lay();
     res.json(kq.trangThai === 'co_du_lieu'
-      ? { ...kq, nguon: NGUON_GHI_CONG, duongNguyCo: await duongNguyCo(pool, kq).catch(() => []) }
+      ? { ...kq, nguon: nguonGhiCong(kq), duongNguyCo: await duongNguyCo(pool, kq).catch(() => []) }
       : kq);
   } catch (err) {
     console.error('Lỗi dự báo mưa:', err.message);

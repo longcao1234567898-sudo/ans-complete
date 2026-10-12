@@ -28,7 +28,8 @@ export interface DuBaoMua {
   mua24h?: number;
   mua12hLonNhat?: number;
   mua3hLonNhat?: number;
-  mua3hVuaQua?: number;
+  /** null khi nguồn không có số mưa đã qua (nguồn dự phòng MET Norway) */
+  mua3hVuaQua?: number | null;
   dinhMua?: { tu: string; den: string } | null;
   capNhatLuc?: string;
   /** true = máy chủ chưa làm mới được, đang dùng bản lấy lúc capNhatLuc */
@@ -45,6 +46,10 @@ export interface DuBaoMua {
   nguonToaDo?: 'bien_moi_truong' | 'duong_hay_ngap' | 'diem_den';
   /** Chỉ có ở API cán bộ: vì sao đang không có dự báo, hoặc vì sao bản đang hiện đã cũ */
   loiGanNhat?: LoiDuBao;
+  /** Nguồn của số liệu đang hiện — để ghi công đúng nguồn (P64) */
+  nguonDuLieu?: 'open-meteo' | 'met-no';
+  /** Chỉ có ở API cán bộ: vì sao đang dùng nguồn dự phòng (lỗi của Open-Meteo) */
+  duPhong?: LoiDuBao;
 }
 
 const TRANG_THAI: TrangThaiDuBao[] = ['co_du_lieu', 'khong_co_du_lieu', 'chua_cau_hinh', 'tat', 'cau_hinh_sai'];
@@ -79,7 +84,9 @@ export function chuanDuBao(x: unknown): DuBaoMua {
   }
   const muc = d.muc;
   if (muc !== 0 && muc !== 1 && muc !== 2 && muc !== 3) return KHONG_CO;
-  for (const k of ['mua24h', 'mua12hLonNhat', 'mua3hLonNhat', 'mua3hVuaQua']) if (!laSo(d[k])) return KHONG_CO;
+  for (const k of ['mua24h', 'mua12hLonNhat', 'mua3hLonNhat']) if (!laSo(d[k])) return KHONG_CO;
+  /* Nguồn dự phòng không có số mưa đã qua: null là hợp lệ (không phải 0), lạ khác thì bỏ */
+  if (d.mua3hVuaQua !== null && d.mua3hVuaQua !== undefined && !laSo(d.mua3hVuaQua)) return KHONG_CO;
   if (typeof d.capNhatLuc !== 'string' || Number.isNaN(Date.parse(d.capNhatLuc))) return KHONG_CO;
   const dinh = d.dinhMua as { tu?: unknown; den?: unknown } | null | undefined;
   const dinhMua = dinh && typeof dinh.tu === 'string' && typeof dinh.den === 'string'
@@ -99,6 +106,8 @@ export function chuanDuBao(x: unknown): DuBaoMua {
     dinhMua,
     cu: d.cu === true,
     loiGanNhat,
+    nguonDuLieu: d.nguonDuLieu === 'met-no' ? 'met-no' : 'open-meteo',
+    duPhong: chuanLoi(d.duPhong),
   };
 }
 
@@ -108,6 +117,16 @@ export function chuanDuBao(x: unknown): DuBaoMua {
  */
 export function moTaLoiDuBao(loi: LoiDuBao, bayGio: Date = new Date()): string {
   const luc = gioCapNhat(loi.luc, bayGio);
+  return `Lần gần nhất máy chủ không lấy được dự báo (${luc}): ${lyDoLoi(loi)}. Máy chủ thử lại khi có người mở trang, cách lần hỏng ít nhất 5 phút.`;
+}
+
+/** Đang dùng nguồn dự phòng (P64): nói vì sao, và khác biệt cán bộ cần biết. */
+export function moTaDuPhong(loi: LoiDuBao): string {
+  return `Đang dùng nguồn dự phòng MET Norway vì ${lyDoLoi(loi)}. `
+    + 'Nguồn này không có lượng mưa mấy giờ vừa qua, nên mức chỉ tính theo 24 giờ tới.';
+}
+
+function lyDoLoi(loi: LoiDuBao): string {
   let lyDo: string;
   switch (loi.ma) {
     case 'http':
@@ -132,7 +151,7 @@ export function moTaLoiDuBao(loi: LoiDuBao, bayGio: Date = new Date()): string {
     default:
       lyDo = 'Lỗi chưa phân loại — xem log máy chủ, dòng "Dự báo mưa"';
   }
-  return `Lần gần nhất máy chủ không lấy được dự báo (${luc}): ${lyDo}. Máy chủ thử lại khi có người mở trang, cách lần hỏng ít nhất 5 phút.`;
+  return lyDo;
 }
 
 /**
@@ -244,5 +263,5 @@ export function gioCapNhat(iso: string, bayGio: Date = new Date()): string {
 }
 
 /** Số mm làm tròn, dấu phẩy thập phân kiểu Việt: 7,5 */
-export const soMm = (x: number | undefined): string =>
+export const soMm = (x: number | null | undefined): string =>
   (Math.round((x ?? 0) * 10) / 10).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
