@@ -1,4 +1,5 @@
 /** POST /api/submissions — nhận ý kiến mới, kiểm tra toàn bộ phía máy chủ */
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { generateTrackingCode, sha256, layIpThat } from '../lib/helpers.js';
@@ -367,8 +368,11 @@ router.post('/', async (req, res) => {
        Mất PIN thì không vào phòng chat được nữa, nhưng vẫn tra cứu tiến độ
        bình thường bằng mã tra cứu. Đánh đổi này chấp nhận được: chat chứa câu
        hỏi nghiệp vụ của cán bộ, lộ ra là lộ hướng xác minh.
+
+       Bộ sinh số AN TOÀN (crypto.randomInt), như mã tra cứu — KHÔNG Math.random:
+       trạng thái của nó suy ra được từ các kết quả trước (BUG-039).
        --------------------------------------------------------------------- */
-    const chatPin = String(Math.floor(100000 + Math.random() * 900000));
+    const chatPin = String(crypto.randomInt(100000, 1_000_000));
     const chatPinHash = await bamPin(chatPin); // luồng phụ, không chặn người khác (ND-064)
 
     /* TOẠ ĐỘ VỤ VIỆC — người dân tự nguyện gửi, có thể không có.
