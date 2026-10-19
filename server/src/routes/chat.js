@@ -24,11 +24,11 @@
  * để đánh lạc hướng.
  *
  * Nên phải có THÊM mã PIN 6 số, cấp một lần lúc gửi đơn, database chỉ giữ bản
- * băm bcrypt.
+ * băm (scrypt; PIN cấp trước ND-064 là bcrypt — lib/bam-pin.js kiểm cả hai).
  */
 
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
+import { kiemPin } from '../lib/bam-pin.js';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
@@ -137,7 +137,8 @@ router.post('/open', gioiHanMoPhong, async (req, res) => {
       });
     }
 
-    const dung = await bcrypt.compare(pin, don.chat_pin_hash);
+    /* PIN mới băm scrypt, PIN cấp trước ND-064 băm bcrypt — kiemPin nhận cả hai */
+    const dung = await kiemPin(pin, don.chat_pin_hash);
     if (!dung) return res.status(401).json(loiChung);
 
     const ve = jwt.sign(

@@ -13,7 +13,6 @@ import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
 import { danhGiaMucKhan } from '../lib/phan-loai.js';
 import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
 import { coCotCo } from '../lib/pham-vi-ho-so.js';
-import bcrypt from 'bcryptjs';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { quaCongVao } from '../lib/cong-vao.js';
 import { capPhieuMoForm, danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
@@ -21,6 +20,7 @@ import { xetDotBien } from '../lib/dot-bien.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
+import { bamPin } from '../lib/bam-pin.js';
 
 const router = Router();
 
@@ -361,7 +361,7 @@ router.post('/', async (req, res) => {
        6c) SINH MÃ PIN VÀO PHÒNG CHAT
 
        Cấp MỘT LẦN duy nhất, trả về cho bà con ngay màn hình xác nhận. Database
-       chỉ giữ bản băm bcrypt — kể cả quản trị viên cũng không đọc lại được,
+       chỉ giữ bản băm (scrypt, lib/bam-pin.js) — quản trị viên cũng không đọc lại được,
        đúng nguyên tắc đã áp dụng cho mật khẩu cán bộ.
 
        Mất PIN thì không vào phòng chat được nữa, nhưng vẫn tra cứu tiến độ
@@ -369,7 +369,7 @@ router.post('/', async (req, res) => {
        hỏi nghiệp vụ của cán bộ, lộ ra là lộ hướng xác minh.
        --------------------------------------------------------------------- */
     const chatPin = String(Math.floor(100000 + Math.random() * 900000));
-    const chatPinHash = await bcrypt.hash(chatPin, 10);
+    const chatPinHash = await bamPin(chatPin); // luồng phụ, không chặn người khác (ND-064)
 
     /* TOẠ ĐỘ VỤ VIỆC — người dân tự nguyện gửi, có thể không có.
 
@@ -618,7 +618,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       trackingCode,
       /* MÃ PIN VÀO PHÒNG CHAT — trả về ĐÚNG MỘT LẦN duy nhất.
-         Database chỉ giữ bản băm bcrypt nên không cấp lại được. Màn hình xác
+         Database chỉ giữ bản băm nên không cấp lại được. Màn hình xác
          nhận phải nhắc bà con lưu lại cùng mã tra cứu. */
       chatPin,
       pendingReview: isAnonymous,   // ẩn danh -> đang chờ cán bộ duyệt
