@@ -5,9 +5,10 @@
 ##               Referrer-Policy, Permissions-Policy.
 ##
 ## ⚠️ VERCEL KHÔNG ĐỌC FILE NÀY — file này là định dạng riêng của Netlify.
-##    Cấu hình tương đương cho Vercel nằm ở "headers" trong vercel.json.
-##    SỬA MỘT BÊN THÌ PHẢI SỬA BÊN KIA, nếu không deploy Vercel sẽ chạy
-##    hoàn toàn KHÔNG có header bảo mật nào mà không ai nhận ra.
+##    Cấu hình tương đương cho Vercel nằm ở "headers" trong vercel.json, cho
+##    máy Viettel (Nginx) ở deploy/nginx/hop-thu-header.conf.
+##    SỬA MỘT NƠI THÌ PHẢI SỬA CẢ BA, nếu không một nơi sẽ chạy thiếu header
+##    bảo mật mà không ai nhận ra. Test ra-soat-owasp và trien-khai-nginx kiểm.
 ## =====================================================================
 
 # ============================================================================
