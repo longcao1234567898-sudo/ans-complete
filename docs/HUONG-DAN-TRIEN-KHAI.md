@@ -514,6 +514,19 @@ nano /etc/nginx/sites-available/hop-thu
 ```
 
 ```nginx
+# Giữ sẵn kết nối tới hai máy chủ — không mở kết nối mới cho MỖI yêu cầu.
+# Đo P68: 2.000 người bấm cùng lúc, thiếu khối này -> 1,2% lỗi 502; có -> 0 lỗi, nhanh gấp 3.
+upstream hop_thu_cong_khai {
+    server 127.0.0.1:4000;
+    keepalive 256;
+    keepalive_timeout 4s;    # DƯỚI 5 s: máy chủ Node tự đóng kết nối rảnh sau 5 s
+}
+upstream hop_thu_can_bo {
+    server 127.0.0.1:4001;
+    keepalive 32;
+    keepalive_timeout 4s;
+}
+
 # Máy chủ công khai — cho người dân
 server {
     listen 80;
@@ -523,8 +536,9 @@ server {
     client_max_body_size 32m;
 
     location / {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://hop_thu_cong_khai;
         proxy_http_version 1.1;
+        proxy_set_header Connection "";   # bắt buộc đi kèm upstream keepalive
         proxy_set_header Host $host;
         # GHI ĐÈ bằng IP thật của người kết nối — không nối thêm vào giá trị trình duyệt tự gửi
         proxy_set_header X-Forwarded-For $remote_addr;
@@ -541,8 +555,9 @@ server {
     client_max_body_size 32m;
 
     location / {
-        proxy_pass http://127.0.0.1:4001;
+        proxy_pass http://hop_thu_can_bo;
         proxy_http_version 1.1;
+        proxy_set_header Connection "";
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -562,6 +577,15 @@ certbot --nginx -d api.ten-mien.vn -d canbo-api.ten-mien.vn
 # Nhập email, gõ Y đồng ý điều khoản. Hỏi chuyển HTTP sang HTTPS thì chọn chuyển (redirect)
 certbot renew --dry-run   # kiểm việc tự gia hạn
 ```
+
+> **Đã cài theo bản cũ của mục này** (có `proxy_pass http://127.0.0.1:4000;`): thêm hai khối
+> `upstream` ở đầu tệp, đổi hai dòng `proxy_pass` sang `http://hop_thu_cong_khai` /
+> `http://hop_thu_can_bo`, thêm dòng `proxy_set_header Connection "";` vào cả hai, rồi
+> `nginx -t && systemctl reload nginx`. Không đụng các dòng certbot đã thêm.
+>
+> Vì sao `keepalive_timeout 4s`: máy chủ Node đóng kết nối rảnh sau 5 s; Nginx mặc định giữ
+> 60 s, có thể gửi yêu cầu vào đúng kết nối vừa bị đóng (lỗi 502). Lúc đo P72 chưa tái hiện được
+> lỗi này, nhưng đặt dưới 5 s là cách phòng chuẩn và không tốn gì.
 
 Kiểm từ máy Windows: mở trình duyệt vào `https://api.ten-mien.vn/api/health`. Có ổ khoá và ra
 một đoạn chữ dạng `{"ok":true,...,"encryption":true,...}` là xong. `"encryption":false` nghĩa là
