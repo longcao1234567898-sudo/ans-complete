@@ -20,7 +20,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
+import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { aiAvailable } from './lib/ai.js';
 import { encryptionEnabled } from './lib/crypto.js';
 
@@ -104,7 +104,8 @@ app.use((err, _req, res, next) => {
 });
 
 app.use(cookieParser());
-  app.use(rateLimit({ windowMs: 15 * 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
+  // Giới hạn chung: XEM 1.500 / GỬI 300 mỗi 15 phút mỗi IP, đếm riêng (lib/gioi-han-chung.js, ND-063)
+  app.use(...gioiHanChung());
 
   // Health check — mỗi máy chủ tự khai tên để phân biệt khi tách
   app.get('/api/health', (_req, res) =>

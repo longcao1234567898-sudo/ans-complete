@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
+import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
@@ -109,8 +109,8 @@ app.use((err, _req, res, next) => {
 
 app.use(cookieParser());
 
-// Rate limit chung
-app.use(rateLimit({ windowMs: 15 * 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
+// Giới hạn chung: XEM 1.500 / GỬI 300 mỗi 15 phút mỗi IP, đếm riêng (lib/gioi-han-chung.js, ND-063)
+app.use(...gioiHanChung());
 
 /* PHIÊN BẢN BACKEND — tăng số này mỗi lần có thay đổi quan trọng.
    Dùng để KIỂM TRA NHANH backend đã deploy bản mới chưa:
