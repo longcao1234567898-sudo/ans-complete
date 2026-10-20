@@ -1151,6 +1151,61 @@ rm hop-thu-NGAY-GIO.sql.gz.age
 
 ---
 
+## Phụ lục — VIỆC CHỜ: kiểm kho dữ liệu Viettel (vDBS) khi dùng thử
+
+> Ghi ngày 2026-10-20 theo yêu cầu người vận hành: **làm khi đã có kho vDBS dùng thử** (gói
+> T2.VDBS 1 Standalone, MySQL 8.0, Private Access, chung VPC với máy CS1). Tài liệu Viettel
+> không trả lời ba câu này; chạy ba phép kiểm dưới đây là biết chắc.
+
+Đã biết từ tài liệu Viettel (tra 2026-10-20): kho vDBS nằm trong **mạng con riêng**, nối với máy
+chủ bằng **Actions → Connect To Other Subnet** (tự đặt luật tường lửa chỉ cho mạng con của máy
+chủ vào); sao lưu tự động **hằng ngày/tuần**, giữ **≥ 7 bản**, khôi phục thành kho mới; **không
+thấy** khôi phục về từng phút. Khách được giao **tài khoản root** của kho.
+
+Làm trên **máy CS1** (B3: vào máy bằng PowerShell). Lần đầu cài công cụ: `apt install -y mysql-client`.
+`DIA-CHI-KHO` là địa chỉ riêng (private host) Viettel ghi trên trang quản trị vDBS. Mỗi lệnh
+hỏi mật khẩu root của kho — gõ vào, không hiện chữ là bình thường. **Không dán mật khẩu cho ai.**
+
+**Kiểm 1 — kho có mã hoá đường nối không**
+
+```bash
+mysql -h DIA-CHI-KHO -u root -p --ssl-mode=REQUIRED -e "SHOW STATUS LIKE 'Ssl_cipher';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Một dòng `Ssl_cipher` có chữ phía sau (vd `TLS_AES_256_GCM_SHA384`) | **Có mã hoá.** Hỏi Viettel tệp chứng chỉ CA để máy chủ kiểm cả "con dấu" (B7, `DB_SSL_CA`) |
+| Báo lỗi có chữ `SSL` | **Không có mã hoá.** Vẫn dùng được vì đường nối nằm trong mạng con riêng — ghi vào sổ theo dõi, hỏi Viettel khi nào hỗ trợ |
+
+**Kiểm 2 — cấp được quyền `SHOW_ROUTINE` cho tài khoản sao lưu không**
+
+```bash
+mysql -h DIA-CHI-KHO -u root -p -e "CREATE USER 'thu_quyen'@'%' IDENTIFIED BY 'ThuQuyen12345'; GRANT SHOW_ROUTINE ON *.* TO 'thu_quyen'@'%'; SHOW GRANTS FOR 'thu_quyen'@'%'; DROP USER 'thu_quyen'@'%';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Có dòng `GRANT SHOW_ROUTINE ON *.*` | **Được.** Phần G (G2 bước 2) làm đúng như viết |
+| `Access denied` | **Không được.** Báo Claude: sửa Phần G để dựng lại thủ tục từ mã nguồn thay vì lấy từ bản sao |
+
+(Tài khoản `thu_quyen` chỉ để thử, lệnh tự xoá nó ở cuối.)
+
+**Kiểm 3 — tham số `log_bin_trust_function_creators` chỉnh được không**
+
+```bash
+mysql -h DIA-CHI-KHO -u root -p -e "SHOW VARIABLES LIKE 'log_bin_trust_function_creators';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Giá trị `ON` | **Đã bật sẵn**, chép dữ liệu cũ sang được |
+| Giá trị `OFF` | Vào trang quản trị vDBS, tìm mục **tham số / cấu hình (parameter)** của kho, đặt `log_bin_trust_function_creators` = `1`, khởi động lại kho nếu trang yêu cầu, chạy lại lệnh trên phải ra `ON`. Không có mục đó thì nhờ Viettel bật, hoặc nhờ Viettel chép dữ liệu cũ giúp |
+
+Xong ba phép kiểm: gửi Claude **ảnh chụp kết quả** (che mật khẩu nếu có) để cập nhật Phần C, G và
+đóng việc chờ ND-066.
+
+---
+
 ## Phụ lục — Dự toán chi phí (tra ngày 2026-10-20)
 
 > ⚠️ Giá cũ đi rất nhanh. Bảng này để **lập dự toán ban đầu**; trước khi trình duyệt phải **xin
