@@ -1,6 +1,7 @@
 # Hướng dẫn triển khai — cho người chưa làm bao giờ
 
-Tài liệu này hướng dẫn từng bước, không giả định người đọc đã biết gì:
+Tài liệu này hướng dẫn từng bước, không giả định người đọc đã biết gì. **Làm lần đầu thì đi theo
+[SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md)** — sổ tay chia chặng, chỉ tới đúng mục ở đây để chép lệnh.
 
 - **Phần B** — dựng **máy chủ người dân** và **máy chủ cán bộ** trên **Viettel Cloud** (thay Render)
 - **Phần C** — chuyển cơ sở dữ liệu sang **VNPT** (thay Aiven)
@@ -471,6 +472,12 @@ Bản mới có tệp `database/nang_cap_vXX.sql` thì chạy tệp đó vào CS
 ---
 
 ## Phần C — Chuyển cơ sở dữ liệu sang VNPT (thay Aiven)
+
+> **Đổi phương án (2026-10-20): kho dữ liệu đặt ở Viettel (vDBS, T2.VDBS 1 Standalone, MySQL 8.0,
+> Private Access) thay VNPT** — cùng nhà với máy chủ, nối bằng mạng nội bộ. Các lệnh C3, C4 dùng
+> nguyên, thay địa chỉ VNPT bằng địa chỉ riêng của kho vDBS; trình tự cho người làm lần đầu:
+> [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) chặng 1, 6, 9, 13. Phần C sẽ viết lại theo vDBS khi
+> có kết quả ba phép kiểm (Phụ lục "VIỆC CHỜ").
 
 VNPT có dịch vụ **VNPT MySQL**, dạng CSDL được quản lý sẵn (DBaaS): VNPT lo sao lưu, vá lỗi, dự
 phòng.
