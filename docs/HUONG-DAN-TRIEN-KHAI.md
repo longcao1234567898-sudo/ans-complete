@@ -2,22 +2,25 @@
 
 Tài liệu này hướng dẫn từng bước, không giả định người đọc đã biết gì:
 
-- **Phần A** — đưa giao diện lên **Vercel**
-- **Phần B** — dựng máy chủ trên **Viettel Cloud** (thay Render)
+- **Phần B** — dựng **máy chủ người dân** và **máy chủ cán bộ** trên **Viettel Cloud** (thay Render)
 - **Phần C** — chuyển cơ sở dữ liệu sang **VNPT** (thay Aiven)
 - **Phần D** — thay **Cloudinary** (kho ảnh)
 - **Phần E** — thứ tự làm và danh sách kiểm cho ngày chuyển
-- **Phần F** — đưa giao diện lên **máy Viettel** (thay Netlify/Vercel) — nên làm khi chạy thật
+- **Phần F** — đưa **giao diện** lên **chính máy Viettel đó** (thay Netlify/Vercel)
 - **Phần G** — **sao lưu mã hoá** mỗi đêm sang nhà cung cấp khác — bắt buộc khi chạy thật
 - **Phụ lục** — dự toán chi phí
 
-> Viết ngày 2026-10-06, bổ sung 2026-10-20. Giao diện các trang Vercel, Viettel, VNPT thay đổi
+> **Không dùng Vercel** (quyết định người vận hành, 2026-10-20): giao diện, máy chủ người dân và
+> máy chủ cán bộ cùng chạy trên **một máy Viettel**, đưa bản mới lên bằng kịch bản ở F7. Bản trước
+> có Phần A hướng dẫn Vercel — đã bỏ; những gì còn dùng được đã chuyển vào B2 và Phần F.
+
+> Viết ngày 2026-10-06, bổ sung 2026-10-20. Giao diện các trang Viettel, VNPT, Bizfly thay đổi
 > theo thời gian: nếu tên nút khác đi, tìm nút có ý nghĩa tương tự. **Giá ở Phụ lục là giá tra
 > ngày 2026-10-20 — chỉ để lập dự toán ban đầu; trước khi mua phải xin báo giá chính thức.**
 
 ---
 
-## 0. Bức tranh chung — hệ thống gồm bốn phần
+## 0. Bức tranh chung — hệ thống gồm bốn phần, ba phần đầu trên một máy Viettel
 
 ```
  Người dân / cán bộ (trình duyệt)
@@ -26,8 +29,8 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
  ┌──────────────────┐   gọi API    ┌───────────────────────────┐   SQL    ┌──────────────┐
  │ 1. GIAO DIỆN     │ ───────────► │ 2. MÁY CHỦ (2 tiến trình) │ ───────► │ 3. CƠ SỞ     │
  │ tệp tĩnh (dist/) │              │  · công khai (người dân)  │          │    DỮ LIỆU   │
- │ Vercel / Viettel │              │  · cán bộ                 │          │ MySQL        │
- └──────────────────┘              │ Render → Viettel Cloud    │          │ Aiven → VNPT │
+ │ máy Viettel      │              │  · cán bộ                 │          │ MySQL        │
+ └──────────────────┘              │ máy Viettel (cùng máy)    │          │ Aiven → VNPT │
         │                          └───────────────────────────┘          └──────────────┘
         │ tải ảnh lên (nếu có cấu hình)          │ đọc ảnh để OCR, xoá ảnh
         ▼                                        ▼
@@ -38,8 +41,8 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
 
 | Phần | Giữ gì | Hiện ở đâu | Chuyển sang |
 |---|---|---|---|
-| 1. Giao diện | Chỉ tệp HTML/JS/CSS tĩnh. **Không giữ dữ liệu**, nhưng là nơi người dân **gõ** danh tính | Netlify/Vercel | Vercel (Phần A) để thử; **máy Viettel (Phần F)** khi chạy thật |
-| 2. Máy chủ | Mã xử lý, các khoá bí mật (`JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`…) | Render | Viettel Cloud (Phần B) |
+| 1. Giao diện (trang người dân + trang cán bộ) | Chỉ tệp HTML/JS/CSS tĩnh. **Không giữ dữ liệu**, nhưng là nơi người dân **gõ** danh tính | Netlify/Vercel | **Máy Viettel** (Phần F) — Nginx phục vụ thẳng |
+| 2. Máy chủ (người dân + cán bộ, hai tiến trình) | Mã xử lý, các khoá bí mật (`JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`…) | Render | **Cùng máy Viettel** (Phần B) |
 | 3. Cơ sở dữ liệu | **Toàn bộ dữ liệu**: ý kiến, danh tính (đã mã hoá), nhật ký | Aiven | VNPT (Phần C) |
 | 4. Kho ảnh | Ảnh bằng chứng, ảnh tin tức | Cloudinary | Xem Phần D |
 
@@ -53,160 +56,6 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
    trước, để đêm chuyển chỉ còn chép dữ liệu và đổi địa chỉ. Bước nào hỏng cũng quay lại được.
 
 ---
-
-## Phần A — Đưa giao diện lên Vercel
-
-### A0. Cần có trước
-
-- Tài khoản GitHub chứa mã nguồn (kho `ans-complete`, nhánh `master`).
-- Địa chỉ máy chủ (backend) đang chạy. Lúc này là địa chỉ Render; sau khi làm Phần B thì đổi
-  sang địa chỉ Viettel.
-
-> **Về gói miễn phí của Vercel:** gói **Hobby** (miễn phí) theo điều khoản của Vercel chỉ dành
-> cho **mục đích cá nhân, phi thương mại**. Trang chính thức của một đơn vị không phải dự án cá
-> nhân, nên đơn vị cân nhắc gói **Pro** (trả phí theo tháng, tính theo người dùng). Cách thay thế
-> Vercel: xem [mục A9](#a9-không-muốn-dùng-vercel).
-
-### A1. Tạo tài khoản
-
-1. Vào **vercel.com** → bấm **Sign Up**.
-2. Chọn loại gói (**Hobby** hoặc **Pro**) → đặt tên.
-3. Bấm **Continue with GitHub** → đăng nhập GitHub → bấm **Authorize Vercel**.
-
-### A2. Nhập dự án từ GitHub
-
-1. Trong trang Vercel, bấm **Add New…** → **Project**.
-2. Ở mục **Import Git Repository**, tìm `ans-complete` → bấm **Import**.
-   - **Không thấy kho?** Bấm **Adjust GitHub App Permissions** → chọn kho `ans-complete` →
-     **Save** → quay lại Vercel.
-
-### A3. Khai cấu hình dựng
-
-Trang **Configure Project** hiện ra. Kiểm từng ô:
-
-| Ô | Giá trị | Ghi chú |
-|---|---|---|
-| Framework Preset | **Vite** | Vercel thường tự nhận ra |
-| Root Directory | **`./`** (thư mục gốc) | **Không** chọn `server` — `server` là máy chủ, không đưa lên Vercel |
-| Build Command | `npm run build` | Mở **Build and Output Settings** để xem |
-| Output Directory | `dist` | |
-| Install Command | để mặc định | |
-
-### A4. Khai biến môi trường
-
-Vẫn ở trang đó, mở **Environment Variables**. Mỗi biến gõ **Key** và **Value** rồi bấm **Add**:
-
-| Key | Value | Bắt buộc |
-|---|---|---|
-| `VITE_API_URL` | Địa chỉ máy chủ công khai, **không có `/` ở cuối**. Vd: `https://api.ten-mien.vn` | Có |
-| `VITE_ADMIN_API_URL` | Địa chỉ máy chủ cán bộ, vd `https://canbo-api.ten-mien.vn`. Để trống thì trang cán bộ dùng chung `VITE_API_URL` | Khi tách hai máy chủ |
-| `VITE_TURNSTILE_SITE_KEY` | Khoá **công khai** (site key) Cloudflare Turnstile | Nên có |
-| `VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_PRESET` | Xem Phần D. **Để trống** nếu không dùng Cloudinary | Không |
-
-> ⚠️ **Chỉ những biến bắt đầu bằng `VITE_` mới được khai ở Vercel**, và chỉ những biến trong
-> bảng trên. Mọi biến `VITE_*` bị nhúng thẳng vào tệp JavaScript, ai mở trình duyệt cũng đọc
-> được. **Không bao giờ** khai `JWT_SECRET`, `ENCRYPTION_KEY`, mật khẩu CSDL, khoá Gemini, khoá
-> Cloudinary bí mật… ở Vercel. Những thứ đó chỉ nằm ở máy chủ (Phần B).
-
-### A5. Bấm Deploy
-
-1. Bấm **Deploy**, đợi 1–3 phút.
-2. Thấy pháo giấy **Congratulations** là xong → bấm **Continue to Dashboard** → **Visit**.
-3. Trang có địa chỉ dạng `ten-du-an.vercel.app`.
-
-### A6. Nối giao diện với máy chủ — 3 việc, thiếu một là hỏng
-
-**(1) Máy chủ phải cho phép địa chỉ giao diện (CORS).** Ở máy chủ (Render bây giờ, Viettel sau
-này), khai địa chỉ giao diện **chính xác**: có `https://`, không có `/` ở cuối.
-
-| Máy chủ | Biến | Giá trị |
-|---|---|---|
-| Công khai | `CORS_ORIGIN`, `CLIENT_URL` | `https://ten-du-an.vercel.app` (hoặc tên miền riêng) |
-| Cán bộ | `CORS_ORIGIN` | như trên |
-
-Nhiều địa chỉ thì ghi cách nhau bằng dấu phẩy, vd `https://www.ten-mien.vn,https://ten-du-an.vercel.app`
-(`CLIENT_URL` chỉ ghi một địa chỉ — địa chỉ chính).
-
-**(2) Giao diện phải được phép gọi máy chủ (CSP).** Tệp `vercel.json` có dòng
-`Content-Security-Policy` liệt kê địa chỉ máy chủ được gọi tới, hiện là
-`https://hop-thu-so-v2.onrender.com`. **Đổi máy chủ là phải sửa dòng này**, không thì trình duyệt
-chặn mọi lời gọi. Sửa ở **hai tệp, giống hệt nhau**:
-
-- `vercel.json` (Vercel đọc tệp này)
-- `public/_headers` (bản dành cho Netlify — giữ khớp, có test kiểm)
-
-Trong cả hai tệp, thay **mọi chỗ** `https://hop-thu-so-v2.onrender.com` (ở `connect-src` và
-`media-src`) bằng địa chỉ máy chủ mới. Nếu tách hai máy chủ thì ghi cả hai, cách nhau một dấu
-cách: `https://api.ten-mien.vn https://canbo-api.ten-mien.vn`. Sửa xong thì commit, đẩy lên
-`master`, Vercel tự dựng lại. *(Muốn chắc ăn: gửi tên miền cho Claude để sửa trong một phiên,
-có chạy test kèm.)* Giao diện đặt trên máy Viettel (Phần F) thì **không phải sửa tay** — kịch
-bản tự điền địa chỉ máy chủ vào CSP.
-
-**(3) Turnstile phải biết tên miền mới.** Vào **dash.cloudflare.com** → **Turnstile** → chọn
-site → **Hostname Management** → thêm `ten-du-an.vercel.app` và tên miền riêng (nếu có). Thiếu
-bước này, ô "Tôi không phải máy" báo lỗi và người dân không gửi được ý kiến.
-
-### A7. Gắn tên miền riêng (nên làm)
-
-**Nên đặt giao diện và máy chủ chung một tên miền gốc**: giao diện `www.ten-mien.vn`, máy chủ
-`api.ten-mien.vn` và `canbo-api.ten-mien.vn`. Vé giữ đăng nhập của cán bộ (cookie) được đặt chế
-độ `SameSite=Lax`: trình duyệt chỉ gửi vé này khi giao diện và máy chủ **cùng tên miền gốc**. Để
-giao diện ở `ten-du-an.vercel.app` còn máy chủ ở `ten-mien.vn` thì vé không được gửi, và cán bộ
-phải đăng nhập lại thường xuyên hơn.
-
-1. Trong dự án Vercel: **Settings** → **Domains** → gõ tên miền (vd `www.ten-mien.vn`) → **Add**.
-2. Vercel hiện **bản ghi DNS cần thêm** (loại A hoặc CNAME). **Chép đúng y nguyên giá trị Vercel
-   hiện** — không chép từ hướng dẫn trên mạng, vì Vercel có lúc đổi giá trị.
-3. Vào trang quản lý tên miền ở nơi anh mua tên miền → **Quản lý DNS** → thêm bản ghi đó.
-4. Đợi vài phút đến vài giờ, đến khi Vercel báo **Valid Configuration**. HTTPS được cấp tự động.
-5. Thêm tên miền mới vào `CORS_ORIGIN` (A6-1) và Turnstile (A6-3).
-
-### A8. Dùng hằng ngày
-
-| Việc | Làm thế nào |
-|---|---|
-| Đưa bản mới lên | Đẩy mã lên `master` → Vercel tự dựng, 1–3 phút sau là có |
-| Đổi biến môi trường | **Settings** → **Environment Variables** → sửa → rồi **bắt buộc dựng lại**: **Deployments** → bấm `⋯` ở bản mới nhất → **Redeploy**. Biến `VITE_*` được nhúng lúc dựng, sửa mà không dựng lại thì không có tác dụng |
-| Quay về bản cũ khi bản mới hỏng | **Deployments** → chọn bản cũ còn tốt → `⋯` → **Promote to Production** (hoặc **Instant Rollback**) |
-| Chỉ nhánh `master` lên trang chính | **Settings** → **Git** → **Production Branch** = `master` |
-| Bản thử của các nhánh khác | Vercel tạo địa chỉ "Preview" cho mỗi nhánh. Kiểm **Settings** → **Deployment Protection** đang bật để người ngoài không mở được |
-
-**Lỗi hay gặp:**
-
-| Thấy gì | Vì sao | Sửa |
-|---|---|---|
-| Dựng hỏng, báo `Rollup failed to resolve import "@fontsource/..."` | Thiếu `package.json` hoặc `package-lock.json` mới trên GitHub | Đẩy đủ hai tệp đó lên |
-| Trang báo **"Chưa cấu hình địa chỉ máy chủ"** | Thiếu `VITE_API_URL` | Khai biến (A4) rồi **Redeploy** |
-| Bấm F12 → Console thấy `violates the following Content Security Policy directive: "connect-src ..."` | CSP chưa có địa chỉ máy chủ mới | Sửa hai tệp ở A6-2 |
-| Console thấy `blocked by CORS policy` | `CORS_ORIGIN` ở máy chủ sai (thừa `/`, thiếu `https`, sai tên) | Sửa biến ở máy chủ rồi khởi động lại máy chủ |
-| Ô Turnstile báo lỗi tên miền | Chưa thêm hostname | A6-3 |
-| Mở thẳng `/quan-tri` báo 404 | `vercel.json` không nằm ở thư mục gốc | Kiểm lại Root Directory = `./` |
-
-### A9. Không muốn dùng Vercel
-
-Xem **Phần F**: máy Viettel ở Phần B phục vụ luôn giao diện. Cấu hình Nginx kèm đủ header bảo
-mật đã có sẵn ở `deploy/nginx/` (test giữ khớp với `public/_headers`), kịch bản
-`deploy/dung-giao-dien.sh` lo việc dựng và đưa lên. Lợi: mọi thứ nằm ở Việt Nam, không vướng
-điều khoản gói Hobby. **Khuyên dùng khi chạy thật.**
-
----
-
-## Máy chủ trên Render ngủ sau 15 phút — giữ cho chạy liên tục
-
-Render **gói miễn phí** cho máy chủ ngủ khi 15 phút không có ai gọi. Người mở trang
-đầu tiên sau đó phải chờ 30–60 giây; trang tưởng máy chủ hỏng và bật trang dự phòng.
-Ba cách, chọn một:
-
-| Cách | Làm gì | Ghi chú |
-|---|---|---|
-| **Gói trả phí** (khuyên dùng khi chạy thật) | Render → dịch vụ → Settings → Instance Type → Starter | Không bao giờ ngủ. Cần cho trường hợp chạy **hai** máy chủ (công khai + cán bộ). |
-| **GIU_THUC=1** (miễn phí) | Render → dịch vụ → Environment → thêm `GIU_THUC` = `1` → Save | Máy chủ tự gọi `/api/health` của chính nó mỗi 10 phút. Log khởi động có dòng "☕ Giữ thức: BẬT". |
-| Chuyển sang máy chủ riêng | Phần B dưới đây | Không ngủ, có IP riêng (hết luôn lỗi 429 của dự báo mưa). |
-
-⚠️ **GIU_THUC chỉ bật cho MỘT dịch vụ miễn phí trên cả tài khoản Render.** Gói miễn
-phí có 750 giờ chạy mỗi tháng cho mọi dịch vụ miễn phí cộng lại; một dịch vụ thức
-suốt tháng đã tốn khoảng 744 giờ. Bật cho hai dịch vụ (kể cả web khác cùng tài khoản)
-là hết giờ giữa tháng và Render **dừng mọi dịch vụ miễn phí** tới đầu tháng sau.
 
 ## Phần B — Dựng máy chủ trên Viettel Cloud (thay Render)
 
@@ -234,16 +83,24 @@ Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên m�
 Máy chủ cần **tên miền** để có HTTPS. Trang giao diện chạy HTTPS thì không được gọi máy chủ
 HTTP thường (trình duyệt chặn).
 
-1. Mua tên miền (vd `ten-mien.vn`) ở nhà đăng ký tên miền — dùng chung cho cả giao diện (A7).
-   Cơ quan nhà nước có thể cần thủ tục tên miền `.gov.vn` — hỏi bộ phận phụ trách của đơn vị.
-2. Trong trang quản lý DNS, thêm **hai bản ghi loại A**, cả hai trỏ về **IP của máy Viettel**:
+1. Mua tên miền (vd `ten-mien.vn`) ở nhà đăng ký tên miền — **một tên miền dùng chung** cho giao
+   diện và hai máy chủ. Cơ quan nhà nước có thể cần thủ tục tên miền `.gov.vn` — hỏi bộ phận
+   phụ trách của đơn vị.
+2. Trong trang quản lý DNS, thêm **hai bản ghi loại A** cho hai máy chủ, cả hai trỏ về **IP của
+   máy Viettel**:
 
-| Tên (Host) | Loại | Giá trị |
-|---|---|---|
-| `api` | A | IP máy Viettel |
-| `canbo-api` | A | IP máy Viettel |
+| Tên (Host) | Loại | Giá trị | Dùng cho |
+|---|---|---|---|
+| `api` | A | IP máy Viettel | Máy chủ người dân |
+| `canbo-api` | A | IP máy Viettel | Máy chủ cán bộ |
 
+   Hai bản ghi `@` và `www` cho **giao diện** cũng trỏ về chính IP này, nhưng **đổi ở đêm chuyển**
+   (F1, F8) — trước đó chúng còn trỏ về nơi đang chạy trang cũ.
 3. Kiểm tra: trên Windows mở PowerShell, gõ `nslookup api.ten-mien.vn`. Ra đúng IP là xong.
+
+> **Vì sao chung một tên miền gốc** (`www.`, `api.`, `canbo-api.` cùng `ten-mien.vn`): vé giữ đăng
+> nhập của cán bộ (cookie) đặt chế độ `SameSite=Lax`, trình duyệt chỉ gửi vé khi giao diện và
+> máy chủ **cùng tên miền gốc**. Khác tên miền gốc thì cán bộ phải đăng nhập lại liên tục.
 
 > ⚠️ **Không bật "proxy" (đám mây màu cam) của Cloudflare** cho hai bản ghi này. Máy chủ chỉ tin
 > đúng một lớp trung gian đứng trước nó (Nginx, cài ở B9) để lấy IP thật của người gửi. Thêm một
@@ -359,8 +216,7 @@ nano /etc/hop-thu/cong-khai.env
 ```
 
 Nội dung `cong-khai.env`. Chép **giá trị đang có** trên Render: Render → dịch vụ → tab
-**Environment** → bấm hiện giá trị từng biến. `www.ten-mien.vn` là địa chỉ giao diện (A7); chưa có
-tên miền thì tạm ghi địa chỉ `….vercel.app`.
+**Environment** → bấm hiện giá trị từng biến. `www.ten-mien.vn` là địa chỉ giao diện (Phần F).
 
 ```ini
 PORT=4000
@@ -784,8 +640,11 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 
 ### D3. Làm hướng 1
 
-1. Vercel → **Settings** → **Environment Variables** → **xoá** `VITE_CLOUDINARY_CLOUD_NAME` và
-   `VITE_CLOUDINARY_PRESET` → **Redeploy**. Từ lúc này ảnh mới lưu vào CSDL.
+1. Bỏ hai dòng `VITE_CLOUDINARY_CLOUD_NAME` và `VITE_CLOUDINARY_PRESET` trong tệp `.env.production`
+   của mã nguồn (nhờ Claude làm trong một phiên, có chạy test), đẩy lên `master`, rồi chạy cập
+   nhật F7. Từ lúc này ảnh mới lưu vào CSDL. *(Ghi dòng trống trong `/etc/hop-thu/giao-dien.env`
+   **không** tắt được: kịch bản cố ý bỏ qua giá trị trống để lỡ tay không xoá mất khoá Turnstile
+   — xem F3.)*
 2. **Ảnh cũ vẫn nằm trên Cloudinary.** Giữ `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
    `CLOUDINARY_API_SECRET` ở máy chủ cán bộ để vẫn đọc chữ và xoá được ảnh cũ. **Chưa xoá tài
    khoản Cloudinary**: xoá là mất luôn ảnh bằng chứng của các hồ sơ cũ. Muốn rời Cloudinary hẳn
@@ -801,16 +660,18 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 
 ### E1. Thứ tự đề xuất — mỗi bước chạy được độc lập
 
+Trang đang chạy (Netlify/Vercel + Render + Aiven) **vẫn phục vụ người dân** cho tới đêm chuyển.
+Mọi thứ trên máy Viettel dựng và thử trước, song song.
+
 | Bước | Việc | Người dân có bị gián đoạn? |
 |---|---|---|
-| 1 | **Phần A**: đưa giao diện lên Vercel, vẫn nối máy chủ Render cũ | Không |
-| 2 | **B1–B9**: dựng máy Viettel, tạm nối **Aiven cũ** (dùng `ca.pem` của Aiven). Chạy thử bằng `curl` và trình duyệt, **chưa** đổi Vercel | Không |
+| 1 | **B1–B9**: dựng máy Viettel, hai máy chủ (người dân + cán bộ), tạm nối **Aiven cũ** (dùng `ca.pem` của Aiven). Thử bằng `curl` tới `https://api.…` và `https://canbo-api.…` | Không |
+| 2 | **F2–F5**: dựng giao diện trên chính máy đó, thử bằng địa chỉ IP. **Chưa** đổi `@`/`www` | Không |
 | 3 | **C1–C2**: mua và tạo CSDL VNPT, thử kết nối từ máy Viettel | Không |
-| 4 | **Một đêm chuyển**: C3 (chép dữ liệu) → đổi `VITE_API_URL`/`VITE_ADMIN_API_URL` trên Vercel → sửa CSP (A6-2) → đẩy `master` → kiểm 4 việc ở C3 | **Có**, khoảng 30–60 phút. Báo trước trên trang tin hoặc nhóm Zalo; việc gấp gọi 113 |
-| 5 | Theo dõi 1–2 tuần. Ổn thì tắt Render (**Suspend**, rồi **Delete**) và xoá Aiven | Không |
-| 6 | **Phần D** hướng 1 | Không |
-| 7 | **Phần F**: đưa giao diện về máy Viettel, đổi DNS `@`/`www` (F8). Có thể làm cùng đêm ở bước 4 | Không, nếu làm đúng F8 (bản Vercel chạy song song tới khi DNS đổi xong) |
-| 8 | **Phần G**: sao lưu mã hoá sang Bizfly, chạy tay một lần, **diễn tập khôi phục G6 thành công**, rồi bật chạy mỗi đêm. Làm **ngay** sau bước 4 — từ đêm chuyển trở đi dữ liệu thật đã nằm trên VNPT | Không |
+| 4 | **Một đêm chuyển**: C3 (chép dữ liệu, Render đã Suspend) → đổi DNS `@`/`www` sang IP Viettel (F8) → F6 → kiểm đủ E2 | **Có**, khoảng 30–60 phút. Báo trước trên trang tin hoặc nhóm Zalo; việc gấp gọi 113 |
+| 5 | **Phần G** ngay trong 1–2 ngày: sao lưu mã hoá, **diễn tập khôi phục G6 thành công** | Không |
+| 6 | Theo dõi 1–2 tuần. Ổn thì xoá Render (**Suspend** → **Delete**), Aiven, và dự án Netlify/Vercel (F8 bước 5) | Không |
+| 7 | **Phần D** hướng 1 | Không |
 
 ### E2. Danh sách kiểm cho đêm chuyển
 
@@ -821,9 +682,9 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 - [ ] Render đã Suspend → không còn ý kiến mới vào Aiven.
 - [ ] `mysqldump` xong, số đếm hai bên bằng nhau.
 - [ ] Hai máy chủ trên Viettel `active (running)`, `https://api.../api/health` có ổ khoá.
-- [ ] Vercel đã đổi `VITE_API_URL` (và `VITE_ADMIN_API_URL` nếu tách), đã **Redeploy**.
-- [ ] `vercel.json` và `public/_headers` đã có địa chỉ máy chủ mới (giao diện trên máy Viettel — Phần F — thì không cần).
-- [ ] `CORS_ORIGIN` đúng địa chỉ giao diện; Turnstile đã có tên miền.
+- [ ] Giao diện trên máy Viettel: `/etc/hop-thu/giao-dien.env` (F3) đúng hai địa chỉ máy chủ, đã
+      chạy `deploy/dung-giao-dien.sh` ra `✅`; DNS `@`/`www` đã trỏ về IP Viettel (F8).
+- [ ] `CORS_ORIGIN` đúng `https://www.…`; Turnstile đã có tên miền (F6).
 - [ ] Đăng nhập cán bộ được, xem danh tính hồ sơ cũ ra đúng tên, gửi thử và tra cứu được.
 - [ ] Đã `shred` các tệp sao lưu trên máy.
 - [ ] Trong vòng 1–2 ngày sau đêm chuyển: Phần G chạy, **G6 khôi phục thử khớp số**; khoá mở bản
@@ -836,7 +697,7 @@ phải để hoảng:
 
 | Dịch vụ | Nhận được gì | Bỏ được không |
 |---|---|---|
-| **Vercel/Netlify** (giao diện) | Tệp tĩnh; thấy IP người mở trang; **sửa được JS nơi người dân gõ danh tính** | Được — **Phần F** |
+| ~~Vercel/Netlify~~ (giao diện) | — | **Đã bỏ** — giao diện chạy trên máy Viettel (Phần F) |
 | **Cloudflare Turnstile** (chống máy tự động) | IP và trình duyệt người dân lúc gửi ý kiến | Khó — đây là lớp chống spam chính |
 | **Google Gemini** (trợ lý hỏi đáp) | Những gì người dân gõ vào **ô trợ lý** (không phải nội dung ý kiến gửi đi — phân loại ý kiến chạy bằng quy tắc ngay trên máy chủ) | Được — để trống `GEMINI_API_KEY` thì tắt trợ lý |
 | **Brevo** (gửi email mã xác thực) | Địa chỉ email người nhận | Được — đổi nhà gửi mail |
@@ -850,7 +711,8 @@ thuật: nên hỏi bộ phận phụ trách an ninh mạng hoặc pháp chế c
 
 ## Phần F — Đưa giao diện lên máy Viettel (thay Netlify/Vercel)
 
-**Nên làm khi chạy thật.** Người dân gõ họ tên, số điện thoại vào trang giao diện **trước khi**
+**Giao diện chạy trên chính máy Viettel đã dựng ở Phần B** — một máy phục vụ cả trang người
+dân, trang cán bộ (`/quan-tri`) và hai máy chủ. Người dân gõ họ tên, số điện thoại vào trang giao diện **trước khi**
 máy chủ mã hoá. Ai sửa được gói JS trên Netlify/Vercel (kẻ chiếm tài khoản, hoặc chính nhà
 cung cấp ở nước ngoài) là đọc được danh tính ngay tại ô nhập — mã hoá ở máy chủ không cứu
 được. Đặt giao diện trên máy Viettel thì cả bốn phần nằm ở Việt Nam, dưới quyền của đơn vị.
@@ -861,7 +723,7 @@ Mọi thứ cần đã có sẵn trong mã nguồn, thư mục `deploy/`:
 |---|---|
 | `deploy/dung-giao-dien.sh` | Kịch bản dựng giao diện và đưa lên — thay việc Netlify/Vercel tự dựng |
 | `deploy/nginx/hop-thu-giao-dien.conf` | Cấu hình Nginx cho trang giao diện — cài **một lần** |
-| `deploy/nginx/hop-thu-header.conf` | Header bảo mật, **giống hệt** `public/_headers` (test kiểm từng ký tự). Kịch bản tự điền địa chỉ máy chủ vào CSP — **không phải sửa tay** như A6-2 |
+| `deploy/nginx/hop-thu-header.conf` | Header bảo mật, **giống hệt** `public/_headers` (test kiểm từng ký tự). Kịch bản tự điền địa chỉ máy chủ vào CSP — **không phải sửa tay** |
 
 ### F1. Cần có trước
 
@@ -943,7 +805,8 @@ certbot --nginx -d congan-phuong.vn -d www.congan-phuong.vn
 
 1. Ở **cả hai** tệp `/etc/hop-thu/cong-khai.env` và `can-bo.env`:
    `CORS_ORIGIN=https://www.congan-phuong.vn` (và `CLIENT_URL` cùng giá trị ở `cong-khai.env`).
-   Còn chạy song song Vercel/Netlify thì ghi cả hai, cách nhau dấu phẩy (A6-1).
+   Chưa đổi DNS mà muốn trang cũ trên Netlify/Vercel vẫn gọi được thì ghi thêm địa chỉ đó, cách
+   nhau dấu phẩy — bỏ đi ở F8 bước 5.
 2. `systemctl restart hop-thu-cong-khai hop-thu-can-bo`
 3. **Turnstile**: dash.cloudflare.com → Turnstile → site → Hostname Management → thêm
    `www.congan-phuong.vn`.
@@ -973,7 +836,7 @@ bash deploy/dung-giao-dien.sh
 Kịch bản đổi bản **một nhát** (không có lúc nào trang trống), chạy `nginx -t` trước khi nạp, và
 **tự quay về bản cũ** nếu cấu hình mới hỏng. Nó giữ 5 bản gần nhất.
 
-### F8. Đêm chuyển từ Vercel/Netlify
+### F8. Đêm chuyển: đổi DNS từ Netlify/Vercel sang máy Viettel
 
 1. Làm xong F2–F6 với địa chỉ IP / bản ghi tạm, kiểm đủ danh sách F6.
 2. Đổi bản ghi DNS `@` và `www` sang IP máy Viettel (F1). Chờ 5–60 phút cho DNS cập nhật —
@@ -1310,7 +1173,6 @@ rm hop-thu-NGAY-GIO.sql.gz.age
 
 ## Nguồn tham khảo (tra ngày 2026-10-06)
 
-- Điều khoản gói Hobby của Vercel: <https://vercel.com/docs/plans/hobby>, <https://vercel.com/docs/limits/fair-use-guidelines>
 - VNPT MySQL (DBaaS): <https://cloud.vnpt.vn/dich-vu/my-sql>, <https://cloud.vnpt.vn/dich-vu/cloud-database>
 - Viettel Cloud Server, Object Storage của Viettel IDC: <https://viettelcloud.vn>, <https://cloudian.com/press/viettel-idc-chooses-cloudian-object-storage-as-foundation-for-service-offerings.md>
 - Bizfly Cloud Simple Storage: <https://bizflycloud.vn/en/s3-simple-storage> (giá tra 2026-10-20: <https://bizflycloud.vn/s3-simple-storage>)
