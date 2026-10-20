@@ -529,11 +529,7 @@ export default function HuongDanBanDau() {
             theONua === 'tren' ? 'top-4' : 'bottom-4'
           }`}
         >
-          {/* Hàng đầu: số bước, nút nghe, và Bỏ qua ở góc.
-
-              Bỏ qua là BỎ HẲN (không hiện lại) nên để nhỏ ở góc, nhường hàng
-              nút lớn bên dưới cho Quay lại / Tiếp tục — hai việc bà con làm
-              nhiều nhất, khỏi bấm nhầm vào nút làm mất hướng dẫn. */}
+          {/* Hàng đầu: số bước và nút nghe. */}
           <div className="mb-2 flex items-center gap-2">
             <span className="rounded-lg bg-primary-600 px-2 py-0.5 text-xs font-extrabold text-white">
               {buoc + 1}/{boBuoc.length}
@@ -545,16 +541,6 @@ export default function HuongDanBanDau() {
             >
               {dangDoc ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               {dangDoc ? dich('hd.stopRead') : dich('hd.listenAgain')}
-            </button>
-            <button
-              type="button"
-              onClick={dong}
-              aria-label={laCuoi ? dich('common.close') : dich('common.skip')}
-              data-huong-dan="bo-qua"
-              className="ml-auto inline-flex min-h-[40px] items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            >
-              <X className="h-4 w-4" />
-              {laCuoi ? dich('common.close') : dich('common.skip')}
             </button>
           </div>
 
@@ -570,7 +556,26 @@ export default function HuongDanBanDau() {
             {dich(b.khoaNoiDung)}
           </p>
 
-          <div className="flex items-center gap-3">
+          {/* HÀNG NÚT: Bỏ qua — Quay lại — Tiếp tục, theo yêu cầu người vận hành
+              để cả ba nút nằm một chỗ, bà con khỏi tìm.
+
+              Bỏ qua là BỎ HẲN (không hiện lại) nên để viền mảnh, chữ nhạt, đứng
+              ngoài cùng bên trái — xa nút Tiếp tục nhất, khó bấm nhầm nhất. 
+
+              Màn hình nhỏ (360px) không đủ chỗ cho ba nút có biểu tượng: chữ bị
+              gãy làm hai dòng ("Bỏ / qua"). Ẩn biểu tượng của hai nút bên trái,
+              giữ chữ trên một dòng — chữ quan trọng hơn hình. */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={dong}
+              aria-label={laCuoi ? dich('common.close') : dich('common.skip')}
+              data-huong-dan="bo-qua"
+              className="flex min-h-[48px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2.5 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              <X className="hidden h-4 w-4 sm:block" />
+              {laCuoi ? dich('common.close') : dich('common.skip')}
+            </button>
             {/* QUAY LẠI: lỡ bấm Tiếp tục khi chưa nghe hết thì xem lại được,
                 không phải đi lại từ đầu. Bước có đổi trang, đổi màn hình biểu
                 mẫu thì hiệu ứng ở trên tự đưa về đúng chỗ như khi đi tới. */}
@@ -579,9 +584,9 @@ export default function HuongDanBanDau() {
                 type="button"
                 onClick={() => setBuoc((i) => Math.max(0, i - 1))}
                 data-huong-dan="quay-lai"
-                className="flex min-h-[48px] items-center justify-center gap-1.5 rounded-xl border-2 border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex min-h-[48px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border-2 border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
-                <ArrowLeft className="h-4 w-4" /> {dich('common.back')}
+                <ArrowLeft className="hidden h-4 w-4 sm:block" /> {dich('common.back')}
               </button>
             )}
             <button
@@ -592,7 +597,7 @@ export default function HuongDanBanDau() {
               }}
               aria-label={laCuoi ? dich('hd.start') : dich('common.next')}
               data-huong-dan="tiep-tuc"
-              className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
+              className="flex min-h-[48px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary-600 px-3 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
             >
               {laCuoi
                 ? <><Rocket className="h-4 w-4" /> {dich('hd.start')}</>
