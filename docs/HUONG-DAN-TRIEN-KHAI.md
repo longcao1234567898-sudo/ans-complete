@@ -8,10 +8,12 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
 - **Phần D** — thay **Cloudinary** (kho ảnh)
 - **Phần E** — thứ tự làm và danh sách kiểm cho ngày chuyển
 - **Phần F** — đưa giao diện lên **máy Viettel** (thay Netlify/Vercel) — nên làm khi chạy thật
+- **Phần G** — **sao lưu mã hoá** mỗi đêm sang nhà cung cấp khác — bắt buộc khi chạy thật
+- **Phụ lục** — dự toán chi phí
 
-> Viết ngày 2026-10-06. Giao diện các trang Vercel, Viettel, VNPT thay đổi theo thời gian:
-> nếu tên nút khác đi, tìm nút có ý nghĩa tương tự. **Giá và gói dịch vụ: hỏi trực tiếp nhà
-> cung cấp** — tài liệu này cố ý không ghi giá vì giá cũ đi rất nhanh.
+> Viết ngày 2026-10-06, bổ sung 2026-10-20. Giao diện các trang Vercel, Viettel, VNPT thay đổi
+> theo thời gian: nếu tên nút khác đi, tìm nút có ý nghĩa tương tự. **Giá ở Phụ lục là giá tra
+> ngày 2026-10-20 — chỉ để lập dự toán ban đầu; trước khi mua phải xin báo giá chính thức.**
 
 ---
 
@@ -214,9 +216,13 @@ Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên m�
 ### B1. Hỏi Viettel trước khi mua
 
 - [ ] Gói **Cloud Server** chạy **Ubuntu 24.04 LTS**, có **1 địa chỉ IP công khai cố định**.
-- [ ] Cấu hình: tối thiểu **2 vCPU, 2 GB RAM, 40 GB SSD**. Muốn máy tự đọc chữ trong ảnh và PDF
-      scan (OCR) thì nên **4 GB RAM**. Ít hơn thì đặt `TRICH_CHU_OCR=tat` (Word và PDF có chữ vẫn
-      đọc được).
+- [ ] Cấu hình **khuyến nghị: 2 vCPU, 4 GB RAM, ổ SSD 50 GB** (ví dụ gói T1.Base 03 có sẵn 20 GB,
+      mua thêm 30 GB — hoặc hỏi gói có sẵn ổ 40–50 GB). Đã đo tải trên đúng 2 vCPU / 4 GB: 15.000
+      lượt vào trang, 2.000 người bấm cùng lúc, 1.000 người cùng gửi ý kiến — 0 lỗi máy chủ, không
+      cần máy lớn hơn. 4 GB RAM thì máy tự đọc chữ trong ảnh và PDF scan (OCR) được.
+- [ ] Tối thiểu tuyệt đối: 2 vCPU, 2 GB RAM, 40 GB SSD, đặt `TRICH_CHU_OCR=tat` (Word và PDF có
+      chữ vẫn đọc được) và làm thêm F2. **Ổ dưới 40 GB thì không**: ổ đầy là máy chủ không ghi được
+      tệp tạm và nhật ký — người dân gửi ý kiến, tố giác không được, thường đúng lúc không ai để ý.
 - [ ] Có **Security Group** (tường lửa ở cổng mạng) chỉnh được trong trang quản trị.
 - [ ] Có **Snapshot** (chụp nguyên ổ đĩa) để quay lại khi cài hỏng.
 - [ ] Đăng ký cho **cá nhân hay cơ quan**, cần giấy tờ gì.
@@ -630,6 +636,9 @@ phòng.
       (nhật ký chỉ ghi thêm) và thủ tục; thiếu tham số này thì tài khoản thường không nhập được
       (đã thử: `ERROR 1419`).
 - [ ] Cấu hình: bản nhỏ nhất (1–2 vCPU, 2 GB RAM, 20 GB) là đủ cho một phường lúc đầu.
+- [ ] Tạo được **tài khoản chỉ đọc** và cấp được quyền **`SHOW_ROUTINE`** cho nó không — cần cho
+      sao lưu sang nơi khác (Phần G, G2 bước 2).
+- [ ] **Báo giá** bản Single và bản HA (VNPT chưa công bố giá DBaaS — xem Phụ lục).
 
 > ⚠️ **Trước khi nối máy chủ với CSDL qua Internet (Viettel ↔ VNPT), phải vá xong BUG-033** và
 > BUG-033 phải qua RETEST độc lập (chi tiết trong sổ lỗi nội bộ `buglogs/`).
@@ -801,6 +810,7 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 | 5 | Theo dõi 1–2 tuần. Ổn thì tắt Render (**Suspend**, rồi **Delete**) và xoá Aiven | Không |
 | 6 | **Phần D** hướng 1 | Không |
 | 7 | **Phần F**: đưa giao diện về máy Viettel, đổi DNS `@`/`www` (F8). Có thể làm cùng đêm ở bước 4 | Không, nếu làm đúng F8 (bản Vercel chạy song song tới khi DNS đổi xong) |
+| 8 | **Phần G**: sao lưu mã hoá sang Bizfly, chạy tay một lần, **diễn tập khôi phục G6 thành công**, rồi bật chạy mỗi đêm. Làm **ngay** sau bước 4 — từ đêm chuyển trở đi dữ liệu thật đã nằm trên VNPT | Không |
 
 ### E2. Danh sách kiểm cho đêm chuyển
 
@@ -816,6 +826,8 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 - [ ] `CORS_ORIGIN` đúng địa chỉ giao diện; Turnstile đã có tên miền.
 - [ ] Đăng nhập cán bộ được, xem danh tính hồ sơ cũ ra đúng tên, gửi thử và tra cứu được.
 - [ ] Đã `shred` các tệp sao lưu trên máy.
+- [ ] Trong vòng 1–2 ngày sau đêm chuyển: Phần G chạy, **G6 khôi phục thử khớp số**; khoá mở bản
+      sao (`khoa-sao-luu.txt`) đã chép ra USB, cất **cùng chỗ** ba khoá ở trên.
 
 ### E3. Những thứ VẪN ở nước ngoài sau khi chuyển
 
@@ -1004,10 +1016,306 @@ Lần chạy kịch bản sau sẽ đưa bản mới nhất lên lại.
 
 ---
 
+## Phần G — Sao lưu mã hoá sang nhà cung cấp khác (bắt buộc khi chạy thật)
+
+### G1. Vì sao cần, khi VNPT đã tự sao lưu
+
+VNPT sao lưu nằm **cùng một chỗ** với CSDL: tài khoản VNPT bị khoá, bị chiếm, xoá nhầm cả
+dịch vụ, hay trung tâm dữ liệu gặp sự cố thì mất cả CSDL lẫn bản sao. Phần này gửi thêm **một
+bản mỗi đêm sang kho của nhà cung cấp khác** (Bizfly Simple Storage — cùng loại kho ở Phần D
+hướng 2; dùng kho S3 của Viettel cũng được).
+
+Bản sao chứa **nội dung tố giác** (danh tính đã được mã hoá bằng `ENCRYPTION_KEY`, nhưng lời kể,
+ảnh — nếu theo Phần D hướng 1 — thì không). Vì vậy:
+
+- **Mã hoá trên máy Viettel trước khi gửi đi.** Kho chỉ nhận về những byte vô nghĩa.
+- Dùng **khoá công khai** (công cụ `age`): máy Viettel chỉ giữ khoá **khoá lại được**; khoá
+  **mở ra** nằm trên USB cất tủ. Kẻ chiếm được máy Viettel cũng không mở được các bản cũ trên kho.
+- **Chữ trần không bao giờ ghi xuống đĩa**: lệnh sao lưu → nén → mã hoá → tải lên chạy liền một
+  mạch, không qua tệp trung gian (ổ SSD không xoá sạch được bằng `shred`).
+
+> Khôi phục bản sao chỉ đọc lại được danh tính nếu còn **đúng ba khoá** `JWT_SECRET`,
+> `ENCRYPTION_KEY`, `HASH_PEPPER` cũ. Cất khoá mở bản sao **cùng chỗ** với ba khoá đó (E2).
+
+### G2. Chuẩn bị — làm một lần
+
+**1. Trên Bizfly** (tên nút tuỳ Bizfly):
+
+- [ ] Tạo một **bucket riêng**, chế độ **riêng tư** (private), ví dụ `hop-thu-sao-luu`.
+- [ ] Tạo **khoá truy cập (Access Key / Secret Key)**. Hỏi Bizfly có giới hạn khoá chỉ dùng cho
+      bucket này được không — được thì giới hạn.
+- [ ] Ghi lại **địa chỉ endpoint S3** của vùng đã chọn (trang Bizfly ghi sẵn).
+
+**2. Trên VNPT — tài khoản CSDL chỉ đọc, chỉ dùng để sao lưu.** Không dùng tài khoản của máy
+chủ: tài khoản đó ghi được, lộ ra là sửa được dữ liệu.
+
+```sql
+CREATE USER 'sao_luu'@'IP-MAY-VIETTEL' IDENTIFIED BY '<mật khẩu dài, chỉ chữ và số>';
+GRANT SELECT, SHOW VIEW, TRIGGER, LOCK TABLES, EVENT ON hop_thu_an_ninh_so.* TO 'sao_luu'@'IP-MAY-VIETTEL';
+GRANT SHOW_ROUTINE ON *.* TO 'sao_luu'@'IP-MAY-VIETTEL';
+```
+
+> ⚠️ **Đừng bỏ dòng `SHOW_ROUTINE`.** Đã thử: thiếu quyền này, `mysqldump` **không báo lỗi gì**
+> mà lặng lẽ bỏ hết các thủ tục (stored procedure) khỏi bản sao — trông như sao lưu thành công,
+> đến lúc khôi phục mới thấy thiếu. VNPT không cho cấp quyền này qua tài khoản quản trị thì
+> hỏi VNPT cấp giúp. Buổi diễn tập G6 so số thủ tục để bắt đúng lỗi này.
+
+**3. Trên máy tính ở cơ quan (KHÔNG làm trên máy Viettel)** — tạo cặp khoá mã hoá:
+
+```bash
+age-keygen -o khoa-sao-luu.txt
+```
+
+Lệnh in ra một dòng `Public key: age1...` — đó là **khoá công khai**, chép lại. Tệp
+`khoa-sao-luu.txt` là **khoá mở**: chép ra 2 USB, cất cùng chỗ ba khoá ở E2, rồi xoá khỏi máy
+tính. (Máy Windows: tải `age` cho Windows tại <https://github.com/FiloSottile/age/releases>.)
+
+**4. Trên máy Viettel:**
+
+```bash
+apt install -y age rclone mysql-client
+useradd --system --no-create-home --shell /usr/sbin/nologin hopthu-sl
+```
+
+Tệp mật khẩu CSDL cho lệnh sao lưu — đặt trong tệp chứ không ghi trên dòng lệnh, để mật khẩu
+không hiện trong danh sách tiến trình:
+
+```bash
+nano /etc/hop-thu/sao-luu.cnf
+```
+
+```ini
+[client]
+user=sao_luu
+password=<mật khẩu ở bước 2>
+host=<giống DB_HOST>
+port=<giống DB_PORT>
+ssl-ca=/etc/hop-thu/ca-db.pem
+ssl-mode=VERIFY_IDENTITY
+```
+
+`VERIFY_IDENTITY` kiểm cả chứng chỉ lẫn tên máy — đúng kiểu máy chủ ứng dụng đang kiểm (B7). Máy
+chủ nối được CSDL thì lệnh sao lưu cũng nối được.
+
+Tệp cấu hình sao lưu:
+
+```bash
+nano /etc/hop-thu/sao-luu.env
+```
+
+```ini
+DB_NAME=hop_thu_an_ninh_so
+SAO_LUU_CNF=/etc/hop-thu/sao-luu.cnf
+AGE_RECIPIENT=age1...dán khoá công khai ở bước 3...
+RCLONE_DICH=bizfly:hop-thu-sao-luu
+```
+
+Khai kho Bizfly cho `rclone`:
+
+```bash
+nano /etc/hop-thu/rclone.conf
+```
+
+```ini
+[bizfly]
+type = s3
+provider = Other
+access_key_id = <Access Key ở bước 1>
+secret_access_key = <Secret Key ở bước 1>
+endpoint = <endpoint ở bước 1>
+acl = private
+```
+
+Khoá quyền — chỉ người dùng sao lưu đọc được:
+
+```bash
+chown hopthu-sl:hopthu-sl /etc/hop-thu/sao-luu.cnf /etc/hop-thu/sao-luu.env /etc/hop-thu/rclone.conf
+chmod 600 /etc/hop-thu/sao-luu.cnf /etc/hop-thu/sao-luu.env /etc/hop-thu/rclone.conf
+```
+
+### G3. Tệp lệnh sao lưu
+
+```bash
+nano /usr/local/bin/hop-thu-sao-luu.sh
+```
+
+```bash
+#!/bin/bash
+# Sao lưu CSDL hằng đêm sang kho ở nhà cung cấp khác (Phần G).
+# Chữ trần KHÔNG BAO GIỜ chạm đĩa: dump -> nén -> mã hoá -> tải lên, chạy liền một mạch.
+set -euo pipefail
+source "${SAO_LUU_ENV:-/etc/hop-thu/sao-luu.env}"   # DB_NAME, AGE_RECIPIENT, RCLONE_DICH, SAO_LUU_CNF
+TEN="hop-thu-$(date +%F-%H%M).sql.gz.age"
+
+# Tải lên dưới tên tạm; chỉ đổi sang tên thật khi CẢ chuỗi thành công.
+# Không làm vậy thì lần hỏng giữa chừng vẫn để lại một tệp cụt trông như bản sao lưu.
+if ! mysqldump --defaults-extra-file="$SAO_LUU_CNF" --single-transaction --routines --triggers \
+       --no-tablespaces --set-gtid-purged=OFF "$DB_NAME" \
+     | gzip -9 | age -r "$AGE_RECIPIENT" | rclone rcat "$RCLONE_DICH/$TEN.dang-tai"; then
+  rclone deletefile "$RCLONE_DICH/$TEN.dang-tai" 2>/dev/null || true
+  echo "LOI: sao luu that bai, khong co ban moi" >&2
+  exit 1
+fi
+rclone moveto "$RCLONE_DICH/$TEN.dang-tai" "$RCLONE_DICH/$TEN"
+
+# Giữ 30 ngày gần nhất.
+rclone delete --min-age 30d --include "hop-thu-*.sql.gz.age" "$RCLONE_DICH"
+echo "OK $TEN"
+```
+
+```bash
+chmod 755 /usr/local/bin/hop-thu-sao-luu.sh
+```
+
+Chạy thử bằng tay một lần:
+
+```bash
+sudo -u hopthu-sl env RCLONE_CONFIG=/etc/hop-thu/rclone.conf /usr/local/bin/hop-thu-sao-luu.sh
+sudo -u hopthu-sl env RCLONE_CONFIG=/etc/hop-thu/rclone.conf rclone ls bizfly:hop-thu-sao-luu
+```
+
+Phải in `OK hop-thu-....sql.gz.age` và thấy tệp đó trên kho. Xong **làm ngay G6** một lần.
+
+### G4. Cho chạy tự động mỗi đêm (systemd)
+
+```bash
+nano /etc/systemd/system/hop-thu-sao-luu.service
+```
+
+```ini
+[Unit]
+Description=Hop thu - sao luu CSDL ma hoa sang kho khac
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hopthu-sl
+Group=hopthu-sl
+Environment=RCLONE_CONFIG=/etc/hop-thu/rclone.conf
+ExecStart=/usr/local/bin/hop-thu-sao-luu.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+```
+
+```bash
+nano /etc/systemd/system/hop-thu-sao-luu.timer
+```
+
+```ini
+[Unit]
+Description=Hop thu - sao luu luc 2 gio 30 sang moi ngay
+
+[Timer]
+# Ghi rõ múi giờ: máy Ubuntu mới thường để UTC, khi đó "2:30" là 9:30 sáng giờ Việt Nam
+OnCalendar=*-*-* 02:30:00 Asia/Ho_Chi_Minh
+# Máy tắt lúc 2 giờ 30 thì bật lên chạy bù ngay
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl daemon-reload
+systemctl enable --now hop-thu-sao-luu.timer
+systemctl list-timers hop-thu-sao-luu.timer      # thấy giờ chạy kế tiếp là được
+```
+
+### G5. Kiểm mỗi tuần — 1 phút
+
+```bash
+journalctl -u hop-thu-sao-luu.service --since "7 days ago" | grep -E "OK|LOI"
+sudo -u hopthu-sl env RCLONE_CONFIG=/etc/hop-thu/rclone.conf rclone lsl bizfly:hop-thu-sao-luu | tail -3
+```
+
+Phải có một dòng `OK` mỗi đêm, và tệp mới nhất là của đêm qua. Có `LOI` hay thiếu đêm nào thì
+xem dòng lỗi ngay phía trên nó (bảng G7).
+
+### G6. Diễn tập khôi phục — lần đầu ngay sau G3, rồi mỗi tháng một lần
+
+**Bản sao chưa từng khôi phục thử thì coi như chưa có bản sao.** Làm trên **máy tính ở cơ
+quan** hoặc một CSDL thử, **không** khôi phục đè lên CSDL đang chạy.
+
+```bash
+# 1. Lấy bản mới nhất về (cần rclone khai kho như G2 bước 4)
+rclone copy bizfly:hop-thu-sao-luu/hop-thu-NGAY-GIO.sql.gz.age .
+
+# 2. Tạo CSDL thử rồi mở khoá, giải nén, bỏ dòng DEFINER (như C3) và nhập
+mysql -u root -p -e "CREATE DATABASE thu_khoi_phuc CHARACTER SET utf8mb4;"
+age -d -i khoa-sao-luu.txt hop-thu-NGAY-GIO.sql.gz.age | gunzip \
+  | sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' | mysql -u root -p thu_khoi_phuc
+```
+
+So bản khôi phục với CSDL thật — chạy câu này trên **cả hai** (`thu_khoi_phuc` và CSDL VNPT):
+
+```sql
+SELECT 'bang', COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
+UNION ALL SELECT 'trigger', COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE()
+UNION ALL SELECT 'thu tuc', COUNT(*) FROM information_schema.routines WHERE routine_schema = DATABASE()
+UNION ALL SELECT 'view', COUNT(*) FROM information_schema.views WHERE table_schema = DATABASE()
+UNION ALL SELECT 'y kien', (SELECT COUNT(*) FROM submissions);
+```
+
+Bốn dòng đầu phải **bằng nhau**; dòng `y kien` của bản sao chỉ được ít hơn số ý kiến gửi vào từ
+lúc sao lưu tới giờ. Xong thì xoá CSDL thử và tệp đã tải về:
+
+```bash
+mysql -u root -p -e "DROP DATABASE thu_khoi_phuc;"
+rm hop-thu-NGAY-GIO.sql.gz.age
+```
+
+> Đã chạy thử đúng các lệnh ở G3 và G6 trên MySQL 8.0 (2026-10-20), kho là thư mục trên máy thay
+> cho Bizfly, kết nối CSDL không qua TLS: khôi phục ra đủ 28 bảng, 5 trigger, 4 thủ tục, 10 view,
+> số ý kiến khớp từng dòng. Sao lưu hỏng giữa chừng (sai mật khẩu) thì báo `LOI` và **không** để
+> lại tệp cụt trên kho; bản cũ hơn 30 ngày bị xoá, tệp khác trong kho không bị đụng. **Chưa thử**
+> với Bizfly thật và TLS của VNPT — lần chạy tay đầu tiên ở G3 chính là phép thử đó.
+
+### G7. Lỗi hay gặp
+
+| Thấy gì | Vì sao | Làm gì |
+|---|---|---|
+| Khôi phục ra `thu tuc` = 0, CSDL thật có | Thiếu quyền `SHOW_ROUTINE` (G2 bước 2) | Cấp quyền, chạy lại G3, làm lại G6 |
+| `Access denied ... PROCESS privilege` | Thiếu `--no-tablespaces` | Dùng đúng tệp lệnh ở G3 |
+| `Access denied for user 'sao_luu'` | Sai mật khẩu, hoặc VNPT chưa cho IP máy Viettel | Kiểm `sao-luu.cnf`; kiểm danh sách IP ở C1 |
+| `SSL connection error` | Sai đường dẫn hoặc sai tệp CA | `ssl-ca` phải trỏ đúng tệp CA của VNPT (B7) |
+| `403 Forbidden` / `AccessDenied` từ rclone | Khoá Bizfly sai hoặc không có quyền với bucket | Kiểm `rclone.conf`, quyền của khoá |
+| `no identity matched any of the recipients` | Mở bằng sai khoá | Dùng đúng `khoa-sao-luu.txt` đi cặp với `AGE_RECIPIENT` |
+| Không có dòng `OK` đêm qua, cũng không có `LOI` | Bộ hẹn giờ chưa bật | `systemctl enable --now hop-thu-sao-luu.timer` |
+
+---
+
+## Phụ lục — Dự toán chi phí (tra ngày 2026-10-20)
+
+> ⚠️ Giá cũ đi rất nhanh. Bảng này để **lập dự toán ban đầu**; trước khi trình duyệt phải **xin
+> báo giá chính thức**, nhất là hai dòng có ghi "cần báo giá". Đơn vị: đồng/tháng, **đã gồm VAT 10%**.
+
+| Hạng mục | Cấu hình | Khuyến nghị | Tối đa | Căn cứ |
+|------------------|------------------|----------:|----------:|------------------------------------------|
+| Viettel Cloud Server (2 máy chủ + giao diện + Nginx) | T1.Base 03: 2 vCPU, 4 GB RAM, 20 GB SSD | 438.900 | 438.900 | 399.000 chưa VAT. Đã đo tải trên đúng cấu hình này (B1) |
+| Thêm ổ SSD | +30 GB / +50 GB | 99.000 | 165.000 | ~30.000/10 GB chưa VAT — **cần Viettel báo giá** |
+| VNPT MySQL (CSDL) | 1 máy (Single) / 2 máy dự phòng (HA) | 572.000 | 1.144.000 | VNPT chưa công bố giá DBaaS; tính ~520.000 chưa VAT/máy, cao hơn VNPT Cloud Server cùng cấu hình (379.000) để không dự toán thiếu — **cần VNPT báo giá** |
+| Sao lưu khác nhà cung cấp (Phần G, kho S3 Bizfly) | ≤100 GB lưu, ≤50 GB tải về | 55.000 | 110.440 | 864 đ/GB/tháng, tải về 280 đ/GB, tối thiểu 50.000 (chưa VAT) |
+| Thay Cloudinary (Phần D hướng 1) | Ảnh lưu trong CSDL | 0 | 0 | Chọn hướng 2 thì dùng chung kho ở dòng trên |
+| Tên miền .vn (quy ra tháng) | | 38.333 | 55.833 | Gia hạn ~460.000/năm; năm đầu ~450.000–670.000 |
+| HTTPS, băng thông, Turnstile, Brevo, Gemini | | 0 | 0 | Miễn phí ở quy mô phường |
+| Dự phòng phát sinh 15% | | — | 287.126 | 15% × 1.914.173 |
+| **Cộng / tháng** | | **1.203.233** | **2.201.299** | |
+| **Cộng / năm** | | **14.438.800** | **26.415.592** | Khuyến nghị: 1.164.900 × 12 + 460.000. Tối đa: (1.858.340 × 12 + 670.000) × 1,15 |
+
+---
+
 ## Nguồn tham khảo (tra ngày 2026-10-06)
 
 - Điều khoản gói Hobby của Vercel: <https://vercel.com/docs/plans/hobby>, <https://vercel.com/docs/limits/fair-use-guidelines>
 - VNPT MySQL (DBaaS): <https://cloud.vnpt.vn/dich-vu/my-sql>, <https://cloud.vnpt.vn/dich-vu/cloud-database>
 - Viettel Cloud Server, Object Storage của Viettel IDC: <https://viettelcloud.vn>, <https://cloudian.com/press/viettel-idc-chooses-cloudian-object-storage-as-foundation-for-service-offerings.md>
-- Bizfly Cloud Simple Storage: <https://bizflycloud.vn/en/s3-simple-storage>
+- Bizfly Cloud Simple Storage: <https://bizflycloud.vn/en/s3-simple-storage> (giá tra 2026-10-20: <https://bizflycloud.vn/s3-simple-storage>)
+- Giá Viettel Cloud Server (tra 2026-10-20): <https://viettelidcvn.com/cloud-server/>, <https://viettel-idc.com.vn/index.php/dich-vu/viettel-cloud-server.html>
+- Giá VNPT Cloud Server (tra 2026-10-20): <https://cloud.vnpt.vn/en/service/cloud-server>
+- Phí tên miền .vn (tra 2026-10-20): <https://www.matbao.net/ten-mien/bang-gia-ten-mien>, <https://nhanhoa.com/trang/ten-mien/bang-gia-ten-mien.html>
+- Công cụ mã hoá `age`: <https://github.com/FiloSottile/age> · `rclone` với kho S3: <https://rclone.org/s3/>
 - VNG Cloud vStorage: <https://docs.vngcloud.vn/vng-cloud-document/vn/vstorage/object-storage>
