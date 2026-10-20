@@ -1,5 +1,5 @@
 /**
- * HuongDanBanDau — hướng dẫn 8 bước cho người vào trang lần đầu.
+ * HuongDanBanDau — vòng hướng dẫn từng bước cho người vào trang lần đầu.
  *
  * VÌ SAO CẦN: bà con lớn tuổi và người ít dùng máy vào trang thường không biết
  * bắt đầu từ đâu. Một vòng hướng dẫn ngắn chỉ đúng nút cần bấm giải quyết được
@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Rocket, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Rocket, CheckCircle2, Volume2, VolumeX, X } from 'lucide-react';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
 import type { KhoaChu } from '../../i18n/chu';
@@ -195,6 +195,15 @@ const BUOC_DIEN_THOAI: Buoc[] = [
   },
 ];
 
+/** Phần tử (hoặc khung chứa nó) có đứng yên khi cuộn trang không. */
+function namTrongKhungCoDinh(el: Element): boolean {
+  for (let e: Element | null = el; e && e !== document.body; e = e.parentElement) {
+    const p = window.getComputedStyle(e).position;
+    if (p === 'fixed' || p === 'sticky') return true;
+  }
+  return false;
+}
+
 export default function HuongDanBanDau() {
   /* Đặt tên là dich chứ không phải t: trong tệp này t đã dùng cho bộ hẹn giờ. */
   const { t: dich, ngonNgu } = useNgonNgu();
@@ -330,9 +339,19 @@ export default function HuongDanBanDau() {
         else { phanTuDangKhoanh.current = null; setOSang(null); }
         return;
       }
-      /* Đưa phần tử vào GIỮA màn hình. Không cuộn thì phần tử có thể nằm ngoài
-         tầm nhìn, ô sáng khoanh vào chỗ trống. */
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      /* Đưa phần tử lên GẦN ĐỈNH màn hình, nhường nửa dưới cho thẻ hướng dẫn.
+
+         Trước đây cuộn ra GIỮA: trên điện thoại nhỏ (360×640) phía trên và phía
+         dưới phần tử đều chỉ còn ~230px, thẻ cao ~280px nên đặt bên nào cũng che
+         mất 19–36% đúng ô đang chỉ (đo P76). Ô ở gần chân trang không cuộn lên
+         được thì phía trên nó tự rộng ra, thẻ sẽ chọn nằm trên.
+
+         Phần tử nằm trong khung cố định (thanh chức năng dưới chân màn hình)
+         thì cuộn trang cũng không dời được nó — để nguyên. */
+      if (!namTrongKhungCoDinh(el)) {
+        const le = Math.round(Math.min(96, window.innerHeight * 0.12));
+        window.scrollTo({ top: Math.max(0, window.scrollY + el.getBoundingClientRect().top - le), behavior: 'smooth' });
+      }
       /* Chờ cuộn xong hẳn rồi mới đo. Đo giữa lúc đang cuộn thì toạ độ sai. */
       phanTuDangKhoanh.current = el;
       dungLai = setTimeout(() => setOSang(el.getBoundingClientRect()), 550);
@@ -421,6 +440,11 @@ export default function HuongDanBanDau() {
     const chanPhim = (e: KeyboardEvent) => {
       const phimCuon = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '];
       if (phimCuon.includes(e.key) && !trongThe(e)) e.preventDefault();
+      /* Mũi tên trái/phải để lùi/tới. Bước cuối thì → đứng yên, không tự đóng:
+         đóng là ghi "đã xem", phải do bà con bấm nút. Cố ý KHÔNG gán Esc cho
+         Bỏ qua — lỡ tay một phím là mất hẳn hướng dẫn. */
+      if (e.key === 'ArrowRight') setBuoc((i) => Math.min(i + 1, boBuoc.length - 1));
+      if (e.key === 'ArrowLeft') setBuoc((i) => Math.max(0, i - 1));
     };
 
     window.addEventListener('wheel', chan, { passive: false });
@@ -431,7 +455,7 @@ export default function HuongDanBanDau() {
       window.removeEventListener('touchmove', chan);
       window.removeEventListener('keydown', chanPhim);
     };
-  }, [hien]);
+  }, [hien, boBuoc]);
 
   function dong() {
     /* Ghi đã xem (lưu mốc thời gian đóng): từ nay không tự hiện nữa */
@@ -449,10 +473,22 @@ export default function HuongDanBanDau() {
   const b = boBuoc[buoc];
   const laCuoi = buoc === boBuoc.length - 1;
 
-  /* Phần tử đang khoanh nằm nửa DƯỚI màn hình -> đưa thẻ lên TRÊN, và ngược
-     lại. Không có ô sáng thì để thẻ ở đáy như cũ, chỗ ngón tay dễ với nhất. */
-  const theONua: 'tren' | 'duoi' = oSang && oSang.top > window.innerHeight * 0.45
-    ? 'tren' : 'duoi';
+  /* THẺ NẰM PHÍA CÒN NHIỀU CHỖ HƠN của ô đang khoanh.
+
+     Quy tắc cũ chỉ nhìn mép TRÊN của ô (quá 45% màn hình thì đưa thẻ lên):
+     ô cao như khung kể sự việc có mép trên ở 35% nhưng mép dưới ở 63%, thẻ ở
+     đáy vẫn đè lên nửa dưới của ô. So cả hai khoảng trống thì không sót.
+     Không có ô sáng thì để thẻ ở đáy, chỗ ngón tay dễ với nhất. */
+  const khoangTren = oSang ? oSang.top : 0;
+  const khoangDuoi = oSang ? window.innerHeight - oSang.bottom : 0;
+  const theONua: 'tren' | 'duoi' = oSang && khoangTren > khoangDuoi ? 'tren' : 'duoi';
+
+  function docLai() {
+    if (dangDoc) { dungDoc(); return; }
+    setDangDoc(true);
+    dieuKhienDoc.current = docTiengViet(
+      `${dich(b.khoaTieuDe)}. ${dich(b.khoaNoiDung)}`, () => setDangDoc(false), ngonNgu);
+  }
 
   return createPortal(
     <AnimatePresence>
@@ -483,71 +519,71 @@ export default function HuongDanBanDau() {
           <div className="absolute inset-0 bg-slate-900/72" />
         )}
 
-        {/* THẺ HƯỚNG DẪN — luôn ở đáy màn hình, chỗ ngón tay dễ với tới nhất. */}
         <motion.div
           key={buoc}
           data-huong-dan-the
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          /* THẺ TỰ TRÁNH CHỖ ĐANG KHOANH.
-
-             Thẻ luôn ở đáy thì khi khoanh vào nút nằm dưới màn hình (nút gửi,
-             ô ẩn danh), thẻ che mất đúng thứ đang chỉ — bà con đọc chữ mà
-             không nhìn thấy nút. Nay phần tử nằm nửa dưới thì thẻ nhảy lên
-             trên, và ngược lại. */
           className={`absolute inset-x-3 mx-auto max-w-lg rounded-2xl bg-white p-5 shadow-2xl transition-all duration-300 dark:bg-slate-900 sm:inset-x-6 ${
             theONua === 'tren' ? 'top-4' : 'bottom-4'
           }`}
         >
+          {/* Hàng đầu: số bước, nút nghe, và Bỏ qua ở góc.
+
+              Bỏ qua là BỎ HẲN (không hiện lại) nên để nhỏ ở góc, nhường hàng
+              nút lớn bên dưới cho Quay lại / Tiếp tục — hai việc bà con làm
+              nhiều nhất, khỏi bấm nhầm vào nút làm mất hướng dẫn. */}
           <div className="mb-2 flex items-center gap-2">
             <span className="rounded-lg bg-primary-600 px-2 py-0.5 text-xs font-extrabold text-white">
               {buoc + 1}/{boBuoc.length}
             </span>
-            <h3 className="text-base font-extrabold leading-snug text-slate-800 dark:text-slate-100">
-              {laCuoi ? dich('hd.done') : dich(b.khoaTieuDe)}
-            </h3>
-          </div>
-
-          {laCuoi && (
-            <div className="mb-3 flex justify-center">
-              <CheckCircle2 className="h-12 w-12 text-emerald-500" />
-            </div>
-          )}
-
-          <p className="mb-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            {laCuoi
-              ? dich('hd.doneMsg')
-              : dich(b.khoaNoiDung)}
-          </p>
-
-          {/* Nút nghe lại hoặc dừng — cho người muốn nghe kỹ, và cho người
-              không cần nghe được tắt tiếng. */}
-          <button
-            type="button"
-            onClick={() => {
-              if (dangDoc) { dungDoc(); return; }
-              const b2 = boBuoc[buoc];
-              setDangDoc(true);
-              dieuKhienDoc.current = docTiengViet(
-                `${dich(b2.khoaTieuDe)}. ${dich(b2.khoaNoiDung)}`, () => setDangDoc(false), ngonNgu);
-            }}
-            className="mb-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700 transition hover:bg-primary-100 dark:bg-primary-900/25 dark:text-primary-300"
-          >
-            {dangDoc ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {dangDoc ? dich('hd.stopRead') : dich('hd.listenAgain')}
-          </button>
-
-          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={docLai}
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700 transition hover:bg-primary-100 dark:bg-primary-900/25 dark:text-primary-300"
+            >
+              {dangDoc ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {dangDoc ? dich('hd.stopRead') : dich('hd.listenAgain')}
+            </button>
             <button
               type="button"
               onClick={dong}
               aria-label={laCuoi ? dich('common.close') : dich('common.skip')}
               data-huong-dan="bo-qua"
-              className="min-h-[44px] flex-1 rounded-xl border-2 border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="ml-auto inline-flex min-h-[40px] items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             >
+              <X className="h-4 w-4" />
               {laCuoi ? dich('common.close') : dich('common.skip')}
             </button>
+          </div>
+
+          {/* BƯỚC CUỐI HIỆN ĐÚNG LỜI CỦA NÓ. Trước đây tiêu đề và lời bị thay bằng
+              "Hoàn tất hướng dẫn" trong khi máy vẫn đọc lời bước Tra cứu — tai
+              nghe một đằng, mắt đọc một nẻo. Lời bước cuối đã có câu chốt
+              "Bà con đã nắm được cách dùng rồi!", không cần thêm màn hình nữa. */}
+          <h3 className="mb-1.5 flex items-center gap-2 text-base font-extrabold leading-snug text-slate-800 dark:text-slate-100">
+            {laCuoi && <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-500" />}
+            {dich(b.khoaTieuDe)}
+          </h3>
+          <p className="mb-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            {dich(b.khoaNoiDung)}
+          </p>
+
+          <div className="flex items-center gap-3">
+            {/* QUAY LẠI: lỡ bấm Tiếp tục khi chưa nghe hết thì xem lại được,
+                không phải đi lại từ đầu. Bước có đổi trang, đổi màn hình biểu
+                mẫu thì hiệu ứng ở trên tự đưa về đúng chỗ như khi đi tới. */}
+            {buoc > 0 && (
+              <button
+                type="button"
+                onClick={() => setBuoc((i) => Math.max(0, i - 1))}
+                data-huong-dan="quay-lai"
+                className="flex min-h-[48px] items-center justify-center gap-1.5 rounded-xl border-2 border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <ArrowLeft className="h-4 w-4" /> {dich('common.back')}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -556,7 +592,7 @@ export default function HuongDanBanDau() {
               }}
               aria-label={laCuoi ? dich('hd.start') : dich('common.next')}
               data-huong-dan="tiep-tuc"
-              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
+              className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-700"
             >
               {laCuoi
                 ? <><Rocket className="h-4 w-4" /> {dich('hd.start')}</>

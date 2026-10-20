@@ -31,7 +31,7 @@ const HUONG_DAN: { khoaTen: KhoaChu; khoaLoi: KhoaChu }[] = [
 ];
 
 export default function HuongDanBuoc({ buoc }: { buoc: number }) {
-  const { t } = useNgonNgu();
+  const { t, ngonNgu } = useNgonNgu();
   const [supported, setSupported] = useState(false);
   const [dangDoc, setDangDoc] = useState(false);
   const dkRef = useRef<DieuKhienDoc | null>(null);
@@ -41,11 +41,11 @@ export default function HuongDanBuoc({ buoc }: { buoc: number }) {
     return () => { dkRef.current?.dung(); };
   }, []);
 
-  /* Dừng đọc khi chuyển bước — không để câu bước cũ đọc chồng lên bước mới. */
+  /* Dừng đọc khi chuyển bước hoặc đổi ngôn ngữ — không để câu cũ đọc chồng lên. */
   useEffect(() => {
     dkRef.current?.dung();
     setDangDoc(false);
-  }, [buoc]);
+  }, [buoc, ngonNgu]);
 
   const hd = HUONG_DAN[buoc - 1];
   if (!hd) return null;
@@ -53,7 +53,9 @@ export default function HuongDanBuoc({ buoc }: { buoc: number }) {
   function doc() {
     if (dangDoc) { dkRef.current?.dung(); setDangDoc(false); return; }
     setDangDoc(true);
-    dkRef.current = docTiengViet(t(hd.khoaLoi), () => setDangDoc(false));
+    /* Truyền ngôn ngữ đang chọn: thiếu nó thì người đã đổi sang tiếng Anh vẫn
+       nghe giọng Việt đọc chữ Anh. */
+    dkRef.current = docTiengViet(t(hd.khoaLoi), () => setDangDoc(false), ngonNgu);
   }
 
   return (
@@ -73,7 +75,7 @@ export default function HuongDanBuoc({ buoc }: { buoc: number }) {
         <button
           type="button"
           onClick={doc}
-          aria-label={dangDoc ? 'Dừng đọc hướng dẫn' : 'Nghe đọc hướng dẫn bước này'}
+          aria-label={dangDoc ? t('hd.stopRead') : t('hd.listenAgain')}
           className={`flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
             dangDoc
               ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
@@ -81,7 +83,7 @@ export default function HuongDanBuoc({ buoc }: { buoc: number }) {
           }`}
         >
           {dangDoc ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          {dangDoc ? 'Dừng' : 'Nghe'}
+          {dangDoc ? t('hd.stopRead') : t('hd.listenAgain')}
         </button>
       )}
     </div>
