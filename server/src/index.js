@@ -27,6 +27,7 @@ import diemDenRouter from './routes/diem-den.js';
 import ttsRouter from './routes/tts.js';
 import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
+import xacMinhSdtRouter, { moTaXacMinhSdt } from './routes/xac-minh-sdt.js';
 import { moTaCheDoEmail } from './lib/mailer.js';
 import { encryptionEnabled, encryptionProblem } from './lib/crypto.js';
 import aiRouter from './routes/ai.js';
@@ -209,6 +210,8 @@ app.use('/api/diem-den', diemDenRouter);
 /* Đọc tiếng Việt qua máy chủ — cho máy người dùng không cài giọng Việt */
 app.use('/api/tts', ttsRouter);
 app.use('/api/otp', otpRouter);
+/* Mã xác minh số điện thoại qua Zalo/SMS (P86) — tắt khi chưa khai KENH_XAC_MINH_SDT */
+app.use('/api/xac-minh-sdt', xacMinhSdtRouter);
 app.use('/api/submissions', submissionsRouter);
 app.use('/api/ai', aiRouter);
 
@@ -237,6 +240,7 @@ async function start() {
   console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash'));
   console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
   console.log(moTaCheDoEmail());
+  console.log(moTaXacMinhSdt());
   const cbTurnstile = canhBaoTurnstile();
   if (cbTurnstile) console.error(cbTurnstile);
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);

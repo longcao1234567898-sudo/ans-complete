@@ -103,6 +103,10 @@ const LUOC_DO = [
   `CREATE TABLE khoa_gui_tam (khoa TEXT PRIMARY KEY, chu TEXT NOT NULL, het_han TEXT NOT NULL)`,
   /* nang_cap_v37.sql (BUG-040) — đếm lần thử PIN sai theo hồ sơ */
   `CREATE TABLE khoa_mo_phong (submission_id INT PRIMARY KEY, so_lan INT NOT NULL DEFAULT 0, dem_tu TEXT NOT NULL)`,
+  /* nang_cap_v38.sql (P86) — mã xác minh số điện thoại + bộ đếm giới hạn dùng chung */
+  `CREATE TABLE ma_xac_minh_sdt (id INTEGER PRIMARY KEY, sdt_bam TEXT NOT NULL, ma_bam TEXT NOT NULL, kenh TEXT NOT NULL,
+     het_han TEXT NOT NULL, so_lan_sai INT NOT NULL DEFAULT 0, da_dung INT NOT NULL DEFAULT 0, tao_luc TEXT DEFAULT (NOW()))`,
+  `CREATE TABLE dem_gioi_han (khoa TEXT PRIMARY KEY, so INT NOT NULL DEFAULT 0, het_han TEXT NOT NULL)`,
   `CREATE TABLE canh_bao_dot_bien (id INTEGER PRIMARY KEY, ward_id INT NOT NULL, khung INT NOT NULL,
      so_tin INT NOT NULL, nguong INT NOT NULL, created_at TEXT DEFAULT (NOW()), UNIQUE (ward_id, khung))`,
   `INSERT INTO categories VALUES (1, 'to_giac', 'Tố giác', 15), (2, 'khieu_nai', 'Khiếu nại', 30),

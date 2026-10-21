@@ -16,6 +16,7 @@
  *   · Khoảng chuyển đổi: trình duyệt còn giữ giao diện cũ gửi captchaToken của
  *     từng form — vẫn nhận nếu Cloudflare xác nhận token đó.
  */
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { verifyTurnstile, turnstileEnabled } from './turnstile.js';
 
@@ -26,7 +27,10 @@ export const LOI_CAN_XAC_MINH = 'Phiên xác minh "không phải người máy" 
   + 'Việc khẩn cấp xin gọi ngay 113.';
 
 export function capVe() {
-  return jwt.sign({ purpose: MUC_DICH }, process.env.JWT_SECRET, { expiresIn: HAN_VE });
+  /* jwtid riêng cho từng vé: không có nó, hai người mở trang cùng một giây nhận
+     vé GIỐNG HỆT nhau — mọi giới hạn đếm theo vé (vd mã xác minh số, P86) sẽ
+     tính hai người là một. */
+  return jwt.sign({ purpose: MUC_DICH }, process.env.JWT_SECRET, { expiresIn: HAN_VE, jwtid: crypto.randomUUID() });
 }
 
 /** Vé hợp lệ: đúng chữ ký, còn hạn, đúng mục đích. Chỉ nhận chuỗi. */

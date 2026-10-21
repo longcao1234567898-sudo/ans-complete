@@ -91,6 +91,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v34.sql           #    N
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v35.sql           #    Ghi lại tệp đính kèm không nhận được để cán bộ biết (BUG-035) — bảng tep_khong_nhan, không lưu tên tệp; chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v36.sql           #    Lưu được thiết bị tin cậy (máy ki-ốt dùng chung) — nới blacklists.kind, khôi phục dòng tin cậy bị ghi rỗng (ND-028); cần quyền ALTER, chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v37.sql           #    Đếm lần thử mã PIN phòng trao đổi theo hồ sơ (BUG-040) — bảng khoa_mo_phong; **chạy TRƯỚC khi cập nhật máy chủ** (thiếu bảng thì phòng trao đổi không mở)
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v38.sql           #    Mã xác minh số điện thoại qua Zalo/SMS (P86) — bảng ma_xac_minh_sdt (không lưu số, không lưu mã) + dem_gioi_han; chưa chạy thì tính năng tắt, gửi ý kiến vẫn bình thường
 ```
 `TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
 

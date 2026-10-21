@@ -1,0 +1,272 @@
+/**
+ * P86 — MÃ XÁC MINH SỐ ĐIỆN THOẠI QUA ZALO / SMS: 7 LỚP CHỐNG PHÁ
+ *
+ * Mỗi mã gửi đi là tiền thật của người vận hành. Các test dưới đây dùng kênh
+ * giả (đếm số tin "đã gửi") để chứng minh từng lớp chặn — đặc biệt trần tin mỗi
+ * ngày phải đứng vững cả khi bị gửi dồn song song.
+ *
+ * Mỗi lượt gọi mang một IP riêng (qua `trust proxy` như sau Nginx) trừ khi test
+ * cố ý dùng chung một IP.
+ */
+import { test, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
+import { datBienMoiTruongHopLe, TEST_JWT_SECRET } from './helpers-test.js';
+import { BO_QUA, dungCsdl } from './khung-sqlite.js';
+
+datBienMoiTruongHopLe();
+
+const { pool } = await import('../src/db.js');
+const { default: router, veSdtHopLe, tranNgay, trangThai } = await import('../src/routes/xac-minh-sdt.js');
+const { dangKyKenh, cauHinhKenh } = await import('../src/lib/kenh-gui-ma.js');
+
+/* Kênh giả: ghi lại mọi tin "đã gửi" */
+const daGui = [];
+let zaloHong = false;
+dangKyKenh('zalo', { guiMa: async (t) => (zaloHong ? { ok: false, lyDo: 'không có Zalo' } : (daGui.push({ kenh: 'zalo', ...t }), { ok: true })) });
+dangKyKenh('sms', { guiMa: async (t) => (daGui.push({ kenh: 'sms', ...t }), { ok: true }) });
+
+let ctl;
+beforeEach(() => {
+  daGui.length = 0;
+  zaloHong = false;
+  process.env.KENH_XAC_MINH_SDT = 'zalo,sms';
+  delete process.env.XAC_MINH_TRAN_NGAY;
+  if (!BO_QUA) ctl = dungCsdl(pool);
+});
+
+const app = express();
+app.set('trust proxy', 1);
+app.use(express.json());
+app.use('/api/xac-minh-sdt', router);
+const server = app.listen(0);
+test.after(() => server.close());
+const cong = () => server.address().port;
+
+let soIp = 0;
+const ipMoi = () => { soIp++; return `10.${(soIp >> 16) & 255}.${(soIp >> 8) & 255}.${soIp & 255}`; };
+let soSdt = 0;
+const sdtMoi = () => `09${String(1300000 + 7919 * ++soSdt).padStart(8, '0').slice(-8)}`;
+
+/* Phiếu mở form đã mở 1 phút trước — như người thật đang điền ý kiến */
+const phieuCu = () => jwt.sign({ purpose: 'mo_form', iat: Math.floor(Date.now() / 1000) - 60 }, TEST_JWT_SECRET, { expiresIn: '2h', jwtid: crypto.randomUUID() });
+
+async function goi(duong, body, ip = ipMoi()) {
+  const r = await fetch(`http://127.0.0.1:${cong()}/api/xac-minh-sdt${duong}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { status: r.status, body: await r.json().catch(() => null) };
+}
+const guiMa = (soDienThoai, ip, them = {}) => goi('/gui-ma', { soDienThoai, phieuMoForm: phieuCu(), ...them }, ip);
+const maTrongTin = (t) => /(\d{6})/.exec(t.noiDung)[1];
+
+test('chưa khai kênh: TẮT, không gửi gì, trả lời rõ là ý kiến vẫn gửi được', { skip: BO_QUA }, async () => {
+  delete process.env.KENH_XAC_MINH_SDT;
+  assert.equal((await goi('/trang-thai')).body.bat, false);
+  const r = await guiMa(sdtMoi());
+  assert.equal(r.status, 503);
+  assert.match(r.body.error, /vẫn gửi ý kiến/);
+  assert.equal(daGui.length, 0);
+});
+
+test('cấu hình sai thì TẮT, không đoán: kênh lạ, kênh thử ở production, trần không phải số dương', () => {
+  assert.equal(cauHinhKenh({ KENH_XAC_MINH_SDT: 'zalo,khongco' }).bat, false);
+  assert.equal(cauHinhKenh({ KENH_XAC_MINH_SDT: 'thu', NODE_ENV: 'production' }).bat, false, 'kênh thử trả mã ra màn hình');
+  assert.equal(cauHinhKenh({ KENH_XAC_MINH_SDT: 'thu' }).bat, false, 'quên đặt NODE_ENV trên máy thật vẫn phải chặn');
+  assert.equal(cauHinhKenh({ KENH_XAC_MINH_SDT: 'thu', NODE_ENV: 'development' }).bat, true);
+  for (const sai of ['0', '-5', 'abc', '10.5']) {
+    assert.equal(trangThai({ KENH_XAC_MINH_SDT: 'sms', XAC_MINH_TRAN_NGAY: sai }).bat, false, `trần "${sai}"`);
+  }
+  assert.equal(tranNgay({}), 500, 'mặc định 500 tin/ngày');
+  assert.equal(tranNgay({ XAC_MINH_TRAN_NGAY: '800' }), 800, 'đổi trần chỉ bằng một biến môi trường');
+});
+
+test('lớp 2: chưa mở form đủ lâu (gọi thẳng API) thì không gửi mã', { skip: BO_QUA }, async () => {
+  const khong = await goi('/gui-ma', { soDienThoai: sdtMoi() });
+  const vuaMo = await goi('/gui-ma', { soDienThoai: sdtMoi(), phieuMoForm: jwt.sign({ purpose: 'mo_form' }, TEST_JWT_SECRET) });
+  assert.equal(khong.status, 429);
+  assert.equal(vuaMo.status, 429);
+  assert.equal(daGui.length, 0);
+});
+
+test('lớp 5: chỉ số di động Việt Nam 10 số — không gửi số quốc tế, số bàn, số bịa', { skip: BO_QUA }, async () => {
+  for (const so of ['+1 415 555 0100', '+44 7700 900123', '0283 8123 456', '0911111111', '0123456789', '12345', 'abc']) {
+    assert.equal((await guiMa(so)).status, 400, so);
+  }
+  assert.equal(daGui.length, 0);
+});
+
+test('luồng đúng: gửi qua Zalo, tin trung tính, xác nhận ra vé đúng số, mã dùng một lần', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  const r = await guiMa(so);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.kenh, 'zalo');
+  assert.equal(r.body.maThu, undefined, 'kênh thật không bao giờ trả mã ra màn hình');
+  assert.equal(daGui.length, 1);
+  const tin = daGui[0];
+  assert.equal(tin.soDienThoai, so);
+  assert.doesNotMatch(tin.noiDung, /c[oô]ng\s*an|t[oố]\s*gi[aá]c|ph[aả]n\s*[aá]nh|ph[uư][oờ]ng/i, 'tin hiện trên màn hình — không được lộ việc tố giác');
+  const ma = maTrongTin(tin);
+  const xn = await goi('/xac-nhan', { soDienThoai: so, ma });
+  assert.equal(xn.status, 200, JSON.stringify(xn.body));
+  assert.equal(veSdtHopLe(xn.body.veSdt, so), true);
+  assert.equal(veSdtHopLe(xn.body.veSdt, sdtMoi()), false, 'vé của số này không dùng cho số khác');
+  assert.equal(veSdtHopLe('vé-bịa', so), false);
+  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma })).status, 400, 'mã đã dùng không dùng lại được');
+});
+
+test('không gửi được Zalo thì chuyển sang SMS', { skip: BO_QUA }, async () => {
+  zaloHong = true;
+  const r = await guiMa(sdtMoi());
+  assert.equal(r.status, 200);
+  assert.equal(r.body.kenh, 'sms');
+  assert.deepEqual(daGui.map((t) => t.kenh), ['sms']);
+});
+
+test('CSDL không giữ số điện thoại thật, không giữ mã thật', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  await guiMa(so);
+  const ma = maTrongTin(daGui[0]);
+  const bang = JSON.stringify([
+    ...ctl.db.prepare('SELECT * FROM ma_xac_minh_sdt').all(),
+    ...ctl.db.prepare('SELECT * FROM dem_gioi_han').all(),
+  ]);
+  assert.ok(!bang.includes(so), 'lộ số điện thoại trong CSDL');
+  assert.ok(!bang.includes(ma), 'lộ mã trong CSDL');
+});
+
+test('lớp 3: cùng một số — chờ 60 giây giữa hai mã, tối đa 3 mã/giờ', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  assert.equal((await guiMa(so)).status, 200);
+  assert.equal((await guiMa(so)).status, 429, 'gửi lại ngay');
+  ctl.troiQua(1.1); assert.equal((await guiMa(so)).status, 200);
+  ctl.troiQua(1.1); assert.equal((await guiMa(so)).status, 200);
+  ctl.troiQua(1.1); assert.equal((await guiMa(so)).status, 429, 'mã thứ 4 trong giờ');
+  assert.equal(daGui.length, 3);
+});
+
+test('lớp 4: cùng một mạng — tối đa 10 mã/giờ dù mỗi lần một số khác', { skip: BO_QUA }, async () => {
+  const ip = ipMoi();
+  const ma = [];
+  for (let k = 0; k < 13; k++) ma.push((await guiMa(sdtMoi(), ip)).status);
+  assert.equal(ma.filter((m) => m === 200).length, 10, ma.join(','));
+  assert.equal(daGui.length, 10);
+});
+
+test('lớp 6: trần tin cả hệ thống — 40 yêu cầu gửi DỒN CÙNG LÚC, trần 5: đúng 5 tin đi', { skip: BO_QUA }, async () => {
+  process.env.XAC_MINH_TRAN_NGAY = '5';
+  const kq = await Promise.all(Array.from({ length: 40 }, () => guiMa(sdtMoi())));
+  assert.equal(daGui.length, 5, `trần 5 mà gửi ${daGui.length} tin`);
+  const tat = kq.filter((r) => r.status === 503);
+  assert.equal(tat.length, 35);
+  assert.match(tat[0].body.error, /vẫn gửi ý kiến/, 'chạm trần: ngừng gửi mã, KHÔNG ngừng nhận ý kiến');
+});
+
+test('xác nhận: sai 5 lần là huỷ mã — đúng mã sau đó cũng không qua; gửi dồn không lọt quá 5 lượt so', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  await guiMa(so);
+  const ma = maTrongTin(daGui[0]);
+  const sai = String((Number(ma) - 100000 + 1) % 900000 + 100000);
+  const kq = await Promise.all(Array.from({ length: 20 }, () => goi('/xac-nhan', { soDienThoai: so, ma: sai })));
+  assert.equal(kq.filter((r) => r.status === 400).length, 5, kq.map((r) => r.status).join(','));
+  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma })).status, 429, 'mã đã huỷ');
+});
+
+test('mã hết hạn sau 5 phút', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  await guiMa(so);
+  ctl.troiQua(5.5);
+  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[0]) })).status, 400);
+});
+
+test('thiếu bảng (chưa chạy v38): TẮT, không gửi tin nào', { skip: BO_QUA }, async () => {
+  ctl.db.exec('DROP TABLE dem_gioi_han');
+  const r = await guiMa(sdtMoi());
+  assert.equal(r.status, 503);
+  assert.equal(daGui.length, 0);
+});
+
+/* ---- Rà soát bảo mật của phiên (trọng tài subagent) tìm ra 4 lỗi — test đỏ trước khi vá ---- */
+const { hashIdentifier, hashPhone } = await import('../src/lib/crypto.js');
+
+test('R1 — bộ đếm/bảng mã KHÔNG dùng chung bản băm với submissions: không nối được IP tin ẩn danh -> số điện thoại', { skip: BO_QUA }, async () => {
+  const so = sdtMoi(); const ip = ipMoi();
+  assert.equal((await guiMa(so, ip)).status, 200);
+  const bang = JSON.stringify([
+    ...ctl.db.prepare('SELECT * FROM ma_xac_minh_sdt').all(),
+    ...ctl.db.prepare('SELECT * FROM dem_gioi_han').all(),
+  ]);
+  assert.ok(!bang.includes(hashIdentifier(ip).slice(0, 32)), 'băm IP giống submissions.ip_address — nối được với tin ẩn danh');
+  assert.ok(!bang.includes(hashPhone(so)), 'băm SĐT giống submissions.sender_phone_hash');
+});
+
+test('R1 — mã cũ quá 1 ngày tự bị xoá (không giữ lịch sử ai nhận mã lúc nào)', { skip: BO_QUA }, async () => {
+  await guiMa(sdtMoi());
+  ctl.troiQua(25 * 60);
+  await guiMa(sdtMoi());
+  assert.equal(ctl.db.prepare('SELECT COUNT(*) n FROM ma_xac_minh_sdt').get().n, 1);
+});
+
+test('R2 — chạy thật (không phải development/test) mà thiếu Turnstile thì TẮT', () => {
+  assert.equal(trangThai({ KENH_XAC_MINH_SDT: 'sms', NODE_ENV: 'production' }).bat, false);
+  assert.equal(trangThai({ KENH_XAC_MINH_SDT: 'sms' }).bat, false, 'quên NODE_ENV');
+  assert.equal(trangThai({ KENH_XAC_MINH_SDT: 'sms', NODE_ENV: 'production', TURNSTILE_SECRET_KEY: 'k' }).bat, true);
+});
+
+test('R2 — hai người mở trang cùng một giây nhận hai phiếu/vé KHÁC nhau', async () => {
+  const { capPhieuMoForm } = await import('../src/lib/phieu-mo-form.js');
+  const { capVe } = await import('../src/lib/cong-vao.js');
+  assert.notEqual(capPhieuMoForm(), capPhieuMoForm());
+  assert.notEqual(capVe(), capVe());
+});
+
+test('R2 — một phiếu mở form không xin mã mãi được (tối đa 3 mã cho mỗi phiếu)', { skip: BO_QUA }, async () => {
+  const phieu = phieuCu();
+  const ma = [];
+  for (let k = 0; k < 12; k++) ma.push((await goi('/gui-ma', { soDienThoai: sdtMoi(), phieuMoForm: phieu })).status);
+  assert.equal(daGui.length, 3, `một phiếu gửi được ${daGui.length} tin: ${ma.join(',')}`);
+});
+
+test('R3 — lượt bị chặn theo mạng KHÔNG được ăn hạn mức của số nạn nhân', { skip: BO_QUA }, async () => {
+  const ipXau = ipMoi();
+  for (let k = 0; k < 10; k++) await guiMa(sdtMoi(), ipXau);
+  const nanNhan = sdtMoi();
+  for (let k = 0; k < 5; k++) assert.equal((await guiMa(nanNhan, ipXau)).status, 429);
+  const r = await guiMa(nanNhan);
+  assert.equal(r.status, 200, `nạn nhân bị khoá oan: ${JSON.stringify(r.body)}`);
+});
+
+test('R4 — Zalo lỗi mập mờ (ném lỗi/hết giờ) thì KHÔNG gửi thêm SMS: có thể đã tính tiền Zalo', { skip: BO_QUA }, async () => {
+  dangKyKenh('zalo_cham', { guiMa: async () => { throw new Error('timeout'); } });
+  process.env.KENH_XAC_MINH_SDT = 'zalo_cham,sms';
+  const r = await guiMa(sdtMoi());
+  assert.equal(daGui.length, 0, 'đã gửi thêm SMS sau khi Zalo hết giờ');
+  assert.equal(r.status, 502);
+});
+
+test('R4 — Zalo từ chối rõ ràng thì sang SMS, nhưng tin SMS cũng phải trừ vào trần', { skip: BO_QUA }, async () => {
+  zaloHong = true;
+  process.env.XAC_MINH_TRAN_NGAY = '1';
+  const r = await guiMa(sdtMoi());
+  assert.equal(daGui.length, 0, 'trần 1 tin mà Zalo + SMS là 2 lượt tính tiền');
+  assert.notEqual(r.status, 200);
+});
+
+test('lớp 1: bật Turnstile thì không có vé vào cửa không gửi được mã; có vé thì qua, mỗi vé tối đa 3 mã', { skip: BO_QUA }, async () => {
+  const { capVe } = await import('../src/lib/cong-vao.js');
+  process.env.TURNSTILE_SECRET_KEY = 'khoa-thu';
+  try {
+    assert.equal((await guiMa(sdtMoi())).status, 403, 'không có vé vào cửa');
+    assert.equal(daGui.length, 0);
+    const ve = capVe();
+    const ma = [];
+    for (let k = 0; k < 6; k++) ma.push((await guiMa(sdtMoi(), ipMoi(), { veVaoCua: ve })).status);
+    assert.equal(daGui.length, 3, `một vé gửi được ${daGui.length} tin: ${ma.join(',')}`);
+  } finally {
+    delete process.env.TURNSTILE_SECRET_KEY;
+  }
+});

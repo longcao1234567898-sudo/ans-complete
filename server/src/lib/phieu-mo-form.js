@@ -14,6 +14,7 @@
  * NGƯỠNG 15 giây cho cả 5 bước là con số ban đầu theo kế hoạch; đo lại từ thời
  * gian điền thật của người dân sau vài tuần chạy rồi chỉnh.
  */
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 
 export const NGUONG_GIAY = 15;
@@ -21,7 +22,10 @@ const MUC_DICH = 'mo_form';
 const HAN_PHIEU = '1d';
 
 export function capPhieuMoForm() {
-  return jwt.sign({ purpose: MUC_DICH }, process.env.JWT_SECRET, { expiresIn: HAN_PHIEU });
+  /* jwtid riêng cho từng vé: không có nó, hai người mở trang cùng một giây nhận
+     vé GIỐNG HỆT nhau — mọi giới hạn đếm theo vé (vd mã xác minh số, P86) sẽ
+     tính hai người là một. */
+  return jwt.sign({ purpose: MUC_DICH }, process.env.JWT_SECRET, { expiresIn: HAN_PHIEU, jwtid: crypto.randomUUID() });
 }
 
 const docThoiGian = (giay) => (giay >= 60 ? `${Math.floor(giay / 60)} phút ${giay % 60} giây` : `${giay} giây`);
