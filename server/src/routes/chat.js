@@ -29,6 +29,7 @@
 
 import { Router } from 'express';
 import { kiemPin } from '../lib/bam-pin.js';
+import { datLuotThu, traLuotThu, CUA_SO_GIO } from '../lib/khoa-mo-phong.js';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
@@ -66,8 +67,9 @@ function chatDaDong(status) {
   return !TRANG_THAI_DUOC_CHAT.includes(status);
 }
 
-/* Chống dò mã PIN: 5 lần thử sai / 15 phút cho mỗi IP.
-   PIN chỉ 6 số nên không có giới hạn là dò ra trong vài phút. */
+/* Chống dò mã PIN, lớp 1: 5 lần thử / 15 phút cho mỗi IP — chặn một máy thử
+   lần lượt nhiều mã tra cứu. Một mình lớp này KHÔNG đủ: thuê nhiều IP là thử
+   tiếp được trên cùng một mã (BUG-040). Lớp 2 đếm theo hồ sơ: lib/khoa-mo-phong.js */
 const gioiHanMoPhong = rateLimit({
   windowMs: 15 * 60_000,
   max: 5,
@@ -137,9 +139,31 @@ router.post('/open', gioiHanMoPhong, async (req, res) => {
       });
     }
 
+    /* Lớp 2 (BUG-040): giành lượt thử của HỒ SƠ trước khi kiểm PIN — đổi IP
+       không được thêm lượt. Thiếu bảng đếm thì không mở phòng (fail-safe). */
+    let duocThu;
+    try {
+      duocThu = await datLuotThu(pool, don.id);
+    } catch (e) {
+      if (e.code !== 'ER_NO_SUCH_TABLE') throw e;
+      console.error('🔴 Không mở phòng trao đổi: thiếu bảng khoa_mo_phong — chạy database/nang_cap_v37.sql');
+      return res.status(503).json({
+        error: 'Phòng trao đổi tạm ngừng do sự cố kỹ thuật. Bà con vẫn tra cứu tiến độ bằng mã tra cứu. '
+             + 'Việc gấp xin gọi 113 hoặc liên hệ Công an phường.',
+      });
+    }
+    if (!duocThu) {
+      return res.status(429).json({
+        error: 'Phòng trao đổi của hồ sơ này đang tạm khoá vì mã PIN bị nhập sai nhiều lần. '
+             + `Bà con vẫn tra cứu tiến độ bằng mã tra cứu bình thường; phòng mở lại sau tối đa ${CUA_SO_GIO} giờ. `
+             + 'Việc gấp xin gọi 113 hoặc liên hệ Công an phường.',
+      });
+    }
+
     /* PIN mới băm scrypt, PIN cấp trước ND-064 băm bcrypt — kiemPin nhận cả hai */
     const dung = await kiemPin(pin, don.chat_pin_hash);
     if (!dung) return res.status(401).json(loiChung);
+    await traLuotThu(pool, don.id);
 
     const ve = jwt.sign(
       { sub: don.id, purpose: 'chat_reporter' },

@@ -16,6 +16,7 @@ import { sanitizeText } from '../../lib/security.js';
 import { goKhoa } from '../../lib/chan-spam.js';
 import { layIpThat } from '../../lib/helpers.js';
 import { dieuKienXem } from '../../lib/pham-vi-ho-so.js';
+import { trangThaiDoPin } from '../../lib/khoa-mo-phong.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -67,6 +68,9 @@ router.get('/:id/messages', async (req, res) => {
       status: don.status,
       daDong: chatDaDong(don.status),
       isAnonymous: Boolean(don.is_anonymous),
+      /* Hồ sơ đang bị dò PIN (BUG-040): người dân tạm không vào được phòng —
+         cán bộ cần biết để không chờ câu trả lời, và báo lãnh đạo nếu cần */
+      doPin: await trangThaiDoPin(pool, id),
     });
   } catch (err) {
     console.error('Đọc tin nhắn (cán bộ) lỗi:', err.message);
