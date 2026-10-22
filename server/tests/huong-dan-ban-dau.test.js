@@ -73,3 +73,13 @@ test('bước 1 không bảo bấm vào menu — lớp phủ chặn bấm, bà c
   assert.match(vi['hd.b1n'], /Tiếp tục/);
   assert.match(en['hd.b1n'], /Continue/);
 });
+
+test('hàng nút dưới theo thứ tự Bỏ qua — Quay lại — Tiếp tục, chỉ một nút Bỏ qua', async () => {
+  const ma = await doc('src/components/common/HuongDanBanDau.tsx');
+  const vt = (k) => ma.indexOf(`data-huong-dan="${k}"`);
+  assert.equal(ma.split('data-huong-dan="bo-qua"').length - 1, 1, 'hai nút Bỏ qua làm bà con rối');
+  assert.ok(vt('bo-qua') > 0 && vt('bo-qua') < vt('quay-lai') && vt('quay-lai') < vt('tiep-tuc'),
+    'Bỏ qua phải đứng bên trái Quay lại, Tiếp tục ngoài cùng bên phải');
+  assert.doesNotMatch(ma.slice(vt('bo-qua'), vt('quay-lai')), /khoaNoiDung/,
+    'Bỏ qua phải nằm CÙNG hàng nút dưới, không phải ở hàng đầu thẻ');
+});

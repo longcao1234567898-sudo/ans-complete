@@ -90,6 +90,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v33.sql           #    T
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v34.sql           #    Ngưỡng mưa riêng từng đường hay ngập, học từ các lần báo ngập (ADR-004 mục 8)
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v35.sql           #    Ghi lại tệp đính kèm không nhận được để cán bộ biết (BUG-035) — bảng tep_khong_nhan, không lưu tên tệp; chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v36.sql           #    Lưu được thiết bị tin cậy (máy ki-ốt dùng chung) — nới blacklists.kind, khôi phục dòng tin cậy bị ghi rỗng (ND-028); cần quyền ALTER, chạy lúc nào cũng được
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v37.sql           #    Đếm lần thử mã PIN phòng trao đổi theo hồ sơ (BUG-040) — bảng khoa_mo_phong; **chạy TRƯỚC khi cập nhật máy chủ** (thiếu bảng thì phòng trao đổi không mở)
 ```
 `TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
 
@@ -157,12 +158,10 @@ Sửa thông tin xã/phường (tên, địa chỉ, hotline, email) tại `src/u
 
 ## Deploy công khai
 
-**Hướng dẫn từng bước cho người mới** (Vercel, máy chủ Viettel Cloud, CSDL VNPT, thay Cloudinary): [docs/HUONG-DAN-TRIEN-KHAI.md](docs/HUONG-DAN-TRIEN-KHAI.md).
+**Chạy thật: toàn bộ trên một máy Viettel** — giao diện (trang người dân + trang cán bộ), máy chủ người dân, máy chủ cán bộ; CSDL ở VNPT. **Không dùng Vercel** (quyết định 2026-10-20). Hướng dẫn từng bước cho người mới: [docs/HUONG-DAN-TRIEN-KHAI.md](docs/HUONG-DAN-TRIEN-KHAI.md) — Phần B (hai máy chủ), Phần F (giao diện, đưa bản mới lên bằng `deploy/dung-giao-dien.sh`), Phần C (CSDL VNPT), Phần G (sao lưu mã hoá).
 
-- **Netlify Drop (nhanh nhất):** `npm run build` → kéo thả `dist` vào https://app.netlify.com/drop. `public/_redirects` đã cấu hình sẵn cho SPA.
-- **Vercel + GitHub (tự động):** đẩy code lên GitHub → import vào vercel.com → thêm `VITE_API_URL` (+ `VITE_CLOUDINARY_*` nếu dùng) → Deploy. `vercel.json` đã cấu hình security headers — **phải giữ khớp** với `public/_headers` (bản Netlify), Vercel không đọc file `_headers`.
-- **Backend (Render):** xem `render.yaml` — bắt buộc đặt `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`, `TURNSTILE_SECRET_KEY`, `BREVO_API_KEY`/`MAIL_USER` thật trước khi deploy.
-- Key AI, key mail, Turnstile secret chỉ đặt trên backend/Render — không đặt ở biến `VITE_*` của frontend.
+- Ba khoá `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`, key AI, key mail, Turnstile secret chỉ đặt ở `/etc/hop-thu/*.env` trên máy chủ — không đặt ở biến `VITE_*` của giao diện.
+- Trang hiện tại còn chạy trên Netlify/Vercel + Render tới đêm chuyển; `vercel.json`, `netlify.toml`, `public/_headers`, `public/_redirects`, `render.yaml` giữ lại tới lúc đó rồi xoá ([NO-KY-THUAT.md](docs/NO-KY-THUAT.md) ND-065).
 
 ## Việc còn tồn đọng / hướng phát triển tiếp theo
 - **Đa đơn vị (`unit_id`)**: quyết định sớm nếu định mở rộng nhiều xã/phường dùng chung database — xem ADR 001, thêm sau khi đã có dữ liệu thật sẽ tốn kém hơn nhiều.

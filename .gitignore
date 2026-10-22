@@ -45,3 +45,4 @@ sao-luu/
 # nữa, đó là dấu hiệu có người sửa .gitignore ngoài phạm vi việc
 # đang làm — dừng lại và kiểm, đừng đẩy gì lên.
 buglogs/
+hop-thu-so-v2.env 

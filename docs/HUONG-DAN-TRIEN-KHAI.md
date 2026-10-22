@@ -1,21 +1,27 @@
 # Hướng dẫn triển khai — cho người chưa làm bao giờ
 
-Tài liệu này hướng dẫn từng bước, không giả định người đọc đã biết gì:
+Tài liệu này hướng dẫn từng bước, không giả định người đọc đã biết gì. **Làm lần đầu thì đi theo
+[SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md)** — sổ tay chia chặng, chỉ tới đúng mục ở đây để chép lệnh.
 
-- **Phần A** — đưa giao diện lên **Vercel**
-- **Phần B** — dựng máy chủ trên **Viettel Cloud** (thay Render)
+- **Phần B** — dựng **máy chủ người dân** và **máy chủ cán bộ** trên **Viettel Cloud** (thay Render)
 - **Phần C** — chuyển cơ sở dữ liệu sang **VNPT** (thay Aiven)
 - **Phần D** — thay **Cloudinary** (kho ảnh)
 - **Phần E** — thứ tự làm và danh sách kiểm cho ngày chuyển
-- **Phần F** — đưa giao diện lên **máy Viettel** (thay Netlify/Vercel) — nên làm khi chạy thật
+- **Phần F** — đưa **giao diện** lên **chính máy Viettel đó** (thay Netlify/Vercel)
+- **Phần G** — **sao lưu mã hoá** mỗi đêm sang nhà cung cấp khác — bắt buộc khi chạy thật
+- **Phụ lục** — dự toán chi phí
 
-> Viết ngày 2026-10-06. Giao diện các trang Vercel, Viettel, VNPT thay đổi theo thời gian:
-> nếu tên nút khác đi, tìm nút có ý nghĩa tương tự. **Giá và gói dịch vụ: hỏi trực tiếp nhà
-> cung cấp** — tài liệu này cố ý không ghi giá vì giá cũ đi rất nhanh.
+> **Không dùng Vercel** (quyết định người vận hành, 2026-10-20): giao diện, máy chủ người dân và
+> máy chủ cán bộ cùng chạy trên **một máy Viettel**, đưa bản mới lên bằng kịch bản ở F7. Bản trước
+> có Phần A hướng dẫn Vercel — đã bỏ; những gì còn dùng được đã chuyển vào B2 và Phần F.
+
+> Viết ngày 2026-10-06, bổ sung 2026-10-20. Giao diện các trang Viettel, VNPT, Bizfly thay đổi
+> theo thời gian: nếu tên nút khác đi, tìm nút có ý nghĩa tương tự. **Giá ở Phụ lục là giá tra
+> ngày 2026-10-20 — chỉ để lập dự toán ban đầu; trước khi mua phải xin báo giá chính thức.**
 
 ---
 
-## 0. Bức tranh chung — hệ thống gồm bốn phần
+## 0. Bức tranh chung — hệ thống gồm bốn phần, ba phần đầu trên một máy Viettel
 
 ```
  Người dân / cán bộ (trình duyệt)
@@ -24,8 +30,8 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
  ┌──────────────────┐   gọi API    ┌───────────────────────────┐   SQL    ┌──────────────┐
  │ 1. GIAO DIỆN     │ ───────────► │ 2. MÁY CHỦ (2 tiến trình) │ ───────► │ 3. CƠ SỞ     │
  │ tệp tĩnh (dist/) │              │  · công khai (người dân)  │          │    DỮ LIỆU   │
- │ Vercel / Viettel │              │  · cán bộ                 │          │ MySQL        │
- └──────────────────┘              │ Render → Viettel Cloud    │          │ Aiven → VNPT │
+ │ máy Viettel      │              │  · cán bộ                 │          │ MySQL        │
+ └──────────────────┘              │ máy Viettel (cùng máy)    │          │ Aiven → VNPT │
         │                          └───────────────────────────┘          └──────────────┘
         │ tải ảnh lên (nếu có cấu hình)          │ đọc ảnh để OCR, xoá ảnh
         ▼                                        ▼
@@ -36,8 +42,8 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
 
 | Phần | Giữ gì | Hiện ở đâu | Chuyển sang |
 |---|---|---|---|
-| 1. Giao diện | Chỉ tệp HTML/JS/CSS tĩnh. **Không giữ dữ liệu**, nhưng là nơi người dân **gõ** danh tính | Netlify/Vercel | Vercel (Phần A) để thử; **máy Viettel (Phần F)** khi chạy thật |
-| 2. Máy chủ | Mã xử lý, các khoá bí mật (`JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`…) | Render | Viettel Cloud (Phần B) |
+| 1. Giao diện (trang người dân + trang cán bộ) | Chỉ tệp HTML/JS/CSS tĩnh. **Không giữ dữ liệu**, nhưng là nơi người dân **gõ** danh tính | Netlify/Vercel | **Máy Viettel** (Phần F) — Nginx phục vụ thẳng |
+| 2. Máy chủ (người dân + cán bộ, hai tiến trình) | Mã xử lý, các khoá bí mật (`JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`…) | Render | **Cùng máy Viettel** (Phần B) |
 | 3. Cơ sở dữ liệu | **Toàn bộ dữ liệu**: ý kiến, danh tính (đã mã hoá), nhật ký | Aiven | VNPT (Phần C) |
 | 4. Kho ảnh | Ảnh bằng chứng, ảnh tin tức | Cloudinary | Xem Phần D |
 
@@ -52,160 +58,6 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
 
 ---
 
-## Phần A — Đưa giao diện lên Vercel
-
-### A0. Cần có trước
-
-- Tài khoản GitHub chứa mã nguồn (kho `ans-complete`, nhánh `master`).
-- Địa chỉ máy chủ (backend) đang chạy. Lúc này là địa chỉ Render; sau khi làm Phần B thì đổi
-  sang địa chỉ Viettel.
-
-> **Về gói miễn phí của Vercel:** gói **Hobby** (miễn phí) theo điều khoản của Vercel chỉ dành
-> cho **mục đích cá nhân, phi thương mại**. Trang chính thức của một đơn vị không phải dự án cá
-> nhân, nên đơn vị cân nhắc gói **Pro** (trả phí theo tháng, tính theo người dùng). Cách thay thế
-> Vercel: xem [mục A9](#a9-không-muốn-dùng-vercel).
-
-### A1. Tạo tài khoản
-
-1. Vào **vercel.com** → bấm **Sign Up**.
-2. Chọn loại gói (**Hobby** hoặc **Pro**) → đặt tên.
-3. Bấm **Continue with GitHub** → đăng nhập GitHub → bấm **Authorize Vercel**.
-
-### A2. Nhập dự án từ GitHub
-
-1. Trong trang Vercel, bấm **Add New…** → **Project**.
-2. Ở mục **Import Git Repository**, tìm `ans-complete` → bấm **Import**.
-   - **Không thấy kho?** Bấm **Adjust GitHub App Permissions** → chọn kho `ans-complete` →
-     **Save** → quay lại Vercel.
-
-### A3. Khai cấu hình dựng
-
-Trang **Configure Project** hiện ra. Kiểm từng ô:
-
-| Ô | Giá trị | Ghi chú |
-|---|---|---|
-| Framework Preset | **Vite** | Vercel thường tự nhận ra |
-| Root Directory | **`./`** (thư mục gốc) | **Không** chọn `server` — `server` là máy chủ, không đưa lên Vercel |
-| Build Command | `npm run build` | Mở **Build and Output Settings** để xem |
-| Output Directory | `dist` | |
-| Install Command | để mặc định | |
-
-### A4. Khai biến môi trường
-
-Vẫn ở trang đó, mở **Environment Variables**. Mỗi biến gõ **Key** và **Value** rồi bấm **Add**:
-
-| Key | Value | Bắt buộc |
-|---|---|---|
-| `VITE_API_URL` | Địa chỉ máy chủ công khai, **không có `/` ở cuối**. Vd: `https://api.ten-mien.vn` | Có |
-| `VITE_ADMIN_API_URL` | Địa chỉ máy chủ cán bộ, vd `https://canbo-api.ten-mien.vn`. Để trống thì trang cán bộ dùng chung `VITE_API_URL` | Khi tách hai máy chủ |
-| `VITE_TURNSTILE_SITE_KEY` | Khoá **công khai** (site key) Cloudflare Turnstile | Nên có |
-| `VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_PRESET` | Xem Phần D. **Để trống** nếu không dùng Cloudinary | Không |
-
-> ⚠️ **Chỉ những biến bắt đầu bằng `VITE_` mới được khai ở Vercel**, và chỉ những biến trong
-> bảng trên. Mọi biến `VITE_*` bị nhúng thẳng vào tệp JavaScript, ai mở trình duyệt cũng đọc
-> được. **Không bao giờ** khai `JWT_SECRET`, `ENCRYPTION_KEY`, mật khẩu CSDL, khoá Gemini, khoá
-> Cloudinary bí mật… ở Vercel. Những thứ đó chỉ nằm ở máy chủ (Phần B).
-
-### A5. Bấm Deploy
-
-1. Bấm **Deploy**, đợi 1–3 phút.
-2. Thấy pháo giấy **Congratulations** là xong → bấm **Continue to Dashboard** → **Visit**.
-3. Trang có địa chỉ dạng `ten-du-an.vercel.app`.
-
-### A6. Nối giao diện với máy chủ — 3 việc, thiếu một là hỏng
-
-**(1) Máy chủ phải cho phép địa chỉ giao diện (CORS).** Ở máy chủ (Render bây giờ, Viettel sau
-này), khai địa chỉ giao diện **chính xác**: có `https://`, không có `/` ở cuối.
-
-| Máy chủ | Biến | Giá trị |
-|---|---|---|
-| Công khai | `CORS_ORIGIN`, `CLIENT_URL` | `https://ten-du-an.vercel.app` (hoặc tên miền riêng) |
-| Cán bộ | `CORS_ORIGIN` | như trên |
-
-Nhiều địa chỉ thì ghi cách nhau bằng dấu phẩy, vd `https://www.ten-mien.vn,https://ten-du-an.vercel.app`
-(`CLIENT_URL` chỉ ghi một địa chỉ — địa chỉ chính).
-
-**(2) Giao diện phải được phép gọi máy chủ (CSP).** Tệp `vercel.json` có dòng
-`Content-Security-Policy` liệt kê địa chỉ máy chủ được gọi tới, hiện là
-`https://hop-thu-so-v2.onrender.com`. **Đổi máy chủ là phải sửa dòng này**, không thì trình duyệt
-chặn mọi lời gọi. Sửa ở **hai tệp, giống hệt nhau**:
-
-- `vercel.json` (Vercel đọc tệp này)
-- `public/_headers` (bản dành cho Netlify — giữ khớp, có test kiểm)
-
-Trong cả hai tệp, thay **mọi chỗ** `https://hop-thu-so-v2.onrender.com` (ở `connect-src` và
-`media-src`) bằng địa chỉ máy chủ mới. Nếu tách hai máy chủ thì ghi cả hai, cách nhau một dấu
-cách: `https://api.ten-mien.vn https://canbo-api.ten-mien.vn`. Sửa xong thì commit, đẩy lên
-`master`, Vercel tự dựng lại. *(Muốn chắc ăn: gửi tên miền cho Claude để sửa trong một phiên,
-có chạy test kèm.)* Giao diện đặt trên máy Viettel (Phần F) thì **không phải sửa tay** — kịch
-bản tự điền địa chỉ máy chủ vào CSP.
-
-**(3) Turnstile phải biết tên miền mới.** Vào **dash.cloudflare.com** → **Turnstile** → chọn
-site → **Hostname Management** → thêm `ten-du-an.vercel.app` và tên miền riêng (nếu có). Thiếu
-bước này, ô "Tôi không phải máy" báo lỗi và người dân không gửi được ý kiến.
-
-### A7. Gắn tên miền riêng (nên làm)
-
-**Nên đặt giao diện và máy chủ chung một tên miền gốc**: giao diện `www.ten-mien.vn`, máy chủ
-`api.ten-mien.vn` và `canbo-api.ten-mien.vn`. Vé giữ đăng nhập của cán bộ (cookie) được đặt chế
-độ `SameSite=Lax`: trình duyệt chỉ gửi vé này khi giao diện và máy chủ **cùng tên miền gốc**. Để
-giao diện ở `ten-du-an.vercel.app` còn máy chủ ở `ten-mien.vn` thì vé không được gửi, và cán bộ
-phải đăng nhập lại thường xuyên hơn.
-
-1. Trong dự án Vercel: **Settings** → **Domains** → gõ tên miền (vd `www.ten-mien.vn`) → **Add**.
-2. Vercel hiện **bản ghi DNS cần thêm** (loại A hoặc CNAME). **Chép đúng y nguyên giá trị Vercel
-   hiện** — không chép từ hướng dẫn trên mạng, vì Vercel có lúc đổi giá trị.
-3. Vào trang quản lý tên miền ở nơi anh mua tên miền → **Quản lý DNS** → thêm bản ghi đó.
-4. Đợi vài phút đến vài giờ, đến khi Vercel báo **Valid Configuration**. HTTPS được cấp tự động.
-5. Thêm tên miền mới vào `CORS_ORIGIN` (A6-1) và Turnstile (A6-3).
-
-### A8. Dùng hằng ngày
-
-| Việc | Làm thế nào |
-|---|---|
-| Đưa bản mới lên | Đẩy mã lên `master` → Vercel tự dựng, 1–3 phút sau là có |
-| Đổi biến môi trường | **Settings** → **Environment Variables** → sửa → rồi **bắt buộc dựng lại**: **Deployments** → bấm `⋯` ở bản mới nhất → **Redeploy**. Biến `VITE_*` được nhúng lúc dựng, sửa mà không dựng lại thì không có tác dụng |
-| Quay về bản cũ khi bản mới hỏng | **Deployments** → chọn bản cũ còn tốt → `⋯` → **Promote to Production** (hoặc **Instant Rollback**) |
-| Chỉ nhánh `master` lên trang chính | **Settings** → **Git** → **Production Branch** = `master` |
-| Bản thử của các nhánh khác | Vercel tạo địa chỉ "Preview" cho mỗi nhánh. Kiểm **Settings** → **Deployment Protection** đang bật để người ngoài không mở được |
-
-**Lỗi hay gặp:**
-
-| Thấy gì | Vì sao | Sửa |
-|---|---|---|
-| Dựng hỏng, báo `Rollup failed to resolve import "@fontsource/..."` | Thiếu `package.json` hoặc `package-lock.json` mới trên GitHub | Đẩy đủ hai tệp đó lên |
-| Trang báo **"Chưa cấu hình địa chỉ máy chủ"** | Thiếu `VITE_API_URL` | Khai biến (A4) rồi **Redeploy** |
-| Bấm F12 → Console thấy `violates the following Content Security Policy directive: "connect-src ..."` | CSP chưa có địa chỉ máy chủ mới | Sửa hai tệp ở A6-2 |
-| Console thấy `blocked by CORS policy` | `CORS_ORIGIN` ở máy chủ sai (thừa `/`, thiếu `https`, sai tên) | Sửa biến ở máy chủ rồi khởi động lại máy chủ |
-| Ô Turnstile báo lỗi tên miền | Chưa thêm hostname | A6-3 |
-| Mở thẳng `/quan-tri` báo 404 | `vercel.json` không nằm ở thư mục gốc | Kiểm lại Root Directory = `./` |
-
-### A9. Không muốn dùng Vercel
-
-Xem **Phần F**: máy Viettel ở Phần B phục vụ luôn giao diện. Cấu hình Nginx kèm đủ header bảo
-mật đã có sẵn ở `deploy/nginx/` (test giữ khớp với `public/_headers`), kịch bản
-`deploy/dung-giao-dien.sh` lo việc dựng và đưa lên. Lợi: mọi thứ nằm ở Việt Nam, không vướng
-điều khoản gói Hobby. **Khuyên dùng khi chạy thật.**
-
----
-
-## Máy chủ trên Render ngủ sau 15 phút — giữ cho chạy liên tục
-
-Render **gói miễn phí** cho máy chủ ngủ khi 15 phút không có ai gọi. Người mở trang
-đầu tiên sau đó phải chờ 30–60 giây; trang tưởng máy chủ hỏng và bật trang dự phòng.
-Ba cách, chọn một:
-
-| Cách | Làm gì | Ghi chú |
-|---|---|---|
-| **Gói trả phí** (khuyên dùng khi chạy thật) | Render → dịch vụ → Settings → Instance Type → Starter | Không bao giờ ngủ. Cần cho trường hợp chạy **hai** máy chủ (công khai + cán bộ). |
-| **GIU_THUC=1** (miễn phí) | Render → dịch vụ → Environment → thêm `GIU_THUC` = `1` → Save | Máy chủ tự gọi `/api/health` của chính nó mỗi 10 phút. Log khởi động có dòng "☕ Giữ thức: BẬT". |
-| Chuyển sang máy chủ riêng | Phần B dưới đây | Không ngủ, có IP riêng (hết luôn lỗi 429 của dự báo mưa). |
-
-⚠️ **GIU_THUC chỉ bật cho MỘT dịch vụ miễn phí trên cả tài khoản Render.** Gói miễn
-phí có 750 giờ chạy mỗi tháng cho mọi dịch vụ miễn phí cộng lại; một dịch vụ thức
-suốt tháng đã tốn khoảng 744 giờ. Bật cho hai dịch vụ (kể cả web khác cùng tài khoản)
-là hết giờ giữa tháng và Render **dừng mọi dịch vụ miễn phí** tới đầu tháng sau.
-
 ## Phần B — Dựng máy chủ trên Viettel Cloud (thay Render)
 
 Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên máy chủ ảo (VPS) của Viettel,
@@ -214,9 +66,13 @@ Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên m�
 ### B1. Hỏi Viettel trước khi mua
 
 - [ ] Gói **Cloud Server** chạy **Ubuntu 24.04 LTS**, có **1 địa chỉ IP công khai cố định**.
-- [ ] Cấu hình: tối thiểu **2 vCPU, 2 GB RAM, 40 GB SSD**. Muốn máy tự đọc chữ trong ảnh và PDF
-      scan (OCR) thì nên **4 GB RAM**. Ít hơn thì đặt `TRICH_CHU_OCR=tat` (Word và PDF có chữ vẫn
-      đọc được).
+- [ ] Cấu hình **khuyến nghị: 2 vCPU, 4 GB RAM, ổ SSD 50 GB** (ví dụ gói T1.Base 03 có sẵn 20 GB,
+      mua thêm 30 GB — hoặc hỏi gói có sẵn ổ 40–50 GB). Đã đo tải trên đúng 2 vCPU / 4 GB: 15.000
+      lượt vào trang, 2.000 người bấm cùng lúc, 1.000 người cùng gửi ý kiến — 0 lỗi máy chủ, không
+      cần máy lớn hơn. 4 GB RAM thì máy tự đọc chữ trong ảnh và PDF scan (OCR) được.
+- [ ] Tối thiểu tuyệt đối: 2 vCPU, 2 GB RAM, 40 GB SSD, đặt `TRICH_CHU_OCR=tat` (Word và PDF có
+      chữ vẫn đọc được) và làm thêm F2. **Ổ dưới 40 GB thì không**: ổ đầy là máy chủ không ghi được
+      tệp tạm và nhật ký — người dân gửi ý kiến, tố giác không được, thường đúng lúc không ai để ý.
 - [ ] Có **Security Group** (tường lửa ở cổng mạng) chỉnh được trong trang quản trị.
 - [ ] Có **Snapshot** (chụp nguyên ổ đĩa) để quay lại khi cài hỏng.
 - [ ] Đăng ký cho **cá nhân hay cơ quan**, cần giấy tờ gì.
@@ -228,16 +84,24 @@ Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên m�
 Máy chủ cần **tên miền** để có HTTPS. Trang giao diện chạy HTTPS thì không được gọi máy chủ
 HTTP thường (trình duyệt chặn).
 
-1. Mua tên miền (vd `ten-mien.vn`) ở nhà đăng ký tên miền — dùng chung cho cả giao diện (A7).
-   Cơ quan nhà nước có thể cần thủ tục tên miền `.gov.vn` — hỏi bộ phận phụ trách của đơn vị.
-2. Trong trang quản lý DNS, thêm **hai bản ghi loại A**, cả hai trỏ về **IP của máy Viettel**:
+1. Mua tên miền (vd `ten-mien.vn`) ở nhà đăng ký tên miền — **một tên miền dùng chung** cho giao
+   diện và hai máy chủ. Cơ quan nhà nước có thể cần thủ tục tên miền `.gov.vn` — hỏi bộ phận
+   phụ trách của đơn vị.
+2. Trong trang quản lý DNS, thêm **hai bản ghi loại A** cho hai máy chủ, cả hai trỏ về **IP của
+   máy Viettel**:
 
-| Tên (Host) | Loại | Giá trị |
-|---|---|---|
-| `api` | A | IP máy Viettel |
-| `canbo-api` | A | IP máy Viettel |
+| Tên (Host) | Loại | Giá trị | Dùng cho |
+|---|---|---|---|
+| `api` | A | IP máy Viettel | Máy chủ người dân |
+| `canbo-api` | A | IP máy Viettel | Máy chủ cán bộ |
 
+   Hai bản ghi `@` và `www` cho **giao diện** cũng trỏ về chính IP này, nhưng **đổi ở đêm chuyển**
+   (F1, F8) — trước đó chúng còn trỏ về nơi đang chạy trang cũ.
 3. Kiểm tra: trên Windows mở PowerShell, gõ `nslookup api.ten-mien.vn`. Ra đúng IP là xong.
+
+> **Vì sao chung một tên miền gốc** (`www.`, `api.`, `canbo-api.` cùng `ten-mien.vn`): vé giữ đăng
+> nhập của cán bộ (cookie) đặt chế độ `SameSite=Lax`, trình duyệt chỉ gửi vé khi giao diện và
+> máy chủ **cùng tên miền gốc**. Khác tên miền gốc thì cán bộ phải đăng nhập lại liên tục.
 
 > ⚠️ **Không bật "proxy" (đám mây màu cam) của Cloudflare** cho hai bản ghi này. Máy chủ chỉ tin
 > đúng một lớp trung gian đứng trước nó (Nginx, cài ở B9) để lấy IP thật của người gửi. Thêm một
@@ -353,8 +217,7 @@ nano /etc/hop-thu/cong-khai.env
 ```
 
 Nội dung `cong-khai.env`. Chép **giá trị đang có** trên Render: Render → dịch vụ → tab
-**Environment** → bấm hiện giá trị từng biến. `www.ten-mien.vn` là địa chỉ giao diện (A7); chưa có
-tên miền thì tạm ghi địa chỉ `….vercel.app`.
+**Environment** → bấm hiện giá trị từng biến. `www.ten-mien.vn` là địa chỉ giao diện (Phần F).
 
 ```ini
 PORT=4000
@@ -610,6 +473,12 @@ Bản mới có tệp `database/nang_cap_vXX.sql` thì chạy tệp đó vào CS
 
 ## Phần C — Chuyển cơ sở dữ liệu sang VNPT (thay Aiven)
 
+> **Đổi phương án (2026-10-20): kho dữ liệu đặt ở Viettel (vDBS, T2.VDBS 1 Standalone, MySQL 8.0,
+> Private Access) thay VNPT** — cùng nhà với máy chủ, nối bằng mạng nội bộ. Các lệnh C3, C4 dùng
+> nguyên, thay địa chỉ VNPT bằng địa chỉ riêng của kho vDBS; trình tự cho người làm lần đầu:
+> [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) chặng 1, 6, 9, 13. Phần C sẽ viết lại theo vDBS khi
+> có kết quả ba phép kiểm (Phụ lục "VIỆC CHỜ").
+
 VNPT có dịch vụ **VNPT MySQL**, dạng CSDL được quản lý sẵn (DBaaS): VNPT lo sao lưu, vá lỗi, dự
 phòng.
 
@@ -630,6 +499,9 @@ phòng.
       (nhật ký chỉ ghi thêm) và thủ tục; thiếu tham số này thì tài khoản thường không nhập được
       (đã thử: `ERROR 1419`).
 - [ ] Cấu hình: bản nhỏ nhất (1–2 vCPU, 2 GB RAM, 20 GB) là đủ cho một phường lúc đầu.
+- [ ] Tạo được **tài khoản chỉ đọc** và cấp được quyền **`SHOW_ROUTINE`** cho nó không — cần cho
+      sao lưu sang nơi khác (Phần G, G2 bước 2).
+- [ ] **Báo giá** bản Single và bản HA (VNPT chưa công bố giá DBaaS — xem Phụ lục).
 
 > ⚠️ **Trước khi nối máy chủ với CSDL qua Internet (Viettel ↔ VNPT), phải vá xong BUG-033** và
 > BUG-033 phải qua RETEST độc lập (chi tiết trong sổ lỗi nội bộ `buglogs/`).
@@ -775,8 +647,11 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 
 ### D3. Làm hướng 1
 
-1. Vercel → **Settings** → **Environment Variables** → **xoá** `VITE_CLOUDINARY_CLOUD_NAME` và
-   `VITE_CLOUDINARY_PRESET` → **Redeploy**. Từ lúc này ảnh mới lưu vào CSDL.
+1. Bỏ hai dòng `VITE_CLOUDINARY_CLOUD_NAME` và `VITE_CLOUDINARY_PRESET` trong tệp `.env.production`
+   của mã nguồn (nhờ Claude làm trong một phiên, có chạy test), đẩy lên `master`, rồi chạy cập
+   nhật F7. Từ lúc này ảnh mới lưu vào CSDL. *(Ghi dòng trống trong `/etc/hop-thu/giao-dien.env`
+   **không** tắt được: kịch bản cố ý bỏ qua giá trị trống để lỡ tay không xoá mất khoá Turnstile
+   — xem F3.)*
 2. **Ảnh cũ vẫn nằm trên Cloudinary.** Giữ `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
    `CLOUDINARY_API_SECRET` ở máy chủ cán bộ để vẫn đọc chữ và xoá được ảnh cũ. **Chưa xoá tài
    khoản Cloudinary**: xoá là mất luôn ảnh bằng chứng của các hồ sơ cũ. Muốn rời Cloudinary hẳn
@@ -792,15 +667,18 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 
 ### E1. Thứ tự đề xuất — mỗi bước chạy được độc lập
 
+Trang đang chạy (Netlify/Vercel + Render + Aiven) **vẫn phục vụ người dân** cho tới đêm chuyển.
+Mọi thứ trên máy Viettel dựng và thử trước, song song.
+
 | Bước | Việc | Người dân có bị gián đoạn? |
 |---|---|---|
-| 1 | **Phần A**: đưa giao diện lên Vercel, vẫn nối máy chủ Render cũ | Không |
-| 2 | **B1–B9**: dựng máy Viettel, tạm nối **Aiven cũ** (dùng `ca.pem` của Aiven). Chạy thử bằng `curl` và trình duyệt, **chưa** đổi Vercel | Không |
+| 1 | **B1–B9**: dựng máy Viettel, hai máy chủ (người dân + cán bộ), tạm nối **Aiven cũ** (dùng `ca.pem` của Aiven). Thử bằng `curl` tới `https://api.…` và `https://canbo-api.…` | Không |
+| 2 | **F2–F5**: dựng giao diện trên chính máy đó, thử bằng địa chỉ IP. **Chưa** đổi `@`/`www` | Không |
 | 3 | **C1–C2**: mua và tạo CSDL VNPT, thử kết nối từ máy Viettel | Không |
-| 4 | **Một đêm chuyển**: C3 (chép dữ liệu) → đổi `VITE_API_URL`/`VITE_ADMIN_API_URL` trên Vercel → sửa CSP (A6-2) → đẩy `master` → kiểm 4 việc ở C3 | **Có**, khoảng 30–60 phút. Báo trước trên trang tin hoặc nhóm Zalo; việc gấp gọi 113 |
-| 5 | Theo dõi 1–2 tuần. Ổn thì tắt Render (**Suspend**, rồi **Delete**) và xoá Aiven | Không |
-| 6 | **Phần D** hướng 1 | Không |
-| 7 | **Phần F**: đưa giao diện về máy Viettel, đổi DNS `@`/`www` (F8). Có thể làm cùng đêm ở bước 4 | Không, nếu làm đúng F8 (bản Vercel chạy song song tới khi DNS đổi xong) |
+| 4 | **Một đêm chuyển**: C3 (chép dữ liệu, Render đã Suspend) → đổi DNS `@`/`www` sang IP Viettel (F8) → F6 → kiểm đủ E2 | **Có**, khoảng 30–60 phút. Báo trước trên trang tin hoặc nhóm Zalo; việc gấp gọi 113 |
+| 5 | **Phần G** ngay trong 1–2 ngày: sao lưu mã hoá, **diễn tập khôi phục G6 thành công** | Không |
+| 6 | Theo dõi 1–2 tuần. Ổn thì xoá Render (**Suspend** → **Delete**), Aiven, và dự án Netlify/Vercel (F8 bước 5) | Không |
+| 7 | **Phần D** hướng 1 | Không |
 
 ### E2. Danh sách kiểm cho đêm chuyển
 
@@ -811,11 +689,13 @@ mạng tuỳ tiện (SSRF), OCR và luồng xoá tệp sau khi xoá danh tính.
 - [ ] Render đã Suspend → không còn ý kiến mới vào Aiven.
 - [ ] `mysqldump` xong, số đếm hai bên bằng nhau.
 - [ ] Hai máy chủ trên Viettel `active (running)`, `https://api.../api/health` có ổ khoá.
-- [ ] Vercel đã đổi `VITE_API_URL` (và `VITE_ADMIN_API_URL` nếu tách), đã **Redeploy**.
-- [ ] `vercel.json` và `public/_headers` đã có địa chỉ máy chủ mới (giao diện trên máy Viettel — Phần F — thì không cần).
-- [ ] `CORS_ORIGIN` đúng địa chỉ giao diện; Turnstile đã có tên miền.
+- [ ] Giao diện trên máy Viettel: `/etc/hop-thu/giao-dien.env` (F3) đúng hai địa chỉ máy chủ, đã
+      chạy `deploy/dung-giao-dien.sh` ra `✅`; DNS `@`/`www` đã trỏ về IP Viettel (F8).
+- [ ] `CORS_ORIGIN` đúng `https://www.…`; Turnstile đã có tên miền (F6).
 - [ ] Đăng nhập cán bộ được, xem danh tính hồ sơ cũ ra đúng tên, gửi thử và tra cứu được.
 - [ ] Đã `shred` các tệp sao lưu trên máy.
+- [ ] Trong vòng 1–2 ngày sau đêm chuyển: Phần G chạy, **G6 khôi phục thử khớp số**; khoá mở bản
+      sao (`khoa-sao-luu.txt`) đã chép ra USB, cất **cùng chỗ** ba khoá ở trên.
 
 ### E3. Những thứ VẪN ở nước ngoài sau khi chuyển
 
@@ -824,7 +704,7 @@ phải để hoảng:
 
 | Dịch vụ | Nhận được gì | Bỏ được không |
 |---|---|---|
-| **Vercel/Netlify** (giao diện) | Tệp tĩnh; thấy IP người mở trang; **sửa được JS nơi người dân gõ danh tính** | Được — **Phần F** |
+| ~~Vercel/Netlify~~ (giao diện) | — | **Đã bỏ** — giao diện chạy trên máy Viettel (Phần F) |
 | **Cloudflare Turnstile** (chống máy tự động) | IP và trình duyệt người dân lúc gửi ý kiến | Khó — đây là lớp chống spam chính |
 | **Google Gemini** (trợ lý hỏi đáp) | Những gì người dân gõ vào **ô trợ lý** (không phải nội dung ý kiến gửi đi — phân loại ý kiến chạy bằng quy tắc ngay trên máy chủ) | Được — để trống `GEMINI_API_KEY` thì tắt trợ lý |
 | **Brevo** (gửi email mã xác thực) | Địa chỉ email người nhận | Được — đổi nhà gửi mail |
@@ -838,7 +718,8 @@ thuật: nên hỏi bộ phận phụ trách an ninh mạng hoặc pháp chế c
 
 ## Phần F — Đưa giao diện lên máy Viettel (thay Netlify/Vercel)
 
-**Nên làm khi chạy thật.** Người dân gõ họ tên, số điện thoại vào trang giao diện **trước khi**
+**Giao diện chạy trên chính máy Viettel đã dựng ở Phần B** — một máy phục vụ cả trang người
+dân, trang cán bộ (`/quan-tri`) và hai máy chủ. Người dân gõ họ tên, số điện thoại vào trang giao diện **trước khi**
 máy chủ mã hoá. Ai sửa được gói JS trên Netlify/Vercel (kẻ chiếm tài khoản, hoặc chính nhà
 cung cấp ở nước ngoài) là đọc được danh tính ngay tại ô nhập — mã hoá ở máy chủ không cứu
 được. Đặt giao diện trên máy Viettel thì cả bốn phần nằm ở Việt Nam, dưới quyền của đơn vị.
@@ -849,7 +730,7 @@ Mọi thứ cần đã có sẵn trong mã nguồn, thư mục `deploy/`:
 |---|---|
 | `deploy/dung-giao-dien.sh` | Kịch bản dựng giao diện và đưa lên — thay việc Netlify/Vercel tự dựng |
 | `deploy/nginx/hop-thu-giao-dien.conf` | Cấu hình Nginx cho trang giao diện — cài **một lần** |
-| `deploy/nginx/hop-thu-header.conf` | Header bảo mật, **giống hệt** `public/_headers` (test kiểm từng ký tự). Kịch bản tự điền địa chỉ máy chủ vào CSP — **không phải sửa tay** như A6-2 |
+| `deploy/nginx/hop-thu-header.conf` | Header bảo mật, **giống hệt** `public/_headers` (test kiểm từng ký tự). Kịch bản tự điền địa chỉ máy chủ vào CSP — **không phải sửa tay** |
 
 ### F1. Cần có trước
 
@@ -931,7 +812,8 @@ certbot --nginx -d congan-phuong.vn -d www.congan-phuong.vn
 
 1. Ở **cả hai** tệp `/etc/hop-thu/cong-khai.env` và `can-bo.env`:
    `CORS_ORIGIN=https://www.congan-phuong.vn` (và `CLIENT_URL` cùng giá trị ở `cong-khai.env`).
-   Còn chạy song song Vercel/Netlify thì ghi cả hai, cách nhau dấu phẩy (A6-1).
+   Chưa đổi DNS mà muốn trang cũ trên Netlify/Vercel vẫn gọi được thì ghi thêm địa chỉ đó, cách
+   nhau dấu phẩy — bỏ đi ở F8 bước 5.
 2. `systemctl restart hop-thu-cong-khai hop-thu-can-bo`
 3. **Turnstile**: dash.cloudflare.com → Turnstile → site → Hostname Management → thêm
    `www.congan-phuong.vn`.
@@ -961,7 +843,7 @@ bash deploy/dung-giao-dien.sh
 Kịch bản đổi bản **một nhát** (không có lúc nào trang trống), chạy `nginx -t` trước khi nạp, và
 **tự quay về bản cũ** nếu cấu hình mới hỏng. Nó giữ 5 bản gần nhất.
 
-### F8. Đêm chuyển từ Vercel/Netlify
+### F8. Đêm chuyển: đổi DNS từ Netlify/Vercel sang máy Viettel
 
 1. Làm xong F2–F6 với địa chỉ IP / bản ghi tạm, kiểm đủ danh sách F6.
 2. Đổi bản ghi DNS `@` và `www` sang IP máy Viettel (F1). Chờ 5–60 phút cho DNS cập nhật —
@@ -1004,10 +886,360 @@ Lần chạy kịch bản sau sẽ đưa bản mới nhất lên lại.
 
 ---
 
+## Phần G — Sao lưu mã hoá sang nhà cung cấp khác (bắt buộc khi chạy thật)
+
+### G1. Vì sao cần, khi VNPT đã tự sao lưu
+
+VNPT sao lưu nằm **cùng một chỗ** với CSDL: tài khoản VNPT bị khoá, bị chiếm, xoá nhầm cả
+dịch vụ, hay trung tâm dữ liệu gặp sự cố thì mất cả CSDL lẫn bản sao. Phần này gửi thêm **một
+bản mỗi đêm sang kho của nhà cung cấp khác** (Bizfly Simple Storage — cùng loại kho ở Phần D
+hướng 2; dùng kho S3 của Viettel cũng được).
+
+Bản sao chứa **nội dung tố giác** (danh tính đã được mã hoá bằng `ENCRYPTION_KEY`, nhưng lời kể,
+ảnh — nếu theo Phần D hướng 1 — thì không). Vì vậy:
+
+- **Mã hoá trên máy Viettel trước khi gửi đi.** Kho chỉ nhận về những byte vô nghĩa.
+- Dùng **khoá công khai** (công cụ `age`): máy Viettel chỉ giữ khoá **khoá lại được**; khoá
+  **mở ra** nằm trên USB cất tủ. Kẻ chiếm được máy Viettel cũng không mở được các bản cũ trên kho.
+- **Chữ trần không bao giờ ghi xuống đĩa**: lệnh sao lưu → nén → mã hoá → tải lên chạy liền một
+  mạch, không qua tệp trung gian (ổ SSD không xoá sạch được bằng `shred`).
+
+> Khôi phục bản sao chỉ đọc lại được danh tính nếu còn **đúng ba khoá** `JWT_SECRET`,
+> `ENCRYPTION_KEY`, `HASH_PEPPER` cũ. Cất khoá mở bản sao **cùng chỗ** với ba khoá đó (E2).
+
+### G2. Chuẩn bị — làm một lần
+
+**1. Trên Bizfly** (tên nút tuỳ Bizfly):
+
+- [ ] Tạo một **bucket riêng**, chế độ **riêng tư** (private), ví dụ `hop-thu-sao-luu`.
+- [ ] Tạo **khoá truy cập (Access Key / Secret Key)**. Hỏi Bizfly có giới hạn khoá chỉ dùng cho
+      bucket này được không — được thì giới hạn.
+- [ ] Ghi lại **địa chỉ endpoint S3** của vùng đã chọn (trang Bizfly ghi sẵn).
+
+**2. Trên VNPT — tài khoản CSDL chỉ đọc, chỉ dùng để sao lưu.** Không dùng tài khoản của máy
+chủ: tài khoản đó ghi được, lộ ra là sửa được dữ liệu.
+
+```sql
+CREATE USER 'sao_luu'@'IP-MAY-VIETTEL' IDENTIFIED BY '<mật khẩu dài, chỉ chữ và số>';
+GRANT SELECT, SHOW VIEW, TRIGGER, LOCK TABLES, EVENT ON hop_thu_an_ninh_so.* TO 'sao_luu'@'IP-MAY-VIETTEL';
+GRANT SHOW_ROUTINE ON *.* TO 'sao_luu'@'IP-MAY-VIETTEL';
+```
+
+> ⚠️ **Đừng bỏ dòng `SHOW_ROUTINE`.** Đã thử: thiếu quyền này, `mysqldump` **không báo lỗi gì**
+> mà lặng lẽ bỏ hết các thủ tục (stored procedure) khỏi bản sao — trông như sao lưu thành công,
+> đến lúc khôi phục mới thấy thiếu. VNPT không cho cấp quyền này qua tài khoản quản trị thì
+> hỏi VNPT cấp giúp. Buổi diễn tập G6 so số thủ tục để bắt đúng lỗi này.
+
+**3. Trên máy tính ở cơ quan (KHÔNG làm trên máy Viettel)** — tạo cặp khoá mã hoá:
+
+```bash
+age-keygen -o khoa-sao-luu.txt
+```
+
+Lệnh in ra một dòng `Public key: age1...` — đó là **khoá công khai**, chép lại. Tệp
+`khoa-sao-luu.txt` là **khoá mở**: chép ra 2 USB, cất cùng chỗ ba khoá ở E2, rồi xoá khỏi máy
+tính. (Máy Windows: tải `age` cho Windows tại <https://github.com/FiloSottile/age/releases>.)
+
+**4. Trên máy Viettel:**
+
+```bash
+apt install -y age rclone mysql-client
+useradd --system --no-create-home --shell /usr/sbin/nologin hopthu-sl
+```
+
+Tệp mật khẩu CSDL cho lệnh sao lưu — đặt trong tệp chứ không ghi trên dòng lệnh, để mật khẩu
+không hiện trong danh sách tiến trình:
+
+```bash
+nano /etc/hop-thu/sao-luu.cnf
+```
+
+```ini
+[client]
+user=sao_luu
+password=<mật khẩu ở bước 2>
+host=<giống DB_HOST>
+port=<giống DB_PORT>
+ssl-ca=/etc/hop-thu/ca-db.pem
+ssl-mode=VERIFY_IDENTITY
+```
+
+`VERIFY_IDENTITY` kiểm cả chứng chỉ lẫn tên máy — đúng kiểu máy chủ ứng dụng đang kiểm (B7). Máy
+chủ nối được CSDL thì lệnh sao lưu cũng nối được.
+
+Tệp cấu hình sao lưu:
+
+```bash
+nano /etc/hop-thu/sao-luu.env
+```
+
+```ini
+DB_NAME=hop_thu_an_ninh_so
+SAO_LUU_CNF=/etc/hop-thu/sao-luu.cnf
+AGE_RECIPIENT=age1...dán khoá công khai ở bước 3...
+RCLONE_DICH=bizfly:hop-thu-sao-luu
+```
+
+Khai kho Bizfly cho `rclone`:
+
+```bash
+nano /etc/hop-thu/rclone.conf
+```
+
+```ini
+[bizfly]
+type = s3
+provider = Other
+access_key_id = <Access Key ở bước 1>
+secret_access_key = <Secret Key ở bước 1>
+endpoint = <endpoint ở bước 1>
+acl = private
+```
+
+Khoá quyền — chỉ người dùng sao lưu đọc được:
+
+```bash
+chown hopthu-sl:hopthu-sl /etc/hop-thu/sao-luu.cnf /etc/hop-thu/sao-luu.env /etc/hop-thu/rclone.conf
+chmod 600 /etc/hop-thu/sao-luu.cnf /etc/hop-thu/sao-luu.env /etc/hop-thu/rclone.conf
+```
+
+### G3. Tệp lệnh sao lưu
+
+```bash
+nano /usr/local/bin/hop-thu-sao-luu.sh
+```
+
+```bash
+#!/bin/bash
+# Sao lưu CSDL hằng đêm sang kho ở nhà cung cấp khác (Phần G).
+# Chữ trần KHÔNG BAO GIỜ chạm đĩa: dump -> nén -> mã hoá -> tải lên, chạy liền một mạch.
+set -euo pipefail
+source "${SAO_LUU_ENV:-/etc/hop-thu/sao-luu.env}"   # DB_NAME, AGE_RECIPIENT, RCLONE_DICH, SAO_LUU_CNF
+TEN="hop-thu-$(date +%F-%H%M).sql.gz.age"
+
+# Tải lên dưới tên tạm; chỉ đổi sang tên thật khi CẢ chuỗi thành công.
+# Không làm vậy thì lần hỏng giữa chừng vẫn để lại một tệp cụt trông như bản sao lưu.
+if ! mysqldump --defaults-extra-file="$SAO_LUU_CNF" --single-transaction --routines --triggers \
+       --no-tablespaces --set-gtid-purged=OFF "$DB_NAME" \
+     | gzip -9 | age -r "$AGE_RECIPIENT" | rclone rcat "$RCLONE_DICH/$TEN.dang-tai"; then
+  rclone deletefile "$RCLONE_DICH/$TEN.dang-tai" 2>/dev/null || true
+  echo "LOI: sao luu that bai, khong co ban moi" >&2
+  exit 1
+fi
+rclone moveto "$RCLONE_DICH/$TEN.dang-tai" "$RCLONE_DICH/$TEN"
+
+# Giữ 30 ngày gần nhất.
+rclone delete --min-age 30d --include "hop-thu-*.sql.gz.age" "$RCLONE_DICH"
+echo "OK $TEN"
+```
+
+```bash
+chmod 755 /usr/local/bin/hop-thu-sao-luu.sh
+```
+
+Chạy thử bằng tay một lần:
+
+```bash
+sudo -u hopthu-sl env RCLONE_CONFIG=/etc/hop-thu/rclone.conf /usr/local/bin/hop-thu-sao-luu.sh
+sudo -u hopthu-sl env RCLONE_CONFIG=/etc/hop-thu/rclone.conf rclone ls bizfly:hop-thu-sao-luu
+```
+
+Phải in `OK hop-thu-....sql.gz.age` và thấy tệp đó trên kho. Xong **làm ngay G6** một lần.
+
+### G4. Cho chạy tự động mỗi đêm (systemd)
+
+```bash
+nano /etc/systemd/system/hop-thu-sao-luu.service
+```
+
+```ini
+[Unit]
+Description=Hop thu - sao luu CSDL ma hoa sang kho khac
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hopthu-sl
+Group=hopthu-sl
+Environment=RCLONE_CONFIG=/etc/hop-thu/rclone.conf
+ExecStart=/usr/local/bin/hop-thu-sao-luu.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+```
+
+```bash
+nano /etc/systemd/system/hop-thu-sao-luu.timer
+```
+
+```ini
+[Unit]
+Description=Hop thu - sao luu luc 2 gio 30 sang moi ngay
+
+[Timer]
+# Ghi rõ múi giờ: máy Ubuntu mới thường để UTC, khi đó "2:30" là 9:30 sáng giờ Việt Nam
+OnCalendar=*-*-* 02:30:00 Asia/Ho_Chi_Minh
+# Máy tắt lúc 2 giờ 30 thì bật lên chạy bù ngay
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl daemon-reload
+systemctl enable --now hop-thu-sao-luu.timer
+systemctl list-timers hop-thu-sao-luu.timer      # thấy giờ chạy kế tiếp là được
+```
+
+### G5. Kiểm mỗi tuần — 1 phút
+
+```bash
+journalctl -u hop-thu-sao-luu.service --since "7 days ago" | grep -E "OK|LOI"
+sudo -u hopthu-sl env RCLONE_CONFIG=/etc/hop-thu/rclone.conf rclone lsl bizfly:hop-thu-sao-luu | tail -3
+```
+
+Phải có một dòng `OK` mỗi đêm, và tệp mới nhất là của đêm qua. Có `LOI` hay thiếu đêm nào thì
+xem dòng lỗi ngay phía trên nó (bảng G7).
+
+### G6. Diễn tập khôi phục — lần đầu ngay sau G3, rồi mỗi tháng một lần
+
+**Bản sao chưa từng khôi phục thử thì coi như chưa có bản sao.** Làm trên **máy tính ở cơ
+quan** hoặc một CSDL thử, **không** khôi phục đè lên CSDL đang chạy.
+
+```bash
+# 1. Lấy bản mới nhất về (cần rclone khai kho như G2 bước 4)
+rclone copy bizfly:hop-thu-sao-luu/hop-thu-NGAY-GIO.sql.gz.age .
+
+# 2. Tạo CSDL thử rồi mở khoá, giải nén, bỏ dòng DEFINER (như C3) và nhập
+mysql -u root -p -e "CREATE DATABASE thu_khoi_phuc CHARACTER SET utf8mb4;"
+age -d -i khoa-sao-luu.txt hop-thu-NGAY-GIO.sql.gz.age | gunzip \
+  | sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' | mysql -u root -p thu_khoi_phuc
+```
+
+So bản khôi phục với CSDL thật — chạy câu này trên **cả hai** (`thu_khoi_phuc` và CSDL VNPT):
+
+```sql
+SELECT 'bang', COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
+UNION ALL SELECT 'trigger', COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE()
+UNION ALL SELECT 'thu tuc', COUNT(*) FROM information_schema.routines WHERE routine_schema = DATABASE()
+UNION ALL SELECT 'view', COUNT(*) FROM information_schema.views WHERE table_schema = DATABASE()
+UNION ALL SELECT 'y kien', (SELECT COUNT(*) FROM submissions);
+```
+
+Bốn dòng đầu phải **bằng nhau**; dòng `y kien` của bản sao chỉ được ít hơn số ý kiến gửi vào từ
+lúc sao lưu tới giờ. Xong thì xoá CSDL thử và tệp đã tải về:
+
+```bash
+mysql -u root -p -e "DROP DATABASE thu_khoi_phuc;"
+rm hop-thu-NGAY-GIO.sql.gz.age
+```
+
+> Đã chạy thử đúng các lệnh ở G3 và G6 trên MySQL 8.0 (2026-10-20), kho là thư mục trên máy thay
+> cho Bizfly, kết nối CSDL không qua TLS: khôi phục ra đủ 28 bảng, 5 trigger, 4 thủ tục, 10 view,
+> số ý kiến khớp từng dòng. Sao lưu hỏng giữa chừng (sai mật khẩu) thì báo `LOI` và **không** để
+> lại tệp cụt trên kho; bản cũ hơn 30 ngày bị xoá, tệp khác trong kho không bị đụng. **Chưa thử**
+> với Bizfly thật và TLS của VNPT — lần chạy tay đầu tiên ở G3 chính là phép thử đó.
+
+### G7. Lỗi hay gặp
+
+| Thấy gì | Vì sao | Làm gì |
+|---|---|---|
+| Khôi phục ra `thu tuc` = 0, CSDL thật có | Thiếu quyền `SHOW_ROUTINE` (G2 bước 2) | Cấp quyền, chạy lại G3, làm lại G6 |
+| `Access denied ... PROCESS privilege` | Thiếu `--no-tablespaces` | Dùng đúng tệp lệnh ở G3 |
+| `Access denied for user 'sao_luu'` | Sai mật khẩu, hoặc VNPT chưa cho IP máy Viettel | Kiểm `sao-luu.cnf`; kiểm danh sách IP ở C1 |
+| `SSL connection error` | Sai đường dẫn hoặc sai tệp CA | `ssl-ca` phải trỏ đúng tệp CA của VNPT (B7) |
+| `403 Forbidden` / `AccessDenied` từ rclone | Khoá Bizfly sai hoặc không có quyền với bucket | Kiểm `rclone.conf`, quyền của khoá |
+| `no identity matched any of the recipients` | Mở bằng sai khoá | Dùng đúng `khoa-sao-luu.txt` đi cặp với `AGE_RECIPIENT` |
+| Không có dòng `OK` đêm qua, cũng không có `LOI` | Bộ hẹn giờ chưa bật | `systemctl enable --now hop-thu-sao-luu.timer` |
+
+---
+
+## Phụ lục — VIỆC CHỜ: kiểm kho dữ liệu Viettel (vDBS) khi dùng thử
+
+> Ghi ngày 2026-10-20 theo yêu cầu người vận hành: **làm khi đã có kho vDBS dùng thử** (gói
+> T2.VDBS 1 Standalone, MySQL 8.0, Private Access, chung VPC với máy CS1). Tài liệu Viettel
+> không trả lời ba câu này; chạy ba phép kiểm dưới đây là biết chắc.
+
+Đã biết từ tài liệu Viettel (tra 2026-10-20): kho vDBS nằm trong **mạng con riêng**, nối với máy
+chủ bằng **Actions → Connect To Other Subnet** (tự đặt luật tường lửa chỉ cho mạng con của máy
+chủ vào); sao lưu tự động **hằng ngày/tuần**, giữ **≥ 7 bản**, khôi phục thành kho mới; **không
+thấy** khôi phục về từng phút. Khách được giao **tài khoản root** của kho.
+
+Làm trên **máy CS1** (B3: vào máy bằng PowerShell). Lần đầu cài công cụ: `apt install -y mysql-client`.
+`DIA-CHI-KHO` là địa chỉ riêng (private host) Viettel ghi trên trang quản trị vDBS. Mỗi lệnh
+hỏi mật khẩu root của kho — gõ vào, không hiện chữ là bình thường. **Không dán mật khẩu cho ai.**
+
+**Kiểm 1 — kho có mã hoá đường nối không**
+
+```bash
+mysql -h DIA-CHI-KHO -u root -p --ssl-mode=REQUIRED -e "SHOW STATUS LIKE 'Ssl_cipher';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Một dòng `Ssl_cipher` có chữ phía sau (vd `TLS_AES_256_GCM_SHA384`) | **Có mã hoá.** Hỏi Viettel tệp chứng chỉ CA để máy chủ kiểm cả "con dấu" (B7, `DB_SSL_CA`) |
+| Báo lỗi có chữ `SSL` | **Không có mã hoá.** Vẫn dùng được vì đường nối nằm trong mạng con riêng — ghi vào sổ theo dõi, hỏi Viettel khi nào hỗ trợ |
+
+**Kiểm 2 — cấp được quyền `SHOW_ROUTINE` cho tài khoản sao lưu không**
+
+```bash
+mysql -h DIA-CHI-KHO -u root -p -e "CREATE USER 'thu_quyen'@'%' IDENTIFIED BY 'ThuQuyen12345'; GRANT SHOW_ROUTINE ON *.* TO 'thu_quyen'@'%'; SHOW GRANTS FOR 'thu_quyen'@'%'; DROP USER 'thu_quyen'@'%';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Có dòng `GRANT SHOW_ROUTINE ON *.*` | **Được.** Phần G (G2 bước 2) làm đúng như viết |
+| `Access denied` | **Không được.** Báo Claude: sửa Phần G để dựng lại thủ tục từ mã nguồn thay vì lấy từ bản sao |
+
+(Tài khoản `thu_quyen` chỉ để thử, lệnh tự xoá nó ở cuối.)
+
+**Kiểm 3 — tham số `log_bin_trust_function_creators` chỉnh được không**
+
+```bash
+mysql -h DIA-CHI-KHO -u root -p -e "SHOW VARIABLES LIKE 'log_bin_trust_function_creators';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Giá trị `ON` | **Đã bật sẵn**, chép dữ liệu cũ sang được |
+| Giá trị `OFF` | Vào trang quản trị vDBS, tìm mục **tham số / cấu hình (parameter)** của kho, đặt `log_bin_trust_function_creators` = `1`, khởi động lại kho nếu trang yêu cầu, chạy lại lệnh trên phải ra `ON`. Không có mục đó thì nhờ Viettel bật, hoặc nhờ Viettel chép dữ liệu cũ giúp |
+
+Xong ba phép kiểm: gửi Claude **ảnh chụp kết quả** (che mật khẩu nếu có) để cập nhật Phần C, G và
+đóng việc chờ ND-066.
+
+---
+
+## Phụ lục — Dự toán chi phí (tra ngày 2026-10-20)
+
+> ⚠️ Giá cũ đi rất nhanh. Bảng này để **lập dự toán ban đầu**; trước khi trình duyệt phải **xin
+> báo giá chính thức**, nhất là hai dòng có ghi "cần báo giá". Đơn vị: đồng/tháng, **đã gồm VAT 10%**.
+
+| Hạng mục | Cấu hình | Khuyến nghị | Tối đa | Căn cứ |
+|------------------|------------------|----------:|----------:|------------------------------------------|
+| Viettel Cloud Server (2 máy chủ + giao diện + Nginx) | T1.Base 03: 2 vCPU, 4 GB RAM, 20 GB SSD | 438.900 | 438.900 | 399.000 chưa VAT. Đã đo tải trên đúng cấu hình này (B1) |
+| Thêm ổ SSD | +30 GB / +50 GB | 99.000 | 165.000 | ~30.000/10 GB chưa VAT — **cần Viettel báo giá** |
+| VNPT MySQL (CSDL) | 1 máy (Single) / 2 máy dự phòng (HA) | 572.000 | 1.144.000 | VNPT chưa công bố giá DBaaS; tính ~520.000 chưa VAT/máy, cao hơn VNPT Cloud Server cùng cấu hình (379.000) để không dự toán thiếu — **cần VNPT báo giá** |
+| Sao lưu khác nhà cung cấp (Phần G, kho S3 Bizfly) | ≤100 GB lưu, ≤50 GB tải về | 55.000 | 110.440 | 864 đ/GB/tháng, tải về 280 đ/GB, tối thiểu 50.000 (chưa VAT) |
+| Thay Cloudinary (Phần D hướng 1) | Ảnh lưu trong CSDL | 0 | 0 | Chọn hướng 2 thì dùng chung kho ở dòng trên |
+| Tên miền .vn (quy ra tháng) | | 38.333 | 55.833 | Gia hạn ~460.000/năm; năm đầu ~450.000–670.000 |
+| HTTPS, băng thông, Turnstile, Brevo, Gemini | | 0 | 0 | Miễn phí ở quy mô phường |
+| Dự phòng phát sinh 15% | | — | 287.126 | 15% × 1.914.173 |
+| **Cộng / tháng** | | **1.203.233** | **2.201.299** | |
+| **Cộng / năm** | | **14.438.800** | **26.415.592** | Khuyến nghị: 1.164.900 × 12 + 460.000. Tối đa: (1.858.340 × 12 + 670.000) × 1,15 |
+
+---
+
 ## Nguồn tham khảo (tra ngày 2026-10-06)
 
-- Điều khoản gói Hobby của Vercel: <https://vercel.com/docs/plans/hobby>, <https://vercel.com/docs/limits/fair-use-guidelines>
 - VNPT MySQL (DBaaS): <https://cloud.vnpt.vn/dich-vu/my-sql>, <https://cloud.vnpt.vn/dich-vu/cloud-database>
 - Viettel Cloud Server, Object Storage của Viettel IDC: <https://viettelcloud.vn>, <https://cloudian.com/press/viettel-idc-chooses-cloudian-object-storage-as-foundation-for-service-offerings.md>
-- Bizfly Cloud Simple Storage: <https://bizflycloud.vn/en/s3-simple-storage>
+- Bizfly Cloud Simple Storage: <https://bizflycloud.vn/en/s3-simple-storage> (giá tra 2026-10-20: <https://bizflycloud.vn/s3-simple-storage>)
+- Giá Viettel Cloud Server (tra 2026-10-20): <https://viettelidcvn.com/cloud-server/>, <https://viettel-idc.com.vn/index.php/dich-vu/viettel-cloud-server.html>
+- Giá VNPT Cloud Server (tra 2026-10-20): <https://cloud.vnpt.vn/en/service/cloud-server>
+- Phí tên miền .vn (tra 2026-10-20): <https://www.matbao.net/ten-mien/bang-gia-ten-mien>, <https://nhanhoa.com/trang/ten-mien/bang-gia-ten-mien.html>
+- Công cụ mã hoá `age`: <https://github.com/FiloSottile/age> · `rclone` với kho S3: <https://rclone.org/s3/>
 - VNG Cloud vStorage: <https://docs.vngcloud.vn/vng-cloud-document/vn/vstorage/object-storage>

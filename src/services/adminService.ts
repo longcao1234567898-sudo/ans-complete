@@ -893,6 +893,8 @@ export const fetchChatMessages = (id: number): Promise<{
   status: string;
   daDong: boolean;
   isAnonymous: boolean;
+  /** BUG-040: người dân tạm không vào được phòng vì PIN bị nhập sai nhiều lần. null = máy chủ chưa nâng cấp v37 */
+  doPin?: { biKhoa: boolean; soLanSai: number } | null;
 }> => adminFetch(`/api/admin/chat/${id}/messages`);
 
 export const sendChatMessage = (id: number, message: string): Promise<{ ok: boolean }> =>

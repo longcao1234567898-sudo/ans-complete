@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MessageSquare, Send, Lock, Loader2, ShieldCheck, RefreshCw } from 'lucide-react';
+import { MessageSquare, Send, Lock, Loader2, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
 import { fetchChatMessages, sendChatMessage } from '../../services/adminService';
 
 interface Props {
@@ -102,6 +102,19 @@ export default function AdminChatPanel({ submissionId }: Props) {
       </div>
 
       <div className="max-h-80 space-y-3 overflow-y-auto px-4 py-4">
+        {/* BUG-040: máy chủ khoá mở phòng sau nhiều lần nhập sai PIN — có thể là
+            người khác đang dò. Cán bộ cần biết để không chờ câu trả lời vô ích. */}
+        {data?.doPin?.biKhoa && (
+          <p role="alert" className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <b>Hồ sơ đang bị dò mã PIN:</b> mã PIN bị nhập sai {data.doPin.soLanSai} lần trong 24 giờ,
+              phòng trao đổi đang tạm khoá phía người dân (tối đa 24 giờ). Người gửi tạm thời không đọc
+              được tin nhắn. Nếu nghi có người biết mã tra cứu của hồ sơ này, báo lãnh đạo.
+            </span>
+          </p>
+        )}
+
         {isLoading && (
           <p className="py-4 text-center text-xs text-slate-500">Đang tải…</p>
         )}
