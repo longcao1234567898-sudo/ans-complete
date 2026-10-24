@@ -110,6 +110,9 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
             {t('xms.tieuDe')} <span className="font-normal text-slate-500">{t('xms.khongBatBuoc')}</span>
           </p>
           <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('xms.moTa')}</p>
+          {/* Nội dung tin trung tính, nhưng TÊN NGƯỜI GỬI (Zalo OA, tên thương hiệu SMS)
+              là của đơn vị — hiện trên màn hình khoá. Người dân phải biết trước (trọng tài P89) */}
+          <p className="mt-1 text-xs font-semibold leading-relaxed text-amber-700 dark:text-amber-300">{t('xms.tenNguoiGui')}</p>
         </div>
       </div>
 

@@ -498,6 +498,9 @@ người vận hành quyết mở (bước 7).
    "Công an", "tố giác", "phản ánh": tin hiện trên màn hình, người nhà hay chính kẻ bị tố cầm máy đều
    đọc được. Gợi ý: *"Ma xac nhan cua ban: {ma}. Het han sau 5 phut. Khong chia se ma nay cho bat ky
    ai."* Zalo duyệt xong sẽ cấp **OAID** và **TempID**.
+   ⚠️ Nội dung trung tính chưa đủ: tin ZNS hiện dưới **tên Zalo OA** (thường là "Công an phường …"),
+   SMS hiện **tên thương hiệu** — ai cầm máy người gửi cũng thấy "công an vừa nhắn". Ô xác minh đã ghi
+   rõ điều này cho người dân và để họ bỏ qua; đừng xoá dòng nhắc đó khi sửa giao diện.
 3. **Chạy nâng cấp CSDL:** `nang_cap_v38.sql` (nếu chưa) rồi `nang_cap_v39.sql` (xem C4).
 4. **Khai `.env` của máy chủ công khai** (B7) — khoá bí mật, **không bao giờ** đặt vào biến `VITE_*`:
    ```
