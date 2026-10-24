@@ -81,12 +81,14 @@ test('SMS (xây sẵn): tin không dấu, loại CSKH, đúng tên thương hi�
   });
 });
 
-test('eSMS từ chối rõ ràng (mã khác 100): báo không gửi được — nhật ký có mã lỗi, không có số/mã/khoá', async () => {
+test('eSMS từ chối rõ ràng (sai khoá, khoá tài khoản, hết tiền, sai thương hiệu): báo không gửi được — nhật ký có mã lỗi, không có số/mã/khoá', async () => {
   dangKyEsms(ZALO);
-  traLoi = async () => new Response(JSON.stringify({ CodeResult: '146', ErrorMessage: `Phone ${SO} invalid` }), { status: 200 });
-  assert.deepEqual(await gui('zalo'), { ok: false, lyDo: 'tu_choi' });
+  for (const ma of ['101', '102', '103', '104']) {
+    traLoi = async () => new Response(JSON.stringify({ CodeResult: ma, ErrorMessage: `Phone ${SO} invalid` }), { status: 200 });
+    assert.deepEqual(await gui('zalo'), { ok: false, lyDo: 'tu_choi' }, ma);
+  }
   const log = nhatKy.join('\n');
-  assert.match(log, /146/);
+  assert.match(log, /101/);
   for (const bi of [SO, MA, KHOA.ESMS_API_KEY, KHOA.ESMS_SECRET_KEY]) assert.ok(!log.includes(bi), `nhật ký lộ ${bi}`);
 });
 
@@ -97,6 +99,13 @@ test('trả lời mập mờ (đứt mạng, hết giờ, máy chủ eSMS lỗi,
     async () => { throw new DOMException('timeout', 'TimeoutError'); },
     async () => new Response('<html>502 Bad Gateway</html>', { status: 502 }),
     async () => new Response('{}', { status: 200 }),
+    /* Trọng tài P89: máy chủ eSMS lỗi mà vẫn kèm CodeResult, hay mã "99" (lỗi không
+       xác định — Zalo có thể đã nhận) KHÔNG phải từ chối rõ ràng */
+    async () => new Response(JSON.stringify({ CodeResult: '99' }), { status: 500 }),
+    async () => new Response(JSON.stringify({ CodeResult: '99' }), { status: 503 }),
+    async () => new Response(JSON.stringify({ CodeResult: '99' }), { status: 200 }),
+    async () => new Response(JSON.stringify({ CodeResult: '101' }), { status: 502 }),
+    async () => new Response(JSON.stringify({ CodeResult: '146' }), { status: 200 }),
   ]) {
     lenh = [];
     traLoi = hong;

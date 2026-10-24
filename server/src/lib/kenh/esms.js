@@ -35,6 +35,10 @@ export const DUONG_SMS = `${GOC}/SendMultipleMessage_V4_post_json/`;
 /* Chỉ hai địa chỉ viết sẵn — kiểm A10 (tests/ra-soat-owasp) soi chỗ gọi fetch */
 const DUONG_ESMS = Object.freeze({ zalo: DUONG_ZALO, sms: DUONG_SMS });
 const HET_GIO_MS = 10_000;
+/* Mã eSMS nghĩa là lệnh bị chặn TRƯỚC khi gửi (theo tài liệu eSMS): 101 sai
+   ApiKey/SecretKey, 102 tài khoản bị khoá, 103 không đủ tiền, 104 sai tên thương
+   hiệu. Đối chiếu lại khi chạy ESMS_SANDBOX=1 lần đầu (ND-073) */
+const MA_CHUA_GUI = new Set(['101', '102', '103', '104']);
 
 const mien = (s) => String(s ?? '').trim();
 
@@ -45,16 +49,21 @@ async function goi(kenh, than) {
     body: JSON.stringify(than),
     signal: AbortSignal.timeout(HET_GIO_MS),
   });
-  /* Chỉ một CodeResult đọc được mới là trả lời rõ ràng (nhận "100" hoặc từ chối).
-     Đứt mạng, hết giờ (fetch ném), máy chủ eSMS lỗi, trả lời không đọc được thì
-     NÉM — kenh-gui-ma coi là MẬP MỜ (eSMS có thể đã nhận và tính tiền), không gửi
-     thêm kênh khác. Lỗi không mang số, mã hay khoá. */
+  /* CHỈ coi là "chưa gửi" khi chắc chắn (allow-list, luật 5): eSMS trả lời bình
+     thường (HTTP 2xx) với mã báo lệnh bị chặn TRƯỚC khi gửi. Mọi thứ khác — đứt
+     mạng, hết giờ (fetch ném), máy chủ eSMS lỗi (kể cả kèm CodeResult), mã "99"
+     (lỗi không xác định), mã chưa biết — là MẬP MỜ: eSMS có thể đã nhận và tính
+     tiền, nên NÉM để kenh-gui-ma không gửi thêm kênh khác. Lỗi không mang số, mã
+     hay khoá. */
   const j = await r.json().catch(() => null);
-  const ma = mien(j?.CodeResult ?? j?.CodeResponse);
-  if (!ma) throw new Error(`eSMS trả lời không đọc được (HTTP ${r.status})`);
+  const ma = mien(j?.CodeResult ?? j?.CodeResponse).slice(0, 10);
+  if (!r.ok) throw new Error(`eSMS lỗi máy chủ (HTTP ${r.status}${ma ? `, mã ${ma}` : ''})`);
   if (ma === '100') return { ok: true };
-  console.error(`[eSMS] từ chối lệnh gửi, mã ${ma.slice(0, 10)}`);
-  return { ok: false, lyDo: `esms_${ma.slice(0, 10)}` };
+  if (MA_CHUA_GUI.has(ma)) {
+    console.error(`[eSMS] từ chối lệnh gửi, mã ${ma}`);
+    return { ok: false, lyDo: `esms_${ma}` };
+  }
+  throw new Error(`eSMS trả lời mập mờ (${ma ? `mã ${ma}` : 'không đọc được'}, HTTP ${r.status})`);
 }
 
 /** Đăng ký các kênh đủ cấu hình. Gọi lại được (thử nghiệm đổi biến môi trường). */
