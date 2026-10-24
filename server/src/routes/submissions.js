@@ -16,6 +16,7 @@ import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
 import { coCotCo } from '../lib/pham-vi-ho-so.js';
 import { kiemTraNoiDungNham, kiemTraHoTenNham } from '../lib/noi-dung-nham.js';
 import { quaCongVao } from '../lib/cong-vao.js';
+import { turnstileEnabled, xacMinhNghiemNgat } from '../lib/turnstile.js';
 import { capPhieuMoForm, danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
 import { xetDotBien } from '../lib/dot-bien.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
@@ -53,6 +54,17 @@ const MAX_PER_HOUR = 5;
 const ANON_COOLDOWN_MS = 10 * 60_000;  // chờ 10 phút giữa 2 lần gửi (thường: 2 phút)
 const ANON_MAX_PER_DAY = 2;            // tối đa 2 ý kiến/ngày   (thường: 5/giờ)
 const ANON_MIN_LENGTH = 50;            // nội dung tối thiểu 50 ký tự (chống gửi "aaaa")
+
+/* ===== CHẶN MỀM THEO MẠNG (P88, ADR-006) =====
+ * Trên 4G hàng trăm thuê bao dùng chung một IP — các ngưỡng theo MẠNG ở trên
+ * (chờ giữa hai lần gửi, 5 tin/giờ, 2 tin ẩn danh/ngày) đếm cả người lạ chung IP.
+ * Vượt ngưỡng mạng thì không chặn ngay mà đòi xác minh "không phải người máy" THÊM
+ * MỘT LẦN (mã Turnstile tươi, dùng một lần, kiểm nghiêm ngặt); tới trần dưới đây
+ * thì chặn hẳn. Ngưỡng theo SỐ ĐIỆN THOẠI vẫn cứng — đó là cùng một người.
+ * Chưa bật Turnstile thì không có lối mở thêm: ngưỡng mạng cứng như cũ.
+ */
+const MANG_TRAN_GIO = 20;              // trần cứng theo mạng / giờ (kể cả đã xác minh thêm)
+const ANON_MANG_TRAN_NGAY = 6;         // trần cứng tin ẩn danh theo mạng / ngày
 const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
 
 /** GET /api/submissions/wards — danh sách địa bàn cho ô chọn ở form */
@@ -266,6 +278,13 @@ router.post('/', async (req, res) => {
     /* GIỮ CHỖ TRƯỚC KHI ĐẾM (luật 6, ADR-003 việc 1). Mọi phép đếm bên dưới
        và câu INSERT chạy trong lúc giữ chỗ, nên hai yêu cầu cùng mạng, cùng số
        điện thoại hay cùng nội dung không thể cùng đếm "chưa đủ" rồi cùng ghi. */
+    /* XÁC MINH THÊM (P88): kiểm mã tươi TRƯỚC khi giữ chỗ. Gọi Cloudflare có thể
+       mất tới 8 giây — làm trong lúc giữ chỗ thì cả mạng 4G chung bị khoá theo
+       (người khác cùng mạng nhận "đang nhận một ý kiến khác"). Chỉ gọi khi đơn có
+       kèm mã — đơn thường không tốn lượt hỏi Cloudflare nào. */
+    const coMaThem = typeof body.xacMinhThem === 'string' && body.xacMinhThem !== '';
+    const xacMinhThem = coMaThem ? await xacMinhNghiemNgat(body.xacMinhThem, ip) : { ok: false };
+
     giu = await giuCho(pool, khoaCuaLanGui({ ipHash, phoneHash, contentHash }));
     if (!giu.ok) {
       return res.status(429).json({
@@ -274,12 +293,19 @@ router.post('/', async (req, res) => {
       });
     }
 
+    /* Đếm TÁCH RIÊNG theo mạng và theo số điện thoại: hai loại giới hạn xử lý
+       khác nhau (mạng: chặn mềm; số: chặn cứng) — P88 */
+    const sdt = phoneHash || '__none__';
     const [spam] = await pool.query(
-      `SELECT COUNT(*) AS cnt, MAX(created_at) AS last_at,
+      `SELECT COUNT(*) AS cnt,
+              SUM(ip_address = ?) AS cnt_mang,
+              MAX(CASE WHEN ip_address = ? THEN created_at END) AS last_mang,
+              SUM(sender_phone_hash IS NOT NULL AND sender_phone_hash = ?) AS cnt_sdt,
+              MAX(CASE WHEN sender_phone_hash IS NOT NULL AND sender_phone_hash = ? THEN created_at END) AS last_sdt,
               EXISTS(SELECT 1 FROM submissions WHERE content_hash=? AND created_at > NOW()-INTERVAL 1 HOUR) AS dup
        FROM submissions
        WHERE (ip_address=? OR (sender_phone_hash IS NOT NULL AND sender_phone_hash=?)) AND created_at > NOW()-INTERVAL 1 HOUR`,
-      [contentHash, ipHash, phoneHash || '__none__']
+      [ipHash, ipHash, sdt, sdt, contentHash, ipHash, sdt]
     );
     const info = spam[0];
     if (info.dup) return res.status(429).json({ error: 'Nội dung này bà con vừa gửi rồi. Vui lòng dùng mã tra cứu đã cấp để theo dõi.' });
@@ -296,31 +322,77 @@ router.post('/', async (req, res) => {
 
     // Chờ giữa 2 lần gửi — ẩn danh phải chờ LÂU HƠN (10 phút thay vì 2 phút)
     const cooldown = isAnonymous ? ANON_COOLDOWN_MS : COOLDOWN_MS;
-    if (info.last_at && Date.now() - new Date(info.last_at).getTime() < cooldown) {
-      const waitSec = Math.ceil((cooldown - (Date.now() - new Date(info.last_at).getTime())) / 1000);
-      const waitMin = Math.ceil(waitSec / 60);
-      return res.status(429).json({
-        error: isAnonymous
-          ? `Gửi ẩn danh được giới hạn chặt để chống tin rác. Vui lòng chờ thêm ${waitMin} phút.`
-          : `Bà con vừa gửi một ý kiến. Vui lòng chờ thêm ${waitSec} giây.`,
-      });
+    const conCho = (luc) => (luc ? cooldown - (Date.now() - new Date(luc).getTime()) : 0);
+    const loiCho = (ms) => (isAnonymous
+      ? `Gửi ẩn danh được giới hạn chặt để chống tin rác. Vui lòng chờ thêm ${Math.ceil(ms / 60_000)} phút.`
+      : `Bà con vừa gửi một ý kiến. Vui lòng chờ thêm ${Math.ceil(ms / 1000)} giây.`);
+
+    /* THEO SỐ ĐIỆN THOẠI — CỨNG. Cùng một số là cùng một người, xác minh thêm
+       không mở được (P88). Kiểm trước để không tốn lượt hỏi Cloudflare. */
+    if (!isAnonymous) {
+      const choSdt = conCho(info.last_sdt);
+      if (choSdt > 0) return res.status(429).json({ error: loiCho(choSdt) });
+      if (Number(info.cnt_sdt) >= MAX_PER_HOUR) {
+        return res.status(429).json({ error: `Mỗi số điện thoại chỉ được gửi tối đa ${MAX_PER_HOUR} ý kiến trong 1 giờ.` });
+      }
     }
 
-    // ẨN DANH: tối đa 2 ý kiến / NGÀY / IP (ý kiến thường: 5 / giờ)
+    /* THEO MẠNG — MỀM khi có Turnstile (P88). Ẩn danh: tối đa 2 ý kiến / NGÀY /
+       mạng (ý kiến thường: 5 / giờ). */
+    let anDanhTrongNgay = 0;
     if (isAnonymous) {
       const [[anonStat]] = await pool.query(
         `SELECT COUNT(*) AS cnt FROM submissions
          WHERE is_anonymous = TRUE AND ip_address = ? AND created_at > NOW() - INTERVAL 1 DAY`,
         [ipHash]
       );
-      if (anonStat.cnt >= ANON_MAX_PER_DAY) {
+      anDanhTrongNgay = Number(anonStat.cnt);
+    }
+    /* Chưa bật Turnstile: giữ NGUYÊN cách đếm cũ — tổng tin "cùng mạng HOẶC cùng
+       số" trong giờ (3 tin cùng mạng + 3 tin cùng số ở mạng khác vẫn là 6) */
+    if (!turnstileEnabled() && Number(info.cnt) >= MAX_PER_HOUR) {
+      return res.status(429).json({ error: `Mỗi thiết bị chỉ được gửi tối đa ${MAX_PER_HOUR} ý kiến trong 1 giờ.` });
+    }
+    const choMang = conCho(info.last_mang);
+    const soMang = Number(info.cnt_mang);
+    const loiMang = choMang > 0 ? loiCho(choMang)
+      : isAnonymous && anDanhTrongNgay >= ANON_MAX_PER_DAY
+        ? `Mỗi thiết bị chỉ được gửi tối đa ${ANON_MAX_PER_DAY} ý kiến ẩn danh trong 24 giờ. Nếu vụ việc gấp, bà con vui lòng gửi có danh tính hoặc gọi 113.`
+        : soMang >= MAX_PER_HOUR ? `Mỗi thiết bị chỉ được gửi tối đa ${MAX_PER_HOUR} ý kiến trong 1 giờ.` : null;
+    if (loiMang) {
+      const tranGio = soMang >= MANG_TRAN_GIO;
+      const tranAnDanh = isAnonymous && anDanhTrongNgay >= ANON_MANG_TRAN_NGAY;
+      /* Không có Turnstile: chặn cứng như cũ */
+      if (!turnstileEnabled()) return res.status(429).json({ error: loiMang });
+      /* Đã chạm trần: chặn hẳn, nói đúng con số trần (không dẫn sai về ngưỡng mềm) */
+      if (tranGio || tranAnDanh) {
         return res.status(429).json({
-          error: `Mỗi thiết bị chỉ được gửi tối đa ${ANON_MAX_PER_DAY} ý kiến ẩn danh trong 24 giờ. Nếu vụ việc gấp, bà con vui lòng gửi có danh tính hoặc gọi 113.`,
+          error: tranAnDanh
+            ? `Mạng bà con đang dùng đã gửi quá nhiều ý kiến ẩn danh trong 24 giờ (tối đa ${ANON_MANG_TRAN_NGAY}). `
+              + 'Bà con vui lòng gửi lại sau hoặc gửi có danh tính. Việc khẩn cấp xin gọi ngay 113.'
+            : `Mạng bà con đang dùng đã gửi quá nhiều ý kiến trong 1 giờ (tối đa ${MANG_TRAN_GIO}). `
+              + 'Bà con vui lòng gửi lại sau. Việc khẩn cấp xin gọi ngay 113.',
         });
       }
-    }
-    if (info.cnt >= MAX_PER_HOUR) {
-      return res.status(429).json({ error: `Mỗi thiết bị chỉ được gửi tối đa ${MAX_PER_HOUR} ý kiến trong 1 giờ.` });
+      /* Mã tươi đi trong trường RIÊNG (xacMinhThem) — không lẫn với vé cổng vào
+         (veVaoCua sống 6 giờ, dùng lại được) hay captchaToken của cổng. Hai mã lỗi
+         KHÁC nhau: "chưa có mã" thì giao diện mở ô xác minh; "có mã mà không qua"
+         thì báo lỗi — dùng chung một mã là giao diện mở lại ô, gửi lại, mãi mãi. */
+      if (!coMaThem) {
+        return res.status(429).json({
+          error: 'Mạng bà con đang dùng vừa có nhiều ý kiến gửi lên (thường do dùng chung mạng 4G hoặc wifi '
+            + 'công cộng). Bà con bấm xác minh "không phải người máy" thêm một lần để gửi. '
+            + 'Việc khẩn cấp xin gọi ngay 113.',
+          code: 'CAN_XAC_MINH_THEM',
+        });
+      }
+      if (!xacMinhThem.ok) {
+        return res.status(429).json({
+          error: 'Bước xác minh thêm chưa thành công hoặc hệ thống chưa kiểm được lúc này. Bà con chờ vài phút '
+            + 'rồi bấm gửi lại. Việc khẩn cấp xin gọi ngay 113.',
+          code: 'XAC_MINH_THEM_KHONG_QUA',
+        });
+      }
     }
 
     // 5) Sinh mã tra cứu không trùng

@@ -113,7 +113,8 @@ export async function batDauDienDon(): Promise<void> {
 }
 
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
-export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubmission> {
+/** `xacMinhThem`: mã Turnstile tươi khi máy chủ đòi xác minh thêm (CAN_XAC_MINH_THEM — P88) */
+export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string): Promise<FeedbackSubmission> {
 
   await delay(1100);
 
@@ -180,6 +181,8 @@ export async function submitFeedback(draft: FeedbackDraft): Promise<FeedbackSubm
           wardId: draft.contact.wardId ?? null,
           /* Vé cổng vào (ADR-003 việc 23) — thay ô xác minh ở form */
           veVaoCua: layVe(),
+          /* Chỉ có khi máy chủ vừa đòi xác minh thêm vì mạng chung vượt ngưỡng */
+          ...(xacMinhThem ? { xacMinhThem } : {}),
           phieuMoForm,
           otpToken: draft.contact.otpToken ?? '',
           /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.

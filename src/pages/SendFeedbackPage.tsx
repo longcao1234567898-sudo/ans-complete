@@ -21,6 +21,7 @@ import CategorySelect from '../components/FeedbackForm/CategorySelect';
 import ContactInfo from '../components/FeedbackForm/ContactInfo';
 import ManHinhBiKhoa from '../components/FeedbackForm/ManHinhBiKhoa';
 import KhieuNaiMoKhoa from '../components/FeedbackForm/KhieuNaiMoKhoa';
+import XacMinhThem from '../components/FeedbackForm/XacMinhThem';
 import Confirmation from '../components/FeedbackForm/Confirmation';
 import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -190,7 +191,12 @@ export default function SendFeedbackPage() {
   useDraftAutosave({ content: draft.content, category: draft.category, urgency: draft.urgency });
 
   const aiAnalysis = useAIAnalysis();
-  const submitMutation = useMutation({ mutationFn: submitFeedback });
+  const submitMutation = useMutation({
+    mutationFn: (v: { draft: FeedbackDraft; xacMinhThem?: string }) => submitFeedback(v.draft, v.xacMinhThem),
+  });
+  /* Máy chủ báo mạng chung vượt ngưỡng (CAN_XAC_MINH_THEM — P88): hiện ô xác minh
+     thêm, giữ nguyên đơn đang điền */
+  const [canXacMinhThem, setCanXacMinhThem] = useState(false);
 
   const runAnalysis = (content: string) => {
     aiAnalysis.mutate(content, {
@@ -234,18 +240,25 @@ export default function SendFeedbackPage() {
 
   const handleContactChange = (contact: ContactInfoType) => setDraft((d) => ({ ...d, contact }));
 
-  const handleSubmit = () => {
-    submitMutation.mutate(draft, {
+  const guiDon = (xacMinhThem?: string) => {
+    submitMutation.mutate({ draft, xacMinhThem }, {
       onSuccess: (result) => {
         setSubmission(result);
         // Lưu mã tra cứu vào chính thiết bị -> lần sau tra lại không cần nhớ mã
         saveTrackingCode(result.trackingCode, result.category);
         toast.success('Gửi ý kiến thành công!');
       },
-      /* Để lâu hơn mặc định: câu có số 113 phải đọc kịp */
-      onError: (err) => toast.error(err instanceof Error ? err.message : LOI_GUI_THAT_BAI, { duration: 10_000 }),
+      onError: (err) => {
+        /* Chỉ mở ô xác minh khi lần gửi này CHƯA kèm mã. Đã kèm mã mà vẫn bị đòi
+           (hoặc XAC_MINH_THEM_KHONG_QUA) thì báo lỗi — mở lại là tự lặp gửi mãi */
+        const code = (err as { code?: string })?.code;
+        if (code === 'CAN_XAC_MINH_THEM' && !xacMinhThem) { setCanXacMinhThem(true); return; }
+        /* Để lâu hơn mặc định: câu có số 113 phải đọc kịp */
+        toast.error(err instanceof Error ? err.message : LOI_GUI_THAT_BAI, { duration: 10_000 });
+      },
     });
   };
+  const handleSubmit = () => guiDon();
 
   /* Phiếu mở form: lấy khi mở trang (ADR-003 việc 24) */
   useEffect(() => { batDauDienDon(); }, []);
@@ -399,6 +412,13 @@ export default function SendFeedbackPage() {
       )}
       </Card>
     </div>
+    {/* Ngoài Card: lớp phủ cố định không bị khung cha (transform) giữ lại */}
+    {canXacMinhThem && (
+      <XacMinhThem
+        onToken={(tk) => { setCanXacMinhThem(false); guiDon(tk); }}
+        onDong={() => setCanXacMinhThem(false)}
+      />
+    )}
     </>
   );
 }

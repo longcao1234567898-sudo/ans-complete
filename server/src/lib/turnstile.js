@@ -60,3 +60,36 @@ export async function verifyTurnstile(token, ip) {
     return { ok: true }; // lỗi mạng phía Cloudflare -> không chặn người dân thật
   }
 }
+
+/**
+ * XÁC MINH THÊM — KIỂM NGHIÊM NGẶT (P88, chặn mềm theo mạng).
+ *
+ * Khác verifyTurnstile ở MỘT chỗ có chủ đích: Cloudflare không trả lời được thì
+ * KHÔNG cho qua. verifyTurnstile cho qua khi lỗi mạng vì đó là cổng chung — chặn
+ * thì không ai gửi được tin. Ở đây chỉ là lối "mở thêm" cho mạng đã vượt ngưỡng:
+ * không kiểm được thì giữ nguyên giới hạn, người dân vẫn gọi 113 hoặc đợi hết giờ.
+ * Chưa bật Turnstile thì cũng không có lối mở thêm nào (fail-safe).
+ *
+ * Mã Turnstile chỉ dùng được một lần (Cloudflare tự từ chối lần thứ hai).
+ */
+export async function xacMinhNghiemNgat(token, ip) {
+  if (!turnstileEnabled()) return { ok: false };
+  if (typeof token !== 'string' || !token || token.length > 2048) return { ok: false };
+  try {
+    const form = new URLSearchParams();
+    form.append('secret', process.env.TURNSTILE_SECRET_KEY.trim());
+    form.append('response', token);
+    if (ip) form.append('remoteip', ip);
+    const r = await fetch(VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form,
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = await r.json();
+    return { ok: data?.success === true };
+  } catch (e) {
+    console.warn('[xác minh thêm] Cloudflare không trả lời — giữ nguyên giới hạn:', e.message);
+    return { ok: false };
+  }
+}
