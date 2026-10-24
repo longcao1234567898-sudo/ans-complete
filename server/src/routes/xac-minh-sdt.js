@@ -22,8 +22,10 @@
  *   1. Cổng "không phải người máy" (Turnstile, lib/cong-vao.js) trước khi gửi
  *   2. Phiếu mở form đã đủ 15 giây (đang điền ý kiến thật, không gọi thẳng API);
  *      mỗi phiếu / mỗi vé vào cửa xin tối đa 3 mã. Máy thật thiếu Turnstile -> TẮT
- *   3. Theo máy: 3 mã/giờ cho mỗi mã thiết bị (bắt buộc gửi kèm — bỏ trống không
- *      né được). Theo số: 1 mã/60 giây, 3 mã/giờ, 5 mã/ngày
+ *   3. Theo máy: 3 mã/giờ cho mỗi mã thiết bị (bắt buộc gửi kèm). Mã do trình duyệt
+ *      tự sinh nên máy tự động đổi mã mỗi lượt là né — lớp này giữ người dùng thật,
+ *      KHÔNG phải lớp chặn chi phí (đó là lớp 1, 2, 4, 6). Theo số: 1 mã/60 giây,
+ *      3 mã/giờ, 5 mã/ngày
  *   4. Theo mạng: 10 mã/giờ/IP (đã băm)
  *   5. Chỉ số di động Việt Nam 10 số — không bao giờ gửi ra số quốc tế
  *   6. Trần tin cả hệ thống mỗi ngày (XAC_MINH_TRAN_NGAY, mặc định 500).

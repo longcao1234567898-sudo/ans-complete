@@ -524,10 +524,12 @@ người vận hành quyết mở (bước 7).
    lại. Khi đó Zalo từ chối rõ ràng thì tự gửi SMS, và người dân có thêm nút "Không nhận được qua
    Zalo? Gửi qua tin nhắn SMS".
 
-**Giới hạn đã cài sẵn (máy chủ kiểm, không đổi được từ trình duyệt):** mỗi máy 3 mã/giờ, mỗi số 3
-mã/giờ (cách nhau ít nhất 1 phút, tối đa 5 mã/ngày), mỗi mạng 10 mã/giờ, chỉ số di động Việt Nam;
-cả hệ thống tối đa `XAC_MINH_TRAN_NGAY` tin/ngày (mặc định 500) — chạm trần thì ngừng gửi mã tới hết
-ngày, **vẫn nhận ý kiến**.
+**Giới hạn đã cài sẵn (máy chủ kiểm):** mỗi số 3 mã/giờ (cách nhau ít nhất 1 phút, tối đa 5
+mã/ngày), mỗi mạng 10 mã/giờ, mỗi vé "không phải người máy" 3 mã, chỉ số di động Việt Nam; cả hệ thống
+tối đa `XAC_MINH_TRAN_NGAY` tin/ngày (mặc định 500) — chạm trần thì ngừng gửi mã tới hết ngày, **vẫn
+nhận ý kiến**. Mỗi máy 3 mã/giờ cũng có, nhưng mã máy do trình duyệt tự sinh: máy tự động đổi mã mỗi
+lượt là né được. Lớp đó chỉ giữ người dùng thật khỏi bấm phí lượt — **khi tính tiền tối đa có thể mất,
+đừng tính nó**; chặn chi phí thật là theo mạng, vé, trần ngày và số tiền nạp trước (bước 1).
 
 > ⚠️ **Nhật ký ở eSMS và Zalo OA là DỮ LIỆU DANH TÍNH.** Mỗi lần gửi mã, eSMS và Zalo ghi lại **số
 > điện thoại + giờ gửi**. Người xin mã rồi đổi ý gửi ẩn danh (giao diện có cảnh báo, nhưng không chặn)
