@@ -23,7 +23,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, khoaIp } from '../lib/helpers.js';
 
 const router = Router();
 
@@ -39,7 +39,7 @@ const gioiHan = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => layIpThat(req),
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   /* Vượt giới hạn thì lặng lẽ bỏ qua, KHÔNG báo lỗi — đếm lượt truy cập hỏng
      không được phép làm hỏng trải nghiệm đọc trang. */
   handler: (_req, res) => res.json({ ok: true }),

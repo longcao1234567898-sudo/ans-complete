@@ -29,6 +29,7 @@
 
 import { Router } from 'express';
 import { kiemPin } from '../lib/bam-pin.js';
+import { khoaIp } from '../lib/helpers.js';
 import { datLuotThu, traLuotThu, CUA_SO_GIO } from '../lib/khoa-mo-phong.js';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
@@ -71,6 +72,7 @@ function chatDaDong(status) {
    lần lượt nhiều mã tra cứu. Một mình lớp này KHÔNG đủ: thuê nhiều IP là thử
    tiếp được trên cùng một mã (BUG-040). Lớp 2 đếm theo hồ sơ: lib/khoa-mo-phong.js */
 const gioiHanMoPhong = rateLimit({
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   windowMs: 15 * 60_000,
   max: 5,
   standardHeaders: true,
@@ -80,6 +82,7 @@ const gioiHanMoPhong = rateLimit({
 
 /* Chống spam tin nhắn: 20 tin / 5 phút */
 const gioiHanGuiTin = rateLimit({
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   windowMs: 5 * 60_000,
   max: 20,
   standardHeaders: true,

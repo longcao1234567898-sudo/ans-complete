@@ -1,6 +1,6 @@
 /** Xác thực cán bộ: đăng nhập, làm mới token, đăng xuất, xem thông tin bản thân */
 import { Router } from 'express';
-import { layIpThat, ghiNhatKy } from '../lib/helpers.js';
+import { layIpThat, ghiNhatKy, khoaIp } from '../lib/helpers.js';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
@@ -29,6 +29,7 @@ export const DUMMY_HASH = bcrypt.hashSync('khong-bao-gio-trung-mat-khau-that', 1
 
 // Chống dò mật khẩu: tối đa 5 lần đăng nhập / 15 phút / IP
 const loginLimiter = rateLimit({
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   windowMs: 15 * 60_000,
   max: 5,
   standardHeaders: true,
@@ -92,6 +93,10 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   try {
     const ip = (layIpThat(req) || '').trim();
+    /* Lần đăng nhập SAI ghi KHOÁ MẠNG (IPv6 gom /64): màn hình cảnh báo dò mật
+       khẩu (admin/logs.js /canh-bao) gom theo cột này — ghi địa chỉ đầy đủ thì kẻ
+       dò đổi địa chỉ trong cùng dải là không bao giờ hiện cảnh báo (rà soát P87). */
+    const ipKhoa = khoaIp(req);
 
     /* CỔNG VÀO (ADR-003 việc 23): vé xác minh "không phải người máy" lấy khi
        vào trang. Kiểm TRƯỚC khi đụng tới tài khoản — máy dò mật khẩu gọi thẳng
@@ -126,7 +131,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (soLanSaiHienTai >= SO_LAN_SAI_BAT_CAPTCHA) {
       const kq = await verifyTurnstile(req.body?.captchaToken, ip);
       if (!kq.ok) {
-        await ghiThatBai(staff?.id ?? null, username, ip);
+        await ghiThatBai(staff?.id ?? null, username, ipKhoa);
         return res.status(401).json({
           error: 'Vui lòng tích vào ô xác minh "Tôi không phải là người máy" rồi đăng nhập lại.',
           canCaptcha: true,   // báo giao diện hiện ô captcha
@@ -140,7 +145,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!staff || !ok) {
       // GHI VẾT — trước đây chỉ ghi lần đăng nhập THÀNH CÔNG, nên không
       // phát hiện được khi hệ thống đang bị dò mật khẩu.
-      await ghiThatBai(staff?.id ?? null, username, ip);
+      await ghiThatBai(staff?.id ?? null, username, ipKhoa);
 
       /* Tăng bộ đếm và khoá tạm nếu vượt ngưỡng.
          Đây là lớp chặn theo TÀI KHOẢN — bổ sung cho lớp chặn theo IP.
@@ -162,7 +167,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     if (!staff.is_active) {
-      await ghiThatBai(staff.id, username, ip);
+      await ghiThatBai(staff.id, username, ipKhoa);
       return res.status(403).json({ error: 'Tài khoản đã bị khoá.' });
     }
 

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import net from 'node:net';
 
 const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -66,6 +67,54 @@ export function layIpThat(req) {
   const daBoc = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(tho);
 
   return (daBoc ? daBoc[1] : tho).slice(0, 45);
+}
+
+/* ============================================================================
+   KHOÁ ĐẾM THEO MẠNG — gom IPv6 về dải /64 (P87)
+
+   layIpThat trả ĐỊA CHỈ ĐẦY ĐỦ — đúng cho nhật ký, danh sách IP cơ quan
+   (ADMIN_ALLOWED_IPS), gửi kèm Turnstile. Nhưng KHÔNG dùng để ĐẾM giới hạn:
+   nhà mạng cấp cho mỗi thuê bao IPv6 cả một dải /64 (2^64 địa chỉ) và điện thoại
+   tự đổi địa chỉ trong dải (địa chỉ tạm thời). Đếm theo địa chỉ đầy đủ thì một
+   máy đổi địa chỉ mỗi lần là thoát mọi giới hạn.
+
+   Mọi bộ đếm theo mạng (rateLimit, băm IP chống spam, gửi mã xác minh…) dùng
+   khoaIp(req). IPv4 trả NGUYÊN chuỗi cũ — khoá và bản băm đã lưu vẫn khớp.
+
+   Đánh đổi đã chấp nhận: một số nhà mạng/doanh nghiệp chia một /64 cho nhiều
+   người (hiếm với di động) — họ chung lượt, như người dùng chung IP 4G hôm nay.
+   Kẻ thuê cả một /48 vẫn có 65.536 dải /64 — lớp theo mạng chỉ hãm tốc độ;
+   lớp chặn chính vẫn là Turnstile và các bộ đếm theo hồ sơ / số điện thoại.
+   ============================================================================ */
+export function gomDaiIp(ip) {
+  let s = String(ip || '').trim();
+  if (!s) return '';
+  s = s.replace(/%.*$/, '');                          // chỉ số vùng: fe80::1%eth0
+  if (!net.isIPv6(s)) return s;                       // IPv4 (hoặc chuỗi lạ): giữ nguyên
+  /* Đuôi IPv4 (64:ff9b::1.2.3.4) -> hai nhóm hex */
+  const duoi = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  if (duoi) {
+    const [a, b, c, d] = duoi.slice(1).map(Number);
+    s = s.slice(0, duoi.index) + ((a << 8) | b).toString(16) + ':' + ((c << 8) | d).toString(16);
+  }
+  const [dau, sau] = s.split('::');
+  const trai = dau ? dau.split(':') : [];
+  const phai = sau !== undefined && sau ? sau.split(':') : [];
+  const nhom = (sau === undefined ? trai : [...trai, ...Array(8 - trai.length - phai.length).fill('0'), ...phai])
+    .map((h) => parseInt(h, 16));
+  /* IPv6 CHỨA một IPv4 (::ffff:0:0/96 viết không chuẩn, NAT64 64:ff9b::/96): khoá
+     là IPv4 bên trong. Gom về /64 thì mọi khách IPv4 đi qua bộ chuyển đổi chung
+     MỘT khoá — một kẻ phá làm cạn lượt của tất cả (rà soát P87). */
+  const dau6 = nhom.slice(0, 6).join(':');
+  if (dau6 === '0:0:0:0:0:65535' || dau6 === '100:65435:0:0:0:0') {
+    return [nhom[6] >> 8, nhom[6] & 255, nhom[7] >> 8, nhom[7] & 255].join('.');
+  }
+  return `${nhom.slice(0, 4).map((h) => h.toString(16)).join(':')}::/64`;
+}
+
+/** Khoá đếm giới hạn theo mạng cho một yêu cầu: IPv4 nguyên, IPv6 gom /64 */
+export function khoaIp(req) {
+  return gomDaiIp(layIpThat(req));
 }
 
 /* ============================================================================

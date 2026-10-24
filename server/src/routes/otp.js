@@ -13,7 +13,7 @@
  *   - Giới hạn gửi lại: 60 giây/lần, tối đa 5 mã/giờ/email
  */
 import { Router } from 'express';
-import { layIpThat } from '../lib/helpers.js';
+import { khoaIp } from '../lib/helpers.js';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -52,7 +52,7 @@ router.post('/send', async (req, res) => {
   }
 
   const email = String(req.body?.email || '').trim().toLowerCase();
-  const ip = layIpThat(req);
+  const ip = khoaIp(req);   // khoá đếm theo mạng (IPv6 gom /64 — P87)
 
   if (!validEmail(email)) {
     return res.status(400).json({ error: 'Email không đúng định dạng.' });
@@ -237,7 +237,7 @@ const ANON_COOLDOWN_SEC = 10;       // nới từ 60s -> 10s: mã không gửi e
 
 /** POST /api/otp/anon-code — sinh mã xác thực cho người gửi ẩn danh */
 router.post('/anon-code', async (req, res) => {
-  const ip = layIpThat(req);
+  const ip = khoaIp(req);   // khoá đếm theo mạng (IPv6 gom /64 — P87)
 
   try {
     /* ====================================================================

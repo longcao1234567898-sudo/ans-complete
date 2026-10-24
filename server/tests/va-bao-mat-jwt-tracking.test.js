@@ -59,8 +59,10 @@ describe('V2 — route tra cứu có giới hạn tần suất riêng', () => {
   test('khoá theo IP đã chuẩn hoá, không theo header người dùng', async () => {
     const ma = await doc('../src/routes/tracking.js');
     const khoi = ma.slice(ma.indexOf('const gioiHanTraCuu'), ma.indexOf('router.get'));
-    assert.match(khoi, /keyGenerator:.*layIpThat/,
-      'phải khoá theo layIpThat — không thì kẻ tấn công đổi header là qua mặt');
+    /* khoaIp (P87) = layIpThat rồi gom IPv6 về /64 — vẫn đọc req.ip, không đọc
+       header (kiểm riêng ở ipv6-gom-dai.test.js) */
+    assert.match(khoi, /keyGenerator:.*(layIpThat|khoaIp)/,
+      'phải khoá theo layIpThat/khoaIp — không thì kẻ tấn công đổi header là qua mặt');
   });
 
   test('mô phỏng: quá 30 lượt/phút thì chặn', () => {

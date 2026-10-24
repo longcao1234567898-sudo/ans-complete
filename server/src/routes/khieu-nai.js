@@ -29,7 +29,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, khoaIp } from '../lib/helpers.js';
 import { sanitizeText } from '../lib/security.js';
 
 const router = Router();
@@ -44,7 +44,7 @@ const gioiHan = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => layIpThat(req),
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   message: { error: 'Bà con gửi hơi nhanh. Thử lại sau ít phút.' },
 });
 

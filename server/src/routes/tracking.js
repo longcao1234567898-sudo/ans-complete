@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { STATUS_LABEL, layIpThat } from '../lib/helpers.js';
+import { STATUS_LABEL, layIpThat, khoaIp } from '../lib/helpers.js';
 
 const router = Router();
 
@@ -18,13 +18,14 @@ const router = Router();
    bức tường. Đặt riêng cho route này vì các route nhạy cảm khác (đăng nhập,
    chat, trợ lý) đều đã có giới hạn riêng — chỉ tra cứu trước đây còn sót.
 
-   Khoá theo IP đã chuẩn hoá (layIpThat), không theo header người dùng tự đặt. */
+   Khoá theo IP đã chuẩn hoá (khoaIp = layIpThat + gom IPv6 về /64), không theo
+   header người dùng tự đặt. */
 const gioiHanTraCuu = rateLimit({
   windowMs: 60_000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => layIpThat(req),
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   message: { error: 'Bạn tra cứu quá nhanh. Vui lòng thử lại sau một phút.' },
 });
 

@@ -33,7 +33,7 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, khoaIp } from '../lib/helpers.js';
 import { hashIdentifier } from '../lib/crypto.js';
 import { normalizePhone, getPhoneError } from '../lib/security.js';
 import { quaCongVao } from '../lib/cong-vao.js';
@@ -139,7 +139,7 @@ router.post('/gui-ma', async (req, res) => {
        tốn tin nào. */
     const loiNhieu = { error: 'Số này đã yêu cầu nhiều mã. Vui lòng thử lại sau, hoặc gửi ý kiến không cần xác minh số.', code: 'QUA_NHIEU_MA' };
     // Lớp 4 — theo mạng
-    if (!(await giuLuot(pool, `ip-gio:${bamRieng('ip', ip).slice(0, 32)}`, 10, 3600))) return res.status(429).json(loiNhieu);
+    if (!(await giuLuot(pool, `ip-gio:${bamRieng('ip', khoaIp(req)).slice(0, 32)}`, 10, 3600))) return res.status(429).json(loiNhieu);
     // Lớp 2 — một phiếu mở form / một vé vào cửa chỉ xin được vài mã (phiếu sống 1 ngày, dùng lại được)
     if (!(await giuLuot(pool, `phieu:${bamRieng('phieu', body.phieuMoForm).slice(0, 40)}`, 3, 86400))) return res.status(429).json(loiNhieu);
     if (typeof body.veVaoCua === 'string' && body.veVaoCua

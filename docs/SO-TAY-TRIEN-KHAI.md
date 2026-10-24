@@ -230,6 +230,10 @@ khoá**, ra chữ có `"encryption":true`.
 
 ---
 
+> **(Tuỳ chọn) IPv6:** nếu Viettel cấp địa chỉ IPv6 cho máy, làm thêm mục **B9b** trong tài liệu kỹ
+> thuật (5 bước, khoảng 15 phút) — người dùng 4G dùng chung IP sẽ ít bị chặn oan hơn. Không có IPv6
+> thì bỏ qua, hệ thống vẫn chạy bình thường.
+
 ## Chặng 12 — Dựng giao diện trên máy (chưa đổi tên miền)
 
 Làm theo **tài liệu kỹ thuật, Phần F**, các mục **F3, F4, F5** — **bỏ qua F2** (máy 4 GB không cần):

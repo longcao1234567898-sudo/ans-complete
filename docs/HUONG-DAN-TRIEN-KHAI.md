@@ -454,6 +454,33 @@ Kiểm từ máy Windows: mở trình duyệt vào `https://api.ten-mien.vn/api/
 một đoạn chữ dạng `{"ok":true,...,"encryption":true,...}` là xong. `"encryption":false` nghĩa là
 máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env`.
 
+### B9b. (Tuỳ chọn) Bật IPv6 — chỉ khi Viettel cấp địa chỉ IPv6 cho máy
+
+**Vì sao nên bật:** trên mạng 4G, hàng trăm thuê bao dùng chung một địa chỉ IPv4. Giới hạn chống
+spam đếm theo mạng nên người dùng chung IP có thể bị chặn oan. Viettel, VNPT, MobiFone đã cấp IPv6
+cho đa số điện thoại 4G — có IPv6 thì mỗi thuê bao một dải riêng, bớt hẳn chặn oan.
+
+**Máy chủ đã sẵn sàng (P87):** mọi giới hạn theo mạng đếm theo **dải /64** của một thuê bao, không
+theo từng địa chỉ — điện thoại IPv6 tự đổi địa chỉ trong dải của nó, đếm theo địa chỉ lẻ là kẻ phá
+thoát mọi giới hạn. IPv4 không đổi gì.
+
+1. **Máy có IPv6 chưa:** `ip -6 addr show scope global` — có dòng `inet6 2xxx:...` là có. Không có
+   dòng nào thì hỏi Viettel có cấp IPv6 cho máy không; chưa có thì **bỏ qua mục này**, hệ thống vẫn
+   chạy bình thường bằng IPv4.
+2. **Nginx nghe cả IPv6:** trong `/etc/nginx/sites-available/hop-thu`, dưới **mỗi** dòng `listen 80;`
+   thêm một dòng `listen [::]:80;`. Làm tương tự với tệp giao diện `/etc/nginx/sites-available/hop-thu-giao-dien`.
+   Rồi `nginx -t && systemctl reload nginx`. (certbot tự thêm `listen [::]:443 ssl` cho phần HTTPS
+   khi chạy lại `certbot --nginx -d ...` — chạy lại đúng lệnh ở B9.)
+3. **Tường lửa:** `grep IPV6 /etc/default/ufw` phải ra `IPV6=yes` (mặc định của Ubuntu). Các lệnh
+   `ufw allow` đã chạy tự áp cho cả IPv6.
+4. **Tên miền:** trang quản lý tên miền → thêm bản ghi **AAAA** (cạnh bản ghi A đã có) cho `api`,
+   `canbo-api`, `@`, `www` → địa chỉ IPv6 của máy (dòng `inet6` ở bước 1, bỏ phần `/64`).
+5. **Kiểm:** từ điện thoại 4G (tắt wifi) mở `https://api.ten-mien.vn/api/health`; trên máy chủ
+   `tail -f /var/log/nginx/access.log` thấy địa chỉ dạng `2xxx:...` là đã đi IPv6.
+
+> ⚠️ Danh sách IP cơ quan (`ADMIN_ALLOWED_IPS`) so **từng địa chỉ đầy đủ**. Mạng cơ quan đi IPv6
+> thì phải khai thêm địa chỉ IPv6 của cơ quan, không thì cán bộ bị chặn ở máy chủ cán bộ.
+
 ### B10. Cập nhật mã nguồn về sau
 
 Mỗi khi có bản mới trên `master`:

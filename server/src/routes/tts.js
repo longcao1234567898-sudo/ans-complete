@@ -23,7 +23,7 @@
  */
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, khoaIp } from '../lib/helpers.js';
 
 const router = Router();
 
@@ -34,7 +34,7 @@ const gioiHan = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => layIpThat(req),
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   message: { error: 'Bạn nghe quá nhanh, thử lại sau một phút.' },
 });
 

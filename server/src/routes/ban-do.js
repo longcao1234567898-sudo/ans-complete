@@ -23,7 +23,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, khoaIp } from '../lib/helpers.js';
 
 const router = Router();
 
@@ -37,7 +37,7 @@ const gioiHan = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => layIpThat(req),
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   message: { error: 'Bà con xem hơi nhanh. Thử lại sau một phút.' },
 });
 

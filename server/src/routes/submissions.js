@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { generateTrackingCode, sha256, layIpThat } from '../lib/helpers.js';
+import { generateTrackingCode, sha256, layIpThat, khoaIp } from '../lib/helpers.js';
 import {
   sanitizeText, scanTextForThreats, containsProfanity, getPhoneError, normalizePhone,
 } from '../lib/security.js';
@@ -130,7 +130,8 @@ router.post('/', async (req, res) => {
 
        IP thô (biến `ip`) vẫn dùng được cho việc gọi ra ngoài như Turnstile,
        nhưng TUYỆT ĐỐI không ghi vào database. */
-    const ipHash = hashIdentifier(ip).slice(0, 32);
+    /* Băm KHOÁ ĐẾM theo mạng (IPv6 gom /64 — P87), IPv4 giữ nguyên như cũ */
+    const ipHash = hashIdentifier(khoaIp(req)).slice(0, 32);
 
     // 0) CỔNG VÀO: vé xác minh "không phải người máy" (ADR-003 việc 23).
     //    Mọi tin, có danh tính lẫn ẩn danh. Kiểm ở máy chủ: máy tự động gọi

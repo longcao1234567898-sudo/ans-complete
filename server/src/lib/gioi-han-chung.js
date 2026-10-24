@@ -22,11 +22,12 @@
  * OPTIONS là yêu cầu "hỏi trước" trình duyệt tự gửi trước mỗi lượt gửi khác nguồn —
  * xếp vào bên XEM để không ăn hai lượt gửi cho một lần bấm nút.
  *
- * Khoá đếm là req.ip (đã qua `trust proxy`, luật 3) — như trước, không đổi.
+ * Khoá đếm là khoaIp(req): req.ip (đã qua `trust proxy`, luật 3), IPv6 gom về dải /64 (P87).
  * Cả ba biến thể máy chủ (index.js, và may-chu-cong-khai.js / may-chu-can-bo.js qua
  * nen-tang.js) dùng chung hàm này: sửa một chỗ là đủ (ND-010).
  */
 import rateLimit from 'express-rate-limit';
+import { khoaIp } from './helpers.js';
 
 export const CUA_SO_MS = 15 * 60_000;
 export const TOI_DA_XEM = 1500;
@@ -39,7 +40,7 @@ const laXem = (req) => PHUONG_THUC_XEM.has(req.method);
 export function gioiHanChung() {
   const chung = { windowMs: CUA_SO_MS, standardHeaders: true, legacyHeaders: false };
   return [
-    rateLimit({ ...chung, max: TOI_DA_XEM, skip: (req) => !laXem(req) }),
-    rateLimit({ ...chung, max: TOI_DA_GUI, skip: laXem }),
+    rateLimit({ ...chung, keyGenerator: (req) => khoaIp(req), max: TOI_DA_XEM, skip: (req) => !laXem(req) }),
+    rateLimit({ ...chung, keyGenerator: (req) => khoaIp(req), max: TOI_DA_GUI, skip: laXem }),
   ];
 }

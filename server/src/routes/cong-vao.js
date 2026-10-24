@@ -10,13 +10,14 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { verifyTurnstile, turnstileEnabled } from '../lib/turnstile.js';
-import { layIpThat } from '../lib/helpers.js';
+import { layIpThat, khoaIp } from '../lib/helpers.js';
 import { capVe } from '../lib/cong-vao.js';
 
 const router = Router();
 
 /* Mỗi lượt xác minh là một lần gọi sang Cloudflare — chặn dội lệnh */
 const gioiHan = rateLimit({
+  keyGenerator: (req) => khoaIp(req),   // IPv6 gom /64 (P87)
   windowMs: 15 * 60_000,
   max: 30,
   standardHeaders: true,

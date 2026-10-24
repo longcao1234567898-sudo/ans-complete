@@ -1,5 +1,6 @@
 /** Các endpoint AI — key Gemini nằm phía server, trình duyệt không thấy */
 import { Router } from 'express';
+import { khoaIp } from '../lib/helpers.js';
 import rateLimit from 'express-rate-limit';
 import { aiAvailable, geminiChat } from '../lib/ai.js';
 import { phanLoaiNoiDung, kiemTraDuRo } from '../lib/phan-loai.js';
@@ -8,7 +9,7 @@ import { sanitizeText } from '../lib/security.js';
 const router = Router();
 
 // Giới hạn gọi AI để bảo vệ quota key: 30 lượt / 5 phút / IP
-const aiLimiter = rateLimit({ windowMs: 5 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
+const aiLimiter = rateLimit({ keyGenerator: (req) => khoaIp(req), windowMs: 5 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
 router.use(aiLimiter);
 
 /** Cho frontend biết server có bật AI hay không */
