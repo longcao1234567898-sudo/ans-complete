@@ -129,7 +129,7 @@ export async function trangThaiXacMinhSdt(): Promise<TrangThaiXacMinhSdt> {
 
 /** `kenh`: chỉ khi bà con tự chọn ("Gửi qua SMS"); để trống thì máy chủ dùng kênh đầu (Zalo) */
 export function guiMaSdt(soDienThoai: string, kenh?: string) {
-  return apiFetch<{ ok: true; kenh: string; hetHanPhut: number; maThu?: string }>('/api/xac-minh-sdt/gui-ma', {
+  return apiFetch<{ ok: true; kenh: string; hetHanPhut: number; phien: string; maThu?: string }>('/api/xac-minh-sdt/gui-ma', {
     method: 'POST',
     body: JSON.stringify({
       soDienThoai: soDienThoai.trim(),
@@ -142,10 +142,11 @@ export function guiMaSdt(soDienThoai: string, kenh?: string) {
   });
 }
 
-export function xacNhanMaSdt(soDienThoai: string, ma: string) {
+/** `phien`: máy chủ trả ở lần gửi mã — chỉ máy vừa xin mã mới nhập được mã đó (BUG-042) */
+export function xacNhanMaSdt(soDienThoai: string, ma: string, phien: string) {
   return apiFetch<{ ok: true; veSdt: string }>('/api/xac-minh-sdt/xac-nhan', {
     method: 'POST',
-    body: JSON.stringify({ soDienThoai: soDienThoai.trim(), ma }),
+    body: JSON.stringify({ soDienThoai: soDienThoai.trim(), ma, phien }),
   });
 }
 

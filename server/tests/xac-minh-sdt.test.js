@@ -112,12 +112,12 @@ test('luồng đúng: gửi qua Zalo, tin trung tính, xác nhận ra vé đúng
   assert.equal(tin.soDienThoai, so);
   assert.doesNotMatch(tin.noiDung, /c[oô]ng\s*an|t[oố]\s*gi[aá]c|ph[aả]n\s*[aá]nh|ph[uư][oờ]ng/i, 'tin hiện trên màn hình — không được lộ việc tố giác');
   const ma = maTrongTin(tin);
-  const xn = await goi('/xac-nhan', { soDienThoai: so, ma });
+  const xn = await goi('/xac-nhan', { soDienThoai: so, ma, phien: r.body.phien });
   assert.equal(xn.status, 200, JSON.stringify(xn.body));
   assert.equal(veSdtHopLe(xn.body.veSdt, so), true);
   assert.equal(veSdtHopLe(xn.body.veSdt, sdtMoi()), false, 'vé của số này không dùng cho số khác');
   assert.equal(veSdtHopLe('vé-bịa', so), false);
-  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma })).status, 400, 'mã đã dùng không dùng lại được');
+  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma, phien: r.body.phien })).status, 400, 'mã đã dùng không dùng lại được');
 });
 
 test('không gửi được Zalo thì chuyển sang SMS', { skip: BO_QUA }, async () => {
@@ -169,19 +169,19 @@ test('lớp 6: trần tin cả hệ thống — 40 yêu cầu gửi DỒN CÙNG 
 
 test('xác nhận: sai 5 lần là huỷ mã — đúng mã sau đó cũng không qua; gửi dồn không lọt quá 5 lượt so', { skip: BO_QUA }, async () => {
   const so = sdtMoi();
-  await guiMa(so);
+  const { phien } = (await guiMa(so)).body;
   const ma = maTrongTin(daGui[0]);
   const sai = String((Number(ma) - 100000 + 1) % 900000 + 100000);
-  const kq = await Promise.all(Array.from({ length: 20 }, () => goi('/xac-nhan', { soDienThoai: so, ma: sai })));
+  const kq = await Promise.all(Array.from({ length: 20 }, () => goi('/xac-nhan', { soDienThoai: so, ma: sai, phien })));
   assert.equal(kq.filter((r) => r.status === 400).length, 5, kq.map((r) => r.status).join(','));
-  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma })).status, 429, 'mã đã huỷ');
+  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma, phien })).status, 429, 'mã đã huỷ');
 });
 
 test('mã hết hạn sau 5 phút', { skip: BO_QUA }, async () => {
   const so = sdtMoi();
-  await guiMa(so);
+  const { phien } = (await guiMa(so)).body;
   ctl.troiQua(5.5);
-  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[0]) })).status, 400);
+  assert.equal((await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[0]), phien })).status, 400);
 });
 
 test('thiếu bảng (chưa chạy v38): TẮT, không gửi tin nào', { skip: BO_QUA }, async () => {
@@ -345,4 +345,45 @@ test('P89 — bộ kết nối nhận được chính mã 6 số (mẫu Zalo ch�
   dangKyKenh('bat_ma', { guiMa: async (t) => (nhan.push(t), { ok: true }) });
   await guiQuaKenh(['bat_ma'], { soDienThoai: '0912345678', noiDung: 'x', ma: '123456' });
   assert.equal(nhan[0].ma, '123456');
+});
+
+/* ---- BUG-042 (trọng tài P89): xác nhận không được lộ "số này đang có mã chờ", không đốt được mã người khác ---- */
+test('BUG-042 — không có mã phiên: số có mã chờ và số không có mã trả lời Y HỆT, không lượt nào bị trừ, người thật vẫn xác nhận được', { skip: BO_QUA }, async () => {
+  const nanNhan = sdtMoi();
+  const { phien } = (await guiMa(nanNhan)).body;
+  const ma = maTrongTin(daGui[0]);
+  const khongCoMa = sdtMoi();
+  const thu = async (so, them = {}) => {
+    const r = await goi('/xac-nhan', { soDienThoai: so, ma: '000000', ...them });
+    return `${r.status} ${JSON.stringify(r.body)}`;
+  };
+  const coMa = []; const khong = [];
+  for (let k = 0; k < 8; k++) { coMa.push(await thu(nanNhan)); khong.push(await thu(khongCoMa)); }
+  assert.deepEqual(coMa, khong, 'trả lời khác nhau -> biết số nào đang có mã chờ');
+  const row = ctl.db.prepare('SELECT so_lan_sai FROM ma_xac_minh_sdt ORDER BY id DESC LIMIT 1').get();
+  assert.equal(row.so_lan_sai, 0, 'lượt dò không có phiên đã trừ vào mã của nạn nhân');
+  /* phiên bịa, phiên sai chữ ký, phiên của SỐ KHÁC, vé khác ký cùng khoá */
+  const phienSoKhac = (await guiMa(sdtMoi())).body.phien;
+  const phieu = phieuCu();
+  const gia = jwt.sign({ purpose: 'sdt_phien_ma', id: 1, sdt: 'x' }, 'khoa-khac');
+  for (const p of ['bịa', gia, phienSoKhac, phieu, ['mảng']]) {
+    assert.equal(await thu(nanNhan, { phien: p }), khong[0], `phiên ${String(p).slice(0, 20)} mở được mã của nạn nhân`);
+  }
+  assert.equal(ctl.db.prepare('SELECT so_lan_sai FROM ma_xac_minh_sdt WHERE id = 1').get()?.so_lan_sai ?? 0, 0);
+  const xn = await goi('/xac-nhan', { soDienThoai: nanNhan, ma, phien });
+  assert.equal(xn.status, 200, `người thật bị chặn sau khi bị dò: ${JSON.stringify(xn.body)}`);
+});
+
+test('BUG-042 — mã phiên không dùng làm vé "đã xác minh số", và vé xác minh không dùng làm mã phiên', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  const { phien } = (await guiMa(so)).body;
+  assert.equal(typeof phien, 'string');
+  assert.equal(veSdtHopLe(phien, so), false, 'mã phiên mở được nhãn "đã xác minh"');
+  const xn = await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[0]), phien });
+  assert.equal(xn.status, 200);
+  ctl.troiQua(1.1);
+  const lan2 = await guiMa(so);
+  assert.equal(lan2.status, 200, JSON.stringify(lan2.body));
+  const r = await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[daGui.length - 1]), phien: xn.body.veSdt });
+  assert.equal(r.status, 400, 'vé xác minh dùng thay mã phiên');
 });

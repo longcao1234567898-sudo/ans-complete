@@ -32,6 +32,7 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
 
   const [kenhDaGui, setKenhDaGui] = useState('');
   const [ma, setMa] = useState('');
+  const [phien, setPhien] = useState('');
   const [maThu, setMaThu] = useState('');
   const [dang, setDang] = useState(false);
   const [loi, setLoi] = useState('');
@@ -39,7 +40,7 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
 
   /* Đổi số -> mã đã gửi là của số cũ, bắt đầu lại (ContactInfo đã huỷ vé) */
   useEffect(() => {
-    setKenhDaGui(''); setMa(''); setMaThu(''); setLoi(''); setDemNguoc(0);
+    setKenhDaGui(''); setMa(''); setPhien(''); setMaThu(''); setLoi(''); setDemNguoc(0);
   }, [soDienThoai]);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
     try {
       const r = await guiMaSdt(soDienThoai, kenh);
       setKenhDaGui(r.kenh);
+      setPhien(r.phien);
       setMaThu(r.maThu ?? '');
       setMa('');
       setDemNguoc(60);
@@ -83,7 +85,7 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
     if (!/^\d{6}$/.test(ma)) { setLoi(t('xms.maSai')); return; }
     setDang(true); setLoi('');
     try {
-      const r = await xacNhanMaSdt(soDienThoai, ma);
+      const r = await xacNhanMaSdt(soDienThoai, ma, phien);
       onXacMinh(r.veSdt);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : String(e));

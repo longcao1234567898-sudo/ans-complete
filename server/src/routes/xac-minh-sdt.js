@@ -15,7 +15,8 @@
  *   POST /api/xac-minh-sdt/gui-ma   { soDienThoai, phieuMoForm, veVaoCua, deviceId, kenh? }
  *        kenh: người dân tự chọn ("Không nhận được Zalo? Gửi qua SMS") — chỉ nhận
  *        kênh ĐANG MỞ trong KENH_XAC_MINH_SDT; SMS chưa mở thì không gửi được SMS
- *   POST /api/xac-minh-sdt/xac-nhan { soDienThoai, ma } -> { veSdt } (sống 30 phút)
+ *        -> { phien }: mã phiên gắn với ĐÚNG lần gửi này — bước xác nhận bắt buộc có
+ *   POST /api/xac-minh-sdt/xac-nhan { soDienThoai, ma, phien } -> { veSdt } (sống 30 phút)
  *
  * MỖI MÃ GỬI ĐI LÀ TIỀN THẬT — 7 lớp chặn, kiểm ở máy chủ:
  *   1. Cổng "không phải người máy" (Turnstile, lib/cong-vao.js) trước khi gửi
@@ -54,6 +55,7 @@ export const MA_SONG_PHUT = 5;
 export const SAI_TOI_DA = 5;
 export const VE_SONG = '30m';
 const MUC_DICH_VE = 'sdt_xac_minh';
+const MUC_DICH_PHIEN = 'sdt_phien_ma';
 const TRAN_MAC_DINH = 500;
 
 /** Trần tin/ngày. Sai dạng (chữ, 0, số âm) thì TẮT — không đoán, không bỏ trần. */
@@ -217,6 +219,9 @@ router.post('/gui-ma', async (req, res) => {
       ok: true,
       kenh: gui.kenh,
       hetHanPhut: MA_SONG_PHUT,
+      /* BUG-042: chỉ máy vừa xin mã mới cầm phiên — người ngoài không dò được số
+         nào đang có mã chờ, không đốt được lượt nhập của người khác */
+      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, id: Number(kq.insertId), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
       /* Chỉ kênh thử (đã bị chặn ở production trong cauHinhKenh) mới trả mã */
       ...(gui.kenh === 'thu' ? { maThu: ma } : {}),
     });
@@ -230,6 +235,17 @@ router.post('/gui-ma', async (req, res) => {
   }
 });
 
+/** Mã phiên hợp lệ cho số này -> id dòng mã; không thì null. Không đụng CSDL */
+function idTuPhien(phien, sdtBam) {
+  if (typeof phien !== 'string' || !phien) return null;
+  try {
+    const p = jwt.verify(phien, JWT_SECRET, { algorithms: ['HS256'] });
+    return p.purpose === MUC_DICH_PHIEN && p.sdt === sdtBam && Number.isSafeInteger(p.id) ? p.id : null;
+  } catch {
+    return null;
+  }
+}
+
 router.post('/xac-nhan', async (req, res) => {
   const so = soDiDong(req.body?.soDienThoai);
   const ma = String(req.body?.ma ?? '').trim();
@@ -238,11 +254,15 @@ router.post('/xac-nhan', async (req, res) => {
   const loiSai = { error: 'Mã xác nhận không đúng hoặc đã hết hạn. Bà con bấm gửi lại mã.' };
   try {
     const sdtBam = bamRieng('sdt', so);
+    /* BUG-042: KHÔNG có phiên của chính lần gửi này thì trả lời ngay, cùng một câu,
+       không tra CSDL, không chạy scrypt — trước đây số có mã chờ trả chậm hơn hẳn
+       (lộ "số này đang gửi ý kiến") và 5 lượt sai của người ngoài huỷ mã người thật */
+    const idPhien = idTuPhien(req.body?.phien, sdtBam);
+    if (!idPhien) return res.status(400).json(loiSai);
     const [rows] = await pool.query(
       `SELECT id, ma_bam FROM ma_xac_minh_sdt
-        WHERE sdt_bam = ? AND da_dung = 0 AND het_han > NOW()
-        ORDER BY id DESC LIMIT 1`,
-      [sdtBam]
+        WHERE id = ? AND sdt_bam = ? AND da_dung = 0 AND het_han > NOW()`,
+      [idPhien, sdtBam]
     );
     if (rows.length === 0) return res.status(400).json(loiSai);
     const { id, ma_bam: maBam } = rows[0];

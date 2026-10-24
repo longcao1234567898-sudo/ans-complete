@@ -59,7 +59,7 @@ const phieuCu = () => jwt.sign({ purpose: 'mo_form', iat: Math.floor(Date.now() 
 async function layVeSdt(soDienThoai) {
   const g = await goi('/xac-minh-sdt/gui-ma', { soDienThoai, phieuMoForm: phieuCu(), deviceId: crypto.randomUUID() });
   assert.equal(g.status, 200, JSON.stringify(g.body));
-  const x = await goi('/xac-minh-sdt/xac-nhan', { soDienThoai, ma: maDaGui.get(soDienThoai) });
+  const x = await goi('/xac-minh-sdt/xac-nhan', { soDienThoai, ma: maDaGui.get(soDienThoai), phien: g.body.phien });
   assert.equal(x.status, 200, JSON.stringify(x.body));
   return x.body.veSdt;
 }
