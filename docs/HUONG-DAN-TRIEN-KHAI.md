@@ -526,6 +526,12 @@ mã/giờ (cách nhau ít nhất 1 phút, tối đa 5 mã/ngày), mỗi mạng 1
 cả hệ thống tối đa `XAC_MINH_TRAN_NGAY` tin/ngày (mặc định 500) — chạm trần thì ngừng gửi mã tới hết
 ngày, **vẫn nhận ý kiến**.
 
+> ⚠️ **Nhật ký ở eSMS và Zalo OA là DỮ LIỆU DANH TÍNH.** Mỗi lần gửi mã, eSMS và Zalo ghi lại **số
+> điện thoại + giờ gửi**. Người xin mã rồi đổi ý gửi ẩn danh (giao diện có cảnh báo, nhưng không chặn)
+> thì giờ đó cộng giờ tin ẩn danh là đủ để đoán ra người gửi ở địa bàn ít tin. Vì vậy: tài khoản
+> eSMS và quyền quản trị Zalo OA **chỉ giao cho người vận hành kỹ thuật**, không giao cho cán bộ xử
+> lý tin; đặt thời gian lưu nhật ký ngắn nhất mà eSMS/Zalo cho phép; không xuất danh sách gửi tin.
+
 **Tắt gấp** (nghi bị phá, hết tiền): xoá dòng `KENH_XAC_MINH_SDT` rồi khởi động lại — ô xác minh
 biến mất, gửi ý kiến vẫn bình thường.
 

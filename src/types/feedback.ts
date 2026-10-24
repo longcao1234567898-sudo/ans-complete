@@ -68,6 +68,9 @@ export interface ContactInfo {
   /** P89: vé "đã xác minh số" — máy chủ cấp khi nhập đúng mã gửi qua Zalo/SMS
    *  (sống 30 phút, gắn với đúng số đó). Không có vẫn gửi được, chỉ thiếu nhãn. */
   veSdt?: string;
+  /** Đã xin mã xác minh số trong lần điền này — chỉ ở giao diện, KHÔNG gửi lên máy
+   *  chủ; để cảnh báo nếu sau đó chuyển sang ẩn danh (số + giờ đã nằm ở Zalo/eSMS) */
+  daXinMaSdt?: boolean;
 }
 
 /** Bản nháp ý kiến trong quá trình đi qua 5 bước của form */

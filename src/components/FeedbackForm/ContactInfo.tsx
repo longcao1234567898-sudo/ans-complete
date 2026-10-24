@@ -183,7 +183,7 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
   function toggleAnonymous(on: boolean) {
     if (on) {
       // Bật ẩn danh: xoá sạch danh tính đã nhập + huỷ OTP
-      onChange({ fullName: '', phone: '', email: '', wardId: value.wardId, captchaToken: value.captchaToken, isAnonymous: true, otpToken: undefined });
+      onChange({ fullName: '', phone: '', email: '', wardId: value.wardId, captchaToken: value.captchaToken, isAnonymous: true, otpToken: undefined, daXinMaSdt: value.daXinMaSdt });
       setOtpSent(false); setOtpCode(''); setOtpMsg(''); setOtpErr(''); setDevCode('');
       setAnonCode(''); setAnonInput(''); setAnonErr('');
     } else {
@@ -285,6 +285,15 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
         </div>
       )}
 
+      {/* ĐÃ XIN MÃ RỒI MỚI CHUYỂN ẨN DANH (trọng tài P89): Zalo và nhà cung cấp tin
+          nhắn đã ghi số + giờ gửi mã — hệ thống không xoá được. Nhắc, không chặn. */}
+      {anon && value.daXinMaSdt && (
+        <div role="alert" className="mb-4 rounded-2xl border-2 border-red-300 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/15">
+          <p className="text-sm font-extrabold text-red-800 dark:text-red-300">{t('xms.canhBaoAnDanhTieuDe')}</p>
+          <p className="mt-1 text-sm leading-snug text-red-700 dark:text-red-200">{t('xms.canhBaoAnDanh')}</p>
+        </div>
+      )}
+
       {anon && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
           <p className="mb-2 text-xs font-bold text-amber-800 dark:text-amber-300">
@@ -337,6 +346,8 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
           soHopLe={phoneValid}
           veSdt={value.veSdt}
           onXacMinh={(veSdt) => onChange({ ...value, veSdt })}
+          onDaGuiMa={() => onChange({ ...value, daXinMaSdt: true })}
+          coTheAnDanh={canBeAnonymous}
         />
         <Input
           label={BAT_XAC_THUC_EMAIL ? 'Email (bắt buộc — để nhận mã xác thực)' : 'Email (không bắt buộc)'}

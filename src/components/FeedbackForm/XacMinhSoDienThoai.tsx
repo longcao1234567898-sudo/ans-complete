@@ -22,11 +22,15 @@ interface Props {
   soHopLe: boolean;
   veSdt?: string;
   onXacMinh: (veSdt: string) => void;
+  /** Gửi mã thành công — ContactInfo nhớ để cảnh báo nếu sau đó chuyển ẩn danh */
+  onDaGuiMa?: () => void;
+  /** Nhóm này cho gửi ẩn danh (tố giác) — nhắc chọn ẩn danh TRƯỚC khi xin mã */
+  coTheAnDanh?: boolean;
 }
 
 const TEN_KENH: Record<string, KhoaChu> = { zalo: 'xms.kenhZalo', sms: 'xms.kenhSms', thu: 'xms.kenhThu' };
 
-export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacMinh }: Props) {
+export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacMinh, onDaGuiMa, coTheAnDanh }: Props) {
   const { t } = useNgonNgu();
   const { data: tt } = useQuery({ queryKey: ['xac-minh-sdt'], queryFn: trangThaiXacMinhSdt, staleTime: 5 * 60_000 });
 
@@ -74,6 +78,7 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
       setMaThu(r.maThu ?? '');
       setMa('');
       setDemNguoc(60);
+      onDaGuiMa?.();
     } catch (e) {
       setLoi(e instanceof Error ? e.message : String(e));
     } finally {
@@ -107,6 +112,14 @@ export default function XacMinhSoDienThoai({ soDienThoai, soHopLe, veSdt, onXacM
           <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('xms.moTa')}</p>
         </div>
       </div>
+
+      {/* Xin mã là để lại SỐ + GIỜ ở Zalo/eSMS — ngoài tầm kiểm soát của hệ thống.
+          Người định gửi ẩn danh phải biết TRƯỚC khi bấm (trọng tài P89) */}
+      {coTheAnDanh && !kenhDaGui && (
+        <p className="mb-3 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+          {t('xms.anDanhTruoc')}
+        </p>
+      )}
 
       {!kenhDaGui ? (
         <button
