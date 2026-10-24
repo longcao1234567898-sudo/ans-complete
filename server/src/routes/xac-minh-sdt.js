@@ -4,22 +4,25 @@
  *
  * VÌ SAO: tin có danh tính hiện cho điền số của bất kỳ ai. SIM ở Việt Nam đăng
  * ký chính chủ — người nhận được mã gửi về số đó mới đúng là người cầm số. Tin
- * có vé xác minh sẽ mang nhãn "Đã xác minh số điện thoại" cho cán bộ (nối vào
- * gửi ý kiến ở phiên sau, khi routes/submissions.js hết chờ RETEST).
+ * có vé xác minh mang nhãn "Đã xác minh số điện thoại" cho cán bộ (P89). Không
+ * xác minh vẫn gửi được ý kiến — nhãn chỉ giúp cán bộ biết số là thật.
  *
  * KHÔNG BAO GIỜ áp cho tin ẩn danh: số điện thoại + giờ nhận mã nằm ở nhà mạng
  * và nhà cung cấp tin nhắn — dấu vết ngoài tầm kiểm soát của hệ thống.
  *
  * Luồng:
- *   GET  /api/xac-minh-sdt/trang-thai            -> { bat }
- *   POST /api/xac-minh-sdt/gui-ma   { soDienThoai, phieuMoForm, veVaoCua }
+ *   GET  /api/xac-minh-sdt/trang-thai            -> { bat, kenh: ['zalo', ...] }
+ *   POST /api/xac-minh-sdt/gui-ma   { soDienThoai, phieuMoForm, veVaoCua, deviceId, kenh? }
+ *        kenh: người dân tự chọn ("Không nhận được Zalo? Gửi qua SMS") — chỉ nhận
+ *        kênh ĐANG MỞ trong KENH_XAC_MINH_SDT; SMS chưa mở thì không gửi được SMS
  *   POST /api/xac-minh-sdt/xac-nhan { soDienThoai, ma } -> { veSdt } (sống 30 phút)
  *
  * MỖI MÃ GỬI ĐI LÀ TIỀN THẬT — 7 lớp chặn, kiểm ở máy chủ:
  *   1. Cổng "không phải người máy" (Turnstile, lib/cong-vao.js) trước khi gửi
  *   2. Phiếu mở form đã đủ 15 giây (đang điền ý kiến thật, không gọi thẳng API);
  *      mỗi phiếu / mỗi vé vào cửa xin tối đa 3 mã. Máy thật thiếu Turnstile -> TẮT
- *   3. Theo số: 1 mã/60 giây, 3 mã/giờ, 5 mã/ngày
+ *   3. Theo máy: 3 mã/giờ cho mỗi mã thiết bị (bắt buộc gửi kèm — bỏ trống không
+ *      né được). Theo số: 1 mã/60 giây, 3 mã/giờ, 5 mã/ngày
  *   4. Theo mạng: 10 mã/giờ/IP (đã băm)
  *   5. Chỉ số di động Việt Nam 10 số — không bao giờ gửi ra số quốc tế
  *   6. Trần tin cả hệ thống mỗi ngày (XAC_MINH_TRAN_NGAY, mặc định 500).
@@ -41,6 +44,8 @@ import { danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
 import { bamPin, kiemPin } from '../lib/bam-pin.js';
 import { giuLuot } from '../lib/dem-gioi-han.js';
 import { cauHinhKenh, guiQuaKenh, NOI_DUNG_MA } from '../lib/kenh-gui-ma.js';
+import '../lib/kenh/esms.js';
+import { layMaThietBi } from '../lib/chan-spam.js';
 import { JWT_SECRET } from '../lib/token.js';
 
 const router = Router();
@@ -103,8 +108,11 @@ export function moTaXacMinhSdt() {
     : `📱 Mã xác minh số điện thoại: TẮT — ${tt.lyDo}`;
 }
 
+/* Giao diện cần biết kênh nào mở để hiện nút "Gửi qua SMS" — cấu hình công khai,
+   không có gì bí mật */
 router.get('/trang-thai', (_req, res) => {
-  res.json({ bat: trangThai().bat });
+  const tt = trangThai();
+  res.json({ bat: tt.bat, kenh: tt.bat ? tt.danhSach : [] });
 });
 
 router.post('/gui-ma', async (req, res) => {
@@ -129,6 +137,21 @@ router.post('/gui-ma', async (req, res) => {
   const so = soDiDong(body.soDienThoai);
   if (!so) return res.status(400).json({ error: 'Chỉ gửi mã được tới số di động Việt Nam 10 số (03, 05, 07, 08, 09).' });
 
+  /* Lớp 3 cần mã máy. Trình duyệt thật luôn có (utils/deviceId.ts); thiếu là gọi
+     thẳng API — không cho bỏ trống để né giới hạn theo máy. Chỉ tin có danh tính
+     mới xác minh số, nên đọc mã máy ở đây không đụng tin ẩn danh (BUG-014). */
+  const maMay = layMaThietBi(req);
+  if (!maMay) return res.status(400).json({ error: 'Trình duyệt chưa gửi mã thiết bị. Bà con tải lại trang rồi thử lại.' });
+
+  /* Allow-list: chỉ kênh đang mở. Không nhận kiểu lạ, không tự đổi chữ hoa */
+  let danhSachGui = tt.danhSach;
+  if (body.kenh !== undefined && body.kenh !== null) {
+    if (typeof body.kenh !== 'string' || !tt.danhSach.includes(body.kenh)) {
+      return res.status(400).json({ error: 'Kênh gửi mã này chưa mở.', code: 'KENH_CHUA_MO' });
+    }
+    danhSachGui = [body.kenh];
+  }
+
   try {
     const sdtBam = bamRieng('sdt', so);
     const tran = tranNgay();
@@ -144,6 +167,10 @@ router.post('/gui-ma', async (req, res) => {
     if (!(await giuLuot(pool, `phieu:${bamRieng('phieu', body.phieuMoForm).slice(0, 40)}`, 3, 86400))) return res.status(429).json(loiNhieu);
     if (typeof body.veVaoCua === 'string' && body.veVaoCua
         && !(await giuLuot(pool, `ve:${bamRieng('ve', body.veVaoCua).slice(0, 40)}`, 3, 6 * 3600))) return res.status(429).json(loiNhieu);
+    // Lớp 3 — theo máy, TRƯỚC theo số: máy hết lượt không được ăn hạn mức số người khác
+    if (!(await giuLuot(pool, `thiet-bi-gio:${bamRieng('tb', maMay).slice(0, 40)}`, 3, 3600))) {
+      return res.status(429).json({ error: 'Máy này đã yêu cầu 3 mã trong 1 giờ. Vui lòng thử lại sau, hoặc gửi ý kiến không cần xác minh số.', code: 'QUA_NHIEU_MA' });
+    }
     // Lớp 3 — theo số
     const loiCho = { error: 'Bà con vừa yêu cầu mã. Vui lòng chờ 1 phút rồi thử lại.', code: 'CHO_GUI_LAI' };
     if (!(await giuLuot(pool, `sdt-phut:${sdtBam}`, 1, 60))) return res.status(429).json(loiCho);
@@ -171,10 +198,10 @@ router.post('/gui-ma', async (req, res) => {
     const ma = String(crypto.randomInt(100000, 1_000_000));
     const [kq] = await pool.query(
       `INSERT INTO ma_xac_minh_sdt (sdt_bam, ma_bam, kenh, het_han, tao_luc) VALUES (?, ?, ?, NOW() + INTERVAL ? MINUTE, NOW())`,
-      [sdtBam, await bamPin(ma), tt.danhSach[0], MA_SONG_PHUT]
+      [sdtBam, await bamPin(ma), danhSachGui[0], MA_SONG_PHUT]
     );
 
-    const gui = await guiQuaKenh(tt.danhSach, { soDienThoai: so, noiDung: NOI_DUNG_MA(ma, MA_SONG_PHUT) }, truTran);
+    const gui = await guiQuaKenh(danhSachGui, { soDienThoai: so, noiDung: NOI_DUNG_MA(ma, MA_SONG_PHUT), ma }, truTran);
     if (!gui.ok) {
       await pool.query('UPDATE ma_xac_minh_sdt SET da_dung = 1 WHERE id = ?', [kq.insertId]);
       if (gui.lyDo === 'het_tran') return res.status(503).json(LOI_TAT);
@@ -182,7 +209,7 @@ router.post('/gui-ma', async (req, res) => {
         error: 'Chưa gửi được mã tới số này. Bà con kiểm tra lại số, hoặc gửi ý kiến không cần xác minh số.',
       });
     }
-    if (gui.kenh !== tt.danhSach[0]) {
+    if (gui.kenh !== danhSachGui[0]) {
       await pool.query('UPDATE ma_xac_minh_sdt SET kenh = ? WHERE id = ?', [gui.kenh, kq.insertId]);
     }
 

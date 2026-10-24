@@ -329,6 +329,8 @@ export interface SubmissionDetail extends SubmissionRow {
       spam). Máy chủ KHÔNG trả giá trị mã: hai hồ sơ cùng mã là hai đơn cùng một máy,
       đủ để nối đơn ẩn danh với đơn có tên (BUG-014). */
   co_ma_thiet_bi: boolean;
+  /** P89: 1 = người gửi nhập đúng mã gửi về số (Zalo/SMS), 0 = chưa, null = ẩn danh / tin cũ */
+  sdt_xac_minh?: number | null;
   sender_phone: string;
   /** Hồ sơ có email hay không. Email đầy đủ chỉ lấy được qua revealIdentity (có ghi nhật ký). */
   co_email: boolean;

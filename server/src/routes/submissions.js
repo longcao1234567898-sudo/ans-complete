@@ -20,6 +20,7 @@ import { turnstileEnabled, xacMinhNghiemNgat } from '../lib/turnstile.js';
 import { capPhieuMoForm, danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
 import { xetDotBien } from '../lib/dot-bien.js';
 import { verifyOtpToken, verifyAnonToken } from './otp.js';
+import { veSdtHopLe } from './xac-minh-sdt.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 import { bamPin } from '../lib/bam-pin.js';
@@ -42,6 +43,19 @@ async function kiemCotToaDo() {
     _coCotToaDo = false;
   }
   return _coCotToaDo;
+}
+
+/* Cột nhãn "đã xác minh số" chỉ có sau nang_cap_v39.sql (P89). Chưa có thì vẫn
+   nhận ý kiến, chỉ không lưu nhãn. Chỉ nhớ khi ĐÃ có — chạy v39 lúc máy đang chạy
+   thì lần gửi sau tự dùng, không phải khởi động lại. */
+let _coCotSdtXacMinh = false;
+async function kiemCotSdtXacMinh() {
+  if (_coCotSdtXacMinh) return true;
+  try {
+    await pool.query('SELECT sdt_xac_minh FROM submissions LIMIT 0');
+    _coCotSdtXacMinh = true;
+  } catch { /* chưa chạy v39 */ }
+  return _coCotSdtXacMinh;
 }
 
 const COOLDOWN_MS = 2 * 60_000;
@@ -478,6 +492,11 @@ router.post('/', async (req, res) => {
        có cột (chưa chạy v26) thì cán bộ vốn không thấy hồ sơ nào (fail-safe). */
     const coCotMat = await coCotCo();
     const toGiacMat = nhanDienToGiacMat(content).mat;
+    /* NHÃN "ĐÃ XÁC MINH SỐ" (P89): vé từ /api/xac-minh-sdt/xac-nhan phải đúng là của
+       SỐ GHI TRONG TIN. Thiếu/sai/hết hạn -> 0, vẫn nhận tin (không bao giờ chặn).
+       Tin ẩn danh: NULL, không đọc vé — không để lại gì nối tin với một số. */
+    const coCotSdt = await kiemCotSdtXacMinh();
+    const sdtXacMinh = isAnonymous ? null : (veSdtHopLe(body.veSdt, phone) ? 1 : 0);
 
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
@@ -485,8 +504,8 @@ router.post('/', async (req, res) => {
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
-        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''}${coCotMat ? ', to_giac_mat' : ''})
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''}${coCotMat ? ', ?' : ''})`,
+        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''}${coCotMat ? ', to_giac_mat' : ''}${coCotSdt ? ', sdt_xac_minh' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''}${coCotMat ? ', ?' : ''}${coCotSdt ? ', ?' : ''})`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -527,6 +546,7 @@ router.post('/', async (req, res) => {
            phần dựng câu lệnh ở trên. */
         ...(coCotToaDo ? [viTriLat, viTriLng] : []),
         ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
+        ...(coCotSdt ? [sdtXacMinh] : []),
       ]
     );
 

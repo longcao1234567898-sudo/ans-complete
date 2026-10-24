@@ -445,7 +445,15 @@ export default function AdminSubmissionDetailPage() {
               <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">Thông tin người gửi</h3>
               <div className="space-y-2 text-sm">
                 <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><User className="h-4 w-4 text-slate-500" /> {revealed?.sender_name ?? data.sender_name}</p>
-                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-500" /> {revealed?.sender_phone ?? data.sender_phone}</p>
+                <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Phone className="h-4 w-4 text-slate-500" /> {revealed?.sender_phone ?? data.sender_phone}
+                  {/* P89 — chỉ là cờ của máy chủ; tin ẩn danh / tin cũ không có (null) */}
+                  {!data.is_anonymous && data.sdt_xac_minh === 1 && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" title="Người gửi đã nhập đúng mã gửi về số này qua Zalo/SMS">✓ Đã xác minh số</span>
+                  )}
+                  {!data.is_anonymous && data.sdt_xac_minh === 0 && (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400" title="Người gửi không nhập mã xác nhận — số có thể không phải của họ">Chưa xác minh số</span>
+                  )}
+                </p>
                 {revealed
                   ? revealed.sender_email && <p className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><Mail className="h-4 w-4 text-slate-500" /> {revealed.sender_email}</p>
                   : data.co_email && <p className="flex items-center gap-2 text-slate-500 dark:text-slate-400"><Mail className="h-4 w-4 text-slate-500" /> <span className="italic">Có email — bấm “Xem danh tính” để xem</span></p>}

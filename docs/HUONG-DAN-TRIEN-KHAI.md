@@ -481,6 +481,54 @@ thoát mọi giới hạn. IPv4 không đổi gì.
 > ⚠️ Danh sách IP cơ quan (`ADMIN_ALLOWED_IPS`) so **từng địa chỉ đầy đủ**. Mạng cơ quan đi IPv6
 > thì phải khai thêm địa chỉ IPv6 của cơ quan, không thì cán bộ bị chặn ở máy chủ cán bộ.
 
+### B9c. (Tuỳ chọn) Mã xác minh số điện thoại qua Zalo — eSMS.vn
+
+**Để làm gì:** người gửi tin có tên bấm "Gửi mã qua Zalo", nhập lại 6 số nhận được → cán bộ thấy
+nhãn **"✓ Đã xác minh số"** cạnh số điện thoại. Không xác minh vẫn gửi được (nhãn "Chưa xác minh
+số"). Tin ẩn danh không bao giờ thấy ô này.
+
+**Đang thử nghiệm: CHỈ MỞ ZALO.** Gửi bằng SMS đã viết sẵn nhưng **không gửi tin nào** cho tới khi
+người vận hành quyết mở (bước 7).
+
+1. **Tài khoản eSMS:** đăng ký tại esms.vn, lấy **ApiKey** và **SecretKey** (mục quản lý API).
+   **Nạp trả trước một khoản nhỏ** — hết tiền thì eSMS tự ngừng, kẻ phá có lọt mọi lớp cũng chỉ
+   tiêu được chừng đó.
+2. **Zalo OA + mẫu tin:** đơn vị cần Zalo OA (đã xác thực) liên kết với eSMS. Đăng ký **một mẫu tin
+   OTP** (ZNS) có **một biến duy nhất là mã 6 số**. Nội dung mẫu phải **trung tính** — không có chữ
+   "Công an", "tố giác", "phản ánh": tin hiện trên màn hình, người nhà hay chính kẻ bị tố cầm máy đều
+   đọc được. Gợi ý: *"Ma xac nhan cua ban: {ma}. Het han sau 5 phut. Khong chia se ma nay cho bat ky
+   ai."* Zalo duyệt xong sẽ cấp **OAID** và **TempID**.
+3. **Chạy nâng cấp CSDL:** `nang_cap_v38.sql` (nếu chưa) rồi `nang_cap_v39.sql` (xem C4).
+4. **Khai `.env` của máy chủ công khai** (B7) — khoá bí mật, **không bao giờ** đặt vào biến `VITE_*`:
+   ```
+   KENH_XAC_MINH_SDT=zalo
+   ESMS_API_KEY=...
+   ESMS_SECRET_KEY=...
+   ESMS_ZALO_OAID=...
+   ESMS_ZALO_TEMPID=...
+   ESMS_SANDBOX=1
+   ```
+   Máy thật **phải có** `TURNSTILE_SECRET_KEY` (chống máy tự động) — thiếu thì tính năng tự TẮT.
+5. **Thử trong chế độ sandbox:** `systemctl restart hop-thu-cong-khai`, rồi
+   `journalctl -u hop-thu-cong-khai -n 30` phải có dòng **`📱 Mã xác minh số điện thoại: BẬT (kênh
+   zalo, trần 500 tin/ngày)`**. Dòng ghi `TẮT — ...` thì đọc lý do ngay sau chữ TẮT. Vào trang gửi
+   ý kiến, nhập số của mình, bấm gửi mã: với `ESMS_SANDBOX=1` eSMS **nhận lệnh nhưng không gửi tin**
+   — xem lệnh trong trang quản lý eSMS là được. Máy chủ báo "Chưa gửi được mã" thì xem
+   `journalctl` dòng `[eSMS] từ chối lệnh gửi, mã ...` và tra mã đó trong tài liệu eSMS.
+6. **Chạy thật:** xoá dòng `ESMS_SANDBOX=1`, khởi động lại, thử với số của mình một lần nữa.
+7. **Khi người vận hành quyết MỞ SMS** (chưa làm lúc thử nghiệm): đăng ký tên thương hiệu
+   (brandname) với eSMS, thêm `ESMS_BRANDNAME=...`, đổi thành `KENH_XAC_MINH_SDT=zalo,sms`, khởi động
+   lại. Khi đó Zalo từ chối rõ ràng thì tự gửi SMS, và người dân có thêm nút "Không nhận được qua
+   Zalo? Gửi qua tin nhắn SMS".
+
+**Giới hạn đã cài sẵn (máy chủ kiểm, không đổi được từ trình duyệt):** mỗi máy 3 mã/giờ, mỗi số 3
+mã/giờ (cách nhau ít nhất 1 phút, tối đa 5 mã/ngày), mỗi mạng 10 mã/giờ, chỉ số di động Việt Nam;
+cả hệ thống tối đa `XAC_MINH_TRAN_NGAY` tin/ngày (mặc định 500) — chạm trần thì ngừng gửi mã tới hết
+ngày, **vẫn nhận ý kiến**.
+
+**Tắt gấp** (nghi bị phá, hết tiền): xoá dòng `KENH_XAC_MINH_SDT` rồi khởi động lại — ô xác minh
+biến mất, gửi ý kiến vẫn bình thường.
+
 ### B10. Cập nhật mã nguồn về sau
 
 Mỗi khi có bản mới trên `master`:

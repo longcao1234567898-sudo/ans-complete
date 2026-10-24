@@ -112,6 +112,43 @@ export async function batDauDienDon(): Promise<void> {
   }
 }
 
+/* ===== XÁC MINH SỐ ĐIỆN THOẠI BẰNG MÃ GỬI QUA ZALO / SMS (P89) =====
+   Chỉ cho tin có danh tính. Máy chủ quyết kênh nào mở và giới hạn bao nhiêu mã;
+   giao diện chỉ hỏi và hiện kết quả (luật 2). */
+export interface TrangThaiXacMinhSdt { bat: boolean; kenh: string[] }
+
+export async function trangThaiXacMinhSdt(): Promise<TrangThaiXacMinhSdt> {
+  if (!hasBackend) return { bat: false, kenh: [] };
+  try {
+    const r = await apiFetch<{ bat?: boolean; kenh?: unknown }>('/api/xac-minh-sdt/trang-thai');
+    return { bat: r.bat === true, kenh: Array.isArray(r.kenh) ? r.kenh.filter((k): k is string => typeof k === 'string') : [] };
+  } catch {
+    return { bat: false, kenh: [] };
+  }
+}
+
+/** `kenh`: chỉ khi bà con tự chọn ("Gửi qua SMS"); để trống thì máy chủ dùng kênh đầu (Zalo) */
+export function guiMaSdt(soDienThoai: string, kenh?: string) {
+  return apiFetch<{ ok: true; kenh: string; hetHanPhut: number; maThu?: string }>('/api/xac-minh-sdt/gui-ma', {
+    method: 'POST',
+    body: JSON.stringify({
+      soDienThoai: soDienThoai.trim(),
+      phieuMoForm,
+      veVaoCua: layVe(),
+      /* Mã máy: máy chủ giới hạn 3 mã/giờ cho mỗi máy. Chỉ gửi ở tin có danh tính */
+      deviceId: layMaThietBi(),
+      ...(kenh ? { kenh } : {}),
+    }),
+  });
+}
+
+export function xacNhanMaSdt(soDienThoai: string, ma: string) {
+  return apiFetch<{ ok: true; veSdt: string }>('/api/xac-minh-sdt/xac-nhan', {
+    method: 'POST',
+    body: JSON.stringify({ soDienThoai: soDienThoai.trim(), ma }),
+  });
+}
+
 /** Gửi ý kiến: kiểm tra chống spam, sinh mã tra cứu 6 ký tự, lưu lại */
 /** `xacMinhThem`: mã Turnstile tươi khi máy chủ đòi xác minh thêm (CAN_XAC_MINH_THEM — P88) */
 export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string): Promise<FeedbackSubmission> {
@@ -185,6 +222,8 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
           ...(xacMinhThem ? { xacMinhThem } : {}),
           phieuMoForm,
           otpToken: draft.contact.otpToken ?? '',
+          /* Vé "đã xác minh số" — tin ẩn danh KHÔNG gửi (máy chủ cũng bỏ qua) */
+          ...(!isAnon && draft.contact.veSdt ? { veSdt: draft.contact.veSdt } : {}),
           /* Mã phiên ẩn danh — máy chủ dùng để đối chiếu "vé" xác thực.
              Thiếu trường này thì gửi ẩn danh luôn báo "phiên không khớp". */
           anonId: draft.contact.anonId ?? '',

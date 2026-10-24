@@ -242,6 +242,10 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
               /* Cờ tố giác mật trong câu INSERT (ADR-003 việc 12): chỉ thêm một
                  tên cột / một dấu ? cố định khi CSDL đã có cột */
               || /^coCotMat \? '(, to_giac_mat|, \?)' : ''$/.test(bieuThuc)
+              /* P89: nhãn "đã xác minh số" — một tên cột / một dấu ? cố định khi
+                 CSDL đã có cột (nang_cap_v39.sql); GIÁ TRỊ đi qua mảng params */
+              || /^coCotSdt \? '(, sdt_xac_minh|, \?)' : ''$/.test(bieuThuc)
+              || /^\(await coCotSdtXacMinhAd\(\)\) \? 's\.sdt_xac_minh,' : 'NULL AS sdt_xac_minh,'$/.test(bieuThuc)
               /* admin/submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên
                  cột toạ độ vụ việc đã tồn tại chưa (coCotToaDoAd, đọc từ
                  information_schema chứ không phải dữ liệu người dùng). Cột chưa

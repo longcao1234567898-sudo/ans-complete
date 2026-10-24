@@ -8,7 +8,7 @@
  *     (để trống)                     # TẮT — không gửi mã, gửi ý kiến vẫn bình thường
  *
  * Mỗi nhà cung cấp là một bộ kết nối riêng, tự đăng ký bằng dangKyKenh(ten, ...)
- * (vd lib/kenh/esms.js khi đã chọn nhà cung cấp). Tên không có bộ kết nối thì
+ * (lib/kenh/esms.js: "zalo" và "sms" qua eSMS.vn). Tên không có bộ kết nối thì
  * TẮT cả tính năng và báo lỗi lúc khởi động — không âm thầm bỏ qua kênh đó, kẻo
  * tưởng đang gửi Zalo mà thật ra không gửi gì (luật 1).
  *
@@ -27,9 +27,11 @@ export const NOI_DUNG_MA = (ma, phut) =>
 const BO_KET_NOI = new Map();
 
 /**
- * Bộ kết nối một nhà cung cấp. `guiMa({ soDienThoai, noiDung })` trả
+ * Bộ kết nối một nhà cung cấp. `guiMa({ soDienThoai, noiDung, ma })` trả
  * `{ ok: true }` khi nhà cung cấp đã NHẬN gửi, `{ ok: false, lyDo }` khi không.
  * Không được ném lỗi chứa số điện thoại hay nội dung ra nhật ký.
+ * `ma` (6 số) cho kênh dùng mẫu tin duyệt sẵn — Zalo ZNS chỉ nhận biến, không
+ * nhận cả câu; kênh gửi chữ tự do (SMS) dùng `noiDung`.
  */
 export function dangKyKenh(ten, boKetNoi) {
   BO_KET_NOI.set(ten, boKetNoi);
@@ -70,7 +72,7 @@ export function cauHinhKenh(env = process.env) {
  *
  * Trả { ok, kenh } khi gửi được; { ok: false, lyDo: 'het_tran' | 'map_mo' | 'tu_choi' }.
  */
-export async function guiQuaKenh(danhSach, { soDienThoai, noiDung }, truocMoiKenh = async () => true) {
+export async function guiQuaKenh(danhSach, { soDienThoai, noiDung, ma }, truocMoiKenh = async () => true) {
   for (let i = 0; i < danhSach.length; i++) {
     const ten = danhSach[i];
     const bo = BO_KET_NOI.get(ten);
@@ -78,7 +80,7 @@ export async function guiQuaKenh(danhSach, { soDienThoai, noiDung }, truocMoiKen
     if (!(await truocMoiKenh(i))) return { ok: false, lyDo: 'het_tran' };
     let kq;
     try {
-      kq = await bo.guiMa({ soDienThoai, noiDung });
+      kq = await bo.guiMa({ soDienThoai, noiDung, ma });
     } catch (err) {
       console.error(`[gửi mã] kênh ${ten} lỗi, không thử kênh sau (có thể đã tính tiền):`, String(err?.message || err).slice(0, 120));
       return { ok: false, lyDo: 'map_mo' };

@@ -12,6 +12,7 @@ import Button from '../common/Button';
 import { BAT_XAC_THUC_EMAIL } from '../../utils/constants';
 import { getPhoneError, isValidEmail, isValidPhone } from '../../utils/helpers';
 import { fetchWards, sendOtp, verifyOtp, requestAnonCode, verifyAnonCode } from '../../services/feedbackService';
+import XacMinhSoDienThoai from './XacMinhSoDienThoai';
 
 interface ContactInfoProps {
   value: ContactInfoType;
@@ -327,7 +328,15 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
           inputMode="tel"
           value={value.phone}
           error={phoneError}
-          onChange={(e) => onChange({ ...value, phone: e.target.value })}
+          /* Đổi số -> vé xác minh là của số cũ, huỷ (máy chủ cũng đối chiếu số) */
+          onChange={(e) => onChange({ ...value, phone: e.target.value, veSdt: undefined })}
+        />
+        {/* P89 — xác minh số qua Zalo (SMS khi máy chủ mở). Không bắt buộc */}
+        <XacMinhSoDienThoai
+          soDienThoai={value.phone}
+          soHopLe={phoneValid}
+          veSdt={value.veSdt}
+          onXacMinh={(veSdt) => onChange({ ...value, veSdt })}
         />
         <Input
           label={BAT_XAC_THUC_EMAIL ? 'Email (bắt buộc — để nhận mã xác thực)' : 'Email (không bắt buộc)'}

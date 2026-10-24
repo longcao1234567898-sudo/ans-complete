@@ -289,7 +289,11 @@ describe('A10 — không có SSRF: mọi URL gọi ra ngoài đều là hằng s
             /* tep-sau-xoa-danh-tinh.js (BUG-029): lệnh xoá ảnh trên kho của đơn vị — host
                cố định api.cloudinary.com; kho kiểm /^[A-Za-z0-9_-]+$/ từ biến môi trường,
                loại trong allow-list image|video|raw; redirect: 'error' */
-            || doiSo === 'urlXoaKhoAnh(keHoach)';
+            || doiSo === 'urlXoaKhoAnh(keHoach)'
+            /* lib/kenh/esms.js (P89): tra trong bảng hằng DUONG_ESMS (hai địa chỉ
+               https://rest.esms.vn viết sẵn); khoá tra là 'zalo' | 'sms' ghi cứng
+               trong tệp, không phải dữ liệu người dùng */
+            || doiSo === 'DUONG_ESMS[kenh]';
           if (!anToan) loi.push(`${muc.name}: fetch(${doiSo})`);
         }
       }

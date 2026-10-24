@@ -61,7 +61,8 @@ async function goi(duong, body, ip = ipMoi()) {
   });
   return { status: r.status, body: await r.json().catch(() => null) };
 }
-const guiMa = (soDienThoai, ip, them = {}) => goi('/gui-ma', { soDienThoai, phieuMoForm: phieuCu(), ...them }, ip);
+/* Mỗi lượt một máy mới (mã thiết bị UUID như trình duyệt sinh) trừ khi test cố ý dùng chung */
+const guiMa = (soDienThoai, ip, them = {}) => goi('/gui-ma', { soDienThoai, phieuMoForm: phieuCu(), deviceId: crypto.randomUUID(), ...them }, ip);
 const maTrongTin = (t) => /(\d{6})/.exec(t.noiDung)[1];
 
 test('chưa khai kênh: TẮT, không gửi gì, trả lời rõ là ý kiến vẫn gửi được', { skip: BO_QUA }, async () => {
@@ -227,7 +228,7 @@ test('R2 — hai người mở trang cùng một giây nhận hai phiếu/vé KH
 test('R2 — một phiếu mở form không xin mã mãi được (tối đa 3 mã cho mỗi phiếu)', { skip: BO_QUA }, async () => {
   const phieu = phieuCu();
   const ma = [];
-  for (let k = 0; k < 12; k++) ma.push((await goi('/gui-ma', { soDienThoai: sdtMoi(), phieuMoForm: phieu })).status);
+  for (let k = 0; k < 12; k++) ma.push((await goi('/gui-ma', { soDienThoai: sdtMoi(), phieuMoForm: phieu, deviceId: crypto.randomUUID() })).status);
   assert.equal(daGui.length, 3, `một phiếu gửi được ${daGui.length} tin: ${ma.join(',')}`);
 });
 
@@ -269,4 +270,79 @@ test('lớp 1: bật Turnstile thì không có vé vào cửa không gửi đư�
   } finally {
     delete process.env.TURNSTILE_SECRET_KEY;
   }
+});
+
+/* ---- P89: nối vào trang gửi ý kiến — chỉ mở Zalo, SMS xây sẵn; 3 mã/giờ/máy ---- */
+const { guiQuaKenh } = await import('../src/lib/kenh-gui-ma.js');
+
+test('P89 — thiếu hoặc sai mã thiết bị thì không gửi mã (bot không bỏ trống để né giới hạn theo máy)', { skip: BO_QUA }, async () => {
+  for (const deviceId of [undefined, '', 'abc', 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz', [crypto.randomUUID()], { a: 1 }]) {
+    const r = await goi('/gui-ma', { soDienThoai: sdtMoi(), phieuMoForm: phieuCu(), deviceId });
+    assert.equal(r.status, 400, JSON.stringify(deviceId));
+  }
+  assert.equal(daGui.length, 0);
+});
+
+test('P89 — cùng một máy: tối đa 3 mã/giờ dù mỗi lần một số khác, một mạng khác', { skip: BO_QUA }, async () => {
+  const may = crypto.randomUUID();
+  const ma = [];
+  for (let k = 0; k < 5; k++) ma.push((await guiMa(sdtMoi(), ipMoi(), { deviceId: may })).status);
+  assert.deepEqual(ma, [200, 200, 200, 429, 429]);
+  assert.equal(daGui.length, 3);
+  assert.equal((await guiMa(sdtMoi(), ipMoi(), { deviceId: may.toUpperCase() })).status, 429, 'viết hoa vẫn là cùng một máy');
+  ctl.troiQua(61);
+  assert.equal((await guiMa(sdtMoi(), ipMoi(), { deviceId: may })).status, 200, 'qua 1 giờ thì gửi lại được');
+});
+
+test('P89 — lượt bị chặn theo máy KHÔNG ăn hạn mức của số nạn nhân', { skip: BO_QUA }, async () => {
+  const may = crypto.randomUUID();
+  for (let k = 0; k < 3; k++) await guiMa(sdtMoi(), ipMoi(), { deviceId: may });
+  const nanNhan = sdtMoi();
+  for (let k = 0; k < 4; k++) assert.equal((await guiMa(nanNhan, ipMoi(), { deviceId: may })).status, 429);
+  const r = await guiMa(nanNhan);
+  assert.equal(r.status, 200, `nạn nhân bị khoá oan: ${JSON.stringify(r.body)}`);
+});
+
+test('P89 — trạng thái cho giao diện biết kênh nào đang mở (để hiện/ẩn nút "Gửi qua SMS")', { skip: BO_QUA }, async () => {
+  process.env.KENH_XAC_MINH_SDT = 'zalo';
+  assert.deepEqual((await goi('/trang-thai')).body, { bat: true, kenh: ['zalo'] });
+  process.env.KENH_XAC_MINH_SDT = 'zalo,sms';
+  assert.deepEqual((await goi('/trang-thai')).body, { bat: true, kenh: ['zalo', 'sms'] });
+  delete process.env.KENH_XAC_MINH_SDT;
+  assert.deepEqual((await goi('/trang-thai')).body, { bat: false, kenh: [] });
+});
+
+test('P89 — chỉ mở Zalo: Zalo từ chối thì báo chưa gửi được, KHÔNG tự sang SMS', { skip: BO_QUA }, async () => {
+  process.env.KENH_XAC_MINH_SDT = 'zalo';
+  zaloHong = true;
+  const r = await guiMa(sdtMoi());
+  assert.equal(r.status, 502);
+  assert.equal(daGui.length, 0, 'SMS chưa mở mà vẫn gửi SMS');
+});
+
+test('P89 — người dân tự chọn gửi qua SMS (khi đã mở SMS): chỉ SMS đi, không gửi Zalo trước', { skip: BO_QUA }, async () => {
+  const r = await guiMa(sdtMoi(), ipMoi(), { kenh: 'sms' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.kenh, 'sms');
+  assert.deepEqual(daGui.map((t) => t.kenh), ['sms']);
+  const row = ctl.db.prepare('SELECT kenh FROM ma_xac_minh_sdt ORDER BY id DESC LIMIT 1').get();
+  assert.equal(row.kenh, 'sms');
+});
+
+test('P89 — SMS chưa mở thì yêu cầu "gửi qua SMS" bị từ chối, không tin nào đi; kênh lạ cũng vậy', { skip: BO_QUA }, async () => {
+  process.env.KENH_XAC_MINH_SDT = 'zalo';
+  for (const kenh of ['sms', 'thu', 'SMS', ['sms'], 'khongco']) {
+    const r = await guiMa(sdtMoi(), ipMoi(), { kenh });
+    assert.equal(r.status, 400, JSON.stringify(kenh));
+  }
+  assert.equal(daGui.length, 0);
+});
+
+test('P89 — bộ kết nối nhận được chính mã 6 số (mẫu Zalo chỉ có một biến là mã)', { skip: BO_QUA }, async () => {
+  await guiMa(sdtMoi());
+  assert.equal(daGui[0].ma, maTrongTin(daGui[0]));
+  const nhan = [];
+  dangKyKenh('bat_ma', { guiMa: async (t) => (nhan.push(t), { ok: true }) });
+  await guiQuaKenh(['bat_ma'], { soDienThoai: '0912345678', noiDung: 'x', ma: '123456' });
+  assert.equal(nhan[0].ma, '123456');
 });

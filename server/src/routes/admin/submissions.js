@@ -31,6 +31,17 @@ router.use(requireAuth);
 /* Cột toạ độ vụ việc chỉ có sau khi chạy nang_cap_v16.sql. Kiểm một lần rồi
    nhớ, để trang chi tiết không sập khi database chưa nâng cấp. */
 let _coCotToaDoAd = null;
+/* Nhãn "đã xác minh số" (P89) — cột chỉ có sau nang_cap_v39.sql; chỉ nhớ khi ĐÃ có */
+let _coCotSdtAd = false;
+async function coCotSdtXacMinhAd() {
+  if (_coCotSdtAd) return true;
+  try {
+    await pool.query('SELECT sdt_xac_minh FROM submissions LIMIT 0');
+    _coCotSdtAd = true;
+  } catch { /* chưa chạy v39 */ }
+  return _coCotSdtAd;
+}
+
 async function coCotToaDoAd() {
   if (_coCotToaDoAd !== null) return _coCotToaDoAd;
   try {
@@ -413,6 +424,9 @@ router.get('/:id', async (req, res) => {
               ${(await coCotToaDoAd()) ? 's.incident_lat, s.incident_lng,' : 'NULL AS incident_lat, NULL AS incident_lng,'}
               s.identity_erased, s.identity_erased_at, s.deleted_at,
               s.incident_group_id,
+              /* 1 = người gửi đã nhập đúng mã gửi về số ghi trong tin, 0 = chưa,
+                 NULL = ẩn danh / tin trước P89. Chỉ là cờ, không mang gì của số */
+              ${(await coCotSdtXacMinhAd()) ? 's.sdt_xac_minh,' : 'NULL AS sdt_xac_minh,'}
               /* Mã thiết bị: CHỈ lấy cờ có/không, KHÔNG lấy giá trị. Từng mã
                  đơn lẻ là chuỗi ngẫu nhiên, nhưng nó sống mãi trong trình duyệt
                  nên hai hồ sơ cùng mã là hai đơn từ cùng một máy — đơn tố giác

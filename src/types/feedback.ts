@@ -65,6 +65,9 @@ export interface ContactInfo {
    *  để máy chủ đối chiếu đúng "vé" của bà con (trước đây khớp theo IP nên
    *  mạng 4G đổi IP giữa chừng là báo "phiên không khớp"). */
   anonId?: string;
+  /** P89: vé "đã xác minh số" — máy chủ cấp khi nhập đúng mã gửi qua Zalo/SMS
+   *  (sống 30 phút, gắn với đúng số đó). Không có vẫn gửi được, chỉ thiếu nhãn. */
+  veSdt?: string;
 }
 
 /** Bản nháp ý kiến trong quá trình đi qua 5 bước của form */
