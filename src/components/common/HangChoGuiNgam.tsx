@@ -51,10 +51,11 @@ export default function HangChoGuiNgam() {
     setKetQua(kq);
   }, []);
 
-  const gui = useCallback(async (xacMinhThem?: string) => {
+  /* nguoiBam: bà con vừa xác minh — lượt đang bận thì xếp lượt sau, không bỏ */
+  const gui = useCallback(async (xacMinhThem?: string, nguoiBam = false) => {
     if (navigator.onLine === false) return;
     setDangGui(true);
-    try { await guiTinCho(xacMinhThem); } finally { setDangGui(false); await docLai(); }
+    try { await guiTinCho(xacMinhThem, nguoiBam); } finally { setDangGui(false); await docLai(); }
   }, [docLai]);
 
   useEffect(() => {
@@ -125,13 +126,13 @@ export default function HangChoGuiNgam() {
               {x.trangThai === 'can_xac_minh' && (
                 <>
                   <p className="text-xs text-amber-900 dark:text-amber-200">{t('hcg.canXacMinh')}</p>
-                  <OXacMinhNguoiMay coVe={false} onCoVe={() => { void gui(); }} />
+                  <OXacMinhNguoiMay coVe={false} onCoVe={() => { void gui(undefined, true); }} />
                 </>
               )}
               {x.trangThai === 'can_xac_minh_them' && (
                 <>
                   <p className="text-xs text-amber-900 dark:text-amber-200">{t('hcg.canXacMinh')}</p>
-                  {captchaEnabled && <div className="mt-2 flex justify-center"><Turnstile onToken={(tk) => { if (tk) void gui(tk); }} /></div>}
+                  {captchaEnabled && <div className="mt-2 flex justify-center"><Turnstile onToken={(tk) => { if (tk) void gui(tk, true); }} /></div>}
                 </>
               )}
               {x.cuaPhienNay ? (
@@ -148,8 +149,9 @@ export default function HangChoGuiNgam() {
               {x.trangThai === 'qua_han' && (
                 <p data-hd="tin-qua-han" className="text-xs text-rose-700 dark:text-rose-300">{x.loi}</p>
               )}
-              <button type="button" onClick={() => xoa(x.id)}
-                className="mt-1 inline-flex min-h-[40px] items-center gap-1 text-xs font-semibold text-slate-600 underline dark:text-slate-300">
+              {/* Đang gửi thì khoá nút: yêu cầu đã đi không rút lại được (trọng tài P92) */}
+              <button type="button" onClick={() => xoa(x.id)} disabled={dangGui}
+                className="mt-1 inline-flex min-h-[40px] items-center gap-1 text-xs font-semibold text-slate-600 underline disabled:opacity-40 dark:text-slate-300">
                 <Trash2 className="h-3.5 w-3.5" /> {t('hcg.xoa')}
               </button>
             </div>

@@ -191,8 +191,15 @@ async function guiTinChoNgam() {
     /* Máy chủ bảo đợi (henLuc — hangChoGui.ts giãn lần thử) thì chưa gửi */
     const toiLuot = (b) => !b.henLuc || b.henLuc <= Date.now();
     for (const ban of ds.filter((b) => b.trangThai === 'cho' && conHan(b) && toiLuot(b))) {
-      const tho = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ban.iv }, khoa, ban.duLieu);
-      const { url, than, phien, maMo } = JSON.parse(new TextDecoder().decode(tho));
+      let nd;
+      try {
+        nd = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ban.iv }, khoa, ban.duLieu)));
+      } catch {
+        continue;   // tin hỏng: để trang báo, không chặn các tin sau
+      }
+      const { url, than, phien, maMo } = nd;
+      /* Chỉ gửi tới đúng đường nhận ý kiến (địa chỉ đầy đủ do trang cất — xem hangChoGui.ts) */
+      try { if (new URL(url).pathname !== '/api/submissions') continue; } catch { continue; }
       let res;
       try {
         res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(than) });

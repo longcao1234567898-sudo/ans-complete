@@ -163,12 +163,23 @@ function lam<T>(ten: string, cheDo: IDBTransactionMode, viec: (k: IDBObjectStore
   }));
 }
 
+const docKhoa = () => lam<CryptoKey | undefined>(KHO_KHOA, 'readonly', (k) => k.get(KHOA_KHOA) as IDBRequest<CryptoKey | undefined>);
+
+/* Trọng tài P92: hai tab cùng tạo khoá lần đầu thì put() của tab sau ĐÈ khoá tab trước
+   -> tin tab trước không giải mã được nữa. add() chỉ ghi khi chưa có; thua thì đọc lại
+   khoá đã thắng */
 async function layKhoa(): Promise<CryptoKey> {
-  const cu = await lam<CryptoKey | undefined>(KHO_KHOA, 'readonly', (k) => k.get(KHOA_KHOA) as IDBRequest<CryptoKey | undefined>);
+  const cu = await docKhoa();
   if (cu) return cu;
   const moi = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-  await lam(KHO_KHOA, 'readwrite', (k) => k.put(moi, KHOA_KHOA));
-  return moi;
+  try {
+    await lam(KHO_KHOA, 'readwrite', (k) => k.add(moi, KHOA_KHOA));
+    return moi;
+  } catch {
+    const thang = await docKhoa();
+    if (thang) return thang;
+    throw new Error('Không tạo được khoá mã hoá trên máy.');
+  }
 }
 
 async function maHoa(obj: unknown): Promise<{ iv: Uint8Array; duLieu: ArrayBuffer }> {
@@ -335,7 +346,18 @@ async function henThuLai(ban: BanGhiTin, loi: string) {
 }
 
 async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
-  const { url, than, phien, maMo } = await giaiMa<NoiDungTin>(ban);
+  let nd: NoiDungTin;
+  try {
+    nd = await giaiMa<NoiDungTin>(ban);
+  } catch {
+    /* Một tin hỏng không được chặn cả hàng chờ (trọng tài P92) */
+    return doiTrangThai(ban.id, 'loi', 'Không đọc được tin chờ này trên máy (dữ liệu trình duyệt có thể đã bị xoá một phần). '
+      + 'Bà con xoá tin chờ rồi soạn lại. Việc khẩn cấp xin gọi ngay 113.');
+  }
+  const { than, phien, maMo } = nd;
+  /* Luôn gửi tới máy chủ của BẢN NÀY, không tin địa chỉ cất trong bản ghi (đổi máy chủ
+     thì tin cũ không đi về máy chủ cũ) */
+  const url = diaChiApi('/api/submissions');
   /* Vé "không phải người máy" mới nhất của trang (vé lúc cất có thể đã hết hạn) — vé
      không nằm trong dấu vân của lần gửi nên đổi được */
   const ve = layVe();
@@ -389,13 +411,24 @@ async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
 }
 
 let dangChay = false;
+/* Lượt bị gọi lúc đang chạy: chạy thêm một lượt sau (trọng tài P92: bà con vừa xác
+   minh mà lượt cũ đang chạy thì thao tác bị bỏ rơi tới lúc tải lại trang) */
+let chayLai: { xacMinhThem?: string; nguoiBam: boolean } | null = null;
 /**
  * Gửi các tin chờ. Một lượt một lúc (giữa các tab và với service worker qua Web
- * Locks nếu có). `xacMinhThem`: mã Turnstile tươi cho tin đang cần xác minh thêm.
+ * Locks nếu có). `xacMinhThem`: mã Turnstile tươi cho MỘT tin đang cần xác minh thêm
+ * (mã chỉ dùng được một lần). `nguoiBam`: do bà con vừa thao tác — tab khác / service
+ * worker đang giữ lượt thì đợi rồi thử lại, không bỏ.
  */
-export async function guiTinCho(xacMinhThem?: string): Promise<void> {
-  if (!coHangCho || dangChay) return;
+export async function guiTinCho(xacMinhThem?: string, nguoiBam = false): Promise<void> {
+  if (!coHangCho) return;
+  if (dangChay) {
+    chayLai = { xacMinhThem: xacMinhThem ?? chayLai?.xacMinhThem, nguoiBam: nguoiBam || Boolean(chayLai?.nguoiBam) };
+    return;
+  }
   dangChay = true;
+  let maThem = xacMinhThem;
+  let biGiu = false;
   const chay = async () => {
     let ds: BanGhiTin[] = [];
     try {
@@ -406,18 +439,24 @@ export async function guiTinCho(xacMinhThem?: string): Promise<void> {
       if (ban.trangThai === 'loi' || ban.trangThai === 'qua_han') continue;
       if (ban.henLuc && ban.henLuc > Date.now()) continue;   // máy chủ bảo đợi — chưa tới lượt
       if (ban.trangThai === 'can_xac_minh' && !layVe()) continue;
-      if (ban.trangThai === 'can_xac_minh_them' && !xacMinhThem) continue;
+      if (ban.trangThai === 'can_xac_minh_them' && !maThem) continue;
       if (ban.trangThai !== 'cho') await doiTrangThai(ban.id, 'cho');
-      await guiMot(ban, ban.trangThai === 'can_xac_minh_them' ? xacMinhThem : undefined);
+      const ma = ban.trangThai === 'can_xac_minh_them' ? maThem : undefined;
+      if (ma) maThem = undefined;   // tin sau cần mã khác: thanh báo dựng ô mới
+      await guiMot(ban, ma);
     }
   };
   try {
     const locks = (navigator as Navigator & { locks?: { request(n: string, o: object, f: (l: unknown) => Promise<void>): Promise<void> } }).locks;
-    if (locks) await locks.request(THE_DONG_BO, { ifAvailable: true }, async (lock) => { if (lock) await chay(); });
+    if (locks) await locks.request(THE_DONG_BO, { ifAvailable: true }, async (lock) => { if (lock) await chay(); else biGiu = true; });
     else await chay();
   } finally {
     dangChay = false;
     baoDoi();
+    const tiep = chayLai;
+    chayLai = null;
+    if (tiep) void guiTinCho(tiep.xacMinhThem, tiep.nguoiBam);
+    else if (biGiu && nguoiBam) setTimeout(() => { void guiTinCho(xacMinhThem, true); }, 3000);
   }
 }
 
