@@ -66,7 +66,7 @@ test('chưa chạy nang_cap_v40.sql: vẫn nhận ý kiến (có hay không có 
   /* SQLite không xoá được cột UNIQUE: dựng lại bảng submissions y như cũ, bỏ hai cột v40 */
   const sql = ctl.db.prepare("SELECT sql FROM sqlite_master WHERE name = 'submissions'").get().sql;
   ctl.db.exec('DROP TABLE submissions');
-  ctl.db.exec(sql.replace(/,\s*lan_gui_bam TEXT UNIQUE, lan_gui_dau TEXT/, ''));
+  ctl.db.exec(sql.replace(/,\s*lan_gui_bam TEXT UNIQUE, lan_gui_dau TEXT, lan_gui_xong INT/, ''));
   assert.throws(() => ctl.db.prepare('SELECT lan_gui_bam FROM submissions').get());
   assert.equal((await gui({ ...donCoTen(0), maLanGui: crypto.randomUUID() })).status, 201);
   assert.equal((await gui(donCoTen(1))).status, 201);
@@ -243,4 +243,40 @@ test('R2-1 — yêu cầu KHÔNG vé kèm mã lần gửi + mảng khổng lồ 
   } finally {
     delete process.env.TURNSTILE_SECRET_KEY;
   }
+});
+
+test('R2-2 — lần đầu CHƯA lưu xong tệp (đơn vừa tạo): gửi lại nhận 409 "đang gửi", không báo "đã nhận đủ"', { skip: BO_QUA }, async () => {
+  const maLanGui = crypto.randomUUID();
+  const don = { ...donCoTen(14), maLanGui, images: ['data:image/png;base64,không-phải-ảnh'] };
+  const lan1 = await gui(don);
+  assert.equal(lan1.status, 201, JSON.stringify(lan1.body));
+  /* giả như lần đầu còn đang lưu tệp (hoặc chết trước khi lưu xong) */
+  ctl.db.prepare('UPDATE submissions SET lan_gui_xong = NULL WHERE tracking_code = ?').run(lan1.body.trackingCode);
+  const lan2 = await gui(don);
+  assert.equal(lan2.status, 409, JSON.stringify(lan2.body));
+  assert.equal(lan2.body.code, 'DANG_GUI');
+  assert.equal(lan2.body.trackingCode, undefined);
+});
+
+test('R2-2 — lần đầu chết giữa chừng (quá 2 phút chưa xong): trả mã tra cứu nhưng báo MỌI tệp là chưa chắc đã nhận', { skip: BO_QUA }, async () => {
+  const maLanGui = crypto.randomUUID();
+  const don = { ...donCoTen(15), maLanGui, images: ['data:image/png;base64,a', 'data:image/png;base64,b'], taiLieu: [{ ten: 'x.pdf', duLieu: 'data:application/pdf;base64,JVBERi0=' }] };
+  const lan1 = await gui(don);
+  assert.equal(lan1.status, 201, JSON.stringify(lan1.body));
+  ctl.db.prepare('UPDATE submissions SET lan_gui_xong = NULL WHERE tracking_code = ?').run(lan1.body.trackingCode);
+  ctl.troiQua(3);
+  const lan2 = await gui(don);
+  assert.equal(lan2.status, 200, JSON.stringify(lan2.body));
+  assert.equal(lan2.body.trackingCode, lan1.body.trackingCode);
+  assert.equal(lan2.body.tepKhongNhan.length, 3, JSON.stringify(lan2.body.tepKhongNhan));
+  assert.match(lan2.body.tepKhongNhan[0].lyDo, /chưa (chắc|xác nhận)/i);
+});
+
+test('R2-2 — không đọc được dấu tệp (chưa chạy v35): gửi lại có tệp thì báo chưa chắc, không báo rỗng', { skip: BO_QUA }, async () => {
+  const maLanGui = crypto.randomUUID();
+  const don = { ...donCoTen(16), maLanGui, images: ['data:image/png;base64,c'] };
+  assert.equal((await gui(don)).status, 201);
+  const lan2 = await gui(don);
+  assert.equal(lan2.status, 200);
+  assert.equal(lan2.body.tepKhongNhan.length, 1, JSON.stringify(lan2.body.tepKhongNhan));
 });

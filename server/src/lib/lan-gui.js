@@ -33,6 +33,8 @@ import { hashIdentifier } from './crypto.js';
 import { sha256 } from './helpers.js';
 
 export const SONG_GIO = 24;
+/** Lần đầu chưa lưu xong tệp mà đơn còn mới hơn chừng này -> "đang gửi", thử lại sau */
+export const PHUT_CHO_LUU_TEP = 2;
 const DANG_MA = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 /** Mã lần gửi hợp lệ (UUID v4, chỉ nhận chuỗi) -> chữ thường; không thì '' */
@@ -87,7 +89,7 @@ let coCot = false;
 export async function coCotLanGui(pool) {
   if (coCot) return true;
   try {
-    await pool.query('SELECT lan_gui_bam, lan_gui_dau FROM submissions LIMIT 0');
+    await pool.query('SELECT lan_gui_bam, lan_gui_dau, lan_gui_xong FROM submissions LIMIT 0');
     coCot = true;
   } catch { /* chưa chạy v40 */ }
   return coCot;
@@ -96,9 +98,11 @@ export async function coCotLanGui(pool) {
 /** Đơn đã lưu từ mã này trong SONG_GIO giờ (kèm dấu vân để so); không thì null */
 export async function timDonTheoMaLanGui(pool, bam) {
   const [rows] = await pool.query(
-    `SELECT id, tracking_code, is_anonymous, created_at, lan_gui_dau FROM submissions
+    `SELECT id, tracking_code, is_anonymous, created_at, lan_gui_dau, lan_gui_xong,
+            (created_at > NOW() - INTERVAL ? MINUTE) AS vua_tao
+       FROM submissions
       WHERE lan_gui_bam = ? AND created_at > NOW() - INTERVAL ? HOUR`,
-    [bam, SONG_GIO]
+    [PHUT_CHO_LUU_TEP, bam, SONG_GIO]
   );
   return rows[0] || null;
 }
@@ -106,10 +110,32 @@ export async function timDonTheoMaLanGui(pool, bam) {
 /** Băm cũ QUÁ HẠN của đúng mã này — gỡ trước khi lưu đơn mới mang cùng mã */
 export async function xoaMaLanGuiCu(pool, bam) {
   await pool.query(
-    `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, updated_at = updated_at
+    `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, lan_gui_xong = NULL, updated_at = updated_at
       WHERE lan_gui_bam = ? AND created_at <= NOW() - INTERVAL ? HOUR`,
     [bam, SONG_GIO]
   );
+}
+
+/**
+ * Lần đầu đã lưu XONG tệp (ảnh, tài liệu, dấu tệp không nhận) — gọi ở cuối lần
+ * gửi đầu. Chưa có dấu này thì lần gửi lại không được báo "đã nhận đủ tệp"
+ * (trọng tài P91 bản 2: lần đầu còn đang lưu, hoặc đã chết giữa chừng).
+ */
+export async function danhDauXongLanGui(pool, submissionId) {
+  await pool.query('UPDATE submissions SET lan_gui_xong = 1, updated_at = updated_at WHERE id = ?', [submissionId]);
+}
+
+/** Dấu tệp không nhận của lần gửi đầu; không đọc được (lỗi, chưa chạy v35) -> null */
+export async function docTepKhongNhanChac(pool, submissionId) {
+  try {
+    const [r] = await pool.query(
+      'SELECT loai, ly_do FROM tep_khong_nhan WHERE submission_id = ? AND bo_sung_id IS NULL ORDER BY id LIMIT 50',
+      [submissionId]
+    );
+    return r;
+  } catch {
+    return null;
+  }
 }
 
 /** Lỗi trùng khoá có phải do cột mã lần gửi không (MySQL ghi tên chỉ mục, SQLite tên cột) */
@@ -123,7 +149,7 @@ export const trungMaLanGui = (err) => err?.code === 'ER_DUP_ENTRY'
 export async function xoaMaLanGuiQuaHan(pool) {
   if (!(await coCotLanGui(pool))) return 0;
   const [kq] = await pool.query(
-    `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, updated_at = updated_at
+    `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, lan_gui_xong = NULL, updated_at = updated_at
       WHERE lan_gui_bam IS NOT NULL AND created_at < NOW() - INTERVAL ? HOUR`,
     [SONG_GIO]
   );

@@ -9,7 +9,7 @@ import {
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh, SO_ANH_TOI_DA } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu, MAX_SO_TAI_LIEU } from '../lib/tai-lieu-an-toan.js';
-import { ghiTepKhongNhan, docTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI, moTaThua, moTaSaiDang } from '../lib/tep-khong-nhan.js';
+import { ghiTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI, moTaThua, moTaSaiDang } from '../lib/tep-khong-nhan.js';
 import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
 import { danhGiaMucKhan } from '../lib/phan-loai.js';
 import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
@@ -24,7 +24,10 @@ import { veSdtHopLe } from './xac-minh-sdt.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 import { bamPin } from '../lib/bam-pin.js';
-import { docMaLanGui, lanGuiCua, pinTuMaLanGui, coCotLanGui, timDonTheoMaLanGui, trungMaLanGui, xoaMaLanGuiCu } from '../lib/lan-gui.js';
+import {
+  docMaLanGui, lanGuiCua, pinTuMaLanGui, coCotLanGui, timDonTheoMaLanGui, trungMaLanGui, xoaMaLanGuiCu,
+  danhDauXongLanGui, docTepKhongNhanChac,
+} from '../lib/lan-gui.js';
 
 const router = Router();
 
@@ -128,7 +131,10 @@ router.get('/phieu-mo-form', (_req, res) => {
  * lại từ mã, không ghi gì lên đơn); lệch dấu vân thì 409, không trả mã tra cứu.
  * Chưa có -> false, đi tiếp như đơn mới.
  */
-async function traLaiNeuDaNhan(res, lanGui, { category, content, normalizedContent, fullName, phone, email }) {
+const LY_DO_CHUA_CHAC = 'Hệ thống chưa xác nhận được đã nhận tệp này. Bà con gửi lại tệp qua mục Bổ sung thông tin '
+  + '(dùng mã tra cứu), hoặc mang tới trụ sở.';
+
+async function traLaiNeuDaNhan(res, lanGui, { category, content, normalizedContent, fullName, phone, email, soAnh, soTaiLieu }) {
   const cu = await timDonTheoMaLanGui(pool, lanGui.bam);
   if (!cu) return false;
   if (cu.lan_gui_dau !== lanGui.dau) {
@@ -139,15 +145,29 @@ async function traLaiNeuDaNhan(res, lanGui, { category, content, normalizedConte
     });
     return true;
   }
+  /* Lần đầu chưa lưu xong tệp: đơn còn mới -> đang lưu, thử lại sau (không báo "đủ") */
+  const xong = Number(cu.lan_gui_xong) === 1;
+  if (!xong && Number(cu.vua_tao) === 1) {
+    res.status(409).json({ error: 'Ý kiến này đang được gửi. Bà con chờ vài giây rồi thử lại — không cần điền lại.', code: 'DANG_GUI' });
+    return true;
+  }
   const anDanh = Number(cu.is_anonymous) === 1;
-  /* Tệp không nhận được ở lần đầu — CSDL không lưu tên tệp, chỉ báo loại + lý do */
-  const tep = (await docTepKhongNhan(Number(cu.id))).filter((t) => t.bo_sung_id == null);
+  /* Tệp không nhận được ở lần đầu — CSDL không lưu tên tệp, chỉ báo loại + lý do.
+     Lần đầu chết giữa chừng, hoặc không đọc được dấu tệp: KHÔNG báo rỗng ("đủ cả") —
+     báo mọi tệp đã gửi là chưa chắc (lỗi kiểu BUG-035) */
+  const dau = xong ? await docTepKhongNhanChac(pool, Number(cu.id)) : null;
+  const tepKhongNhan = dau
+    ? dau.map((t) => ({ ten: t.loai === 'anh' ? 'Ảnh' : 'Tài liệu', lyDo: t.ly_do }))
+    : [
+      ...Array.from({ length: soAnh }, (_, i) => ({ ten: `Ảnh ${i + 1}`, lyDo: LY_DO_CHUA_CHAC })),
+      ...Array.from({ length: soTaiLieu }, (_, i) => ({ ten: `Tài liệu ${i + 1}`, lyDo: LY_DO_CHUA_CHAC })),
+    ];
   res.status(200).json({
     trackingCode: cu.tracking_code,
     chatPin: pinTuMaLanGui(lanGui.ma),
     daNhanTruoc: true,
     pendingReview: anDanh,
-    tepKhongNhan: choNguoiDan(tep.map((t) => ({ ten: t.loai === 'anh' ? 'Ảnh' : 'Tài liệu', lyDo: t.ly_do }))),
+    tepKhongNhan: choNguoiDan(tepKhongNhan),
     content,
     normalizedContent,
     category,
@@ -183,7 +203,11 @@ router.post('/', async (req, res) => {
        vé / giới hạn — lần gửi lại không tạo gì mới, chỉ đọc một dòng theo chỉ mục */
     const maLanGui = docMaLanGui(body);
     const lanGui = maLanGui && (await coCotLanGui(pool)) ? lanGuiCua(maLanGui, body) : null;
-    const dongDon = { category, content, normalizedContent, fullName, phone, email };
+    const dongDon = {
+      category, content, normalizedContent, fullName, phone, email,
+      soAnh: Math.min(images.length, SO_ANH_TOI_DA),
+      soTaiLieu: Array.isArray(body.taiLieu) ? Math.min(body.taiLieu.length, MAX_SO_TAI_LIEU) : 0,
+    };
     if (lanGui && (await traLaiNeuDaNhan(res, lanGui, dongDon))) return;
 
     /* ===== KHÔNG LƯU IP THÔ CỦA NGƯỜI GỬI =====
@@ -774,6 +798,11 @@ router.post('/', async (req, res) => {
       }
     }
     await ghiTepKhongNhan(result.insertId, khongNhan);
+    /* P91: đã lưu xong mọi tệp + dấu — lần gửi lại từ đây mới báo được danh sách thật */
+    if (lanGui) {
+      await danhDauXongLanGui(pool, result.insertId)
+        .catch((e) => console.error('[gửi lại] không đánh dấu được "đã lưu xong tệp":', e.message));
+    }
 
     res.status(201).json({
       trackingCode,

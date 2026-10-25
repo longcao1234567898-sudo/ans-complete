@@ -78,7 +78,7 @@ const LUOC_DO = [
      to_giac_mat INT NOT NULL DEFAULT 0, ngoai_tham_quyen INT NOT NULL DEFAULT 0,
      chua_xac_minh_luc TEXT, sang_loc_boi INT, sang_loc_luc TEXT, giu_cho_lanh_dao INT NOT NULL DEFAULT 0,
      sdt_xac_minh INT DEFAULT NULL,
-     lan_gui_bam TEXT UNIQUE, lan_gui_dau TEXT)`,
+     lan_gui_bam TEXT UNIQUE, lan_gui_dau TEXT, lan_gui_xong INT)`,
   `CREATE TABLE ghi_chu_noi_bo (id INTEGER PRIMARY KEY, submission_id INT NOT NULL, staff_id INT NOT NULL,
      noi_dung TEXT NOT NULL, created_at TEXT DEFAULT (NOW()))`,
   `CREATE TABLE submission_images (id INTEGER PRIMARY KEY, submission_id INT, image_url TEXT, cloudinary_id TEXT, storage TEXT,
