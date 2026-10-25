@@ -60,7 +60,9 @@ export default function HangChoGuiNgam() {
     let hen: ReturnType<typeof setTimeout>[] = [];
     const coMang = () => {
       hen.forEach(clearTimeout);
-      hen = [0, 3000, 10_000].map((ms) => setTimeout(() => { void gui(undefined, false, true); }, ms));
+      /* Chỉ lần đầu được bỏ qua giãn vì lỗi mạng: wifi bật tắt liên tục không được
+         tải lại cả thân tin ba lần mỗi lượt (trọng tài P92 vòng 3) */
+      hen = [0, 3000, 10_000].map((ms, i) => setTimeout(() => { void gui(undefined, false, i === 0); }, ms));
     };
     const doi = () => { void docLai(); };
     window.addEventListener('online', coMang);

@@ -46,17 +46,23 @@ Tin chờ gửi là **danh tính người tố giác nằm trên máy người d
    phục nó khi mở lại tab đã đóng) và một **mã nhận kết quả** 6 số chỉ hiện cho người soạn. Tin /
    kết quả của trang khác **không hiện gì** — không thanh báo, không hộp — để người dùng sau không
    biết máy này vừa có người báo công an; tin vẫn tự gửi ngầm. Người soạn nhận lại bằng mã ở **ô cố
-   định trên trang Tra cứu** (ô luôn hiện, nhập sai không nói có tin hay không). Sai `SAI_MOI_DOT` lần
-   thì khoá tạm, mỗi đợt gấp đôi — **không xoá** (người khác không phá được kết quả của người gửi).
-   Đếm sai trong một giao dịch IndexedDB, nhiều tab chung một bộ đếm.
+   định trên trang Tra cứu** (ô luôn hiện, nhập sai không nói có tin hay không). MỌI lần nhập (đúng
+   cũng tính — không xen mã đúng của mình để xoá bộ đếm) tối đa `SAI_MOI_DOT` lần mỗi `CUA_SO_MS`,
+   quá thì khoá tạm, đợt liền sau gấp đôi, kẹp ở `KHOA_TOI_DA_MS`; yên lâu thì mức khoá về đầu. Khoá
+   **không xoá** gì. Bước đếm đọc-ghi trong một giao dịch IndexedDB, nhiều tab chung một bộ đếm. Mã
+   nhận kết quả mới không trùng mã đang có trên máy. Trần tin chờ tính theo trang (nhỏ) và cả máy
+   (lớn); lời báo đầy không nêu số — không để lộ máy có tin ẩn của người khác.
    Lý do: mã tra cứu đọc được nội dung tin, PIN mở phòng trao đổi với cán bộ.
 10. **Hạn sống** (hằng số trong `hangChoGui.ts`): máy chủ chỉ nhận ra lần gửi lại trong `SONG_GIO`
-   giờ (P91). Tin CÓ THỂ đã tới máy chủ — mọi lần yêu cầu đã đi mà không có trả lời chắc chắn (đứt,
-   hết giờ, 5xx, `DANG_GUI`) đều nâng cờ này — quá `HAN_GUI_LAI_GIO` thì dừng gửi, báo "có thể đã tới
+   giờ (P91). Tin CÓ THỂ đã tới máy chủ — mọi lần gửi không có trả lời chắc chắn (đứt, hết giờ, 5xx,
+   `DANG_GUI`; mã không phân biệt được yêu cầu đã rời máy hay chưa nên coi như đã đi) đều nâng cờ này —
+   quá `HAN_GUI_LAI_GIO` tính từ lần không chắc ĐẦU TIÊN (không từ lúc soạn) thì dừng gửi, báo "có thể đã tới
    — gọi trực ban" (gửi nữa là thành đơn thứ hai). Tin chắc chắn chưa tới gửi tới `HAN_TIN_GIO`, quá
    hạn báo "CHƯA tới công an". Quá hạn giữ thì tin / kết quả được thay bằng một DẤU không nội dung
    (loại + mã nhận kết quả) để người soạn nhập mã còn biết chuyện gì xảy ra; dấu xoá sau `HAN_DAU_GIO`.
-   Đồng hồ máy bị chỉnh lùi thì tuổi tin kẹp về 0. Service worker theo cùng luật.
+   Dấu mã hoá như kết quả, không có cờ chữ thường. Đồng hồ máy bị chỉnh lùi thì tuổi kẹp về 0; mốc
+   xa quá một năm coi là đồng hồ sai lúc soạn. Service worker theo cùng luật (khác: dùng vé lúc soạn,
+   không tự chuyển tin sang "quá hạn" — để trang báo).
 11. **React Query:** lệnh gửi ý kiến và lệnh phân tích nội dung đặt `networkMode: 'always'` — mặc định
    thư viện tạm dừng lệnh khi mất mạng, nút Gửi đứng im.
 
@@ -70,6 +76,13 @@ Tin chờ gửi là **danh tính người tố giác nằm trên máy người d
   NGẮN nhất có thể (gửi được là xoá, có hạn sống), giao diện không bao giờ hiện lại nội dung, có
   nút xoá, và màn hình nói rõ điều này với người dân.
 - Mã nhận kết quả chỉ chống người dùng sau bình thường, không chống người rành máy (cùng lý do).
+- **Khoá tạm có thể bị người khác dùng để làm chậm người gửi:** nhập sai liên tục giữ ô bị khoá; nếu
+  kéo dài quá `HAN_KET_QUA_GIO` thì kết quả thành dấu và người gửi mất mã tra cứu trên máy (dấu vẫn
+  báo "đã tới công an"). Xoá dữ liệu trình duyệt cũng làm mất như vậy. Chấp nhận: không xoá được
+  danh tính, chỉ làm phiền; người gửi nên chép mã tra cứu ngay khi thấy.
+- Còn lại vài dấu yếu cho người mở công cụ lập trình: khoá mã hoá và bộ đếm nhập mã không bao giờ xoá
+  (xoá khoá giữa chừng làm hỏng tin đang cất ở tab khác); thời gian phản hồi của ô nhận lại dài hơn
+  khi máy có tin lớn.
 - Người gửi tải lại trang / đóng trình duyệt rồi quay lại cũng không thấy tin nữa: phải nhập mã nhận
   kết quả ở trang Tra cứu (màn hình "đã lưu trên máy" nói rõ). Đánh đổi chấp nhận để bảo vệ người
   tố giác ở máy dùng chung.

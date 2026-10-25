@@ -224,6 +224,19 @@ function suaTin(db, id, doi) {
   });
 }
 
+/* Có thể đã tới: hạn gửi lại tính từ lần gửi KHÔNG CHẮC đầu tiên (như hangChoGui.ts quaHanGui) */
+const quaHanGui = (b) => {
+  const tuoi = (moc) => Math.max(0, Date.now() - moc) / GIO_MS;
+  return (b.coTheDaToi && tuoi(b.coTheDaToiLuc ?? b.taoLuc) > HAN_GUI_LAI_GIO) || tuoi(b.taoLuc) > HAN_TIN_GIO;
+};
+const nangCo = (b) => ({ coTheDaToi: true, coTheDaToiLuc: b.coTheDaToiLuc ?? Date.now() });
+/* AbortSignal.timeout chưa có trên Safari < 16 */
+function henGio(ms) {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
 const gianLuc = (n) => Date.now() + Math.min(GIAN_DAU_MS * 2 ** (n - 1), GIAN_TOI_DA_MS);
 
 async function guiTinChoNgam() {
@@ -240,9 +253,8 @@ async function guiTinChoNgam() {
       /* Đọc lại ngay trước khi gửi: bà con vừa bấm xoá thì không gửi */
       const ban = await lamKho(db, 'tin', 'readonly', (k) => k.get(id));
       if (!ban || ban.trangThai !== 'cho') continue;
-      const tuoi = Math.max(0, Date.now() - ban.taoLuc) / GIO_MS;
       /* Quá hạn gửi (gửi nữa có thể thành đơn thứ hai): để trang báo "quá hạn" */
-      if ((ban.coTheDaToi && tuoi > HAN_GUI_LAI_GIO) || tuoi > HAN_TIN_GIO) continue;
+      if (quaHanGui(ban)) continue;
       if (ban.henLuc && ban.henLuc > Date.now() && ban.henLuc < Date.now() + GIAN_TOI_DA_MS) continue;
       let nd;
       try {
@@ -257,12 +269,12 @@ async function guiTinChoNgam() {
       try {
         res = await fetch(url, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
-          signal: AbortSignal.timeout(Math.min(Math.max(HAN_GUI_TOI_THIEU_MS, (body.length / BYTE_MOI_GIAY) * 1000), HAN_GUI_TOI_DA_MS)),
+          signal: henGio(Math.min(Math.max(HAN_GUI_TOI_THIEU_MS, (body.length / BYTE_MOI_GIAY) * 1000), HAN_GUI_TOI_DA_MS)),
         });
       } catch {
         /* Đã đi mà đứt / hết giờ: máy chủ CÓ THỂ đã lưu */
         const n = (ban.soLanMang || 0) + 1;
-        await suaTin(db, id, { coTheDaToi: true, soLanMang: n, henLuc: gianLuc(n), henMang: true, loi: 'Mạng chập chờn, chưa gửi xong.' });
+        await suaTin(db, id, { ...nangCo(ban), soLanMang: n, henLuc: gianLuc(n), henMang: true, loi: 'Mạng chập chờn, chưa gửi xong.' });
         continue;
       }
       const j = await res.json().catch(() => ({}));
@@ -279,7 +291,7 @@ async function guiTinChoNgam() {
           const n = (ban.soLanThu || 0) + 1;
           const loi = loiMayChu || (res.status === 200 || res.status === 201 ? 'Máy chủ trả lời không đúng dạng.' : `Máy chủ chưa nhận được (mã ${res.status}).`);
           await suaTin(db, id, {
-            ...(res.status !== 429 ? { coTheDaToi: true } : {}),   // đã đi, trả lời không chắc
+            ...(res.status !== 429 ? nangCo(ban) : {}),   // đã đi, trả lời không chắc
             ...(n >= THU_TOI_DA
               ? { trangThai: 'loi', loi: `${loi} (đã thử ${n} lần, máy dừng tự gửi — bà con gọi trực ban hoặc xoá tin chờ rồi gửi lại sau)` }
               : { soLanThu: n, henLuc: gianLuc(n), henMang: false, loi }),
@@ -301,10 +313,7 @@ async function guiTinChoNgam() {
     }
     /* Còn tin đợi gửi (mạng, máy chủ bảo đợi) trong hạn -> hẹn lượt sau */
     const sau = await lamKho(db, 'tin', 'readonly', (k) => k.getAll());
-    conViec = sau.some((b) => {
-      const tuoi = Math.max(0, Date.now() - b.taoLuc) / GIO_MS;
-      return b.trangThai === 'cho' && !((b.coTheDaToi && tuoi > HAN_GUI_LAI_GIO) || tuoi > HAN_TIN_GIO);
-    });
+    conViec = sau.some((b) => b.trangThai === 'cho' && !quaHanGui(b));
   } finally {
     db.close();
     const ds = await self.clients.matchAll({ includeUncontrolled: true });
