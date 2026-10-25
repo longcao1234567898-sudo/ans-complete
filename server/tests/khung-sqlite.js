@@ -108,6 +108,8 @@ const LUOC_DO = [
   `CREATE TABLE ma_xac_minh_sdt (id INTEGER PRIMARY KEY, sdt_bam TEXT NOT NULL, ma_bam TEXT NOT NULL, kenh TEXT NOT NULL,
      het_han TEXT NOT NULL, so_lan_sai INT NOT NULL DEFAULT 0, da_dung INT NOT NULL DEFAULT 0, tao_luc TEXT DEFAULT (NOW()))`,
   `CREATE TABLE dem_gioi_han (khoa TEXT PRIMARY KEY, so INT NOT NULL DEFAULT 0, het_han TEXT NOT NULL)`,
+  /* nang_cap_v40.sql (P91) — nhớ lần gửi đã thành đơn nào (gửi lại không tạo đơn trùng) */
+  `CREATE TABLE lan_gui_y_kien (khoa TEXT PRIMARY KEY, submission_id INT, tao_luc TEXT NOT NULL)`,
   `CREATE TABLE canh_bao_dot_bien (id INTEGER PRIMARY KEY, ward_id INT NOT NULL, khung INT NOT NULL,
      so_tin INT NOT NULL, nguong INT NOT NULL, created_at TEXT DEFAULT (NOW()), UNIQUE (ward_id, khung))`,
   `INSERT INTO categories VALUES (1, 'to_giac', 'Tố giác', 15), (2, 'khieu_nai', 'Khiếu nại', 30),

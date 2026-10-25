@@ -24,6 +24,7 @@ import { veSdtHopLe } from './xac-minh-sdt.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 import { bamPin } from '../lib/bam-pin.js';
+import { docMaLanGui, timLanGuiCu, giuMaLanGui, ganDon, traMaLanGui } from '../lib/lan-gui.js';
 
 const router = Router();
 
@@ -121,9 +122,37 @@ router.get('/phieu-mo-form', (_req, res) => {
   res.json({ phieu: capPhieuMoForm() });
 });
 
+/**
+ * Trả lại hồ sơ đã lưu từ CHÍNH lần gửi này (P91, lib/lan-gui.js) — mạng đứt lúc
+ * chờ trả lời thì lần gửi lại nhận được mã tra cứu thay vì bị chặn trùng. PIN phòng
+ * trao đổi chỉ lưu băm nên cấp PIN MỚI (PIN cũ chưa tới tay người gửi). Danh sách
+ * tệp không nhận được thì không trả lại được (CSDL không lưu tên tệp).
+ */
+async function traLaiLanGuiCu(res, cu, { category, content, normalizedContent, fullName, phone, email }) {
+  const chatPin = String(crypto.randomInt(100000, 1_000_000));
+  await pool.query('UPDATE submissions SET chat_pin_hash = ? WHERE id = ?', [await bamPin(chatPin), cu.id]);
+  const anDanh = Number(cu.is_anonymous) === 1;
+  return res.status(200).json({
+    trackingCode: cu.tracking_code,
+    chatPin,
+    daNhanTruoc: true,
+    pendingReview: anDanh,
+    tepKhongNhan: [],
+    content,
+    normalizedContent,
+    category,
+    contact: anDanh ? { fullName: 'Ẩn danh', phone: '' } : { fullName, phone, ...(email ? { email } : {}) },
+    createdAt: new Date(cu.created_at).toISOString(),
+  });
+}
+
 router.post('/', async (req, res) => {
   /* Chỗ giữ cho các khoá đếm (lib/giu-cho-gui.js) — trả lại ở finally */
   let giu = null;
+  /* Mã lần gửi (P91): đã giữ mà chưa lưu được đơn thì trả ra ở finally */
+  let maLanGui = '';
+  let daGiuMa = false;
+  let daLuuDon = false;
   try {
     const body = req.body || {};
     const content = sanitizeText(body.content);
@@ -142,6 +171,14 @@ router.post('/', async (req, res) => {
     const urgency = danhGiaMucKhan(content).muc;
 
     const ip = layIpThat(req);
+
+    /* GỬI LẠI CÙNG MỘT LẦN (P91): đúng mã + đúng nội dung đã thành đơn -> trả lại
+       hồ sơ đó, TRƯỚC cổng vé / giới hạn (lần gửi lại không tạo gì mới) */
+    maLanGui = docMaLanGui(body);
+    if (maLanGui) {
+      const cu = await timLanGuiCu(pool, maLanGui, sha256(normalizedContent));
+      if (cu) return traLaiLanGuiCu(res, cu, { category, content, normalizedContent, fullName, phone, email });
+    }
 
     /* ===== KHÔNG LƯU IP THÔ CỦA NGƯỜI GỬI =====
        Với một tin ẩn danh, bộ ba ip_address + user_agent + created_at là đủ để
@@ -305,6 +342,12 @@ router.post('/', async (req, res) => {
         error: 'Hệ thống đang nhận một ý kiến khác gửi từ cùng thiết bị hoặc cùng mạng. '
           + 'Bà con vui lòng chờ vài giây rồi bấm gửi lại. Việc khẩn cấp xin gọi ngay 113.',
       });
+    }
+    /* Tra lại sau khi giữ chỗ: lần gửi lại chen vào lúc lần đầu đang lưu thì chờ ở
+       chỗ giữ, tới đây lần đầu đã ghi xong số đơn -> trả lại thay vì báo trùng */
+    if (maLanGui) {
+      const cu = await timLanGuiCu(pool, maLanGui, contentHash);
+      if (cu) return traLaiLanGuiCu(res, cu, { category, content, normalizedContent, fullName, phone, email });
     }
 
     /* Đếm TÁCH RIÊNG theo mạng và theo số điện thoại: hai loại giới hạn xử lý
@@ -498,6 +541,15 @@ router.post('/', async (req, res) => {
     const coCotSdt = await kiemCotSdtXacMinh();
     const sdtXacMinh = isAnonymous ? null : (veSdtHopLe(body.veSdt, phone) ? 1 : 0);
 
+    /* P91: giữ mã lần gửi NGAY trước khi lưu — gửi dồn cùng mã chỉ một lần qua */
+    if (!(await giuMaLanGui(pool, maLanGui))) {
+      return res.status(409).json({
+        error: 'Ý kiến này đang được gửi. Bà con chờ vài giây rồi thử lại — không cần điền lại.',
+        code: 'DANG_GUI',
+      });
+    }
+    daGiuMa = Boolean(maLanGui);
+
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
     const [result] = await pool.query(
       `INSERT INTO submissions
@@ -549,6 +601,14 @@ router.post('/', async (req, res) => {
         ...(coCotSdt ? [sdtXacMinh] : []),
       ]
     );
+
+    daLuuDon = true;
+    /* Ghi số đơn vào mã lần gửi TRƯỚC khi nhả chỗ — lần gửi lại đang chờ chỗ sẽ thấy.
+       Ghi hỏng thì đơn VẪN đã lưu: báo nhật ký, trả lời bình thường (không 500) */
+    if (maLanGui) {
+      await ganDon(pool, maLanGui, result.insertId)
+        .catch((e) => console.error('[gửi lại] không ghi được số đơn vào mã lần gửi:', e.message));
+    }
 
     /* Đã ghi xong: trả chỗ ngay, không giữ trong lúc lưu ảnh và tài liệu */
     await giu.nha();
@@ -734,6 +794,7 @@ router.post('/', async (req, res) => {
        phải biết gọi 113 ngay, không chờ "thử lại sau" (ADR-003 việc 7) */
     res.status(500).json({ error: 'Gửi thất bại — Vấn đề khẩn cấp liên hệ ngay 113 để được giải quyết.' });
   } finally {
+    if (daGiuMa && !daLuuDon) await traMaLanGui(pool, maLanGui);
     if (giu) await giu.nha();
   }
 });
