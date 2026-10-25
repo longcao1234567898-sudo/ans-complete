@@ -12,6 +12,20 @@ export const hasBackend = Boolean(API_URL);
 /** Địa chỉ đầy đủ của một đường API — hàng chờ gửi ngầm cất kèm tin (P92) */
 export const diaChiApi = (path: string) => `${API_URL}${path}`;
 
+/**
+ * Tín hiệu huỷ sau `ms` mili giây. Mạng "treo" (có wifi mà không ra internet, sóng
+ * rất yếu) thì fetch không báo lỗi mà chờ mãi — màn hình kẹt (P92: kẹt ở bước Phân
+ * tích). AbortSignal.timeout chưa có trên Safari < 16 nên tự làm bằng AbortController.
+ */
+export function hanCho(ms: number): AbortSignal {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
+/** Máy báo đang mất mạng (không chắc ngược lại: báo có mạng vẫn có thể "treo") */
+export const dangMatMang = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
 /** Gọi API backend; ném Error với thông báo từ server nếu có */
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   /* ------------------------------------------------------------------------
@@ -62,16 +76,19 @@ export async function kiemTraMayChu(choMs: number): Promise<boolean> {
   }
 }
 
-/** Trạng thái bật/tắt AI ở backend (cache sau lần gọi đầu) */
+/** Trạng thái bật/tắt AI ở backend (nhớ sau lần máy chủ TRẢ LỜI đầu tiên) */
 let backendAI: boolean | null = null;
+const HAN_HOI_AI_MS = 3000;
 export async function backendHasAI(): Promise<boolean> {
   if (!hasBackend) return false;
   if (backendAI !== null) return backendAI;
+  /* Mất mạng / không hỏi được: coi như không có AI lần này, KHÔNG nhớ — có mạng lại thì hỏi lại */
+  if (dangMatMang()) return false;
   try {
-    const { available } = await apiFetch<{ available: boolean }>('/api/ai/status');
+    const { available } = await apiFetch<{ available: boolean }>('/api/ai/status', { signal: hanCho(HAN_HOI_AI_MS) });
     backendAI = available;
+    return backendAI;
   } catch {
-    backendAI = false;
+    return false;
   }
-  return backendAI;
 }

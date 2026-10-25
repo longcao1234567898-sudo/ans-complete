@@ -16,7 +16,11 @@ import type { ChatMessage } from '../types/chat';
 import { CATEGORY_KEYWORDS, KEYWORD_DISPLAY, CHAT_RULES, CHAT_FALLBACK } from '../utils/mockData';
 import toast from 'react-hot-toast';
 import { delay, stripDiacritics, capitalize } from '../utils/helpers';
-import { apiFetch, hasBackend, backendHasAI } from './api';
+import { apiFetch, hasBackend, backendHasAI, dangMatMang, hanCho } from './api';
+
+/* Máy chủ AI quá chừng này chưa trả lời thì phân tích trên máy — mạng "treo" không được
+   giữ bà con ở bước Phân tích (P92) */
+const HAN_PHAN_TICH_MS = 10_000;
 
 /** Tiền tố diễn đạt lại nội dung theo nhóm phân loại */
 const CATEGORY_PREFIX: Record<FeedbackCategory, string> = {
@@ -33,11 +37,12 @@ const CATEGORY_PREFIX: Record<FeedbackCategory, string> = {
  */
 export async function analyzeContent(raw: string): Promise<AIAnalysisResult> {
   // Ưu tiên AI thật qua backend (key nằm phía server)
-  if (hasBackend && (await backendHasAI())) {
+  if (hasBackend && !dangMatMang() && (await backendHasAI())) {
     try {
       return await apiFetch<AIAnalysisResult>('/api/ai/analyze', {
         method: 'POST',
         body: JSON.stringify({ content: raw }),
+        signal: hanCho(HAN_PHAN_TICH_MS),
       });
     } catch (e) {
       console.warn('Backend analyze lỗi, dùng phân tích cục bộ:', e);

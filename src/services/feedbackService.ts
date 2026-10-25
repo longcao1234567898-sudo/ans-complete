@@ -11,7 +11,7 @@ import { ANTI_SPAM, STORAGE_KEYS } from '../utils/constants';
 import { layMaThietBi } from '../utils/deviceId';
 import { delay, generateTrackingCode, getPhoneError } from '../utils/helpers';
 import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/security';
-import { apiFetch, hasBackend } from './api';
+import { apiFetch, hanCho, hasBackend } from './api';
 import { loiGuiDeHieu } from '../utils/loiGui';
 import { layVe, veHetHan } from '../utils/veVaoCua';
 import { coHangCho, DaXepHang, KhongCatDuoc, themTinCho } from './hangChoGui';
@@ -255,9 +255,13 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
       if (coHangCho && typeof navigator !== 'undefined' && navigator.onLine === false) {
         throw new DaXepHang(await themTinCho(than, false));
       }
+      /* Hạn chờ theo cỡ thân (như hàng chờ — hangChoGui.ts): mạng "treo" thì hết hạn ->
+         rơi xuống nhánh cất hàng chờ bên dưới, không quay mãi ở nút Gửi (P92) */
+      const body = JSON.stringify(than);
       return await apiFetch<FeedbackSubmission>('/api/submissions', {
         method: 'POST',
-        body: JSON.stringify(than),
+        body,
+        signal: hanCho(Math.min(Math.max(60_000, (body.length / (32 * 1024)) * 1000), 15 * 60_000)),
       });
     } catch (e) {
       if (e instanceof DaXepHang || e instanceof KhongCatDuoc) throw e;
