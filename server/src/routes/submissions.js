@@ -9,7 +9,7 @@ import {
 import { encrypt, hashPhone, hashIdentifier, encryptionEnabled, encryptionProblem } from '../lib/crypto.js';
 import { locDanhSachAnh, SO_ANH_TOI_DA } from '../lib/anh-an-toan.js';
 import { locDanhSachTaiLieu, MAX_SO_TAI_LIEU } from '../lib/tai-lieu-an-toan.js';
-import { ghiTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI, moTaThua, moTaSaiDang } from '../lib/tep-khong-nhan.js';
+import { ghiTepKhongNhan, docTepKhongNhan, choNguoiDan, LY_DO_LUU_LOI, moTaThua, moTaSaiDang } from '../lib/tep-khong-nhan.js';
 import { xetTruocKhiNhan, layMaThietBi } from '../lib/chan-spam.js';
 import { danhGiaMucKhan } from '../lib/phan-loai.js';
 import { nhanDienToGiacMat } from '../lib/to-giac-mat.js';
@@ -24,7 +24,7 @@ import { veSdtHopLe } from './xac-minh-sdt.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 import { bamPin } from '../lib/bam-pin.js';
-import { docMaLanGui, timLanGuiCu, giuMaLanGui, ganDon, traMaLanGui } from '../lib/lan-gui.js';
+import { docMaLanGui, bamMaLanGui, dauVanLanGui, pinTuMaLanGui, coCotLanGui, timDonTheoMaLanGui, trungMaLanGui, xoaMaLanGuiCu } from '../lib/lan-gui.js';
 
 const router = Router();
 
@@ -123,36 +123,43 @@ router.get('/phieu-mo-form', (_req, res) => {
 });
 
 /**
- * Trả lại hồ sơ đã lưu từ CHÍNH lần gửi này (P91, lib/lan-gui.js) — mạng đứt lúc
- * chờ trả lời thì lần gửi lại nhận được mã tra cứu thay vì bị chặn trùng. PIN phòng
- * trao đổi chỉ lưu băm nên cấp PIN MỚI (PIN cũ chưa tới tay người gửi). Danh sách
- * tệp không nhận được thì không trả lại được (CSDL không lưu tên tệp).
+ * Lần gửi này đã thành đơn chưa (P91, lib/lan-gui.js). Đã có -> trả lời luôn và
+ * trả true: cùng dấu vân thì 200 với ĐÚNG mã tra cứu + ĐÚNG PIN đã cấp (PIN tính
+ * lại từ mã, không ghi gì lên đơn); lệch dấu vân thì 409, không trả mã tra cứu.
+ * Chưa có -> false, đi tiếp như đơn mới.
  */
-async function traLaiLanGuiCu(res, cu, { category, content, normalizedContent, fullName, phone, email }) {
-  const chatPin = String(crypto.randomInt(100000, 1_000_000));
-  await pool.query('UPDATE submissions SET chat_pin_hash = ? WHERE id = ?', [await bamPin(chatPin), cu.id]);
+async function traLaiNeuDaNhan(res, lanGui, { category, content, normalizedContent, fullName, phone, email }) {
+  const cu = await timDonTheoMaLanGui(pool, lanGui.bam);
+  if (!cu) return false;
+  if (cu.lan_gui_dau !== lanGui.dau) {
+    res.status(409).json({
+      error: 'Lần gửi này khác với ý kiến bà con đã gửi trước đó bằng cùng mã. Ý kiến trước đã được nhận; '
+        + 'muốn thêm thông tin, bà con dùng mã tra cứu và mục Bổ sung thông tin. Việc khẩn cấp xin gọi ngay 113.',
+      code: 'LAN_GUI_KHAC',
+    });
+    return true;
+  }
   const anDanh = Number(cu.is_anonymous) === 1;
-  return res.status(200).json({
+  /* Tệp không nhận được ở lần đầu — CSDL không lưu tên tệp, chỉ báo loại + lý do */
+  const tep = (await docTepKhongNhan(Number(cu.id))).filter((t) => t.bo_sung_id == null);
+  res.status(200).json({
     trackingCode: cu.tracking_code,
-    chatPin,
+    chatPin: pinTuMaLanGui(lanGui.ma),
     daNhanTruoc: true,
     pendingReview: anDanh,
-    tepKhongNhan: [],
+    tepKhongNhan: choNguoiDan(tep.map((t) => ({ ten: t.loai === 'anh' ? 'Ảnh' : 'Tài liệu', lyDo: t.ly_do }))),
     content,
     normalizedContent,
     category,
     contact: anDanh ? { fullName: 'Ẩn danh', phone: '' } : { fullName, phone, ...(email ? { email } : {}) },
     createdAt: new Date(cu.created_at).toISOString(),
   });
+  return true;
 }
 
 router.post('/', async (req, res) => {
   /* Chỗ giữ cho các khoá đếm (lib/giu-cho-gui.js) — trả lại ở finally */
   let giu = null;
-  /* Mã lần gửi (P91): đã giữ mà chưa lưu được đơn thì trả ra ở finally */
-  let maLanGui = '';
-  let daGiuMa = false;
-  let daLuuDon = false;
   try {
     const body = req.body || {};
     const content = sanitizeText(body.content);
@@ -172,13 +179,14 @@ router.post('/', async (req, res) => {
 
     const ip = layIpThat(req);
 
-    /* GỬI LẠI CÙNG MỘT LẦN (P91): đúng mã + đúng nội dung đã thành đơn -> trả lại
-       hồ sơ đó, TRƯỚC cổng vé / giới hạn (lần gửi lại không tạo gì mới) */
-    maLanGui = docMaLanGui(body);
-    if (maLanGui) {
-      const cu = await timLanGuiCu(pool, maLanGui, sha256(normalizedContent));
-      if (cu) return traLaiLanGuiCu(res, cu, { category, content, normalizedContent, fullName, phone, email });
-    }
+    /* GỬI LẠI CÙNG MỘT LẦN (P91): mã này đã thành đơn -> trả lại đơn đó, TRƯỚC cổng
+       vé / giới hạn — lần gửi lại không tạo gì mới, chỉ đọc một dòng theo chỉ mục */
+    const maLanGui = docMaLanGui(body);
+    const lanGui = maLanGui && (await coCotLanGui(pool))
+      ? { ma: maLanGui, bam: bamMaLanGui(maLanGui), dau: dauVanLanGui(body) }
+      : null;
+    const dongDon = { category, content, normalizedContent, fullName, phone, email };
+    if (lanGui && (await traLaiNeuDaNhan(res, lanGui, dongDon))) return;
 
     /* ===== KHÔNG LƯU IP THÔ CỦA NGƯỜI GỬI =====
        Với một tin ẩn danh, bộ ba ip_address + user_agent + created_at là đủ để
@@ -344,11 +352,8 @@ router.post('/', async (req, res) => {
       });
     }
     /* Tra lại sau khi giữ chỗ: lần gửi lại chen vào lúc lần đầu đang lưu thì chờ ở
-       chỗ giữ, tới đây lần đầu đã ghi xong số đơn -> trả lại thay vì báo trùng */
-    if (maLanGui) {
-      const cu = await timLanGuiCu(pool, maLanGui, contentHash);
-      if (cu) return traLaiLanGuiCu(res, cu, { category, content, normalizedContent, fullName, phone, email });
-    }
+       chỗ giữ, tới đây lần đầu đã lưu xong -> trả lại thay vì báo trùng */
+    if (lanGui && (await traLaiNeuDaNhan(res, lanGui, dongDon))) return;
 
     /* Đếm TÁCH RIÊNG theo mạng và theo số điện thoại: hai loại giới hạn xử lý
        khác nhau (mạng: chặn mềm; số: chặn cứng) — P88 */
@@ -502,7 +507,9 @@ router.post('/', async (req, res) => {
        Bộ sinh số AN TOÀN (crypto.randomInt), như mã tra cứu — KHÔNG Math.random:
        trạng thái của nó suy ra được từ các kết quả trước (BUG-039).
        --------------------------------------------------------------------- */
-    const chatPin = String(crypto.randomInt(100000, 1_000_000));
+    /* Đơn có mã lần gửi: PIN tính từ mã (HMAC có pepper, mã là UUID 122 bit chỉ trình
+       duyệt người gửi biết) để gửi lại trả ĐÚNG PIN này — P91 */
+    const chatPin = lanGui ? pinTuMaLanGui(lanGui.ma) : String(crypto.randomInt(100000, 1_000_000));
     const chatPinHash = await bamPin(chatPin); // luồng phụ, không chặn người khác (ND-064)
 
     /* TOẠ ĐỘ VỤ VIỆC — người dân tự nguyện gửi, có thể không có.
@@ -541,23 +548,20 @@ router.post('/', async (req, res) => {
     const coCotSdt = await kiemCotSdtXacMinh();
     const sdtXacMinh = isAnonymous ? null : (veSdtHopLe(body.veSdt, phone) ? 1 : 0);
 
-    /* P91: giữ mã lần gửi NGAY trước khi lưu — gửi dồn cùng mã chỉ một lần qua */
-    if (!(await giuMaLanGui(pool, maLanGui))) {
-      return res.status(409).json({
-        error: 'Ý kiến này đang được gửi. Bà con chờ vài giây rồi thử lại — không cần điền lại.',
-        code: 'DANG_GUI',
-      });
-    }
-    daGiuMa = Boolean(maLanGui);
-
     // 7) Lưu ý kiến — DANH TÍNH ĐƯỢC MÃ HOÁ (trigger tự ghi lịch sử "Đã tiếp nhận")
-    const [result] = await pool.query(
+    /* P91: băm mã lần gửi đi CÙNG câu INSERT (cột UNIQUE) — đơn và mã cùng có hoặc
+       cùng không; hai lần gửi dồn cùng mã chỉ một câu INSERT qua */
+    let result;
+    try {
+    /* Băm cũ quá hạn của chính mã này (bộ dọn chưa kịp xoá) không được chặn lần lưu mới */
+    if (lanGui) await xoaMaLanGuiCu(pool, lanGui.bam);
+    [result] = await pool.query(
       `INSERT INTO submissions
        (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
         content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
         status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency,
-        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''}${coCotMat ? ', to_giac_mat' : ''}${coCotSdt ? ', sdt_xac_minh' : ''})
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''}${coCotMat ? ', ?' : ''}${coCotSdt ? ', ?' : ''})`,
+        is_flagged, flag_reason, device_id, is_spam, chat_pin_hash${coCotToaDo ? ', incident_lat, incident_lng' : ''}${coCotMat ? ', to_giac_mat' : ''}${coCotSdt ? ', sdt_xac_minh' : ''}${lanGui ? ', lan_gui_bam, lan_gui_dau' : ''})
+       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?, ?,?,?${coCotToaDo ? ', ?,?' : ''}${coCotMat ? ', ?' : ''}${coCotSdt ? ', ?' : ''}${lanGui ? ', ?, ?' : ''})`,
       [
         // 1-5
         trackingCode, content, normalizedContent, catId, catId,
@@ -599,15 +603,16 @@ router.post('/', async (req, res) => {
         ...(coCotToaDo ? [viTriLat, viTriLng] : []),
         ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
         ...(coCotSdt ? [sdtXacMinh] : []),
+        ...(lanGui ? [lanGui.bam, lanGui.dau] : []),
       ]
     );
-
-    daLuuDon = true;
-    /* Ghi số đơn vào mã lần gửi TRƯỚC khi nhả chỗ — lần gửi lại đang chờ chỗ sẽ thấy.
-       Ghi hỏng thì đơn VẪN đã lưu: báo nhật ký, trả lời bình thường (không 500) */
-    if (maLanGui) {
-      await ganDon(pool, maLanGui, result.insertId)
-        .catch((e) => console.error('[gửi lại] không ghi được số đơn vào mã lần gửi:', e.message));
+    } catch (err) {
+      /* Lần gửi cùng mã khác đã INSERT trước (chen qua chỗ giữ, vd khác normalizedContent) */
+      if (lanGui && trungMaLanGui(err)) {
+        if (await traLaiNeuDaNhan(res, lanGui, dongDon)) return;
+        return res.status(409).json({ error: 'Ý kiến này đang được gửi. Bà con chờ vài giây rồi thử lại — không cần điền lại.', code: 'DANG_GUI' });
+      }
+      throw err;
     }
 
     /* Đã ghi xong: trả chỗ ngay, không giữ trong lúc lưu ảnh và tài liệu */
@@ -794,7 +799,6 @@ router.post('/', async (req, res) => {
        phải biết gọi 113 ngay, không chờ "thử lại sau" (ADR-003 việc 7) */
     res.status(500).json({ error: 'Gửi thất bại — Vấn đề khẩn cấp liên hệ ngay 113 để được giải quyết.' });
   } finally {
-    if (daGiuMa && !daLuuDon) await traMaLanGui(pool, maLanGui);
     if (giu) await giu.nha();
   }
 });

@@ -245,6 +245,9 @@ describe('G8 — 100% truy vấn dùng parameterized query, không nối chuỗi
               /* P89: nhãn "đã xác minh số" — một tên cột / một dấu ? cố định khi
                  CSDL đã có cột (nang_cap_v39.sql); GIÁ TRỊ đi qua mảng params */
               || /^coCotSdt \? '(, sdt_xac_minh|, \?)' : ''$/.test(bieuThuc)
+              /* P91: hai tên cột / hai dấu ? cố định khi đơn có mã lần gửi và CSDL có cột
+                 (nang_cap_v40.sql); băm mã + dấu vân đi qua mảng params */
+              || /^lanGui \? '(, lan_gui_bam, lan_gui_dau|, \?, \?)' : ''$/.test(bieuThuc)
               || /^\(await coCotSdtXacMinhAd\(\)\) \? 's\.sdt_xac_minh,' : 'NULL AS sdt_xac_minh,'$/.test(bieuThuc)
               /* admin/submissions.js — chọn giữa HAI hằng SQL viết sẵn dựa trên
                  cột toạ độ vụ việc đã tồn tại chưa (coCotToaDoAd, đọc từ

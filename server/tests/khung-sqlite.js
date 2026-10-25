@@ -77,7 +77,8 @@ const LUOC_DO = [
      incident_group_id INT, device_id TEXT, is_spam INT DEFAULT 0,
      to_giac_mat INT NOT NULL DEFAULT 0, ngoai_tham_quyen INT NOT NULL DEFAULT 0,
      chua_xac_minh_luc TEXT, sang_loc_boi INT, sang_loc_luc TEXT, giu_cho_lanh_dao INT NOT NULL DEFAULT 0,
-     sdt_xac_minh INT DEFAULT NULL)`,
+     sdt_xac_minh INT DEFAULT NULL,
+     lan_gui_bam TEXT UNIQUE, lan_gui_dau TEXT)`,
   `CREATE TABLE ghi_chu_noi_bo (id INTEGER PRIMARY KEY, submission_id INT NOT NULL, staff_id INT NOT NULL,
      noi_dung TEXT NOT NULL, created_at TEXT DEFAULT (NOW()))`,
   `CREATE TABLE submission_images (id INTEGER PRIMARY KEY, submission_id INT, image_url TEXT, cloudinary_id TEXT, storage TEXT,
@@ -108,8 +109,6 @@ const LUOC_DO = [
   `CREATE TABLE ma_xac_minh_sdt (id INTEGER PRIMARY KEY, sdt_bam TEXT NOT NULL, ma_bam TEXT NOT NULL, kenh TEXT NOT NULL,
      het_han TEXT NOT NULL, so_lan_sai INT NOT NULL DEFAULT 0, da_dung INT NOT NULL DEFAULT 0, tao_luc TEXT DEFAULT (NOW()))`,
   `CREATE TABLE dem_gioi_han (khoa TEXT PRIMARY KEY, so INT NOT NULL DEFAULT 0, het_han TEXT NOT NULL)`,
-  /* nang_cap_v40.sql (P91) — nhớ lần gửi đã thành đơn nào (gửi lại không tạo đơn trùng) */
-  `CREATE TABLE lan_gui_y_kien (khoa TEXT PRIMARY KEY, submission_id INT, tao_luc TEXT NOT NULL)`,
   `CREATE TABLE canh_bao_dot_bien (id INTEGER PRIMARY KEY, ward_id INT NOT NULL, khung INT NOT NULL,
      so_tin INT NOT NULL, nguong INT NOT NULL, created_at TEXT DEFAULT (NOW()), UNIQUE (ward_id, khung))`,
   `INSERT INTO categories VALUES (1, 'to_giac', 'Tố giác', 15), (2, 'khieu_nai', 'Khiếu nại', 30),

@@ -35,6 +35,8 @@
  *     phục vụ không xoá được dấu nối nào, chỉ làm mất kênh tố giác
  */
 
+import { xoaMaLanGuiQuaHan } from './lan-gui.js';
+
 /** Số ngày giữ dấu nối — SEC-DEC-008 câu 5 */
 export const SO_NGAY_GIU_DAU_NOI = 30;
 
@@ -136,7 +138,10 @@ export async function donDauNoi(pool) {
   const soDonDaXoaDanhTinh = await xoaMaMayDonDaXoaDanhTinh(pool);
   const { soDonAnDanh, soKhoaAnDanh } = await xoaDauNoiDonAnDanh(pool);
   const soDon = await xoaDauNoiQuaHan(pool);
-  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh };
+  /* P91: băm mã lần gửi chỉ cần 24 giờ (lib/lan-gui.js) — không nối được với gì,
+     nhưng không giữ thứ không còn dùng */
+  const soMaLanGui = await xoaMaLanGuiQuaHan(pool);
+  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui };
 }
 
 /**
@@ -148,12 +153,13 @@ export async function donDauNoi(pool) {
 export function batTuDonDauNoi(pool, { chuKyMs = CHU_KY_MAC_DINH_MS } = {}) {
   const motLuot = async () => {
     try {
-      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh } = await donDauNoi(pool);
+      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui } = await donDauNoi(pool);
       if (soDon > 0) console.log(`🧹 Đã xoá dấu nối (mã máy, IP đã băm) của ${soDon} đơn quá ${SO_NGAY_GIU_DAU_NOI} ngày`);
       if (soDongKhoa > 0) console.log(`🧹 Đã xoá ${soDongKhoa} dòng khoá hết hạn / không rõ loại`);
       if (soDonDaXoaDanhTinh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonDaXoaDanhTinh} đơn đã xoá danh tính`);
       if (soDonAnDanh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonAnDanh} đơn ẩn danh`);
       if (soKhoaAnDanh > 0) console.log(`🧹 Đã xoá ${soKhoaAnDanh} dòng khoá loại ẩn danh của mã cũ`);
+      if (soMaLanGui > 0) console.log(`🧹 Đã xoá mã lần gửi quá 24 giờ của ${soMaLanGui} đơn`);
     } catch (err) {
       console.error('🔴 KHÔNG xoá được dấu nối quá hạn — sẽ thử lại chu kỳ sau:', err.message);
     }

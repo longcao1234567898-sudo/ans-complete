@@ -8,7 +8,12 @@
  * lần gửi lại và trả lại đúng hồ sơ đó.
  *
  * Không được lộ gì: thiếu mã / mã khác / NỘI DUNG khác thì không bao giờ trả mã
- * tra cứu của hồ sơ nào; bảng chỉ giữ băm của mã.
+ * tra cứu của hồ sơ nào; CSDL chỉ giữ băm của mã.
+ *
+ * Bản 2 (trọng tài P91 tìm 5 lỗi ở bản 1): gửi lại trả ĐÚNG PIN đã cấp (không đặt
+ * PIN mới — PIN người dân đã chép không được mất hiệu lực), không ghi gì lên đơn;
+ * lệch bất kỳ phần nào (ẩn danh/có tên, nội dung, tệp) thì 409; tệp không nhận
+ * được vẫn được báo lại; CSDL rớt giữa chừng không làm kẹt mã.
  */
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -50,12 +55,24 @@ const gui = async (don, ip = ipMoi()) => {
 };
 const soDon = () => ctl.db.prepare('SELECT COUNT(*) n FROM submissions').get().n;
 const pinCua = (ma) => ctl.db.prepare('SELECT chat_pin_hash h FROM submissions WHERE tracking_code = ?').get(ma).h;
+const dongCua = (ma) => ({ ...ctl.db.prepare('SELECT * FROM submissions WHERE tracking_code = ?').get(ma) });
 const AN_DANH = {
   isAnonymous: true, category: 'to_giac',
   content: 'Khoảng 22 giờ tối qua tại bãi đất trống cuối hẻm 41 khu phố 3 có nhóm khoảng năm người tụ tập trao đổi gói nhỏ nghi là ma tuý, đi xe máy không biển số.',
 };
 
-test('gửi lại ĐÚNG mã lần gửi (mạng đứt lúc chờ trả lời): trả lại mã tra cứu cũ + PIN mới dùng được, KHÔNG thêm đơn', { skip: BO_QUA }, async () => {
+/* Chạy ĐẦU TIÊN: máy chủ chỉ nhớ "đã có cột" sau lần thấy cột đầu tiên */
+test('chưa chạy nang_cap_v40.sql: vẫn nhận ý kiến (có hay không có mã lần gửi)', { skip: BO_QUA }, async () => {
+  /* SQLite không xoá được cột UNIQUE: dựng lại bảng submissions y như cũ, bỏ hai cột v40 */
+  const sql = ctl.db.prepare("SELECT sql FROM sqlite_master WHERE name = 'submissions'").get().sql;
+  ctl.db.exec('DROP TABLE submissions');
+  ctl.db.exec(sql.replace(/,\s*lan_gui_bam TEXT UNIQUE, lan_gui_dau TEXT/, ''));
+  assert.throws(() => ctl.db.prepare('SELECT lan_gui_bam FROM submissions').get());
+  assert.equal((await gui({ ...donCoTen(0), maLanGui: crypto.randomUUID() })).status, 201);
+  assert.equal((await gui(donCoTen(1))).status, 201);
+});
+
+test('gửi lại ĐÚNG mã lần gửi (mạng đứt lúc chờ trả lời): trả lại mã tra cứu cũ + ĐÚNG PIN đã cấp, KHÔNG thêm đơn', { skip: BO_QUA }, async () => {
   const maLanGui = crypto.randomUUID();
   const don = { ...donCoTen(0), maLanGui };
   const lan1 = await gui(don);
@@ -65,8 +82,8 @@ test('gửi lại ĐÚNG mã lần gửi (mạng đứt lúc chờ trả lời):
   assert.equal(lan2.status, 200, JSON.stringify(lan2.body));
   assert.equal(lan2.body.trackingCode, lan1.body.trackingCode);
   assert.equal(lan2.body.daNhanTruoc, true);
-  assert.match(String(lan2.body.chatPin), /^\d{6}$/);
-  assert.equal(await kiemPin(lan2.body.chatPin, pinCua(lan1.body.trackingCode)), true, 'PIN mới không mở được phòng');
+  assert.equal(lan2.body.chatPin, lan1.body.chatPin, 'gửi lại đổi PIN — PIN người dân đã chép mất hiệu lực');
+  assert.equal(await kiemPin(lan1.body.chatPin, pinCua(lan1.body.trackingCode)), true, 'PIN đã cấp không còn mở được phòng');
   assert.equal(soDon(), 1, 'gửi lại tạo đơn thứ hai');
 });
 
@@ -95,7 +112,7 @@ test('mã lần gửi sai dạng (không phải UUID, mảng, số): coi như kh
     const r = await gui({ ...donCoTen(4 + i), maLanGui: ma[0] });
     assert.equal(r.status, 201, `#${i} ${JSON.stringify(r.body)}`);
   }
-  assert.equal(ctl.db.prepare('SELECT COUNT(*) n FROM lan_gui_y_kien').get().n, 0);
+  assert.equal(ctl.db.prepare('SELECT COUNT(*) n FROM submissions WHERE lan_gui_bam IS NOT NULL').get().n, 0);
 });
 
 test('gửi DỒN 6 lần cùng mã cùng lúc (trang + gửi ngầm cùng chạy): đúng MỘT đơn; lần sau lấy lại được mã tra cứu', { skip: BO_QUA }, async () => {
@@ -108,6 +125,8 @@ test('gửi DỒN 6 lần cùng mã cùng lúc (trang + gửi ngầm cùng chạ
   const sau = await gui(don);
   assert.equal(sau.status, 200);
   assert.equal(sau.body.trackingCode, thanhCong[0].body.trackingCode);
+  assert.equal(sau.body.chatPin, thanhCong[0].body.chatPin);
+  assert.equal(await kiemPin(thanhCong[0].body.chatPin, pinCua(thanhCong[0].body.trackingCode)), true, 'PIN trong bản 201 hết dùng được');
 });
 
 test('lần đầu hỏng giữa chừng (lỗi CSDL khi lưu): gửi lại cùng mã thì lưu được, không kẹt', { skip: BO_QUA }, async () => {
@@ -121,7 +140,7 @@ test('lần đầu hỏng giữa chừng (lỗi CSDL khi lưu): gửi lại cùn
   assert.equal(soDon(), 1);
 });
 
-test('tin ẩn danh gửi lại: trả lại mã tra cứu, không mang danh tính; bảng chỉ giữ băm của mã', { skip: BO_QUA }, async () => {
+test('tin ẩn danh gửi lại: trả lại mã tra cứu, không mang danh tính; CSDL chỉ giữ băm của mã', { skip: BO_QUA }, async () => {
   const maLanGui = crypto.randomUUID();
   const lan1 = await gui({ ...AN_DANH, maLanGui });
   assert.equal(lan1.status, 201, JSON.stringify(lan1.body));
@@ -130,7 +149,7 @@ test('tin ẩn danh gửi lại: trả lại mã tra cứu, không mang danh tí
   assert.equal(lan2.body.trackingCode, lan1.body.trackingCode);
   assert.equal(lan2.body.pendingReview, true);
   assert.equal(lan2.body.contact?.phone ?? '', '');
-  const bang = JSON.stringify(ctl.db.prepare('SELECT * FROM lan_gui_y_kien').all());
+  const bang = JSON.stringify(dongCua(lan1.body.trackingCode));
   assert.ok(!bang.includes(maLanGui), 'lưu mã lần gửi thô');
 });
 
@@ -143,8 +162,60 @@ test('quá 24 giờ thì không nhận ra nữa: gửi lại là đơn mới bì
   assert.equal(r.body.daNhanTruoc, undefined);
 });
 
-test('chưa chạy nang_cap_v40.sql: vẫn nhận ý kiến (có hay không có mã lần gửi)', { skip: BO_QUA }, async () => {
-  ctl.db.exec('DROP TABLE lan_gui_y_kien');
-  assert.equal((await gui({ ...donCoTen(0), maLanGui: crypto.randomUUID() })).status, 201);
-  assert.equal((await gui(donCoTen(1))).status, 201);
+/* ---- Trọng tài P91 (bản 1) — test đỏ trước khi làm bản 2 ---- */
+test('P91-1 — gửi lại không đổi PIN và không ghi gì lên đơn (không đóng giờ hoạt động lên updated_at)', { skip: BO_QUA }, async () => {
+  const maLanGui = crypto.randomUUID();
+  const don = { ...AN_DANH, maLanGui };
+  const lan1 = await gui(don);
+  const truoc = dongCua(lan1.body.trackingCode);
+  for (let k = 0; k < 3; k++) assert.equal((await gui(don)).status, 200);
+  assert.deepEqual(dongCua(lan1.body.trackingCode), truoc, 'gửi lại đã sửa dòng đơn');
+});
+
+test('P91-4 — cùng mã mà khác bất kỳ phần nào (có tên -> ẩn danh, thêm chi tiết vào nội dung, thêm tệp): 409, không trả mã tra cứu', { skip: BO_QUA }, async () => {
+  const maLanGui = crypto.randomUUID();
+  const goc = { ...donCoTen(8), category: 'to_giac', maLanGui };
+  const lan1 = await gui(goc);
+  assert.equal(lan1.status, 201, JSON.stringify(lan1.body));
+  const bienThe = [
+    { ...goc, isAnonymous: true, fullName: '', phone: '' },
+    { ...goc, content: `${goc.content} Biển số xe 59X1-234.56.`, normalizedContent: goc.content },
+    { ...goc, taiLieu: [{ ten: 'a.pdf', duLieu: 'data:application/pdf;base64,JVBERi0=' }] },
+  ];
+  for (const [i, b] of bienThe.entries()) {
+    const r = await gui(b);
+    assert.equal(r.status, 409, `#${i} ${JSON.stringify(r.body)}`);
+    assert.equal(r.body.trackingCode, undefined, `#${i} trả mã tra cứu cho một bản khác`);
+  }
+  assert.equal(soDon(), 1);
+});
+
+test('P91-4 — tệp không nhận được ở lần đầu vẫn được báo lại khi gửi lại (không báo "đủ cả" sai)', { skip: BO_QUA }, async () => {
+  /* Bảng của nang_cap_v35.sql — cùng dạng tests/tep-khong-nhan-bao-ro.test.js */
+  ctl.db.exec(`CREATE TABLE tep_khong_nhan (id INTEGER PRIMARY KEY AUTOINCREMENT, submission_id INT NOT NULL,
+     bo_sung_id INT NULL, loai TEXT NOT NULL, ly_do TEXT NOT NULL, created_at TEXT DEFAULT (NOW()))`);
+  (await import('../src/lib/tep-khong-nhan.js')).quenBangTepKhongNhan();
+  const maLanGui = crypto.randomUUID();
+  const don = { ...donCoTen(9), maLanGui, images: ['data:image/png;base64,không-phải-ảnh'] };
+  const lan1 = await gui(don);
+  assert.equal(lan1.status, 201, JSON.stringify(lan1.body));
+  assert.ok(lan1.body.tepKhongNhan.length > 0, 'chuẩn bị test: lần đầu phải có tệp bị từ chối');
+  const lan2 = await gui(don);
+  assert.equal(lan2.status, 200);
+  assert.equal(lan2.body.tepKhongNhan.length, lan1.body.tepKhongNhan.length);
+});
+
+test('bộ dọn dấu nối xoá băm mã lần gửi quá 24 giờ, không đóng giờ lên đơn, không đụng đơn còn mới', { skip: BO_QUA }, async () => {
+  const { donDauNoi } = await import('../src/lib/vong-doi-dau-noi.js');
+  const cu = await gui({ ...donCoTen(11), maLanGui: crypto.randomUUID() });
+  ctl.troiQua(25 * 60);
+  const moi = await gui({ ...donCoTen(12), maLanGui: crypto.randomUUID() });
+  const truoc = dongCua(cu.body.trackingCode);
+  const kq = await donDauNoi(pool);
+  assert.equal(kq.soMaLanGui, 1);
+  const sau = dongCua(cu.body.trackingCode);
+  assert.equal(sau.lan_gui_bam, null);
+  assert.equal(sau.lan_gui_dau, null);
+  assert.equal(sau.updated_at, truoc.updated_at);
+  assert.notEqual(dongCua(moi.body.trackingCode).lan_gui_bam, null, 'xoá cả mã của đơn còn mới');
 });

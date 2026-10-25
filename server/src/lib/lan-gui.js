@@ -5,25 +5,32 @@
  * Giao diện tự gửi lại khi mạng chập chờn, khi có mạng trở lại (hàng chờ trên máy
  * — P92). Mạng đứt ĐÚNG lúc máy chủ đã lưu đơn mà chưa kịp trả lời thì trước đây
  * lần gửi lại bị chặn "nội dung vừa gửi": người dân mất mã tra cứu và PIN phòng
- * trao đổi (PIN chỉ trả một lần). Mỗi lần gửi mang `maLanGui` (UUID do trình
- * duyệt sinh, sống tới khi gửi được); bảng lan_gui_y_kien nhớ mã đó thành đơn nào.
+ * trao đổi (PIN chỉ trả một lần). Mỗi lần gửi mang `maLanGui` (UUID v4 do trình
+ * duyệt sinh, đi theo đúng một bản đơn tới khi gửi được).
  *
- * KHÔNG LỘ GÌ:
- *   · Chỉ lưu BĂM của mã, khác miền với mọi bảng khác — không nối được với gì.
- *   · Trả lại hồ sơ chỉ khi ĐÚNG mã VÀ ĐÚNG nội dung (băm nội dung khớp). Mã là
- *     UUID 122 bit chỉ trình duyệt người gửi biết; thêm điều kiện nội dung để mã
- *     có lọt ra cũng không dùng với nội dung khác được.
- *   · Lần gửi lại không đi qua cổng vé / giới hạn: nó không tạo gì mới, chỉ trả
- *     lại hồ sơ của chính người gửi (PIN mới thay PIN cũ chưa tới tay họ).
+ * THIẾT KẾ (bản 2 — trọng tài P91 tìm 5 lỗi ở bản 1 dùng bảng giữ mã riêng):
+ *   · Băm mã nằm NGAY TRONG dòng đơn (cột UNIQUE lan_gui_bam), ghi bằng chính câu
+ *     INSERT đơn: đơn và mã cùng có hoặc cùng không — không còn "mã giữ mà đơn chưa
+ *     lưu" bị kẹt 24 giờ khi CSDL rớt / tiến trình chết giữa chừng.
+ *   · PIN phòng trao đổi của đơn có mã = HMAC(pepper, mã): gửi lại trả ĐÚNG PIN đã
+ *     cấp, không đặt PIN mới — PIN người dân đã chép không bao giờ mất hiệu lực, và
+ *     đường gửi lại không chạy scrypt, không UPDATE (không đóng giờ lên updated_at).
+ *     Không đoán được: mã là UUID 122 bit chỉ trình duyệt người gửi biết, pepper là
+ *     bí mật máy chủ.
+ *   · DẤU VÂN của cả lần gửi (ẩn danh hay không, nhóm, nội dung, danh tính, địa
+ *     bàn, vị trí, tệp) lưu ở lan_gui_dau. Cùng mã mà lệch dấu vân -> 409, KHÔNG trả
+ *     mã tra cứu: không báo "đã nhận" cho một thứ khác với cái đã lưu (vd lần đầu có
+ *     tên, lần sau ẩn danh; lần sau thêm tệp).
  *
- * ATOMIC (luật 6): giữ mã bằng INSERT khoá chính ngay trước khi lưu đơn — hai lần
- * gửi dồn cùng mã chỉ một lần giữ được. Lưu đơn hỏng thì trả mã ra để gửi lại được.
+ * KHÔNG LỘ GÌ: chỉ lưu băm HMAC (khác miền "lan-gui:" / "lan-gui-dau:"); băm là của
+ * một mã ngẫu nhiên dùng một lần, không nối được với gì. Bộ dọn dấu nối xoá hai cột
+ * sau SONG_GIO giờ (lib/vong-doi-dau-noi.js).
  *
- * Thiếu bảng (chưa chạy nang_cap_v40.sql): mọi hàm trả như "không có mã" — vẫn
- * nhận ý kiến, chỉ không nhận ra lần gửi lại (không bao giờ chặn tin vì tính năng này).
+ * Thiếu cột (chưa chạy nang_cap_v40.sql): coi như không có mã — vẫn nhận ý kiến,
+ * chỉ không nhận ra lần gửi lại (không bao giờ chặn tin vì tính năng này).
  */
-import crypto from 'node:crypto';
 import { hashIdentifier } from './crypto.js';
+import { sha256 } from './helpers.js';
 
 export const SONG_GIO = 24;
 const DANG_MA = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -36,65 +43,76 @@ export function docMaLanGui(body) {
   return DANG_MA.test(ma) ? ma : '';
 }
 
-const bam = (ma) => hashIdentifier(`lan-gui:${ma}`).slice(0, 64);
+export const bamMaLanGui = (ma) => hashIdentifier(`lan-gui:${ma}`);
 
-let daBaoThieuBang = false;
-function thieuBang(err) {
-  if (err?.code !== 'ER_NO_SUCH_TABLE') return false;
-  if (!daBaoThieuBang) {
-    daBaoThieuBang = true;
-    console.error('🔴 [gửi lại] thiếu bảng lan_gui_y_kien — chạy database/nang_cap_v40.sql (vẫn nhận ý kiến)');
-  }
-  return true;
+/** PIN 6 số cố định theo mã — cùng mã luôn ra cùng PIN */
+export function pinTuMaLanGui(ma) {
+  const n = parseInt(hashIdentifier(`lan-gui-pin:${ma}`).slice(0, 12), 16);
+  return String(100000 + (n % 900000));
 }
 
-/** Hồ sơ đã lưu từ ĐÚNG mã + ĐÚNG nội dung trong SONG_GIO giờ; không thì null */
-export async function timLanGuiCu(pool, ma, contentHash) {
-  if (!ma) return null;
-  try {
-    const [rows] = await pool.query(
-      `SELECT s.id, s.tracking_code, s.is_anonymous, s.created_at
-         FROM lan_gui_y_kien l JOIN submissions s ON s.id = l.submission_id
-        WHERE l.khoa = ? AND s.content_hash = ? AND l.tao_luc > NOW() - INTERVAL ? HOUR`,
-      [bam(ma), contentHash, SONG_GIO]
-    );
-    return rows[0] || null;
-  } catch (err) {
-    if (thieuBang(err)) return null;
-    throw err;
-  }
-}
+/* Mỗi phần tử tệp băm riêng (ảnh base64 vài MB) rồi mới gộp */
+const bamTep = (ds) => (Array.isArray(ds) ? ds.map((t) => sha256(typeof t === 'string' ? t : JSON.stringify(t ?? null))) : null);
 
 /**
- * Giữ mã ngay trước khi lưu đơn. true = giữ được (hoặc không có mã / thiếu bảng —
- * cứ lưu như thường); false = mã đang có lần gửi khác giữ.
+ * Dấu vân của mọi thứ có nghĩa trong lần gửi. KHÔNG gồm các vé / mã đổi giữa hai
+ * lần thử (vé vào cửa, mã Turnstile, phiếu mở form, vé xác minh số, mã máy).
  */
-export async function giuMaLanGui(pool, ma) {
-  if (!ma) return true;
+export function dauVanLanGui(body) {
+  const b = body || {};
+  const anDanh = b.isAnonymous === true;
+  const phan = [
+    anDanh, b.category ?? null, b.content ?? null, b.normalizedContent ?? null,
+    anDanh ? null : [b.fullName ?? null, b.phone ?? null, b.email ?? null],
+    b.wardId ?? null, b.viTri ?? null, bamTep(b.images), bamTep(b.taiLieu),
+  ];
+  return hashIdentifier(`lan-gui-dau:${sha256(JSON.stringify(phan))}`);
+}
+
+let coCot = false;
+/** Đã chạy nang_cap_v40.sql chưa. Chỉ nhớ khi CÓ — chạy SQL xong không cần khởi động lại */
+export async function coCotLanGui(pool) {
+  if (coCot) return true;
   try {
-    /* Dòng quá hạn của chính mã này không được làm kẹt lần gửi mới */
-    await pool.query('DELETE FROM lan_gui_y_kien WHERE khoa = ? AND tao_luc <= NOW() - INTERVAL ? HOUR', [bam(ma), SONG_GIO]);
-    await pool.query('INSERT INTO lan_gui_y_kien (khoa, submission_id, tao_luc) VALUES (?, NULL, NOW())', [bam(ma)]);
-    if (crypto.randomInt(100) === 0) {
-      pool.query('DELETE FROM lan_gui_y_kien WHERE tao_luc < NOW() - INTERVAL ? HOUR', [SONG_GIO * 2]).catch(() => {});
-    }
-    return true;
-  } catch (err) {
-    if (err?.code === 'ER_DUP_ENTRY') return false;
-    if (thieuBang(err)) return true;
-    throw err;
-  }
+    await pool.query('SELECT lan_gui_bam, lan_gui_dau FROM submissions LIMIT 0');
+    coCot = true;
+  } catch { /* chưa chạy v40 */ }
+  return coCot;
 }
 
-/** Đơn đã lưu: ghi số đơn vào mã đã giữ */
-export async function ganDon(pool, ma, submissionId) {
-  if (!ma) return;
-  await pool.query('UPDATE lan_gui_y_kien SET submission_id = ? WHERE khoa = ?', [submissionId, bam(ma)]);
+/** Đơn đã lưu từ mã này trong SONG_GIO giờ (kèm dấu vân để so); không thì null */
+export async function timDonTheoMaLanGui(pool, bam) {
+  const [rows] = await pool.query(
+    `SELECT id, tracking_code, is_anonymous, created_at, lan_gui_dau FROM submissions
+      WHERE lan_gui_bam = ? AND created_at > NOW() - INTERVAL ? HOUR`,
+    [bam, SONG_GIO]
+  );
+  return rows[0] || null;
 }
 
-/** Lưu đơn hỏng: trả mã ra (chỉ dòng chưa thành đơn) để lần gửi lại không bị kẹt */
-export async function traMaLanGui(pool, ma) {
-  if (!ma) return;
-  await pool.query('DELETE FROM lan_gui_y_kien WHERE khoa = ? AND submission_id IS NULL', [bam(ma)])
-    .catch((e) => console.warn('[gửi lại] không trả được mã:', e.message));
+/** Băm cũ QUÁ HẠN của đúng mã này — gỡ trước khi lưu đơn mới mang cùng mã */
+export async function xoaMaLanGuiCu(pool, bam) {
+  await pool.query(
+    `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, updated_at = updated_at
+      WHERE lan_gui_bam = ? AND created_at <= NOW() - INTERVAL ? HOUR`,
+    [bam, SONG_GIO]
+  );
+}
+
+/** Lỗi trùng khoá có phải do cột mã lần gửi không (MySQL ghi tên chỉ mục, SQLite tên cột) */
+export const trungMaLanGui = (err) => err?.code === 'ER_DUP_ENTRY'
+  && /lan_gui_bam/.test(String(err.sqlMessage || err.message || ''));
+
+/**
+ * Bộ dọn dấu nối gọi định kỳ: xoá băm mã + dấu vân quá SONG_GIO giờ.
+ * updated_at = updated_at: không đóng giờ dọn lên đơn (bài học P29). Thiếu cột -> 0.
+ */
+export async function xoaMaLanGuiQuaHan(pool) {
+  if (!(await coCotLanGui(pool))) return 0;
+  const [kq] = await pool.query(
+    `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, updated_at = updated_at
+      WHERE lan_gui_bam IS NOT NULL AND created_at < NOW() - INTERVAL ? HOUR`,
+    [SONG_GIO]
+  );
+  return kq?.affectedRows || 0;
 }
