@@ -55,6 +55,15 @@ const HAN_TIN_GIO = 72;
 /** Kết quả chưa ai bấm "đã lưu mã" — quá hạn này thì xoá khỏi máy */
 const HAN_KET_QUA_GIO = 72;
 const SAI_TOI_DA = 5;
+/* Trọng tài P92: máy chủ lỗi / giới hạn kéo dài thì không gửi lại mãi (ngốn 4G người
+   dân, nhất là tin kèm tệp lớn): giãn dần, quá THU_TOI_DA lần thì báo lỗi */
+const THU_TOI_DA = 12;
+const GIAN_DAU_MS = 20_000;
+const GIAN_TOI_DA_MS = 15 * 60_000;
+/** Dưới giới hạn thân yêu cầu của máy chủ (express.json 32mb) — lớn hơn thì gửi lại vô ích */
+const TRAN_THAN = 30 * 1024 * 1024;
+/** Dạng mã tra cứu (server/src/lib/helpers.js generateTrackingCode) */
+const DANG_MA_TRA_CUU = /^[A-Z0-9]{4,20}$/;
 const KHOA_PHIEN = 'htans_phien_hang_cho';
 
 export type TrangThaiTin = 'cho' | 'can_xac_minh' | 'can_xac_minh_them' | 'loi' | 'qua_han';
@@ -66,6 +75,9 @@ interface BanGhiTin {
   loi?: string;
   /** Có thể máy chủ đã lưu (mạng đứt lúc chờ trả lời) — gửi lại chỉ trong HAN_GUI_LAI_GIO */
   coTheDaToi?: boolean;
+  /** Số lần máy chủ trả lời "thử lại sau" (5xx, 429, đang gửi) và lúc được thử tiếp */
+  soLanThu?: number;
+  henLuc?: number;
   iv: Uint8Array;
   duLieu: ArrayBuffer;
 }
@@ -98,6 +110,9 @@ export interface KetQuaGuiNgam extends Partial<Omit<KetQuaDayDu, 'phien' | 'maMo
 }
 
 interface BanGhiKetQua { id: string; taoLuc?: number; soLanSai?: number; iv: Uint8Array; duLieu: ArrayBuffer }
+
+/** Không cất được vào hàng chờ (đầy, quá lớn): báo nguyên lời này cho bà con */
+export class KhongCatDuoc extends Error {}
 
 /** Lỗi đặc biệt: tin đã được cất vào hàng chờ (không phải gửi hỏng) */
 export class DaXepHang extends Error {
@@ -184,12 +199,16 @@ async function henDongBo() {
 export async function themTinCho(than: Record<string, unknown>, coTheDaToi: boolean): Promise<string> {
   const ds = await dsTinCho();
   if (ds.length >= TOI_DA_TIN) {
-    throw new Error(`Máy này đang giữ ${ds.length} tin chờ gửi. Bà con chờ có mạng để các tin đó gửi đi, `
+    throw new KhongCatDuoc(`Máy này đang giữ ${ds.length} tin chờ gửi. Bà con chờ có mạng để các tin đó gửi đi, `
       + 'hoặc xoá bớt tin chờ. Việc khẩn cấp xin gọi ngay 113.');
   }
   /* Mã Turnstile chỉ dùng được một lần, vài phút là hết hạn: không cất — lúc gửi
      lại máy chủ cần thì xin mã mới (can_xac_minh_them) */
   const { xacMinhThem: _boQua, ...gon } = than;
+  if (JSON.stringify(gon).length > TRAN_THAN) {
+    throw new KhongCatDuoc('Tệp đính kèm quá lớn nên không lưu chờ gửi được. Bà con bớt tệp hoặc chọn tệp nhỏ hơn '
+      + 'rồi gửi lại. Việc khẩn cấp xin gọi ngay 113.');
+  }
   const maMo = taoMaMo();
   const noiDung: NoiDungTin = { url: diaChiApi('/api/submissions'), than: gon, phien: maPhien(), maMo };
   const ban: BanGhiTin = {
@@ -292,16 +311,27 @@ export async function xoaKetQua(id: string) {
   baoDoi();
 }
 
-async function doiTrangThai(id: string, trangThai: TrangThaiTin, loi?: string) {
+async function capNhatTin(id: string, doi: Partial<BanGhiTin>) {
   const db = await moKho();
   await new Promise<void>((ok, sai) => {
     const tx = db.transaction(KHO_TIN, 'readwrite');
     const kho = tx.objectStore(KHO_TIN);
     const rq = kho.get(id);
-    rq.onsuccess = () => { if (rq.result) kho.put({ ...rq.result, trangThai, loi }); };
+    rq.onsuccess = () => { if (rq.result) kho.put({ ...rq.result, ...doi }); };
     tx.oncomplete = () => { db.close(); ok(); };
     tx.onerror = () => { db.close(); sai(tx.error); };
   });
+}
+
+const doiTrangThai = (id: string, trangThai: TrangThaiTin, loi?: string) => capNhatTin(id, { trangThai, loi });
+
+/** Máy chủ bảo thử lại sau: giữ LỜI máy chủ để hiện, giãn lần thử, quá trần thì báo lỗi */
+async function henThuLai(ban: BanGhiTin, loi: string) {
+  const n = (ban.soLanThu || 0) + 1;
+  if (n >= THU_TOI_DA) {
+    return doiTrangThai(ban.id, 'loi', `${loi} (đã thử ${n} lần, máy dừng tự gửi — bà con gọi trực ban hoặc xoá tin chờ rồi gửi lại sau)`);
+  }
+  return capNhatTin(ban.id, { soLanThu: n, henLuc: Date.now() + Math.min(GIAN_DAU_MS * 2 ** (n - 1), GIAN_TOI_DA_MS), loi });
 }
 
 async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
@@ -323,6 +353,12 @@ async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
   }
   const j = await res.json().catch(() => ({} as Record<string, unknown>));
   const code = typeof j?.code === 'string' ? j.code : '';
+  const loiMayChu = typeof j?.error === 'string' ? j.error : '';
+  /* 200 mà không có mã tra cứu đúng dạng (cổng mạng, máy chủ trả lạ): KHÔNG coi là đã
+     nhận — xoá tin là mất tin */
+  if ((res.status === 200 || res.status === 201) && !DANG_MA_TRA_CUU.test(String(j?.trackingCode ?? ''))) {
+    return henThuLai(ban, 'Máy chủ trả lời không đúng dạng.');
+  }
   if (res.status === 200 || res.status === 201) {
     const kq: KetQuaDayDu = {
       trackingCode: String(j.trackingCode),
@@ -345,10 +381,11 @@ async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
   if (res.status === 403 && code === 'CAN_XAC_MINH') return doiTrangThai(ban.id, 'can_xac_minh');
   if (res.status === 429 && code === 'CAN_XAC_MINH_THEM') return doiTrangThai(ban.id, 'can_xac_minh_them');
   /* Thử lại sau: đang gửi (lần khác cùng mã), giới hạn tạm thời, máy chủ lỗi */
-  if (res.status === 409 && code === 'DANG_GUI') return;
-  if (res.status === 429 || res.status >= 500) return;
+  if ((res.status === 409 && code === 'DANG_GUI') || res.status === 429 || res.status >= 500) {
+    return henThuLai(ban, loiMayChu || `Máy chủ chưa nhận được (mã ${res.status}).`);
+  }
   /* Còn lại là từ chối hẳn (400, 409 LAN_GUI_KHAC...): báo lý do, không gửi nữa */
-  return doiTrangThai(ban.id, 'loi', typeof j?.error === 'string' ? j.error : `Máy chủ từ chối (mã ${res.status}).`);
+  return doiTrangThai(ban.id, 'loi', loiMayChu || `Máy chủ từ chối (mã ${res.status}).`);
 }
 
 let dangChay = false;
@@ -367,6 +404,7 @@ export async function guiTinCho(xacMinhThem?: string): Promise<void> {
     } catch { return; }
     for (const ban of ds.sort((a, b) => a.taoLuc - b.taoLuc)) {
       if (ban.trangThai === 'loi' || ban.trangThai === 'qua_han') continue;
+      if (ban.henLuc && ban.henLuc > Date.now()) continue;   // máy chủ bảo đợi — chưa tới lượt
       if (ban.trangThai === 'can_xac_minh' && !layVe()) continue;
       if (ban.trangThai === 'can_xac_minh_them' && !xacMinhThem) continue;
       if (ban.trangThai !== 'cho') await doiTrangThai(ban.id, 'cho');

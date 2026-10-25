@@ -14,7 +14,7 @@ import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/se
 import { apiFetch, hasBackend } from './api';
 import { loiGuiDeHieu } from '../utils/loiGui';
 import { layVe, veHetHan } from '../utils/veVaoCua';
-import { coHangCho, DaXepHang, themTinCho } from './hangChoGui';
+import { coHangCho, DaXepHang, KhongCatDuoc, themTinCho } from './hangChoGui';
 import { prepareImages } from './uploadService';
 
 /** UUID v4 cho mã lần gửi (máy chủ chỉ nhận đúng dạng này) */
@@ -260,18 +260,19 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
         body: JSON.stringify(than),
       });
     } catch (e) {
-      if (e instanceof DaXepHang) throw e;
+      if (e instanceof DaXepHang || e instanceof KhongCatDuoc) throw e;
       /* Không tới được máy chủ (đứt mạng, cổng mạng trả trang lỗi) hoặc máy chủ lỗi
          5xx — có thể đã lưu mà chưa kịp trả lời: cất NGUYÊN thân yêu cầu (cùng mã lần
-         gửi) để tự gửi lại khi có mạng; máy chủ nhận ra nếu đã lưu (P91) */
-      const st = (e as { status?: number; tuMayChu?: boolean });
-      if (than && coHangCho && (!st.status || st.status >= 500 || !st.tuMayChu)) {
+         gửi) để tự gửi lại khi có mạng; máy chủ nhận ra nếu đã lưu (P91).
+         5xx CÓ mã lỗi (vd ENCRYPTION_UNAVAILABLE) là máy chủ nói rõ lý do -> báo ngay
+         như 4xx, không cất (trọng tài P92: trước đây bà con chỉ thấy "mất mạng") */
+      const st = (e as { status?: number; tuMayChu?: boolean; code?: string });
+      if (than && coHangCho && (!st.tuMayChu || (Number(st.status) >= 500 && !st.code))) {
         try {
           throw new DaXepHang(await themTinCho(than, true));
         } catch (loiCat) {
-          if (loiCat instanceof DaXepHang) throw loiCat;
+          if (loiCat instanceof DaXepHang || loiCat instanceof KhongCatDuoc) throw loiCat;
           console.error('[gửi ý kiến] không cất được vào hàng chờ:', loiCat instanceof Error ? loiCat.message : loiCat);
-          if (loiCat instanceof Error && /tin chờ gửi/.test(loiCat.message)) throw loiCat;
         }
       }
       /* Vé cổng vào hết hạn -> hiện lại màn hình xác minh; lời máy chủ (có 113) giữ nguyên */

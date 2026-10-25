@@ -139,6 +139,9 @@ export default function HangChoGuiNgam() {
               ) : (
                 <p data-hd="tin-phien-khac" className="text-xs text-amber-900 dark:text-amber-200">{t('hcg.cuaPhienKhac')}</p>
               )}
+              {x.trangThai === 'cho' && x.loi && (
+                <p data-hd="loi-lan-thu" className="text-xs text-amber-900 dark:text-amber-200">{t('hcg.lanThuTruoc')} {x.loi}</p>
+              )}
               {x.trangThai === 'loi' && (
                 <p className="text-xs text-rose-700 dark:text-rose-300">{t('hcg.biTuChoi')} {x.loi}</p>
               )}

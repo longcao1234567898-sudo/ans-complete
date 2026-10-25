@@ -188,7 +188,9 @@ async function guiTinChoNgam() {
     /* Tin có thể đã tới máy chủ mà quá hạn gửi lại (HAN_GUI_LAI_GIO bên hangChoGui.ts):
        để trang báo "quá hạn", không gửi (gửi là thành đơn thứ hai) */
     const conHan = (b) => !b.coTheDaToi || Date.now() - b.taoLuc < 20 * 3_600_000;
-    for (const ban of ds.filter((b) => b.trangThai === 'cho' && conHan(b))) {
+    /* Máy chủ bảo đợi (henLuc — hangChoGui.ts giãn lần thử) thì chưa gửi */
+    const toiLuot = (b) => !b.henLuc || b.henLuc <= Date.now();
+    for (const ban of ds.filter((b) => b.trangThai === 'cho' && conHan(b) && toiLuot(b))) {
       const tho = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ban.iv }, khoa, ban.duLieu);
       const { url, than, phien, maMo } = JSON.parse(new TextDecoder().decode(tho));
       let res;
@@ -199,6 +201,7 @@ async function guiTinChoNgam() {
       }
       if (res.status !== 200 && res.status !== 201) continue;   // để trang xử lý
       const j = await res.json().catch(() => ({}));
+      if (!/^[A-Z0-9]{4,20}$/.test(String(j.trackingCode ?? ''))) continue;   // trả lạ: không coi là đã nhận
       const kq = {
         trackingCode: String(j.trackingCode), chatPin: j.chatPin ? String(j.chatPin) : undefined,
         pendingReview: j.pendingReview === true, category: than.category,
