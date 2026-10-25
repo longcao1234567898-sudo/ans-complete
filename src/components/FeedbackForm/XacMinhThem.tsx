@@ -10,7 +10,7 @@
  * Đây chỉ là trải nghiệm: máy chủ mới là nơi kiểm (luật 2) — mã dùng một lần,
  * kiểm nghiêm ngặt, có trần cứng theo mạng.
  */
-import { ShieldCheck, Phone } from 'lucide-react';
+import { Loader2, ShieldCheck, Phone } from 'lucide-react';
 import Turnstile, { captchaEnabled } from '../common/Turnstile';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { UNIT } from '../../utils/constants';
@@ -21,9 +21,12 @@ interface Props {
   onDong: () => void;
   /** 'het_ve': vé "không phải người máy" hết hạn lúc bấm gửi (P90) — cùng ô, khác lời */
   loai?: 'mang' | 'het_ve';
+  /** Đang đổi mã lấy vé — ô GIỮ NGUYÊN (che trang, khoá nút Gửi) cho tới khi xong;
+   *  "Để sau" lúc này là huỷ tự gửi (trọng tài P90) */
+  dangXuLy?: boolean;
 }
 
-export default function XacMinhThem({ onToken, onDong, loai = 'mang' }: Props) {
+export default function XacMinhThem({ onToken, onDong, loai = 'mang', dangXuLy = false }: Props) {
   const { t } = useNgonNgu();
   /* LopPhu: đưa ra document.body — trong <main> thì chân trang vẽ đè lên đáy ô */
   return (
@@ -35,9 +38,11 @@ export default function XacMinhThem({ onToken, onDong, loai = 'mang' }: Props) {
         <h2 id="xmt-tieu-de" className="text-lg font-extrabold text-slate-800 dark:text-slate-100">{t(loai === 'het_ve' ? 'xmt.tieuDeHetVe' : 'xmt.tieuDe')}</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{t(loai === 'het_ve' ? 'xmt.loiHetVe' : 'xmt.loi')}</p>
         <div className="mt-4 flex justify-center">
-          {captchaEnabled
-            ? <Turnstile onToken={(tk) => { if (tk) onToken(tk); }} />
-            : <p className="text-sm font-medium text-rose-600">{t('xmt.khongCo')}</p>}
+          {dangXuLy
+            ? <p className="flex items-center gap-1.5 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> {t('xnm.dangXacMinh')}</p>
+            : captchaEnabled
+              ? <Turnstile onToken={(tk) => { if (tk) onToken(tk); }} />
+              : <p className="text-sm font-medium text-rose-600">{t('xmt.khongCo')}</p>}
         </div>
         <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-rose-700 dark:text-rose-300">
           <Phone className="h-4 w-4" /> {t('xmt.gap')}{' '}

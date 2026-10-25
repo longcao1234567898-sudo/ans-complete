@@ -201,6 +201,16 @@ export default function SendFeedbackPage() {
   /* Vé "không phải người máy" (lấy ở bước chọn nhóm) hết hạn lúc bấm gửi — P90: không
      còn màn hình chặn cả web để hiện lại, nên xác minh lại ngay trên đơn rồi gửi tiếp */
   const [canVeMoi, setCanVeMoi] = useState(false);
+  /* Trọng tài P90: từ lúc tích ô tới lúc đơn đã gửi đi, ô GIỮ NGUYÊN và nút Gửi bị
+     khoá — trước đây ô đóng ngay, bấm Gửi tay trong lúc chờ là hai lần gửi (lần
+     sau bị chặn trùng, lần trước mất mã tra cứu + PIN). Đóng ô hay rời trang trong
+     lúc chờ thì KHÔNG tự gửi nữa. */
+  const [dangLayVe, setDangLayVe] = useState(false);
+  const huyLayVe = useRef(false);
+  const conMo = useRef(true);
+  useEffect(() => () => { conMo.current = false; }, []);
+  /* Một lần gửi một lúc — chặn cả lần bấm chen vào trước khi isPending kịp đổi */
+  const dangGui = useRef(false);
 
   const runAnalysis = (content: string) => {
     aiAnalysis.mutate(content, {
@@ -246,7 +256,10 @@ export default function SendFeedbackPage() {
 
   /* daLayVeMoi: lần gửi ngay sau khi vừa lấy vé mới — vẫn bị đòi thì báo lỗi, không mở ô lặp mãi */
   const guiDon = (xacMinhThem?: string, daLayVeMoi = false) => {
+    if (dangGui.current) return;
+    dangGui.current = true;
     submitMutation.mutate({ draft, xacMinhThem }, {
+      onSettled: () => { dangGui.current = false; },
       onSuccess: (result) => {
         setSubmission(result);
         // Lưu mã tra cứu vào chính thiết bị -> lần sau tra lại không cần nhớ mã
@@ -403,7 +416,7 @@ export default function SendFeedbackPage() {
           <Confirmation
             draft={draft}
             submission={submission}
-            isSubmitting={submitMutation.isPending}
+            isSubmitting={submitMutation.isPending || dangLayVe}
             /* KHOÁ GỬI trong lúc xem hướng dẫn — xem chú thích ở chỗ khai
                dangHuongDan. Truyền hàm rỗng thay vì hàm gửi thật. */
             onSubmit={dangHuongDan ? () => {} : handleSubmit}
@@ -428,16 +441,26 @@ export default function SendFeedbackPage() {
     {canVeMoi && (
       <XacMinhThem
         loai="het_ve"
+        dangXuLy={dangLayVe}
         onToken={async (tk) => {
-          setCanVeMoi(false);
+          if (dangLayVe) return;
+          huyLayVe.current = false;
+          setDangLayVe(true);
           try {
             await layVeMoi(tk);
+            if (huyLayVe.current || !conMo.current) return;
+            /* Đóng ô và gửi trong CÙNG một lượt — không để khe hở cho lần bấm tay */
+            setCanVeMoi(false);
             guiDon(undefined, true);
           } catch (e) {
+            if (huyLayVe.current || !conMo.current) return;
+            setCanVeMoi(false);
             toast.error(e instanceof Error ? e.message : LOI_GUI_THAT_BAI, { duration: 10_000 });
+          } finally {
+            if (conMo.current) setDangLayVe(false);
           }
         }}
-        onDong={() => setCanVeMoi(false)}
+        onDong={() => { huyLayVe.current = true; setCanVeMoi(false); setDangLayVe(false); }}
       />
     )}
     </>

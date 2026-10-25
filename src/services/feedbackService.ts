@@ -198,6 +198,9 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
   // ============ CHẾ ĐỘ DATABASE: gửi lên backend, backend lưu vào MySQL ============
   // Backend kiểm tra CHỐNG SPAM + TỪ CẤM + SĐT lần nữa phía máy chủ (không tin trình duyệt)
   if (hasBackend) {
+    /* Nhớ vé đã gửi đi: chỉ bỏ vé khi chính vé này bị từ chối — không xoá mù một
+       vé mới vừa lấy trong lúc yêu cầu này đang chạy (trọng tài P90) */
+    const veDaGui = layVe();
     try {
       return await apiFetch<FeedbackSubmission>('/api/submissions', {
         method: 'POST',
@@ -218,7 +221,7 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
           viTri: draft.viTri ?? null,
           wardId: draft.contact.wardId ?? null,
           /* Vé cổng vào (ADR-003 việc 23) — thay ô xác minh ở form */
-          veVaoCua: layVe(),
+          veVaoCua: veDaGui,
           /* Chỉ có khi máy chủ vừa đòi xác minh thêm vì mạng chung vượt ngưỡng */
           ...(xacMinhThem ? { xacMinhThem } : {}),
           phieuMoForm,
@@ -238,7 +241,7 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
       });
     } catch (e) {
       /* Vé cổng vào hết hạn -> hiện lại màn hình xác minh; lời máy chủ (có 113) giữ nguyên */
-      if ((e as { code?: string })?.code === 'CAN_XAC_MINH') veHetHan();
+      if ((e as { code?: string })?.code === 'CAN_XAC_MINH' && layVe() === veDaGui) veHetHan();
       /* Mất mạng, máy chủ sập, tải ảnh lỗi... -> câu cố định có 113, thay cho
          "Failed to fetch". Lời giải thích của máy chủ thì giữ nguyên. */
       console.error('[gửi ý kiến] thất bại:', e instanceof Error ? e.message : e);
