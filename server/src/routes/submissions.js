@@ -24,7 +24,7 @@ import { veSdtHopLe } from './xac-minh-sdt.js';
 import { kiemTraTrungLapGanDung, timSuKienTrung } from '../lib/duplicate.js';
 import { giuCho, khoaCuaLanGui } from '../lib/giu-cho-gui.js';
 import { bamPin } from '../lib/bam-pin.js';
-import { docMaLanGui, bamMaLanGui, dauVanLanGui, pinTuMaLanGui, coCotLanGui, timDonTheoMaLanGui, trungMaLanGui, xoaMaLanGuiCu } from '../lib/lan-gui.js';
+import { docMaLanGui, lanGuiCua, pinTuMaLanGui, coCotLanGui, timDonTheoMaLanGui, trungMaLanGui, xoaMaLanGuiCu } from '../lib/lan-gui.js';
 
 const router = Router();
 
@@ -182,9 +182,7 @@ router.post('/', async (req, res) => {
     /* GỬI LẠI CÙNG MỘT LẦN (P91): mã này đã thành đơn -> trả lại đơn đó, TRƯỚC cổng
        vé / giới hạn — lần gửi lại không tạo gì mới, chỉ đọc một dòng theo chỉ mục */
     const maLanGui = docMaLanGui(body);
-    const lanGui = maLanGui && (await coCotLanGui(pool))
-      ? { ma: maLanGui, bam: bamMaLanGui(maLanGui), dau: dauVanLanGui(body) }
-      : null;
+    const lanGui = maLanGui && (await coCotLanGui(pool)) ? lanGuiCua(maLanGui, body) : null;
     const dongDon = { category, content, normalizedContent, fullName, phone, email };
     if (lanGui && (await traLaiNeuDaNhan(res, lanGui, dongDon))) return;
 

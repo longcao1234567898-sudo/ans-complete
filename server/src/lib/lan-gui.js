@@ -45,14 +45,27 @@ export function docMaLanGui(body) {
 
 export const bamMaLanGui = (ma) => hashIdentifier(`lan-gui:${ma}`);
 
+/**
+ * Mã lần gửi của một yêu cầu. Dấu vân tính LƯỜI, một lần: trước cổng vé chỉ tính
+ * khi đã thấy đơn cùng mã (người có đơn thật), không tính cho mọi yêu cầu lạ.
+ */
+export function lanGuiCua(ma, body) {
+  let dau = null;
+  return { ma, bam: bamMaLanGui(ma), get dau() { return dau ?? (dau = dauVanLanGui(body)); } };
+}
+
 /** PIN 6 số cố định theo mã — cùng mã luôn ra cùng PIN */
 export function pinTuMaLanGui(ma) {
   const n = parseInt(hashIdentifier(`lan-gui-pin:${ma}`).slice(0, 12), 16);
   return String(100000 + (n % 900000));
 }
 
-/* Mỗi phần tử tệp băm riêng (ảnh base64 vài MB) rồi mới gộp */
-const bamTep = (ds) => (Array.isArray(ds) ? ds.map((t) => sha256(typeof t === 'string' ? t : JSON.stringify(t ?? null))) : null);
+/* Trọng tài P91 bản 2: băm TỪNG phần tử của mảng do người ngoài gửi là treo máy chủ
+   (32 MB = 16 triệu phần tử, ~30 giây, hết bộ nhớ — trước cả cổng vé). Máy chủ chỉ
+   nhận vài tệp đầu (SO_ANH_TOI_DA, MAX_SO_TAI_LIEU đều < TRAN_TEP), phần thừa chỉ
+   báo "gửi thừa" theo số lượng — nên băm MỘT LƯỢT phần đầu + độ dài là đủ phân biệt */
+const TRAN_TEP = 20;
+const bamTep = (ds) => (Array.isArray(ds) ? [ds.length, sha256(JSON.stringify(ds.slice(0, TRAN_TEP)))] : null);
 
 /**
  * Dấu vân của mọi thứ có nghĩa trong lần gửi. KHÔNG gồm các vé / mã đổi giữa hai

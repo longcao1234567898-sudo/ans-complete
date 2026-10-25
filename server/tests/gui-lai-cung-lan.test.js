@@ -30,7 +30,7 @@ const { kiemPin } = await import('../src/lib/bam-pin.js');
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '32mb' }));   // như nen-tang.js
 app.use('/api/submissions', submissionsRouter);
 const server = app.listen(0);
 test.after(() => server.close());
@@ -218,4 +218,29 @@ test('bộ dọn dấu nối xoá băm mã lần gửi quá 24 giờ, không đ�
   assert.equal(sau.lan_gui_dau, null);
   assert.equal(sau.updated_at, truoc.updated_at);
   assert.notEqual(dongCua(moi.body.trackingCode).lan_gui_bam, null, 'xoá cả mã của đơn còn mới');
+});
+
+/* ---- Trọng tài P91 bản 2 — test đỏ trước khi vá ---- */
+const { dauVanLanGui } = await import('../src/lib/lan-gui.js');
+
+test('R2-1 — dấu vân không băm từng phần tử: mảng 2 triệu phần tử tính trong chốc lát', () => {
+  const t0 = performance.now();
+  dauVanLanGui({ maLanGui: crypto.randomUUID(), images: new Array(2_000_000).fill(0), taiLieu: new Array(2_000_000).fill(0) });
+  const ms = performance.now() - t0;
+  assert.ok(ms < 300, `tính dấu vân mất ${Math.round(ms)} ms — một yêu cầu là treo máy chủ`);
+});
+
+test('R2-1 — yêu cầu KHÔNG vé kèm mã lần gửi + mảng khổng lồ bị chặn ở cổng nhanh như khi không kèm mã', { skip: BO_QUA }, async () => {
+  process.env.TURNSTILE_SECRET_KEY = 'khoa-thu';
+  try {
+    const rac = { ...donCoTen(13), images: new Array(1_500_000).fill(0) };
+    const doGio = async (b) => { const t0 = performance.now(); const r = await gui(b); return { ms: performance.now() - t0, s: r.status }; };
+    const khongMa = await doGio(rac);
+    const coMa = await doGio({ ...rac, maLanGui: crypto.randomUUID() });
+    assert.equal(khongMa.s, 403);
+    assert.equal(coMa.s, 403);
+    assert.ok(coMa.ms < khongMa.ms * 2 + 300, `kèm mã: ${Math.round(coMa.ms)} ms, không mã: ${Math.round(khongMa.ms)} ms`);
+  } finally {
+    delete process.env.TURNSTILE_SECRET_KEY;
+  }
 });
