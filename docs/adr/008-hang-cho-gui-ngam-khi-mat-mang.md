@@ -41,16 +41,22 @@ Tin chờ gửi là **danh tính người tố giác nằm trên máy người d
    `LAN_GUI_KHAC`…) là từ chối hẳn — báo lý do, không gửi nữa, người dân xoá.
 8. **Mất mạng mà mở trang:** service worker lưu bản ứng dụng lần cuối mở được và trả nó cho mọi điều
    hướng khi mất mạng; chưa từng lưu thì về trang dự phòng 113 như cũ (ADR-003 việc 28).
-9. **Máy dùng chung (trọng tài P92):** mỗi tin gắn với phiên trình duyệt đã soạn (sessionStorage) và
-   một **mã nhận kết quả** 6 số chỉ hiện cho người soạn. Tin / kết quả của phiên khác: thanh báo chỉ
-   nói "tin của lần dùng trước", hộp kết quả KHÔNG hiện mã tra cứu và không ghi vào lịch sử máy cho
-   tới khi nhập đúng mã nhận kết quả; sai `SAI_TOI_DA` lần thì xoá kết quả (người gửi gọi trực ban).
+9. **Máy dùng chung (trọng tài P92, bản 3 sau vòng 2):** mỗi tin gắn với ĐÚNG TRANG đã soạn (mã
+   ngẫu nhiên trong bộ nhớ — tải lại / đóng tab là hết; không dùng sessionStorage vì trình duyệt khôi
+   phục nó khi mở lại tab đã đóng) và một **mã nhận kết quả** 6 số chỉ hiện cho người soạn. Tin /
+   kết quả của trang khác **không hiện gì** — không thanh báo, không hộp — để người dùng sau không
+   biết máy này vừa có người báo công an; tin vẫn tự gửi ngầm. Người soạn nhận lại bằng mã ở **ô cố
+   định trên trang Tra cứu** (ô luôn hiện, nhập sai không nói có tin hay không). Sai `SAI_MOI_DOT` lần
+   thì khoá tạm, mỗi đợt gấp đôi — **không xoá** (người khác không phá được kết quả của người gửi).
+   Đếm sai trong một giao dịch IndexedDB, nhiều tab chung một bộ đếm.
    Lý do: mã tra cứu đọc được nội dung tin, PIN mở phòng trao đổi với cán bộ.
 10. **Hạn sống** (hằng số trong `hangChoGui.ts`): máy chủ chỉ nhận ra lần gửi lại trong `SONG_GIO`
-   giờ (P91). Tin CÓ THỂ đã tới máy chủ (mạng đứt lúc chờ trả lời) quá `HAN_GUI_LAI_GIO` thì dừng
-   gửi, báo "quá hạn — gọi trực ban" (gửi nữa là thành đơn thứ hai). Tin chắc chắn chưa tới gửi tới
-   `HAN_TIN_GIO`. Quá hạn rồi thì tự xoá khỏi máy; kết quả chưa ai bấm "đã lưu" xoá sau
-   `HAN_KET_QUA_GIO`. Service worker theo cùng luật.
+   giờ (P91). Tin CÓ THỂ đã tới máy chủ — mọi lần yêu cầu đã đi mà không có trả lời chắc chắn (đứt,
+   hết giờ, 5xx, `DANG_GUI`) đều nâng cờ này — quá `HAN_GUI_LAI_GIO` thì dừng gửi, báo "có thể đã tới
+   — gọi trực ban" (gửi nữa là thành đơn thứ hai). Tin chắc chắn chưa tới gửi tới `HAN_TIN_GIO`, quá
+   hạn báo "CHƯA tới công an". Quá hạn giữ thì tin / kết quả được thay bằng một DẤU không nội dung
+   (loại + mã nhận kết quả) để người soạn nhập mã còn biết chuyện gì xảy ra; dấu xoá sau `HAN_DAU_GIO`.
+   Đồng hồ máy bị chỉnh lùi thì tuổi tin kẹp về 0. Service worker theo cùng luật.
 11. **React Query:** lệnh gửi ý kiến và lệnh phân tích nội dung đặt `networkMode: 'always'` — mặc định
    thư viện tạm dừng lệnh khi mất mạng, nút Gửi đứng im.
 
@@ -64,8 +70,10 @@ Tin chờ gửi là **danh tính người tố giác nằm trên máy người d
   NGẮN nhất có thể (gửi được là xoá, có hạn sống), giao diện không bao giờ hiện lại nội dung, có
   nút xoá, và màn hình nói rõ điều này với người dân.
 - Mã nhận kết quả chỉ chống người dùng sau bình thường, không chống người rành máy (cùng lý do).
-- Người gửi đóng trình duyệt rồi quay lại cũng là "phiên khác": phải nhập mã nhận kết quả. Đánh
-  đổi chấp nhận để bảo vệ người tố giác ở máy dùng chung.
+- Người gửi tải lại trang / đóng trình duyệt rồi quay lại cũng không thấy tin nữa: phải nhập mã nhận
+  kết quả ở trang Tra cứu (màn hình "đã lưu trên máy" nói rõ). Đánh đổi chấp nhận để bảo vệ người
+  tố giác ở máy dùng chung.
+- Lỗi mạng giãn lần thử nhưng không có trần (vùng sóng yếu); có mạng trở lại thì thử ngay.
 - **iPhone/Safari không có Background Sync:** chỉ gửi khi trang đang mở hoặc mở lại. Màn hình "đã lưu
   trên máy" nói rõ việc khẩn cấp đừng chờ — gọi 113.
 - **Bản ứng dụng lưu sẵn có thể cũ** tới lần mở trang có mạng kế tiếp (lúc có mạng luôn lấy bản mới).

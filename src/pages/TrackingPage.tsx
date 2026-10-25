@@ -12,6 +12,7 @@ import TrackingForm from '../components/Tracking/TrackingForm';
 import { useTrackingHistory } from '../hooks/useTrackingHistory';
 import StatusTimeline from '../components/Tracking/StatusTimeline';
 import DataRightsBox from '../components/Tracking/DataRightsBox';
+import NhanLaiTinCho from '../components/Tracking/NhanLaiTinCho';
 import ChatPanel from '../components/Tracking/ChatPanel';
 import Card from '../components/common/Card';
 import { Spinner } from '../components/common/Loading';
@@ -120,6 +121,9 @@ export default function TrackingPage() {
           </p>
         </div>
       )}
+
+      {/* P92: ô cố định — người soạn tin lúc mất mạng nhận lại bằng mã nhận kết quả */}
+      <NhanLaiTinCho />
 
       {(isLoading || isFetching) && <Spinner label="Đang tra cứu mã..." />}
 
