@@ -10,6 +10,7 @@ import { CATEGORIES } from '../../utils/constants';
 import Button from '../common/Button';
 import { cn } from '../../utils/helpers';
 import OXacMinhNguoiMay, { useCoVe } from './OXacMinhNguoiMay';
+import { useMatMang } from '../../hooks/useMatMang';
 
 interface CategorySelectProps {
   value: FeedbackCategory | null;
@@ -22,6 +23,8 @@ interface CategorySelectProps {
 export default function CategorySelect({ value, suggested, onChange, onNext, onBack }: CategorySelectProps) {
   const { t } = useNgonNgu();
   const { coVe, daCoVe } = useCoVe();
+  /* Mất mạng: chưa xác minh được thì vẫn đi tiếp (P92) — máy chủ đòi vé lúc gửi thật */
+  const matMang = useMatMang();
   return (
     <div>
       <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">{t('cs.chonNhomXuLy')}</h3>
@@ -66,7 +69,7 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
         <Button variant="ghost" onClick={onBack}>
           {t('cs.quayLai')}
         </Button>
-        <Button onClick={onNext} disabled={!value || !coVe}>
+        <Button onClick={onNext} disabled={!value || (!coVe && !matMang)}>
           {t('cs.tiepTucThongTin')}
         </Button>
       </div>

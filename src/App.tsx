@@ -4,6 +4,7 @@
  */
 import { useEffect, type ReactNode } from 'react';
 import CongVao from './components/common/CongVao';
+import HangChoGuiNgam from './components/common/HangChoGuiNgam';
 import TheoDoiMayChu from './components/common/TheoDoiMayChu';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -172,6 +173,8 @@ function AppShell() {
       {!isAdminArea && <MobileTabBar />}
       {!isAdminArea && <ChatWidget />}
       {!isAdminArea && <EmergencyButton />}
+      {/* P92: tin cất lúc mất mạng — tự gửi khi có mạng, hiện mã tra cứu khi xong */}
+      {!isAdminArea && <HangChoGuiNgam />}
       <AppToaster />
       {/* Hướng dẫn 8 bước cho người vào lần đầu. Tự ẩn nếu đã xem hoặc đã bỏ qua. */}
       <HuongDanBanDau />

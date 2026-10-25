@@ -7,7 +7,11 @@
  *
  * Chỉ ảnh/font mới cache-first (chúng không đổi nội dung, lại nặng).
  */
-const CACHE = 'htans-v43'; // đổi tên -> xoá sạch cache cũ
+const CACHE = 'htans-v44'; // đổi tên -> xoá sạch cache cũ
+
+/* P92: bản ứng dụng (index.html) lần cuối mở được — mất mạng mà mở trang nào cũng
+   dựng lại được ứng dụng để soạn tin, bấm Gửi thì tin cất hàng chờ */
+const VO_UNG_DUNG = '/__vo-ung-dung';
 
 /* Trang dự phòng (ADR-003 việc 28): giữ sẵn ngay khi cài, để người đã từng vào
    vẫn thấy số 113 và số trực ban khi mất mạng hoặc nơi chạy trang web sập. */
@@ -94,13 +98,20 @@ self.addEventListener('fetch', (event) => {
         if (coTheLuuCache(res)) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(request, copy));
+          /* Chỉ trang của ứng dụng (đường không đuôi tệp) — không lấy nhầm du-phong.html làm vỏ */
+          if (request.mode === 'navigate' && (!/\.[a-z0-9]+$/i.test(url.pathname) || url.pathname === '/index.html')) {
+            const vo = res.clone();
+            caches.open(CACHE).then((c) => c.put(VO_UNG_DUNG, vo));
+          }
         }
         return res;
       })
       .catch(() =>
         caches
           .match(request)
-          /* Trang (điều hướng) không lấy được: ưu tiên trang dự phòng có 113 */
+          /* Trang (điều hướng) không lấy được: bản ứng dụng đã lưu (P92 — vẫn soạn,
+             vẫn cất tin, luôn có nút SOS 113); chưa từng lưu thì trang dự phòng 113 */
+          .then((cached) => cached || (request.mode === 'navigate' ? caches.match(VO_UNG_DUNG) : undefined))
           .then((cached) => cached || (request.mode === 'navigate' ? caches.match('/du-phong.html') : undefined))
           .then((cached) => cached || caches.match('/index.html'))
           // BẮT BUỘC có nhánh cuối này: respondWith() ném TypeError "Failed to
@@ -132,3 +143,83 @@ function traVeTrangMatMang() {
     { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
   );
 }
+
+/* ==========================================================================
+   GỬI NGẦM TIN CHỜ KHI ĐÃ ĐÓNG TRANG (P92) — Background Sync (Android/Chrome)
+
+   Đọc CÙNG kho với src/services/hangChoGui.ts (IndexedDB "htans-hang-cho", khoá
+   AES-GCM không xuất được). Chỉ làm đường đơn giản: gửi nguyên thân yêu cầu đã cất
+   (có mã lần gửi — máy chủ nhận ra lần gửi lại, P91). Thành công thì cất mã tra cứu
+   (mã hoá) rồi xoá tin; mọi trường hợp khác để nguyên cho trang xử lý khi mở lại
+   (xác minh "không phải người máy", báo lỗi). Không có Background Sync (iPhone):
+   trang tự gửi khi mở lại.
+   ========================================================================== */
+const KHO_HANG_CHO = 'htans-hang-cho';
+
+function moKhoHangCho() {
+  return new Promise((ok, loi) => {
+    const rq = indexedDB.open(KHO_HANG_CHO, 1);
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if (!db.objectStoreNames.contains('khoa')) db.createObjectStore('khoa');
+      if (!db.objectStoreNames.contains('tin')) db.createObjectStore('tin', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('ket_qua')) db.createObjectStore('ket_qua', { keyPath: 'id' });
+    };
+    rq.onsuccess = () => ok(rq.result);
+    rq.onerror = () => loi(rq.error);
+  });
+}
+
+function lamKho(db, ten, cheDo, viec) {
+  return new Promise((ok, loi) => {
+    const tx = db.transaction(ten, cheDo);
+    const rq = viec(tx.objectStore(ten));
+    tx.oncomplete = () => ok(rq.result);
+    tx.onerror = () => loi(tx.error);
+  });
+}
+
+async function guiTinChoNgam() {
+  const db = await moKhoHangCho();
+  try {
+    const khoa = await lamKho(db, 'khoa', 'readonly', (k) => k.get('chinh'));
+    if (!khoa) return;
+    const ds = await lamKho(db, 'tin', 'readonly', (k) => k.getAll());
+    for (const ban of ds.filter((b) => b.trangThai === 'cho')) {
+      const tho = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ban.iv }, khoa, ban.duLieu);
+      const { url, than } = JSON.parse(new TextDecoder().decode(tho));
+      let res;
+      try {
+        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(than) });
+      } catch {
+        throw new Error('chưa có mạng');   // trình duyệt tự hẹn lại lượt đồng bộ
+      }
+      if (res.status !== 200 && res.status !== 201) continue;   // để trang xử lý
+      const j = await res.json().catch(() => ({}));
+      const kq = {
+        trackingCode: String(j.trackingCode), chatPin: j.chatPin ? String(j.chatPin) : undefined,
+        pendingReview: j.pendingReview === true, category: than.category,
+        tepKhongNhan: Array.isArray(j.tepKhongNhan) ? j.tepKhongNhan : [],
+      };
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const duLieu = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, khoa, new TextEncoder().encode(JSON.stringify(kq)));
+      /* Cất kết quả TRƯỚC, xoá tin SAU (đứt giữa chừng thì gửi lại cùng mã, không mất) */
+      await lamKho(db, 'ket_qua', 'readwrite', (k) => k.put({ id: ban.id, iv, duLieu }));
+      await lamKho(db, 'tin', 'readwrite', (k) => k.delete(ban.id));
+    }
+  } finally {
+    db.close();
+    const ds = await self.clients.matchAll({ includeUncontrolled: true });
+    ds.forEach((c) => c.postMessage('htans-hang-cho'));
+  }
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'gui-tin-cho') return;
+  event.waitUntil(
+    self.navigator && self.navigator.locks
+      ? self.navigator.locks.request('gui-tin-cho', { ifAvailable: true }, (lock) => (lock ? guiTinChoNgam() : undefined))
+      : guiTinChoNgam()
+  );
+});
+

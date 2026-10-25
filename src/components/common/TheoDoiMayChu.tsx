@@ -25,6 +25,10 @@ export default function TheoDoiMayChu() {
     if (!hasBackend) return undefined;
     const duong = window.location.pathname;
     if (duong.startsWith('/quan-tri') || duong.startsWith('/dang-nhap')) return undefined;
+    /* P92: máy mất mạng, hoặc đang ở trang gửi ý kiến — KHÔNG đẩy sang trang dự phòng:
+       bà con vẫn soạn được, bấm Gửi thì tin cất trên máy và tự gửi khi có mạng
+       (trang vẫn luôn có nút SOS 113). Các trang khác giữ như cũ (ADR-003 việc 28). */
+    if (navigator.onLine === false || duong.startsWith('/gui-y-kien')) return undefined;
     let huy = false;
     (async () => {
       for (let lan = 0; lan < SO_LAN; lan++) {

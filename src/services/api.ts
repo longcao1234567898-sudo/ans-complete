@@ -9,6 +9,9 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim().rep
 /** Có cấu hình backend hay không */
 export const hasBackend = Boolean(API_URL);
 
+/** Địa chỉ đầy đủ của một đường API — hàng chờ gửi ngầm cất kèm tin (P92) */
+export const diaChiApi = (path: string) => `${API_URL}${path}`;
+
 /** Gọi API backend; ném Error với thông báo từ server nếu có */
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   /* ------------------------------------------------------------------------

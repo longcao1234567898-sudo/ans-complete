@@ -15,6 +15,7 @@ import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { UNIT } from '../../utils/constants';
 import { layVe, SU_KIEN_CAN_XAC_MINH } from '../../utils/veVaoCua';
 import { canVeVaoCua, layVeMoi } from '../../services/congVaoService';
+import { useMatMang } from '../../hooks/useMatMang';
 
 /** Đã có vé còn hạn chưa (hoặc không cần vé). Máy chủ báo vé hết hạn thì tự về false */
 export function useCoVe() {
@@ -33,6 +34,7 @@ export default function OXacMinhNguoiMay({ coVe, onCoVe }: { coVe: boolean; onCo
   const [dangGui, setDangGui] = useState(false);
   const [loi, setLoi] = useState('');
   const [khoaO, setKhoaO] = useState(0);
+  const matMang = useMatMang();
 
   if (!canVeVaoCua) return null;
 
@@ -40,6 +42,16 @@ export default function OXacMinhNguoiMay({ coVe, onCoVe }: { coVe: boolean; onCo
     return (
       <p className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
         <CheckCircle2 className="h-4 w-4 shrink-0" /> {t('xnm.daXong')}
+      </p>
+    );
+  }
+
+  /* P92: mất mạng thì Turnstile không tải được — cho đi tiếp, tin sẽ cất trên máy và
+     hàng chờ nhắc xác minh khi có mạng (máy chủ vẫn đòi vé lúc nhận) */
+  if (matMang) {
+    return (
+      <p data-hd="o-nguoi-may-mat-mang" className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs font-medium leading-relaxed text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+        {t('xnm.matMang')}
       </p>
     );
   }

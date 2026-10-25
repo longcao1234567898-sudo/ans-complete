@@ -14,7 +14,17 @@ import { containsProfanity, sanitizeText, scanTextForThreats } from '../utils/se
 import { apiFetch, hasBackend } from './api';
 import { loiGuiDeHieu } from '../utils/loiGui';
 import { layVe, veHetHan } from '../utils/veVaoCua';
+import { coHangCho, DaXepHang, themTinCho } from './hangChoGui';
 import { prepareImages } from './uploadService';
+
+/** UUID v4 cho mã lần gửi (máy chủ chỉ nhận đúng dạng này) */
+function taoMaLanGui(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
 
 /** Đọc danh sách ý kiến đã gửi từ localStorage */
 export function readSubmissions(): FeedbackSubmission[] {
@@ -201,10 +211,11 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
     /* Nhớ vé đã gửi đi: chỉ bỏ vé khi chính vé này bị từ chối — không xoá mù một
        vé mới vừa lấy trong lúc yêu cầu này đang chạy (trọng tài P90) */
     const veDaGui = layVe();
+    /* Mất mạng ngay lúc bấm gửi: chuẩn bị xong thân yêu cầu rồi cất hàng chờ (P92).
+       Ảnh không tải lên được thì prepareImages giữ dạng base64 — máy chủ vẫn nhận */
+    let than: Record<string, unknown> | null = null;
     try {
-      return await apiFetch<FeedbackSubmission>('/api/submissions', {
-        method: 'POST',
-        body: JSON.stringify({
+      than = {
           content,
           normalizedContent: draft.analysis?.normalizedContent ?? content,
           category: draft.category,
@@ -237,9 +248,34 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
           deviceId: layMaThietBi(),
           isAnonymous: draft.contact.isAnonymous === true,
           /* Không gửi mức khẩn: máy chủ tự đánh giá theo nội dung (ADR-003 việc 10) */
-        }),
+          /* Mã lần gửi (P91): mạng đứt lúc chờ trả lời thì gửi lại cùng mã — máy chủ
+             trả lại đúng mã tra cứu + PIN, không tạo đơn trùng */
+          maLanGui: taoMaLanGui(),
+        };
+      if (coHangCho && typeof navigator !== 'undefined' && navigator.onLine === false) {
+        await themTinCho(than);
+        throw new DaXepHang();
+      }
+      return await apiFetch<FeedbackSubmission>('/api/submissions', {
+        method: 'POST',
+        body: JSON.stringify(than),
       });
     } catch (e) {
+      if (e instanceof DaXepHang) throw e;
+      /* Không tới được máy chủ (đứt mạng, cổng mạng trả trang lỗi) hoặc máy chủ lỗi
+         5xx — có thể đã lưu mà chưa kịp trả lời: cất NGUYÊN thân yêu cầu (cùng mã lần
+         gửi) để tự gửi lại khi có mạng; máy chủ nhận ra nếu đã lưu (P91) */
+      const st = (e as { status?: number; tuMayChu?: boolean });
+      if (than && coHangCho && (!st.status || st.status >= 500 || !st.tuMayChu)) {
+        try {
+          await themTinCho(than);
+          throw new DaXepHang();
+        } catch (loiCat) {
+          if (loiCat instanceof DaXepHang) throw loiCat;
+          console.error('[gửi ý kiến] không cất được vào hàng chờ:', loiCat instanceof Error ? loiCat.message : loiCat);
+          if (loiCat instanceof Error && /tin chờ gửi/.test(loiCat.message)) throw loiCat;
+        }
+      }
       /* Vé cổng vào hết hạn -> hiện lại màn hình xác minh; lời máy chủ (có 113) giữ nguyên */
       if ((e as { code?: string })?.code === 'CAN_XAC_MINH' && layVe() === veDaGui) veHetHan();
       /* Mất mạng, máy chủ sập, tải ảnh lỗi... -> câu cố định có 113, thay cho
