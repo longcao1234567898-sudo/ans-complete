@@ -36,3 +36,7 @@ gửi mã xác minh số (`routes/xac-minh-sdt.js`), đăng nhập (`routes/auth
   không đòi vé, và màn hình cũ cũng không cản được bot gọi thẳng API.
 - Người không qua được Turnstile (máy cũ, mạng chặn Cloudflare) bị kẹt ở bước 3 thay vì ở cửa web:
   vẫn đọc được trang, và ô xác minh luôn hiện số 113 và số trực ban.
+- Script Turnstile giờ chỉ tải cho người đang soạn tin (trước đây mọi khách đều tải), nên Cloudflare
+  phân biệt được "người sắp gửi tin" với "người chỉ đọc". Cloudflare không nằm trong mô hình đe doạ;
+  `Referrer-Policy: strict-origin-when-cross-origin` không lộ đường dẫn trang. Ghi lại để người sau biết.
+- Thống kê lượt xem đếm cả khách chưa xác minh (ND-075).
