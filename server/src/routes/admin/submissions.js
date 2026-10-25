@@ -21,6 +21,7 @@ import { coBangTrichChu } from '../../lib/hang-doi-trich-chu.js';
 import { demTep } from '../../lib/tep-sau-xoa-danh-tinh.js';
 import { docTepKhongNhan } from '../../lib/tep-khong-nhan.js';
 import { dangTim } from '../../lib/chuan-hoa-van-ban.js';
+import { xoaMaLanGuiCuaDon } from '../../lib/lan-gui.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -649,6 +650,8 @@ router.patch('/:id/status', async (req, res) => {
              WHERE id = ?`,
             [req.params.id]
           );
+          /* Dấu vân lần gửi (P91) có danh tính đã băm — xoá cùng lúc */
+          await xoaMaLanGuiCuaDon(pool, Number(req.params.id));
           await pool.query(
             `UPDATE data_deletion_requests
              SET status = 'done', handled_at = NOW(), handled_by = ?

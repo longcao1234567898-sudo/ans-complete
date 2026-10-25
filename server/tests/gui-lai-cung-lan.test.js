@@ -26,12 +26,14 @@ datBienMoiTruongHopLe();
 
 const { pool } = await import('../src/db.js');
 const { default: submissionsRouter } = await import('../src/routes/submissions.js');
+const { default: trackingRouter } = await import('../src/routes/tracking.js');
 const { kiemPin } = await import('../src/lib/bam-pin.js');
 
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '32mb' }));   // như nen-tang.js
 app.use('/api/submissions', submissionsRouter);
+app.use('/api/tracking', trackingRouter);
 const server = app.listen(0);
 test.after(() => server.close());
 
@@ -279,4 +281,23 @@ test('R2-2 — không đọc được dấu tệp (chưa chạy v35): gửi lạ
   const lan2 = await gui(don);
   assert.equal(lan2.status, 200);
   assert.equal(lan2.body.tepKhongNhan.length, 1, JSON.stringify(lan2.body.tepKhongNhan));
+});
+
+test('R2-3 — xoá danh tính xoá luôn băm mã + dấu vân lần gửi (dấu vân có họ tên, SĐT đã băm)', { skip: BO_QUA }, async () => {
+  const lan1 = await gui({ ...donCoTen(17), maLanGui: crypto.randomUUID() });
+  assert.equal(lan1.status, 201);
+  ctl.db.prepare("UPDATE submissions SET status = 'resolved' WHERE tracking_code = ?").run(lan1.body.trackingCode);
+  const r = await fetch(`http://127.0.0.1:${server.address().port}/api/tracking/${lan1.body.trackingCode}/request-deletion`, { method: 'POST' });
+  assert.equal((await r.json()).status, 'done');
+  const d = dongCua(lan1.body.trackingCode);
+  assert.equal(d.identity_erased, 1);
+  assert.deepEqual([d.lan_gui_bam, d.lan_gui_dau, d.lan_gui_xong], [null, null, null], 'đơn đã xoá danh tính còn dấu vân danh tính');
+});
+
+test('R2-3 — bộ dọn dấu nối xoá mã lần gửi của đơn đã xoá danh tính (đường cán bộ duyệt xoá), kể cả đơn còn mới', { skip: BO_QUA }, async () => {
+  const { donDauNoi } = await import('../src/lib/vong-doi-dau-noi.js');
+  const lan1 = await gui({ ...donCoTen(18), maLanGui: crypto.randomUUID() });
+  ctl.db.prepare('UPDATE submissions SET identity_erased = 1 WHERE tracking_code = ?').run(lan1.body.trackingCode);
+  await donDauNoi(pool);
+  assert.equal(dongCua(lan1.body.trackingCode).lan_gui_dau, null);
 });

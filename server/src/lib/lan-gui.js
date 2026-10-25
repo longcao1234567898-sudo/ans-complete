@@ -143,14 +143,28 @@ export const trungMaLanGui = (err) => err?.code === 'ER_DUP_ENTRY'
   && /lan_gui_bam/.test(String(err.sqlMessage || err.message || ''));
 
 /**
- * Bộ dọn dấu nối gọi định kỳ: xoá băm mã + dấu vân quá SONG_GIO giờ.
+ * Xoá danh tính một đơn: xoá luôn mã lần gửi — dấu vân có họ tên, SĐT, email đã băm,
+ * người có pepper dùng nó XÁC NHẬN được một danh tính nghi ngờ (trọng tài P91 bản 2).
+ * Thiếu cột -> bỏ qua. Bộ dọn định kỳ quét lại (đơn đã xoá danh tính) cho chắc.
+ */
+export async function xoaMaLanGuiCuaDon(pool, submissionId) {
+  if (!(await coCotLanGui(pool))) return;
+  await pool.query(
+    'UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, lan_gui_xong = NULL, updated_at = updated_at WHERE id = ?',
+    [submissionId]
+  );
+}
+
+/**
+ * Bộ dọn dấu nối gọi định kỳ: xoá băm mã + dấu vân quá SONG_GIO giờ, và của mọi
+ * đơn đã xoá danh tính.
  * updated_at = updated_at: không đóng giờ dọn lên đơn (bài học P29). Thiếu cột -> 0.
  */
 export async function xoaMaLanGuiQuaHan(pool) {
   if (!(await coCotLanGui(pool))) return 0;
   const [kq] = await pool.query(
     `UPDATE submissions SET lan_gui_bam = NULL, lan_gui_dau = NULL, lan_gui_xong = NULL, updated_at = updated_at
-      WHERE lan_gui_bam IS NOT NULL AND created_at < NOW() - INTERVAL ? HOUR`,
+      WHERE lan_gui_bam IS NOT NULL AND (created_at < NOW() - INTERVAL ? HOUR OR identity_erased = 1)`,
     [SONG_GIO]
   );
   return kq?.affectedRows || 0;

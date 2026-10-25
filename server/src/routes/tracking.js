@@ -3,6 +3,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { STATUS_LABEL, layIpThat, khoaIp } from '../lib/helpers.js';
+import { xoaMaLanGuiCuaDon } from '../lib/lan-gui.js';
 
 const router = Router();
 
@@ -224,6 +225,8 @@ router.post('/:code/request-deletion', async (req, res) => {
          WHERE id = ?`,
         [sub.id]
       );
+      /* Dấu vân lần gửi (P91) có danh tính đã băm — xoá cùng lúc */
+      await xoaMaLanGuiCuaDon(pool, sub.id);
 
       await pool.query(
         `INSERT INTO data_deletion_requests
