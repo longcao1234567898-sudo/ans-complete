@@ -30,9 +30,25 @@ function coTheLuuCache(res) {
   return res && res.status === 200 && res.type !== 'opaque';
 }
 
+/* Trọng tài P92: lần ghé ĐẦU TIÊN trang chưa chịu service worker điều khiển, nên lần
+   điều hướng đó không lưu vỏ ứng dụng, gói JS chính cũng không vào cache — mất mạng
+   tải lại chỉ ra trang dự phòng. Lưu sẵn lúc cài: index.html + các tệp JS/CSS nó gọi */
+async function luuVoUngDung() {
+  const res = await fetch('/', { cache: 'no-store' });
+  if (!coTheLuuCache(res)) return;
+  const html = await res.clone().text();
+  const c = await caches.open(CACHE);
+  const tep = [...new Set([...html.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|css))"/g)].map((m) => m[1]))];
+  await c.addAll(tep);
+  await c.put(VO_UNG_DUNG, res);
+}
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(GIU_SAN)).catch(() => {}));
+  event.waitUntil(Promise.all([
+    caches.open(CACHE).then((c) => c.addAll(GIU_SAN)).catch(() => {}),
+    luuVoUngDung().catch(() => {}),   // không lưu được thì vẫn cài — mất mạng về trang dự phòng như cũ
+  ]));
 });
 
 self.addEventListener('activate', (event) => {
@@ -108,7 +124,10 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() =>
         caches
-          .match(request)
+          /* ignoreVary: tệp lưu sẵn lúc cài (luuVoUngDung) không mang header Origin như
+             yêu cầu <script type="module"> của trang; máy phục vụ trả "Vary: Origin" thì
+             không khớp -> mất mạng mà ứng dụng không dựng được. Cùng nguồn, cùng nội dung */
+          .match(request, { ignoreVary: true })
           /* Trang (điều hướng) không lấy được: bản ứng dụng đã lưu (P92 — vẫn soạn,
              vẫn cất tin, luôn có nút SOS 113); chưa từng lưu thì trang dự phòng 113 */
           .then((cached) => cached || (request.mode === 'navigate' ? caches.match(VO_UNG_DUNG) : undefined))
