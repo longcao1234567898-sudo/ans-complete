@@ -41,14 +41,31 @@ Tin chờ gửi là **danh tính người tố giác nằm trên máy người d
    `LAN_GUI_KHAC`…) là từ chối hẳn — báo lý do, không gửi nữa, người dân xoá.
 8. **Mất mạng mà mở trang:** service worker lưu bản ứng dụng lần cuối mở được và trả nó cho mọi điều
    hướng khi mất mạng; chưa từng lưu thì về trang dự phòng 113 như cũ (ADR-003 việc 28).
-9. **React Query:** lệnh gửi ý kiến và lệnh phân tích nội dung đặt `networkMode: 'always'` — mặc định
+9. **Máy dùng chung (trọng tài P92):** mỗi tin gắn với phiên trình duyệt đã soạn (sessionStorage) và
+   một **mã nhận kết quả** 6 số chỉ hiện cho người soạn. Tin / kết quả của phiên khác: thanh báo chỉ
+   nói "tin của lần dùng trước", hộp kết quả KHÔNG hiện mã tra cứu và không ghi vào lịch sử máy cho
+   tới khi nhập đúng mã nhận kết quả; sai `SAI_TOI_DA` lần thì xoá kết quả (người gửi gọi trực ban).
+   Lý do: mã tra cứu đọc được nội dung tin, PIN mở phòng trao đổi với cán bộ.
+10. **Hạn sống** (hằng số trong `hangChoGui.ts`): máy chủ chỉ nhận ra lần gửi lại trong `SONG_GIO`
+   giờ (P91). Tin CÓ THỂ đã tới máy chủ (mạng đứt lúc chờ trả lời) quá `HAN_GUI_LAI_GIO` thì dừng
+   gửi, báo "quá hạn — gọi trực ban" (gửi nữa là thành đơn thứ hai). Tin chắc chắn chưa tới gửi tới
+   `HAN_TIN_GIO`. Quá hạn rồi thì tự xoá khỏi máy; kết quả chưa ai bấm "đã lưu" xoá sau
+   `HAN_KET_QUA_GIO`. Service worker theo cùng luật.
+11. **React Query:** lệnh gửi ý kiến và lệnh phân tích nội dung đặt `networkMode: 'always'` — mặc định
    thư viện tạm dừng lệnh khi mất mạng, nút Gửi đứng im.
 
 ## Đánh đổi đã chấp nhận
 
-- **Người cầm chính máy, chính trình duyệt đó** dùng được khoá (khoá không xuất ra được nhưng trình
-  duyệt vẫn giải mã cho trang cùng nguồn). Mã hoá chống sao chép thư mục dữ liệu trình duyệt, không
-  chống người mở trình duyệt. Vì vậy giao diện không bao giờ hiện lại nội dung, và có nút xoá.
+- **Mã hoá trên máy KHÔNG chống được người có quyền vào hồ sơ trình duyệt** (trọng tài P92 sửa lời
+  hứa cũ). Khoá `extractable = false` chỉ chặn lệnh xuất khoá trong JavaScript; trình duyệt vẫn ghi
+  vật liệu khoá xuống đĩa, ngay trong cùng cơ sở dữ liệu. Ai chép được hồ sơ trình duyệt (máy bị
+  thu, công cụ pháp y) hoặc mở công cụ lập trình ngay trên trình duyệt đó là giải mã được. Mã hoá
+  chỉ chặn đọc lướt (xem tệp thô, công cụ quét đĩa đơn giản). Lớp bảo vệ chính là: tin nằm trên máy
+  NGẮN nhất có thể (gửi được là xoá, có hạn sống), giao diện không bao giờ hiện lại nội dung, có
+  nút xoá, và màn hình nói rõ điều này với người dân.
+- Mã nhận kết quả chỉ chống người dùng sau bình thường, không chống người rành máy (cùng lý do).
+- Người gửi đóng trình duyệt rồi quay lại cũng là "phiên khác": phải nhập mã nhận kết quả. Đánh
+  đổi chấp nhận để bảo vệ người tố giác ở máy dùng chung.
 - **iPhone/Safari không có Background Sync:** chỉ gửi khi trang đang mở hoặc mở lại. Màn hình "đã lưu
   trên máy" nói rõ việc khẩn cấp đừng chờ — gọi 113.
 - **Bản ứng dụng lưu sẵn có thể cũ** tới lần mở trang có mạng kế tiếp (lúc có mạng luôn lấy bản mới).

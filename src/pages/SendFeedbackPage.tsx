@@ -174,8 +174,9 @@ export default function SendFeedbackPage() {
   });
   const [draftRestored, setDraftRestored] = useState(() => Boolean(readDraft()?.content));
   const [submission, setSubmission] = useState<FeedbackSubmission | null>(null);
-  /* P92: bấm Gửi lúc mất mạng -> tin đã cất trên máy, tự gửi khi có mạng */
-  const [daXepHang, setDaXepHang] = useState(false);
+  /* P92: bấm Gửi lúc mất mạng -> tin đã cất trên máy, tự gửi khi có mạng.
+     null: chưa xếp hàng; chuỗi: mã nhận kết quả của tin vừa cất */
+  const [daXepHang, setDaXepHang] = useState<string | null>(null);
 
   /* V10: Mã QR định vị — bà con quét mã dán tại hiện trường
      (?diem=MÃ trên đường dẫn) -> tự điền sẵn phường/xã, khỏi phải tự chọn. */
@@ -276,7 +277,7 @@ export default function SendFeedbackPage() {
         /* Chỉ mở ô xác minh khi lần gửi này CHƯA kèm mã. Đã kèm mã mà vẫn bị đòi
            (hoặc XAC_MINH_THEM_KHONG_QUA) thì báo lỗi — mở lại là tự lặp gửi mãi */
         const code = (err as { code?: string })?.code;
-        if (code === 'DA_XEP_HANG') { clearDraft(); setDaXepHang(true); return; }
+        if (code === 'DA_XEP_HANG') { clearDraft(); setDaXepHang((err as { maMo?: string }).maMo || ''); return; }
         if (code === 'CAN_XAC_MINH_THEM' && !xacMinhThem) { setCanXacMinhThem(true); return; }
         if (code === 'CAN_XAC_MINH' && !daLayVeMoi) { setCanVeMoi(true); return; }
         /* Để lâu hơn mặc định: câu có số 113 phải đọc kịp */
@@ -294,7 +295,7 @@ export default function SendFeedbackPage() {
     setDraft({ content: '', urgency: 'normal', analysis: null, category: null, contact: EMPTY_CONTACT, images: [], taiLieu: [], viTri: null });
     clearDraft();
     setSubmission(null);
-    setDaXepHang(false);
+    setDaXepHang(null);
     setStep(1);
   };
 
@@ -333,13 +334,13 @@ export default function SendFeedbackPage() {
           mới ngắn hơn nên vị trí đó rơi xuống tận chân trang. */}
       <div data-khu-bieu-mau />
 
-      {!submission && !daXepHang && <StepIndicator current={step} />}
+      {!submission && daXepHang === null && <StepIndicator current={step} />}
       {/* Hướng dẫn từng bước bằng lời, có nút đọc to — cho người lớn tuổi và
           người không đọc được chữ. Chỉ hiện khi chưa gửi xong và thiết bị
           không bị khoá (khỏi lẫn với màn hình báo khoá). */}
-      {!submission && !daXepHang && !biKhoa?.biKhoa && <HuongDanBuoc buoc={step} />}
+      {!submission && daXepHang === null && !biKhoa?.biKhoa && <HuongDanBuoc buoc={step} />}
 
-      {daXepHang ? <TinDaXepHang onSoanMoi={handleReset} /> : (
+      {daXepHang !== null ? <TinDaXepHang maMo={daXepHang} onSoanMoi={handleReset} /> : (
       <Card className="overflow-hidden p-5 sm:p-7">
         {/* Chuyển bước TRƯỢT NGANG như ứng dụng điện thoại:
             đi tới -> trượt từ phải sang; quay lại -> trượt từ trái sang */}

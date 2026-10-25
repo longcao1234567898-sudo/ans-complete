@@ -253,8 +253,7 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
           maLanGui: taoMaLanGui(),
         };
       if (coHangCho && typeof navigator !== 'undefined' && navigator.onLine === false) {
-        await themTinCho(than);
-        throw new DaXepHang();
+        throw new DaXepHang(await themTinCho(than, false));
       }
       return await apiFetch<FeedbackSubmission>('/api/submissions', {
         method: 'POST',
@@ -268,8 +267,7 @@ export async function submitFeedback(draft: FeedbackDraft, xacMinhThem?: string)
       const st = (e as { status?: number; tuMayChu?: boolean });
       if (than && coHangCho && (!st.status || st.status >= 500 || !st.tuMayChu)) {
         try {
-          await themTinCho(than);
-          throw new DaXepHang();
+          throw new DaXepHang(await themTinCho(than, true));
         } catch (loiCat) {
           if (loiCat instanceof DaXepHang) throw loiCat;
           console.error('[gửi ý kiến] không cất được vào hàng chờ:', loiCat instanceof Error ? loiCat.message : loiCat);

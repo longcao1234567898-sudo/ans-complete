@@ -185,9 +185,12 @@ async function guiTinChoNgam() {
     const khoa = await lamKho(db, 'khoa', 'readonly', (k) => k.get('chinh'));
     if (!khoa) return;
     const ds = await lamKho(db, 'tin', 'readonly', (k) => k.getAll());
-    for (const ban of ds.filter((b) => b.trangThai === 'cho')) {
+    /* Tin có thể đã tới máy chủ mà quá hạn gửi lại (HAN_GUI_LAI_GIO bên hangChoGui.ts):
+       để trang báo "quá hạn", không gửi (gửi là thành đơn thứ hai) */
+    const conHan = (b) => !b.coTheDaToi || Date.now() - b.taoLuc < 20 * 3_600_000;
+    for (const ban of ds.filter((b) => b.trangThai === 'cho' && conHan(b))) {
       const tho = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ban.iv }, khoa, ban.duLieu);
-      const { url, than } = JSON.parse(new TextDecoder().decode(tho));
+      const { url, than, phien, maMo } = JSON.parse(new TextDecoder().decode(tho));
       let res;
       try {
         res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(than) });
@@ -200,11 +203,12 @@ async function guiTinChoNgam() {
         trackingCode: String(j.trackingCode), chatPin: j.chatPin ? String(j.chatPin) : undefined,
         pendingReview: j.pendingReview === true, category: than.category,
         tepKhongNhan: Array.isArray(j.tepKhongNhan) ? j.tepKhongNhan : [],
+        phien, maMo,   // máy dùng chung: chỉ phiên đã soạn mới thấy mã tra cứu (hangChoGui.ts)
       };
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const duLieu = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, khoa, new TextEncoder().encode(JSON.stringify(kq)));
       /* Cất kết quả TRƯỚC, xoá tin SAU (đứt giữa chừng thì gửi lại cùng mã, không mất) */
-      await lamKho(db, 'ket_qua', 'readwrite', (k) => k.put({ id: ban.id, iv, duLieu }));
+      await lamKho(db, 'ket_qua', 'readwrite', (k) => k.put({ id: ban.id, taoLuc: Date.now(), iv, duLieu }));
       await lamKho(db, 'tin', 'readwrite', (k) => k.delete(ban.id));
     }
   } finally {

@@ -19,9 +19,22 @@
  * (kể cả ảnh đã tải lên) cùng `maLanGui`. Máy chủ nhận ra lần gửi lại và trả lại
  * đúng mã tra cứu + PIN. Chỉ thay vé "không phải người máy" (không nằm trong dấu vân).
  *
+ * MÁY DÙNG CHUNG (trọng tài P92): người mở trình duyệt sau không được thấy mã tra cứu
+ * + PIN của người trước (mã tra cứu đọc được nội dung tin). Mỗi tin gắn với PHIÊN đã
+ * soạn (sessionStorage — đóng trình duyệt là hết) và một MÃ NHẬN KẾT QUẢ 6 số chỉ hiện
+ * cho người soạn. Khác phiên: không hiện mã tra cứu, không ghi vào lịch sử máy, chỉ
+ * mở được bằng mã nhận kết quả (sai SAI_TOI_DA lần thì xoá kết quả — người gửi gọi
+ * trực ban). Chỉ chống người dùng sau bình thường; người mở công cụ lập trình của
+ * chính trình duyệt này đọc được mọi thứ trang đọc được.
+ *
+ * HẠN SỐNG: máy chủ chỉ nhận ra lần gửi lại trong SONG_GIO giờ (P91). Tin có thể ĐÃ
+ * tới máy chủ (mạng đứt lúc chờ trả lời) mà quá HAN_GUI_LAI_GIO thì không gửi lại nữa
+ * — gửi là thành đơn thứ hai; báo bà con gọi trực ban. Tin chắc chắn chưa tới (bấm Gửi
+ * lúc máy báo mất mạng) gửi tới HAN_TIN_GIO. Quá hạn thì dừng, rồi tự xoá khỏi máy.
+ *
  * Trạng thái một tin: cho (đợi mạng) · can_xac_minh (máy chủ đòi vé — cần bà con tích
  * ô ở trang) · can_xac_minh_them (mạng đông, cần mã Turnstile tươi) · loi (máy chủ
- * từ chối hẳn — báo lý do, bà con xoá).
+ * từ chối hẳn — báo lý do, bà con xoá) · qua_han (quá hạn gửi lại).
  */
 import { diaChiApi } from './api';
 import { layVe } from '../utils/veVaoCua';
@@ -35,33 +48,79 @@ export const SU_KIEN_HANG_CHO = 'htans-hang-cho';
 export const THE_DONG_BO = 'gui-tin-cho';
 const TOI_DA_TIN = 3;
 const KHOA_KHOA = 'chinh';
+const GIO = 3_600_000;
+/** Dưới SONG_GIO (24) của server/src/lib/lan-gui.js, chừa biên đồng hồ máy lệch */
+const HAN_GUI_LAI_GIO = 20;
+const HAN_TIN_GIO = 72;
+/** Kết quả chưa ai bấm "đã lưu mã" — quá hạn này thì xoá khỏi máy */
+const HAN_KET_QUA_GIO = 72;
+const SAI_TOI_DA = 5;
+const KHOA_PHIEN = 'htans_phien_hang_cho';
 
-export type TrangThaiTin = 'cho' | 'can_xac_minh' | 'can_xac_minh_them' | 'loi';
+export type TrangThaiTin = 'cho' | 'can_xac_minh' | 'can_xac_minh_them' | 'loi' | 'qua_han';
 
 interface BanGhiTin {
   id: string;
   taoLuc: number;
   trangThai: TrangThaiTin;
   loi?: string;
+  /** Có thể máy chủ đã lưu (mạng đứt lúc chờ trả lời) — gửi lại chỉ trong HAN_GUI_LAI_GIO */
+  coTheDaToi?: boolean;
   iv: Uint8Array;
   duLieu: ArrayBuffer;
 }
 
-export interface TinChoTomTat { id: string; taoLuc: number; trangThai: TrangThaiTin; loi?: string }
+/** Phần mã hoá của một tin chờ */
+interface NoiDungTin { url: string; than: Record<string, unknown>; phien?: string; maMo?: string }
 
-export interface KetQuaGuiNgam {
-  id: string;
+export interface TinChoTomTat {
+  id: string; taoLuc: number; trangThai: TrangThaiTin; loi?: string;
+  /** Tin do chính phiên trình duyệt này soạn */
+  cuaPhienNay: boolean;
+  /** Mã nhận kết quả — chỉ có khi cuaPhienNay */
+  maMo?: string;
+}
+
+interface KetQuaDayDu {
   trackingCode: string;
   chatPin?: string;
   pendingReview?: boolean;
   category?: string;
   tepKhongNhan?: { ten: string; lyDo: string }[];
+  phien?: string;
+  maMo?: string;
 }
+
+export interface KetQuaGuiNgam extends Partial<Omit<KetQuaDayDu, 'phien' | 'maMo'>> {
+  id: string;
+  /** false: tin của phiên khác — mã tra cứu ẩn tới khi nhập đúng mã nhận kết quả */
+  cuaPhienNay: boolean;
+}
+
+interface BanGhiKetQua { id: string; taoLuc?: number; soLanSai?: number; iv: Uint8Array; duLieu: ArrayBuffer }
 
 /** Lỗi đặc biệt: tin đã được cất vào hàng chờ (không phải gửi hỏng) */
 export class DaXepHang extends Error {
   code = 'DA_XEP_HANG';
-  constructor() { super('Tin đã được lưu trên máy và sẽ tự gửi khi có mạng.'); }
+  constructor(public maMo: string) { super('Tin đã được lưu trên máy và sẽ tự gửi khi có mạng.'); }
+}
+
+/** Mã phiên trình duyệt (sessionStorage: mỗi tab, đóng là hết). Không đọc được thì
+    mỗi lần tải trang một mã — coi như phiên khác (an toàn: ẩn mã tra cứu) */
+let phienDuPhong = '';
+function maPhien(): string {
+  try {
+    let p = sessionStorage.getItem(KHOA_PHIEN);
+    if (!p) { p = crypto.randomUUID(); sessionStorage.setItem(KHOA_PHIEN, p); }
+    return p;
+  } catch {
+    return phienDuPhong || (phienDuPhong = crypto.randomUUID());
+  }
+}
+
+function taoMaMo(): string {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
+  return String(n).padStart(6, '0');
 }
 
 export const coHangCho = typeof indexedDB !== 'undefined' && typeof crypto !== 'undefined' && Boolean(crypto.subtle);
@@ -118,8 +177,11 @@ async function henDongBo() {
   } catch { /* không có Background Sync: trang tự gửi khi mở lại */ }
 }
 
-/** Cất một tin (thân yêu cầu ĐÃ chuẩn bị, có maLanGui). Đủ TOI_DA_TIN thì từ chối */
-export async function themTinCho(than: Record<string, unknown>): Promise<void> {
+/**
+ * Cất một tin (thân yêu cầu ĐÃ chuẩn bị, có maLanGui). Đủ TOI_DA_TIN thì từ chối.
+ * `coTheDaToi`: lần gửi vừa rồi có thể đã tới máy chủ. Trả mã nhận kết quả.
+ */
+export async function themTinCho(than: Record<string, unknown>, coTheDaToi: boolean): Promise<string> {
   const ds = await dsTinCho();
   if (ds.length >= TOI_DA_TIN) {
     throw new Error(`Máy này đang giữ ${ds.length} tin chờ gửi. Bà con chờ có mạng để các tin đó gửi đi, `
@@ -128,22 +190,53 @@ export async function themTinCho(than: Record<string, unknown>): Promise<void> {
   /* Mã Turnstile chỉ dùng được một lần, vài phút là hết hạn: không cất — lúc gửi
      lại máy chủ cần thì xin mã mới (can_xac_minh_them) */
   const { xacMinhThem: _boQua, ...gon } = than;
+  const maMo = taoMaMo();
+  const noiDung: NoiDungTin = { url: diaChiApi('/api/submissions'), than: gon, phien: maPhien(), maMo };
   const ban: BanGhiTin = {
     id: String(than.maLanGui),
     taoLuc: Date.now(),
     trangThai: 'cho',
-    ...(await maHoa({ url: diaChiApi('/api/submissions'), than: gon })),
+    coTheDaToi,
+    ...(await maHoa(noiDung)),
   };
   await lam(KHO_TIN, 'readwrite', (k) => k.put(ban));
   baoDoi();
   void henDongBo();
+  return maMo;
+}
+
+const LOI_QUA_HAN = 'Tin chờ đã quá lâu chưa gửi được nên máy dừng gửi (có thể tin đã tới công an — gửi lại '
+  + 'sẽ thành tin trùng). Bà con gọi trực ban để hỏi, rồi xoá tin chờ. Việc khẩn cấp xin gọi ngay 113.';
+
+/** Dừng tin quá hạn gửi lại, xoá tin / kết quả đã quá hạn giữ trên máy */
+async function donQuaHan() {
+  const bay = Date.now();
+  const ds = await lam<BanGhiTin[]>(KHO_TIN, 'readonly', (k) => k.getAll() as IDBRequest<BanGhiTin[]>);
+  for (const b of ds) {
+    const tuoi = (bay - b.taoLuc) / GIO;
+    if (tuoi > HAN_TIN_GIO + 24) await lam(KHO_TIN, 'readwrite', (k) => k.delete(b.id));
+    else if (b.trangThai !== 'qua_han' && ((b.coTheDaToi && tuoi > HAN_GUI_LAI_GIO) || tuoi > HAN_TIN_GIO)) {
+      await doiTrangThai(b.id, 'qua_han', LOI_QUA_HAN);
+    }
+  }
+  const kq = await lam<BanGhiKetQua[]>(KHO_KET_QUA, 'readonly', (k) => k.getAll() as IDBRequest<BanGhiKetQua[]>);
+  for (const b of kq) {
+    if (b.taoLuc && (bay - b.taoLuc) / GIO > HAN_KET_QUA_GIO) await lam(KHO_KET_QUA, 'readwrite', (k) => k.delete(b.id));
+  }
 }
 
 export async function dsTinCho(): Promise<TinChoTomTat[]> {
   if (!coHangCho) return [];
   try {
+    await donQuaHan();
     const ds = await lam<BanGhiTin[]>(KHO_TIN, 'readonly', (k) => k.getAll() as IDBRequest<BanGhiTin[]>);
-    return ds.map(({ id, taoLuc, trangThai, loi }) => ({ id, taoLuc, trangThai, loi })).sort((a, b) => a.taoLuc - b.taoLuc);
+    const phien = maPhien();
+    const tomTat = await Promise.all(ds.map(async ({ id, taoLuc, trangThai, loi, iv, duLieu }) => {
+      const nd = await giaiMa<NoiDungTin>({ iv, duLieu }).catch(() => null);
+      const cuaPhienNay = Boolean(nd?.phien) && nd?.phien === phien;
+      return { id, taoLuc, trangThai, loi, cuaPhienNay, ...(cuaPhienNay ? { maMo: nd?.maMo } : {}) };
+    }));
+    return tomTat.sort((a, b) => a.taoLuc - b.taoLuc);
   } catch {
     return [];
   }
@@ -154,14 +247,43 @@ export async function xoaTinCho(id: string) {
   baoDoi();
 }
 
+const congKhai = ({ phien: _p, maMo: _m, ...con }: KetQuaDayDu) => con;
+
+/** Kết quả đã gửi. Của phiên khác thì KHÔNG kèm mã tra cứu / PIN (xem moKetQua) */
 export async function dsKetQua(): Promise<KetQuaGuiNgam[]> {
   if (!coHangCho) return [];
   try {
-    const ds = await lam<{ id: string; iv: Uint8Array; duLieu: ArrayBuffer }[]>(KHO_KET_QUA, 'readonly', (k) => k.getAll() as IDBRequest<{ id: string; iv: Uint8Array; duLieu: ArrayBuffer }[]>);
-    return Promise.all(ds.map(async (b) => ({ ...(await giaiMa<Omit<KetQuaGuiNgam, 'id'>>(b)), id: b.id })));
+    const ds = await lam<BanGhiKetQua[]>(KHO_KET_QUA, 'readonly', (k) => k.getAll() as IDBRequest<BanGhiKetQua[]>);
+    const phien = maPhien();
+    const kq = await Promise.all(ds.map(async (b): Promise<KetQuaGuiNgam | null> => {
+      const nd = await giaiMa<KetQuaDayDu>(b).catch(() => null);
+      if (!nd) return null;
+      const cuaPhienNay = Boolean(nd.phien) && nd.phien === phien;
+      return cuaPhienNay ? { ...congKhai(nd), id: b.id, cuaPhienNay } : { id: b.id, cuaPhienNay, category: nd.category };
+    }));
+    return kq.filter((x): x is KetQuaGuiNgam => x !== null);
   } catch {
     return [];
   }
+}
+
+/**
+ * Mở kết quả của phiên khác bằng mã nhận kết quả. Sai SAI_TOI_DA lần thì xoá hẳn
+ * (người dùng sau không dò được; người gửi thật gọi trực ban hỏi lại).
+ */
+export async function moKetQua(id: string, maNhap: string): Promise<{ kq?: KetQuaGuiNgam; conLai: number }> {
+  const b = await lam<BanGhiKetQua | undefined>(KHO_KET_QUA, 'readonly', (k) => k.get(id) as IDBRequest<BanGhiKetQua | undefined>);
+  if (!b) return { conLai: 0 };
+  const nd = await giaiMa<KetQuaDayDu>(b);
+  if (nd.maMo && maNhap.trim() === nd.maMo) {
+    saveTrackingCode(nd.trackingCode, nd.category);
+    return { kq: { ...congKhai(nd), id, cuaPhienNay: true }, conLai: SAI_TOI_DA };
+  }
+  const sai = (b.soLanSai || 0) + 1;
+  if (sai >= SAI_TOI_DA) await lam(KHO_KET_QUA, 'readwrite', (k) => k.delete(id));
+  else await lam(KHO_KET_QUA, 'readwrite', (k) => k.put({ ...b, soLanSai: sai }));
+  baoDoi();
+  return { conLai: SAI_TOI_DA - sai };
 }
 
 /** Bà con đã lưu mã tra cứu + PIN -> xoá kết quả khỏi máy */
@@ -183,7 +305,7 @@ async function doiTrangThai(id: string, trangThai: TrangThaiTin, loi?: string) {
 }
 
 async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
-  const { url, than } = await giaiMa<{ url: string; than: Record<string, unknown> }>(ban);
+  const { url, than, phien, maMo } = await giaiMa<NoiDungTin>(ban);
   /* Vé "không phải người máy" mới nhất của trang (vé lúc cất có thể đã hết hạn) — vé
      không nằm trong dấu vân của lần gửi nên đổi được */
   const ve = layVe();
@@ -202,18 +324,21 @@ async function guiMot(ban: BanGhiTin, xacMinhThem?: string): Promise<void> {
   const j = await res.json().catch(() => ({} as Record<string, unknown>));
   const code = typeof j?.code === 'string' ? j.code : '';
   if (res.status === 200 || res.status === 201) {
-    const kq: Omit<KetQuaGuiNgam, 'id'> = {
+    const kq: KetQuaDayDu = {
       trackingCode: String(j.trackingCode),
       chatPin: j.chatPin ? String(j.chatPin) : undefined,
       pendingReview: j.pendingReview === true,
       category: typeof than.category === 'string' ? than.category : undefined,
       tepKhongNhan: Array.isArray(j.tepKhongNhan) ? j.tepKhongNhan : [],
+      phien,
+      maMo,
     };
     /* Cất kết quả TRƯỚC, xoá tin SAU: đứt giữa chừng thì lần sau gửi lại cùng mã —
        máy chủ trả lại đúng mã tra cứu, không mất */
     const mh = await maHoa(kq);
-    await lam(KHO_KET_QUA, 'readwrite', (k) => k.put({ id: ban.id, ...mh }));
-    saveTrackingCode(kq.trackingCode, kq.category);
+    await lam(KHO_KET_QUA, 'readwrite', (k) => k.put({ id: ban.id, taoLuc: Date.now(), ...mh }));
+    /* Lịch sử tra cứu của máy chỉ ghi cho đúng người soạn (máy dùng chung) */
+    if (phien && phien === maPhien()) saveTrackingCode(kq.trackingCode, kq.category);
     await xoaTinCho(ban.id);
     return;
   }
@@ -236,9 +361,12 @@ export async function guiTinCho(xacMinhThem?: string): Promise<void> {
   dangChay = true;
   const chay = async () => {
     let ds: BanGhiTin[] = [];
-    try { ds = await lam<BanGhiTin[]>(KHO_TIN, 'readonly', (k) => k.getAll() as IDBRequest<BanGhiTin[]>); } catch { return; }
+    try {
+      await donQuaHan();
+      ds = await lam<BanGhiTin[]>(KHO_TIN, 'readonly', (k) => k.getAll() as IDBRequest<BanGhiTin[]>);
+    } catch { return; }
     for (const ban of ds.sort((a, b) => a.taoLuc - b.taoLuc)) {
-      if (ban.trangThai === 'loi') continue;
+      if (ban.trangThai === 'loi' || ban.trangThai === 'qua_han') continue;
       if (ban.trangThai === 'can_xac_minh' && !layVe()) continue;
       if (ban.trangThai === 'can_xac_minh_them' && !xacMinhThem) continue;
       if (ban.trangThai !== 'cho') await doiTrangThai(ban.id, 'cho');
