@@ -56,8 +56,9 @@ export default function NhanLaiTinCho() {
       <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{t('nltc.moTa')}</p>
       <form className="mt-3 flex gap-2" onSubmit={tim}>
         <input data-hd="o-ma-mo" inputMode="numeric" autoComplete="off" maxLength={6} value={ma}
-          onChange={(e) => setMa(e.target.value.replace(/\D/g, ''))} placeholder={t('hcg.nhapMaMo')} aria-label={t('hcg.nhapMaMo')}
-          className="min-h-[44px] w-40 rounded-xl border border-slate-300 px-3 text-center font-mono text-lg tracking-widest dark:border-slate-700 dark:bg-slate-800" />
+          onChange={(e) => setMa(e.target.value.replace(/\D/g, ''))} placeholder={t('nltc.goiY')} aria-label={t('hcg.nhapMaMo')}
+          /* Chữ gợi ý dùng phông thường: phông số giãn rộng làm "Mã nhận kết quả..." bị cắt */
+          className="min-h-[44px] w-40 rounded-xl border border-slate-300 px-3 text-center font-mono text-lg tracking-widest placeholder:font-sans placeholder:text-sm placeholder:tracking-normal dark:border-slate-700 dark:bg-slate-800" />
         <button type="submit" disabled={ma.length !== 6 || dangTim}
           className="min-h-[44px] rounded-xl bg-primary-600 px-4 text-sm font-bold text-white disabled:opacity-50">{t('nltc.nut')}</button>
       </form>
