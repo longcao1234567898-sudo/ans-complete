@@ -139,8 +139,10 @@ async function traLaiNeuDaNhan(res, lanGui, { category, content, normalizedConte
   if (!cu) return false;
   if (cu.lan_gui_dau !== lanGui.dau) {
     res.status(409).json({
-      error: 'Lần gửi này khác với ý kiến bà con đã gửi trước đó bằng cùng mã. Ý kiến trước đã được nhận; '
-        + 'muốn thêm thông tin, bà con dùng mã tra cứu và mục Bổ sung thông tin. Việc khẩn cấp xin gọi ngay 113.',
+      /* Người dân có thể CHƯA có mã tra cứu của lần trước (mất câu trả lời) — không
+         bảo "dùng mã tra cứu" suông; chỉ đường hỏi trực ban */
+      error: 'Lần gửi này khác với ý kiến bà con đã gửi trước đó. Ý kiến trước đã được nhận. Nếu bà con chưa có mã '
+        + 'tra cứu của lần đó, xin gọi trực ban để được hỗ trợ. Việc khẩn cấp xin gọi ngay 113.',
       code: 'LAN_GUI_KHAC',
     });
     return true;
