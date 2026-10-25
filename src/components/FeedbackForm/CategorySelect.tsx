@@ -1,5 +1,7 @@
 /**
  * Bước 3: Xác nhận / thay đổi nhóm xử lý (mặc định chọn theo gợi ý của AI).
+ * Ô "không phải người máy" nằm ở đây (P90) — xác minh đúng lúc bà con sắp gửi,
+ * không bắt người chỉ xem tin, tra cứu phải xác minh.
  */
 import { CheckCircle2 } from 'lucide-react';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
@@ -7,6 +9,7 @@ import type { FeedbackCategory } from '../../types/feedback';
 import { CATEGORIES } from '../../utils/constants';
 import Button from '../common/Button';
 import { cn } from '../../utils/helpers';
+import OXacMinhNguoiMay, { useCoVe } from './OXacMinhNguoiMay';
 
 interface CategorySelectProps {
   value: FeedbackCategory | null;
@@ -18,6 +21,7 @@ interface CategorySelectProps {
 
 export default function CategorySelect({ value, suggested, onChange, onNext, onBack }: CategorySelectProps) {
   const { t } = useNgonNgu();
+  const { coVe, daCoVe } = useCoVe();
   return (
     <div>
       <h3 className="mb-1 text-sm font-bold text-slate-700 dark:text-slate-200">{t('cs.chonNhomXuLy')}</h3>
@@ -56,11 +60,13 @@ export default function CategorySelect({ value, suggested, onChange, onNext, onB
         })}
       </div>
 
+      <OXacMinhNguoiMay coVe={coVe} onCoVe={daCoVe} />
+
       <div className="mt-6 flex justify-between">
         <Button variant="ghost" onClick={onBack}>
           {t('cs.quayLai')}
         </Button>
-        <Button onClick={onNext} disabled={!value}>
+        <Button onClick={onNext} disabled={!value || !coVe}>
           {t('cs.tiepTucThongTin')}
         </Button>
       </div>

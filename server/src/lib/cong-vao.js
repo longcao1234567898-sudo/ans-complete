@@ -1,9 +1,9 @@
 /**
- * CỔNG VÀO — XÁC MINH "KHÔNG PHẢI NGƯỜI MÁY" MỘT LẦN KHI VÀO WEB (ADR-003 việc 23)
+ * VÉ "KHÔNG PHẢI NGƯỜI MÁY" (ADR-003 việc 23; vị trí lấy vé đổi ở ADR-007, P90)
  * ============================================================================
  *
- * Trước: mỗi form (gửi ý kiến, đăng nhập) tự bày ô Turnstile. Nay: một bước xác
- * minh khi vào web; xác minh xong máy chủ cấp VÉ ký bằng JWT_SECRET, sống
+ * Giao diện lấy vé ở bước chọn nhóm của trang gửi ý kiến và ở trang đăng nhập
+ * (trước P90: màn hình chặn cả web lúc vào); xác minh xong máy chủ cấp VÉ ký bằng JWT_SECRET, sống
  * HAN_VE. Mọi lần gửi tin, đăng nhập phải trình vé — kiểm ở máy chủ, vì máy tự
  * động gọi thẳng API chứ không mở trang.
  *

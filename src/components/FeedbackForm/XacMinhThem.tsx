@@ -19,9 +19,11 @@ import LopPhu from '../common/LopPhu';
 interface Props {
   onToken: (token: string) => void;
   onDong: () => void;
+  /** 'het_ve': vé "không phải người máy" hết hạn lúc bấm gửi (P90) — cùng ô, khác lời */
+  loai?: 'mang' | 'het_ve';
 }
 
-export default function XacMinhThem({ onToken, onDong }: Props) {
+export default function XacMinhThem({ onToken, onDong, loai = 'mang' }: Props) {
   const { t } = useNgonNgu();
   /* LopPhu: đưa ra document.body — trong <main> thì chân trang vẽ đè lên đáy ô */
   return (
@@ -30,8 +32,8 @@ export default function XacMinhThem({ onToken, onDong }: Props) {
       className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-soft dark:bg-slate-900">
         <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-primary-600" />
-        <h2 id="xmt-tieu-de" className="text-lg font-extrabold text-slate-800 dark:text-slate-100">{t('xmt.tieuDe')}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{t('xmt.loi')}</p>
+        <h2 id="xmt-tieu-de" className="text-lg font-extrabold text-slate-800 dark:text-slate-100">{t(loai === 'het_ve' ? 'xmt.tieuDeHetVe' : 'xmt.tieuDe')}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{t(loai === 'het_ve' ? 'xmt.loiHetVe' : 'xmt.loi')}</p>
         <div className="mt-4 flex justify-center">
           {captchaEnabled
             ? <Turnstile onToken={(tk) => { if (tk) onToken(tk); }} />

@@ -85,7 +85,9 @@ Người vận hành đã chốt cả sáu điểm: năm điểm theo phương �
    *(Người vận hành chốt sau khi triển khai; bản đầu chỉ có nút "Tin giả" ở hàng sàng lọc.)*
 4. Hạn 72 giờ người dân bổ sung thông tin tính từ lúc gửi.
 5. Cổng xác minh khi vào web dùng Cloudflare Turnstile (chỉ đổi vị trí); máy chủ cấp vé có thời
-   hạn và kiểm vé ở mọi lần gửi tin, đăng nhập.
+   hạn và kiểm vé ở mọi lần gửi tin, đăng nhập. *(P90, 2026-10-25: vị trí ô xác minh đổi sang bước
+   chọn nhóm của trang gửi ý kiến và trang đăng nhập, không chặn cả web nữa — xem
+   [ADR-007](007-o-chong-may-tu-dong-o-buoc-chon-nhom.md). Máy chủ không đổi.)*
 6. Tin tố giác sau khi xác nhận vào phần Tin tố giác riêng.
 
 ## Rủi ro chấp nhận

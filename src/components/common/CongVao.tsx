@@ -1,9 +1,10 @@
 /**
- * CỔNG VÀO — XÁC MINH "KHÔNG PHẢI NGƯỜI MÁY" MỘT LẦN KHI VÀO WEB (ADR-003 việc 23)
+ * MÀN HÌNH XÁC MINH "KHÔNG PHẢI NGƯỜI MÁY" TRƯỚC KHI ĐĂNG NHẬP CÁN BỘ
  *
- * Thay cho ô xác minh ở từng form. Xác minh xong, máy chủ cấp vé có hạn
- * (server/src/lib/cong-vao.js); giao diện gửi vé kèm lần gửi tin, đăng nhập.
- * Chặn thật nằm ở MÁY CHỦ — màn hình này chỉ là nơi lấy vé.
+ * Trước P90 màn hình này chặn CẢ WEB lúc vào (ADR-003 việc 23). Nay (ADR-007) chỉ
+ * bọc trang đăng nhập; người dân xác minh ở bước chọn nhóm của trang gửi ý kiến
+ * (FeedbackForm/OXacMinhNguoiMay.tsx). Xác minh xong, máy chủ cấp vé có hạn
+ * (server/src/lib/cong-vao.js). Chặn thật nằm ở MÁY CHỦ — màn hình này chỉ là nơi lấy vé.
  *
  * Người không qua được bước này (máy cũ, mạng chặn Cloudflare) vẫn phải có
  * đường báo tin: màn hình luôn hiện số 113 và số trực ban.
@@ -14,8 +15,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Loader2, Phone, ShieldCheck } from 'lucide-react';
 import Turnstile, { captchaEnabled } from './Turnstile';
-import { apiFetch, hasBackend } from '../../services/api';
-import { layVe, luuVe, SU_KIEN_CAN_XAC_MINH } from '../../utils/veVaoCua';
+import { hasBackend } from '../../services/api';
+import { layVeMoi } from '../../services/congVaoService';
+import { layVe, SU_KIEN_CAN_XAC_MINH } from '../../utils/veVaoCua';
 import { UNIT } from '../../utils/constants';
 
 export default function CongVao({ children }: { children: ReactNode }) {
@@ -38,11 +40,7 @@ export default function CongVao({ children }: { children: ReactNode }) {
     setDangGui(true);
     setLoi('');
     try {
-      const kq = await apiFetch<{ ve: string; hetHanGio: number }>('/api/cong-vao/xac-minh', {
-        method: 'POST',
-        body: JSON.stringify({ captchaToken: token }),
-      });
-      luuVe(kq.ve, kq.hetHanGio);
+      await layVeMoi(token);
       setCoVe(true);
     } catch (e) {
       setLoi((e as Error).message || 'Xác minh không thành công.');
@@ -58,9 +56,9 @@ export default function CongVao({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-soft dark:bg-slate-900">
         <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-primary-600" />
-        <h1 className="text-lg font-extrabold text-slate-800 dark:text-slate-100">Xác minh trước khi vào</h1>
+        <h1 className="text-lg font-extrabold text-slate-800 dark:text-slate-100">Xác minh trước khi đăng nhập</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Bước này giúp chặn máy tự động gửi tin rác. Bà con chỉ cần làm một lần cho mỗi lần mở trang.
+          Bước này chặn máy tự động dò mật khẩu. Chỉ cần làm một lần cho mỗi lần mở trang.
         </p>
         <div className="mt-4 flex justify-center">
           <Turnstile key={khoaO} onToken={nhanToken} />

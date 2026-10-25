@@ -22,6 +22,7 @@ import ContactInfo from '../components/FeedbackForm/ContactInfo';
 import ManHinhBiKhoa from '../components/FeedbackForm/ManHinhBiKhoa';
 import KhieuNaiMoKhoa from '../components/FeedbackForm/KhieuNaiMoKhoa';
 import XacMinhThem from '../components/FeedbackForm/XacMinhThem';
+import { layVeMoi } from '../services/congVaoService';
 import Confirmation from '../components/FeedbackForm/Confirmation';
 import Card from '../components/common/Card';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -197,6 +198,9 @@ export default function SendFeedbackPage() {
   /* Máy chủ báo mạng chung vượt ngưỡng (CAN_XAC_MINH_THEM — P88): hiện ô xác minh
      thêm, giữ nguyên đơn đang điền */
   const [canXacMinhThem, setCanXacMinhThem] = useState(false);
+  /* Vé "không phải người máy" (lấy ở bước chọn nhóm) hết hạn lúc bấm gửi — P90: không
+     còn màn hình chặn cả web để hiện lại, nên xác minh lại ngay trên đơn rồi gửi tiếp */
+  const [canVeMoi, setCanVeMoi] = useState(false);
 
   const runAnalysis = (content: string) => {
     aiAnalysis.mutate(content, {
@@ -240,7 +244,8 @@ export default function SendFeedbackPage() {
 
   const handleContactChange = (contact: ContactInfoType) => setDraft((d) => ({ ...d, contact }));
 
-  const guiDon = (xacMinhThem?: string) => {
+  /* daLayVeMoi: lần gửi ngay sau khi vừa lấy vé mới — vẫn bị đòi thì báo lỗi, không mở ô lặp mãi */
+  const guiDon = (xacMinhThem?: string, daLayVeMoi = false) => {
     submitMutation.mutate({ draft, xacMinhThem }, {
       onSuccess: (result) => {
         setSubmission(result);
@@ -253,6 +258,7 @@ export default function SendFeedbackPage() {
            (hoặc XAC_MINH_THEM_KHONG_QUA) thì báo lỗi — mở lại là tự lặp gửi mãi */
         const code = (err as { code?: string })?.code;
         if (code === 'CAN_XAC_MINH_THEM' && !xacMinhThem) { setCanXacMinhThem(true); return; }
+        if (code === 'CAN_XAC_MINH' && !daLayVeMoi) { setCanVeMoi(true); return; }
         /* Để lâu hơn mặc định: câu có số 113 phải đọc kịp */
         toast.error(err instanceof Error ? err.message : LOI_GUI_THAT_BAI, { duration: 10_000 });
       },
@@ -417,6 +423,21 @@ export default function SendFeedbackPage() {
       <XacMinhThem
         onToken={(tk) => { setCanXacMinhThem(false); guiDon(tk); }}
         onDong={() => setCanXacMinhThem(false)}
+      />
+    )}
+    {canVeMoi && (
+      <XacMinhThem
+        loai="het_ve"
+        onToken={async (tk) => {
+          setCanVeMoi(false);
+          try {
+            await layVeMoi(tk);
+            guiDon(undefined, true);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : LOI_GUI_THAT_BAI, { duration: 10_000 });
+          }
+        }}
+        onDong={() => setCanVeMoi(false)}
       />
     )}
     </>

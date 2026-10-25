@@ -139,7 +139,9 @@ function AppShell() {
             <Route path="/chinh-sach-bao-mat" element={<PrivacyPage />} />
 
             {/* Khu vực cán bộ — nay nằm CHUNG một trang với khu công dân */}
-            <Route path="/dang-nhap" element={<AdminLoginPage />} />
+            {/* Máy chủ đòi vé "không phải người máy" khi đăng nhập — lấy vé ngay tại đây
+                (P90: web không còn màn hình xác minh chặn cả trang lúc vào) */}
+            <Route path="/dang-nhap" element={<CongVao><AdminLoginPage /></CongVao>} />
             <Route path="/quan-tri" element={can(<AdminDashboardPage />)} />
             {/* Các phần danh sách (ADR-003). `key` riêng: cùng một trang dùng cho
                 năm phần, không có key thì đổi phần mà bộ lọc của phần trước còn nguyên. */}
@@ -186,10 +188,9 @@ export default function App() {
             {/* Máy chủ không phản hồi -> chuyển sang trang dự phòng (ADR-003 việc 28).
                 Đặt NGOÀI cổng xác minh: máy chủ sập thì cổng cũng không cấp được vé. */}
             <TheoDoiMayChu />
-            {/* Cổng xác minh "không phải người máy" khi vào web (ADR-003 việc 23) */}
-            <CongVao>
-              <AppShell />
-            </CongVao>
+            {/* Không còn cổng xác minh chặn cả web (ADR-007, P90): người dân xác minh ở
+                bước chọn nhóm khi gửi ý kiến, cán bộ ở trang đăng nhập. Máy chủ vẫn kiểm vé. */}
+            <AppShell />
           </AdminAuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

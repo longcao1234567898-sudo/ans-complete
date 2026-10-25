@@ -493,8 +493,8 @@ export default function ContactInfo({ value, onChange, onNext, onBack, onVeBuocD
         </p>
       )}
 
-      {/* Ô xác minh "không phải người máy" đã chuyển ra cổng vào web
-          (ADR-003 việc 23, components/common/CongVao.tsx); máy chủ kiểm vé. */}
+      {/* Ô xác minh "không phải người máy" nằm ở bước chọn nhóm (P90, ADR-007 —
+          FeedbackForm/OXacMinhNguoiMay.tsx); máy chủ kiểm vé. */}
 
       <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
