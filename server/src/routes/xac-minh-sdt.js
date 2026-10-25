@@ -40,7 +40,7 @@ import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { layIpThat, khoaIp } from '../lib/helpers.js';
-import { hashIdentifier } from '../lib/crypto.js';
+import { hashIdentifier, encrypt, decrypt } from '../lib/crypto.js';
 import { normalizePhone, getPhoneError } from '../lib/security.js';
 import { quaCongVao } from '../lib/cong-vao.js';
 import { danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
@@ -223,7 +223,10 @@ router.post('/gui-ma', async (req, res) => {
       hetHanPhut: MA_SONG_PHUT,
       /* BUG-042: chỉ máy vừa xin mã mới cầm phiên — người ngoài không dò được số
          nào đang có mã chờ, không đốt được lượt nhập của người khác */
-      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, id: Number(kq.insertId), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
+      /* BUG-043: JWT chỉ KÝ, phần thân ai cũng đọc được — số thứ tự của mã để trần
+         thì xin mã hai lần là biết giữa hai lần có bao nhiêu người vừa xin mã. Mã
+         hoá (AES-GCM, IV ngẫu nhiên): không đọc được, không so thứ tự được */
+      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, k: encrypt(String(kq.insertId)), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
       /* Chỉ kênh thử (đã bị chặn ở production trong cauHinhKenh) mới trả mã */
       ...(gui.kenh === 'thu' ? { maThu: ma } : {}),
     });
@@ -242,7 +245,10 @@ function idTuPhien(phien, sdtBam) {
   if (typeof phien !== 'string' || !phien) return null;
   try {
     const p = jwt.verify(phien, JWT_SECRET, { algorithms: ['HS256'] });
-    return p.purpose === MUC_DICH_PHIEN && p.sdt === sdtBam && Number.isSafeInteger(p.id) ? p.id : null;
+    if (p.purpose !== MUC_DICH_PHIEN || p.sdt !== sdtBam || typeof p.k !== 'string') return null;
+    /* decrypt hỏng trả chuỗi báo lỗi -> không phải số -> từ chối */
+    const id = Number(decrypt(p.k));
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
   } catch {
     return null;
   }

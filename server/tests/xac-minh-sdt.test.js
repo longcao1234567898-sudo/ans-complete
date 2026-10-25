@@ -387,3 +387,25 @@ test('BUG-042 — mã phiên không dùng làm vé "đã xác minh số", và v�
   const r = await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[daGui.length - 1]), phien: xn.body.veSdt });
   assert.equal(r.status, 400, 'vé xác minh dùng thay mã phiên');
 });
+
+/* ---- BUG-043 (sinh ra bởi fix BUG-042, RETEST P93): mã phiên không được lộ bộ đếm mã toàn hệ thống ---- */
+test('BUG-043 — đọc mã phiên (JWT chỉ ký, ai cũng giải được phần thân) không ra số thứ tự của mã / số người vừa xin mã', { skip: BO_QUA }, async () => {
+  const so = sdtMoi();
+  const lan1 = (await guiMa(so)).body.phien;
+  await guiMa(sdtMoi());            // một người khác xin mã ở giữa
+  ctl.troiQua(1.1);
+  const lan2 = (await guiMa(so)).body.phien;
+  const ids = ctl.db.prepare('SELECT id FROM ma_xac_minh_sdt ORDER BY id').all().map((r) => String(r.id));
+  for (const phien of [lan1, lan2]) {
+    const than = jwt.decode(phien);
+    const { iat, exp, ...con } = than;
+    for (const [k, v] of Object.entries(con)) {
+      assert.notEqual(typeof v, 'number', `trường "${k}" là số — đọc được thứ tự`);
+      assert.ok(!ids.includes(String(v)), `trường "${k}" lộ khoá chính của mã`);
+    }
+  }
+  assert.notDeepEqual(jwt.decode(lan1).k, jwt.decode(lan2).k);
+  /* Vá không được phá BUG-042: phiên vẫn chỉ mở đúng mã của nó */
+  const r = await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[daGui.length - 1]), phien: lan2 });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+});
