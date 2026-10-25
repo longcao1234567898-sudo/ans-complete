@@ -167,13 +167,27 @@ function traVeTrangMatMang() {
    GỬI NGẦM TIN CHỜ KHI ĐÃ ĐÓNG TRANG (P92) — Background Sync (Android/Chrome)
 
    Đọc CÙNG kho với src/services/hangChoGui.ts (IndexedDB "htans-hang-cho", khoá
-   AES-GCM không xuất được). Chỉ làm đường đơn giản: gửi nguyên thân yêu cầu đã cất
-   (có mã lần gửi — máy chủ nhận ra lần gửi lại, P91). Thành công thì cất mã tra cứu
-   (mã hoá) rồi xoá tin; mọi trường hợp khác để nguyên cho trang xử lý khi mở lại
-   (xác minh "không phải người máy", báo lỗi). Không có Background Sync (iPhone):
-   trang tự gửi khi mở lại.
+   AES-GCM không xuất được) và theo CÙNG luật (trọng tài P92 vòng 2 — trước đây SW
+   khác luật trang): hạn gửi lại, giãn lần thử, nâng cờ "có thể đã tới", đọc lại tin
+   ngay trước khi gửi, tin hỏng báo lỗi riêng. Gửi nguyên thân đã cất (có mã lần gửi —
+   máy chủ nhận ra lần gửi lại, P91) tới địa chỉ do TRANG ghi ("dich", bản đang chạy),
+   không tin địa chỉ cất trong tin. Máy chủ đòi xác minh / từ chối thì để nguyên cho
+   trang xử lý. Còn tin chưa xong (mạng, máy chủ bảo đợi, lượt đang bận) thì báo lỗi
+   cho trình duyệt tự hẹn lượt đồng bộ sau. Không có Background Sync (iPhone): trang
+   tự gửi khi mở lại. Các hằng số dưới đây phải khớp hangChoGui.ts.
    ========================================================================== */
 const KHO_HANG_CHO = 'htans-hang-cho';
+const GIO_MS = 3_600_000;
+const HAN_GUI_LAI_GIO = 20;
+const HAN_TIN_GIO = 72;
+const THU_TOI_DA = 12;
+const GIAN_DAU_MS = 20_000;
+const GIAN_TOI_DA_MS = 15 * 60_000;
+const HAN_GUI_TOI_THIEU_MS = 60_000;
+const BYTE_MOI_GIAY = 32 * 1024;
+const HAN_GUI_TOI_DA_MS = 15 * 60_000;
+const LOI_TIN_HONG = 'Không đọc được tin chờ này trên máy (dữ liệu trình duyệt có thể đã bị xoá một phần). '
+  + 'Bà con xoá tin chờ rồi soạn lại. Việc khẩn cấp xin gọi ngay 113.';
 
 function moKhoHangCho() {
   return new Promise((ok, loi) => {
@@ -198,61 +212,116 @@ function lamKho(db, ten, cheDo, viec) {
   });
 }
 
+/** Sửa một tin trong một giao dịch (tin đã bị xoá thì thôi) */
+function suaTin(db, id, doi) {
+  return new Promise((ok, loi) => {
+    const tx = db.transaction('tin', 'readwrite');
+    const kho = tx.objectStore('tin');
+    const rq = kho.get(id);
+    rq.onsuccess = () => { if (rq.result) kho.put({ ...rq.result, ...doi }); };
+    tx.oncomplete = () => ok();
+    tx.onerror = () => loi(tx.error);
+  });
+}
+
+const gianLuc = (n) => Date.now() + Math.min(GIAN_DAU_MS * 2 ** (n - 1), GIAN_TOI_DA_MS);
+
 async function guiTinChoNgam() {
   const db = await moKhoHangCho();
+  let conViec = false;
   try {
     const khoa = await lamKho(db, 'khoa', 'readonly', (k) => k.get('chinh'));
-    if (!khoa) return;
+    const dich = await lamKho(db, 'khoa', 'readonly', (k) => k.get('dich'));
+    let url = '';
+    try { url = new URL(dich && dich.api).href; } catch { /* trang chưa ghi */ }
+    if (!khoa || !url || new URL(url).pathname !== '/api/submissions') return;
     const ds = await lamKho(db, 'tin', 'readonly', (k) => k.getAll());
-    /* Tin có thể đã tới máy chủ mà quá hạn gửi lại (HAN_GUI_LAI_GIO bên hangChoGui.ts):
-       để trang báo "quá hạn", không gửi (gửi là thành đơn thứ hai) */
-    const conHan = (b) => !b.coTheDaToi || Date.now() - b.taoLuc < 20 * 3_600_000;
-    /* Máy chủ bảo đợi (henLuc — hangChoGui.ts giãn lần thử) thì chưa gửi */
-    const toiLuot = (b) => !b.henLuc || b.henLuc <= Date.now();
-    for (const ban of ds.filter((b) => b.trangThai === 'cho' && conHan(b) && toiLuot(b))) {
+    for (const { id } of ds.sort((a, b) => a.taoLuc - b.taoLuc)) {
+      /* Đọc lại ngay trước khi gửi: bà con vừa bấm xoá thì không gửi */
+      const ban = await lamKho(db, 'tin', 'readonly', (k) => k.get(id));
+      if (!ban || ban.trangThai !== 'cho') continue;
+      const tuoi = Math.max(0, Date.now() - ban.taoLuc) / GIO_MS;
+      /* Quá hạn gửi (gửi nữa có thể thành đơn thứ hai): để trang báo "quá hạn" */
+      if ((ban.coTheDaToi && tuoi > HAN_GUI_LAI_GIO) || tuoi > HAN_TIN_GIO) continue;
+      if (ban.henLuc && ban.henLuc > Date.now() && ban.henLuc < Date.now() + GIAN_TOI_DA_MS) continue;
       let nd;
       try {
         nd = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ban.iv }, khoa, ban.duLieu)));
       } catch {
-        continue;   // tin hỏng: để trang báo, không chặn các tin sau
+        await suaTin(db, id, { trangThai: 'loi', loi: LOI_TIN_HONG });   // không chặn các tin sau
+        continue;
       }
-      const { url, than, phien, maMo } = nd;
-      /* Chỉ gửi tới đúng đường nhận ý kiến (địa chỉ đầy đủ do trang cất — xem hangChoGui.ts) */
-      try { if (new URL(url).pathname !== '/api/submissions') continue; } catch { continue; }
+      const { than, phien, maMo } = nd;
+      const body = JSON.stringify(than);
       let res;
       try {
-        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(than) });
+        res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+          signal: AbortSignal.timeout(Math.min(Math.max(HAN_GUI_TOI_THIEU_MS, (body.length / BYTE_MOI_GIAY) * 1000), HAN_GUI_TOI_DA_MS)),
+        });
       } catch {
-        throw new Error('chưa có mạng');   // trình duyệt tự hẹn lại lượt đồng bộ
+        /* Đã đi mà đứt / hết giờ: máy chủ CÓ THỂ đã lưu */
+        const n = (ban.soLanMang || 0) + 1;
+        await suaTin(db, id, { coTheDaToi: true, soLanMang: n, henLuc: gianLuc(n), henMang: true, loi: 'Mạng chập chờn, chưa gửi xong.' });
+        continue;
       }
-      if (res.status !== 200 && res.status !== 201) continue;   // để trang xử lý
       const j = await res.json().catch(() => ({}));
-      if (!/^[A-Z0-9]{4,20}$/.test(String(j.trackingCode ?? ''))) continue;   // trả lạ: không coi là đã nhận
+      const nhan = (res.status === 200 || res.status === 201) && /^[A-Z0-9]{4,20}$/.test(String(j.trackingCode ?? ''));
+      const thuLai = res.status === 200 || res.status === 201 || res.status === 429 || res.status >= 500
+        || (res.status === 409 && j.code === 'DANG_GUI');
+      if (!nhan) {
+        const loiMayChu = typeof j.error === 'string' ? j.error : '';
+        /* Cùng cách xếp trạng thái với trang (hangChoGui.ts guiMot) */
+        if (res.status === 403 && j.code === 'CAN_XAC_MINH') await suaTin(db, id, { trangThai: 'can_xac_minh', loi: undefined });
+        else if (res.status === 429 && j.code === 'CAN_XAC_MINH_THEM') await suaTin(db, id, { trangThai: 'can_xac_minh_them', loi: undefined });
+        else if (!thuLai) await suaTin(db, id, { trangThai: 'loi', loi: loiMayChu || `Máy chủ từ chối (mã ${res.status}).` });
+        else {
+          const n = (ban.soLanThu || 0) + 1;
+          const loi = loiMayChu || (res.status === 200 || res.status === 201 ? 'Máy chủ trả lời không đúng dạng.' : `Máy chủ chưa nhận được (mã ${res.status}).`);
+          await suaTin(db, id, {
+            ...(res.status !== 429 ? { coTheDaToi: true } : {}),   // đã đi, trả lời không chắc
+            ...(n >= THU_TOI_DA
+              ? { trangThai: 'loi', loi: `${loi} (đã thử ${n} lần, máy dừng tự gửi — bà con gọi trực ban hoặc xoá tin chờ rồi gửi lại sau)` }
+              : { soLanThu: n, henLuc: gianLuc(n), henMang: false, loi }),
+          });
+        }
+        continue;
+      }
       const kq = {
         trackingCode: String(j.trackingCode), chatPin: j.chatPin ? String(j.chatPin) : undefined,
         pendingReview: j.pendingReview === true, category: than.category,
         tepKhongNhan: Array.isArray(j.tepKhongNhan) ? j.tepKhongNhan : [],
-        phien, maMo,   // máy dùng chung: chỉ phiên đã soạn mới thấy mã tra cứu (hangChoGui.ts)
+        phien, maMo,   // máy dùng chung: chỉ trang đã soạn / người có mã nhận kết quả mới thấy
       };
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const duLieu = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, khoa, new TextEncoder().encode(JSON.stringify(kq)));
       /* Cất kết quả TRƯỚC, xoá tin SAU (đứt giữa chừng thì gửi lại cùng mã, không mất) */
-      await lamKho(db, 'ket_qua', 'readwrite', (k) => k.put({ id: ban.id, taoLuc: Date.now(), iv, duLieu }));
-      await lamKho(db, 'tin', 'readwrite', (k) => k.delete(ban.id));
+      await lamKho(db, 'ket_qua', 'readwrite', (k) => k.put({ id, taoLuc: Date.now(), iv, duLieu }));
+      await lamKho(db, 'tin', 'readwrite', (k) => k.delete(id));
     }
+    /* Còn tin đợi gửi (mạng, máy chủ bảo đợi) trong hạn -> hẹn lượt sau */
+    const sau = await lamKho(db, 'tin', 'readonly', (k) => k.getAll());
+    conViec = sau.some((b) => {
+      const tuoi = Math.max(0, Date.now() - b.taoLuc) / GIO_MS;
+      return b.trangThai === 'cho' && !((b.coTheDaToi && tuoi > HAN_GUI_LAI_GIO) || tuoi > HAN_TIN_GIO);
+    });
   } finally {
     db.close();
     const ds = await self.clients.matchAll({ includeUncontrolled: true });
     ds.forEach((c) => c.postMessage('htans-hang-cho'));
   }
+  /* Còn tin chưa xong: lỗi để trình duyệt hẹn lượt đồng bộ sau (có giãn, có trần riêng) */
+  if (conViec) throw new Error('còn tin chờ');
 }
 
 self.addEventListener('sync', (event) => {
   if (event.tag !== 'gui-tin-cho') return;
   event.waitUntil(
     self.navigator && self.navigator.locks
-      ? self.navigator.locks.request('gui-tin-cho', { ifAvailable: true }, (lock) => (lock ? guiTinChoNgam() : undefined))
+      ? self.navigator.locks.request('gui-tin-cho', { ifAvailable: true }, (lock) => {
+        if (!lock) throw new Error('lượt đang bận');   // trang đang gửi: hẹn lượt sau
+        return guiTinChoNgam();
+      })
       : guiTinChoNgam()
   );
 });
-
