@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
 import { diaChiNghe } from './nen-tang.js';
+import { taoKiemKho } from './lib/kiem-kho.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
 import { loadBannedWords } from './lib/security.js';
@@ -120,9 +121,13 @@ app.use(...gioiHanChung());
    Thấy đúng số phiên bản mong đợi nghĩa là đã deploy. */
 const BACKEND_VERSION = 'v8-2026-07';
 
-app.get('/api/health', (_req, res) =>
+/* ND-084: như nen-tang.js — mã 200, kho chết thì ok:false, db:false */
+const kiemKho = taoKiemKho(pool);
+app.get('/api/health', async (_req, res) => {
+  const db = await kiemKho();
   res.json({
-    ok: true,
+    ok: db,
+    db,
     version: BACKEND_VERSION,
     ai: aiAvailable(),
     // false = ĐANG CÓ SỰ CỐ: hệ thống từ chối nhận ý kiến có danh tính
@@ -130,8 +135,8 @@ app.get('/api/health', (_req, res) =>
     // Liệt kê các chức năng mới — nhìn là biết bản này có gì
     features: ['quyen-xoa-du-lieu', 'loc-muc-khan-cap', 'viec-can-gap'],
     time: new Date().toISOString(),
-  })
-);
+  });
+});
 
 /* ===== CHẨN ĐOÁN CƠ SỞ DỮ LIỆU =====
    Mở https://<backend>/api/health/schema trên trình duyệt để biết CHÍNH XÁC

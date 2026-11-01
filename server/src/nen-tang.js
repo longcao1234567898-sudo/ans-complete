@@ -23,6 +23,8 @@ import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { aiAvailable } from './lib/ai.js';
 import { encryptionEnabled } from './lib/crypto.js';
+import { taoKiemKho } from './lib/kiem-kho.js';
+import { pool } from './db.js';
 
 const BACKEND_VERSION = 'v9-2026-08';
 
@@ -125,16 +127,21 @@ app.use(cookieParser());
   app.use(...gioiHanChung());
 
   // Health check — mỗi máy chủ tự khai tên để phân biệt khi tách
-  app.get('/api/health', (_req, res) =>
+  /* ND-084: mã luôn 200 (tiến trình sống — Render dựa vào đây); kho chết thì ok:false, db:false
+     để công cụ theo dõi và giao diện (kiemTraMayChu -> trang dự phòng 113) biết */
+  const kiemKho = taoKiemKho(pool);
+  app.get('/api/health', async (_req, res) => {
+    const db = await kiemKho();
     res.json({
-      ok: true,
+      ok: db,
+      db,
       version: BACKEND_VERSION,
       may_chu: ten,
       ai: aiAvailable(),
       encryption: encryptionEnabled(),
       time: new Date().toISOString(),
-    })
-  );
+    });
+  });
 
   return app;
 }

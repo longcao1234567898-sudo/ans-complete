@@ -65,12 +65,18 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 
 /**
  * Máy chủ có phản hồi không (ADR-003 việc 28). Chỉ "không" khi lỗi mạng, quá
- * thời gian, hoặc 5xx — máy chủ trả 4xx vẫn là đang sống.
+ * thời gian, 5xx, hoặc máy chủ báo kho dữ liệu chết (db:false — ND-084) — máy chủ
+ * trả 4xx vẫn là đang sống.
  */
 export async function kiemTraMayChu(choMs: number): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/api/health`, { signal: AbortSignal.timeout(choMs) });
-    return res.status < 500;
+    if (res.status >= 500) return false;
+    /* ND-084: máy chủ sống mà kho dữ liệu chết (db:false) cũng là sự cố — gửi tin, tra cứu
+       đều hỏng; đưa người dân sang trang dự phòng có 113. Máy chủ cũ không có trường db
+       thì coi như sống như trước */
+    const j = await res.json().catch(() => null);
+    return j?.db !== false;
   } catch {
     return false;
   }
