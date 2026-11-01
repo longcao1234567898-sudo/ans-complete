@@ -8,6 +8,7 @@ import { useNgonNgu } from '../i18n/useNgonNgu';
 import { useSearchParams } from 'react-router-dom';
 import { MascotSearch } from '../components/common/PoliceMascot';
 import { useTracking } from '../hooks/useTracking';
+import { hasBackend } from '../services/api';
 import TrackingForm from '../components/Tracking/TrackingForm';
 import { useTrackingHistory } from '../hooks/useTrackingHistory';
 import StatusTimeline from '../components/Tracking/StatusTimeline';
@@ -67,12 +68,14 @@ export default function TrackingPage() {
           onOpenScanner={() => setScannerOpen(true)}
           isLoading={isLoading || isFetching}
         />
-        <p className="mt-3 text-center text-xs text-slate-400">
+        {/* Mã demo chỉ có trong dữ liệu mẫu của chế độ không máy chủ (mockData) — máy chạy
+            thật đã xoá hồ sơ mẫu (database/xoa_ho_so_mau.sql, ND-085), mời gõ là mời lỗi */}
+        {!hasBackend && <p className="mt-3 text-center text-xs text-slate-400">
           Thử ngay với mã demo: <span className="font-mono font-semibold">DEMO01</span>,{' '}
           <span className="font-mono font-semibold">DEMO02</span>,{' '}
           <span className="font-mono font-semibold">DEMO03</span>,{' '}
           <span className="font-mono font-semibold">DEMO04</span>
-        </p>
+        </p>}
       </Card>
 
       {/* MÃ ĐÃ GỬI TỪ THIẾT BỊ NÀY — tra lại không cần nhớ mã, không cần đăng nhập */}

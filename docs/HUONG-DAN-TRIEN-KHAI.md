@@ -1261,7 +1261,7 @@ rm hop-thu-NGAY-GIO.sql.gz.age
 ```
 
 > Đã chạy thử đúng các lệnh ở G3 và G6 trên MySQL 8.0 (2026-10-20), kho là thư mục trên máy thay
-> cho Bizfly, kết nối CSDL không qua TLS: khôi phục ra đủ 28 bảng, 5 trigger, 4 thủ tục, 10 view,
+> cho Bizfly, kết nối CSDL không qua TLS: khôi phục ra đủ bảng, trigger, thủ tục, view (đúng bằng CSDL gốc),
 > số ý kiến khớp từng dòng. Sao lưu hỏng giữa chừng (sai mật khẩu) thì báo `LOI` và **không** để
 > lại tệp cụt trên kho; bản cũ hơn 30 ngày bị xoá, tệp khác trong kho không bị đụng. **Chưa thử**
 > với Bizfly thật và TLS của VNPT — lần chạy tay đầu tiên ở G3 chính là phép thử đó.

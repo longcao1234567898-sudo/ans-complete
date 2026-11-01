@@ -95,6 +95,9 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v38.sql           #    M
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v39.sql           #    Nhãn "đã xác minh số điện thoại" cho tin có danh tính (P89) — thêm cột sdt_xac_minh; chưa chạy thì vẫn nhận ý kiến, chỉ không lưu nhãn
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v40.sql           #    Gửi lại cùng một lần không tạo đơn trùng (P91) — 3 cột lan_gui_* trên submissions (chỉ giữ băm, tự xoá sau 24 giờ và khi xoá danh tính); chưa chạy thì vẫn nhận ý kiến, chỉ không nhận ra lần gửi lại
 ```
+**Máy chạy thật (cài mới):** tệp nền có sẵn 4 hồ sơ mẫu `DEMO01`–`DEMO04` (tên giả) cho máy thử. Cài xong thì xoá:
+`mysql -u root -p hop_thu_an_ninh_so < database/xoa_ho_so_mau.sql` — chỉ xoá đúng hồ sơ mẫu, không đụng hồ sơ thật (ND-085).
+
 `TRON_BO_DATABASE_V5.sql` tự dừng nếu database đã có bảng (chưa xoá gì) và không còn câu `USE` hay `DROP TABLE` nào: trước đây nó tự chuyển sang `hop_thu_an_ninh_so` rồi xoá 10 bảng, nên chạy nhầm là mất toàn bộ hồ sơ và nhật ký. **Đừng chạy các tệp SQL bằng `mysql --force`**: cờ đó bỏ qua lỗi nên bỏ qua luôn chốt — bảng vẫn không bị xoá, nhưng dữ liệu mẫu (tin tức) bị nạp trùng. Sao lưu (`mysqldump`) trước mọi lần chạy tệp SQL trên database đang dùng.
 
 `gan_anh_cho_tin_tuc.sql`, `nap_lai_tin_tuc.sql`, `sua_loi_anh.sql`, `tin_tuc_moi_thang_7_2026.sql` là dữ liệu tin tức mẫu/bản vá dữ liệu — tuỳ chọn, không phải schema.
