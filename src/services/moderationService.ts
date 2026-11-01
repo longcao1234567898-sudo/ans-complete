@@ -16,7 +16,12 @@ import { isToGiacText } from '../utils/security';
  * heuristic cục bộ, tuyệt đối KHÔNG chặn người dân gửi ý kiến vì thiếu AI.
  */
 
-import { apiFetch, hasBackend, backendHasAI } from './api';
+import { apiFetch, hasBackend, backendHasAI, dangMatMang, hanCho } from './api';
+
+/* Hạn chờ kiểm ảnh qua máy chủ (ND-081): mạng "treo" (có wifi không ra internet) thì lời gọi
+   không bao giờ trả lời và bước đính ảnh kẹt mãi. Hết hạn thì rơi xuống kiểm trên máy như khi
+   máy chủ lỗi — không chặn người dân. Ảnh lớn hơn văn bản nên dài hơn hạn phân tích. */
+const HAN_KIEM_ANH_MS = 15_000;
 
 export interface ImageModerationResult {
   blocked: boolean;
@@ -79,11 +84,12 @@ export async function checkImageSensitive(
 
   // Tầng 2: nhờ backend AI thẩm định — BỎ QUA nếu là ảnh tố giác.
   // Backend lỗi -> rơi xuống heuristic bên dưới, KHÔNG chặn người dân.
-  if (!isToGiac && hasBackend && (await backendHasAI())) {
+  if (!isToGiac && hasBackend && !dangMatMang() && (await backendHasAI())) {
     try {
       const r = await apiFetch<ImageModerationResult>('/api/ai/moderate-image', {
         method: 'POST',
         body: JSON.stringify({ dataUrl }),
+        signal: hanCho(HAN_KIEM_ANH_MS),
       });
       if (r.blocked) return r;
       return { blocked: false };
