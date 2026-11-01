@@ -9,6 +9,12 @@
 import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
+import net from 'node:net';
+import tls from 'node:tls';
+/* BUG-046: dùng CHUNG cấu hình TLS với máy chủ (kiểm cả chứng chỉ lẫn tên máy — BUG-033). Bản tự
+   dựng riêng trước đây không kiểm tên máy mà vẫn gửi mật khẩu CSDL: kẻ đứng giữa có chứng chỉ bất
+   kỳ do cùng CA cấp là lấy được mật khẩu. */
+import { buildSsl } from './src/db.js';
 
 const V = '\x1b[32m✓\x1b[0m';
 const X = '\x1b[31m✗\x1b[0m';
@@ -72,11 +78,37 @@ if (!host) {
    chứng chỉ hoàn toàn đúng — kết quả vô nghĩa, gây hiểu lầm. */
 const mysql = (await import('mysql2/promise')).default;
 
-function dungSsl() {
-  if (process.env.DB_SSL_CA) return { ca: fs.readFileSync(process.env.DB_SSL_CA) };
-  if (process.env.DB_SSL_CA_PEM) return { ca: process.env.DB_SSL_CA_PEM };
-  if (process.env.DB_SSL === 'true') return { minVersion: 'TLSv1.2' };
-  return undefined;
+/* Xem chứng chỉ máy chủ CSDL trình ra MÀ KHÔNG ĐĂNG NHẬP (BUG-046). Chỉ dùng ở bước 4, khi đang
+   nghi có phần mềm chen giữa — đúng lúc tuyệt đối không được gửi mật khẩu. MySQL nâng cấp TLS kiểu
+   STARTTLS: nhận gói chào -> gửi gói "xin TLS" (SSLRequest, không có tên/mật khẩu) -> bắt tay TLS ->
+   đọc chứng chỉ rồi cắt, không bao giờ tới gói đăng nhập. */
+function xemChungChiKhongDangNhap(host, port) {
+  return new Promise((ok, loi) => {
+    const s = net.connect({ host, port });
+    let t = null;
+    const xong = (fn, v) => { clearTimeout(hen); (t || s).destroy(); fn(v); };
+    const hen = setTimeout(() => xong(loi, new Error('hết 15 giây chờ máy chủ')), 15000);
+    s.on('error', (e) => xong(loi, e));
+    let nhan = Buffer.alloc(0);
+    const docChao = (d) => {
+      nhan = Buffer.concat([nhan, d]);
+      /* Đợi đủ trọn gói chào (3 byte độ dài + 1 byte số thứ tự + thân) — byte thừa lọt sang TLS là hỏng */
+      if (nhan.length < 4 || nhan.length < 4 + nhan.readUIntLE(0, 3)) return;
+      s.off('data', docChao);
+      const than = Buffer.alloc(32);
+      /* CLIENT_PROTOCOL_41 | CLIENT_SSL | CLIENT_SECURE_CONNECTION; gói tối đa 16 MB; bảng mã utf8mb4 */
+      than.writeUInt32LE(0x0200 | 0x0800 | 0x8000, 0);
+      than.writeUInt32LE(0x01000000, 4);
+      than[8] = 45;
+      s.write(Buffer.concat([Buffer.from([32, 0, 0, 1]), than]), () => {
+        /* CHỈ để xem: không kiểm chứng chỉ, nhưng cũng không gửi gì qua đường này */
+        t = tls.connect({ socket: s, rejectUnauthorized: false, ...(net.isIP(host) ? {} : { servername: host }) });
+        t.on('error', (e) => xong(loi, e));
+        t.once('secureConnect', () => xong(ok, t.getPeerCertificate(true)));
+      });
+    };
+    s.on('data', docChao);
+  });
 }
 
 try {
@@ -85,7 +117,7 @@ try {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    ssl: dungSsl(),
+    ssl: buildSsl(),
     connectTimeout: 15000,
   });
   const [r] = await conn.query('SELECT VERSION() AS v');
@@ -103,8 +135,8 @@ try {
      Đây là cách duy nhất phân biệt dứt khoát hai nguyên nhân:
      tải nhầm CA, hay có phần mềm chen vào giữa kết nối.
 
-     Nối lại với rejectUnauthorized:false (CHỈ để xem, không dùng để làm việc
-     thật) rồi đọc xem máy chủ thực sự trình ra chứng chỉ do AI cấp. So với CA
+     Bắt tay TLS KHÔNG kiểm chứng chỉ và KHÔNG đăng nhập (xemChungChiKhongDangNhap —
+     BUG-046) rồi đọc xem máy chủ thực sự trình ra chứng chỉ do AI cấp. So với CA
      trong ca.pem là biết ngay. */
   if (err.code === 'SELF_SIGNED_CERT_IN_CHAIN'
       || err.message.includes('self-signed certificate')
@@ -117,21 +149,7 @@ try {
         console.log(`   ${I} ca.pem của bạn do: ${caCert.issuer.replace(/\n/g, ' | ')}`);
       }
 
-      const tam = await mysql.createConnection({
-        host, port,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        ssl: { rejectUnauthorized: false },
-        connectTimeout: 15000,
-      });
-      /* ⚠️ mysql2 bản promise BỌC connection lõi: socket nằm ở
-         conn.connection.stream, KHÔNG phải conn.stream. Lấy sai thì
-         getPeerCertificate là undefined. Dò cả hai cho chắc. */
-      const socket = tam.connection?.stream || tam.stream;
-      if (!socket || typeof socket.getPeerCertificate !== 'function') {
-        throw new Error('không lấy được socket TLS để đọc chứng chỉ');
-      }
-      const chuoi = socket.getPeerCertificate(true);
+      const chuoi = await xemChungChiKhongDangNhap(host, port);
       console.log(`   ${I} Máy chủ trình ra chứng chỉ cho: ${chuoi.subject?.CN || '(không rõ)'}`);
 
       /* Đi ngược lên gốc của chuỗi để xem ai là người cấp cuối cùng. */
@@ -144,7 +162,6 @@ try {
       }
       const tenGoc = goc.issuer?.O || goc.issuer?.CN || '(không rõ)';
       console.log(`   ${I} Gốc chuỗi chứng chỉ là: ${tenGoc}`);
-      await tam.end();
 
       console.log('');
       const dauHieuChenGiua = /kaspersky|eset|bitdefender|avast|avg|norton|mcafee|fortinet|zscaler|proxy|firewall/i;
@@ -195,6 +212,9 @@ try {
     /* Trường hợp ĐÃ nạp ca.pem mà vẫn hỏng thì bước 4 ở trên đã so sánh chuỗi
        chứng chỉ và kết luận rồi — không lặp lại ở đây. */
     console.log('');
+  } else if (/does not match certificate|Hostname\/IP does not match/i.test(err.message)) {
+    console.log('   → Tên máy không khớp chứng chỉ. DB_HOST phải là TÊN máy ghi trên chứng chỉ của kho,');
+    console.log('     không ghi địa chỉ IP (xem hướng dẫn triển khai, Phụ lục VIỆC CHỜ — Kiểm 1b).');
   } else if (err.code === 'ER_ACCESS_DENIED_ERROR') {
     console.log('   → Sai tài khoản hoặc mật khẩu. Kiểm tra DB_USER, DB_PASSWORD.');
   } else if (err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
