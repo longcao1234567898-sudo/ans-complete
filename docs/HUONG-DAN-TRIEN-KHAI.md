@@ -268,6 +268,11 @@ ADMIN_CORS_ORIGIN=
 # Để trống = không chặn theo IP. Cơ quan có IP tĩnh thì ghi vào, cách nhau dấu phẩy
 ADMIN_ALLOWED_IPS=
 
+# GIỐNG HỆT cong-khai.env. Đăng nhập cán bộ đòi vé "không phải người máy" — thiếu dòng
+# này thì máy chủ cán bộ cho MỌI yêu cầu qua cổng vé (chỉ in cảnh báo đỏ), máy tự động
+# dò được mật khẩu cán bộ mà trang đăng nhập vẫn hiện ô xác minh (BUG-044)
+TURNSTILE_SECRET_KEY=<GIỐNG HỆT cong-khai.env>
+
 CLOUDINARY_CLOUD_NAME=<xem Phần D>
 CLOUDINARY_API_KEY=<xem Phần D>
 CLOUDINARY_API_SECRET=<xem Phần D>

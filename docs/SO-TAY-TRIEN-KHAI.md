@@ -173,12 +173,15 @@ Chỗ khác so với B7 (vì kho ở Viettel):
 | `DB_PASSWORD` | Mật khẩu root kho |
 | `DB_SSL_CA` | Chặng 6 kiểm 1 ra **Có** → giữ dòng, dán tệp CA Viettel cấp vào `/etc/hop-thu/ca-db.pem`. Ra **Không** → **xoá hẳn dòng này** |
 | Ba khoá, `TURNSTILE_*`, `GEMINI_*`, `BREVO_*`, `MAIL_USER`, `CLOUDINARY_*` | Chép y nguyên từ giấy ở chặng 0 |
+| `TURNSTILE_SECRET_KEY` | Ghi ở **cả hai tệp** (`cong-khai.env` và `can-bo.env`), giống hệt nhau. Thiếu ở `can-bo.env` thì đăng nhập cán bộ mất lớp chống máy dò mật khẩu |
 | `CORS_ORIGIN`, `CLIENT_URL` | `https://www.ten-mien.vn` |
 | `TRICH_CHU_OCR` | Để trống (máy 4 GB đọc chữ được) |
 
 Cuối B7 có lệnh `chmod` khoá quyền tệp — **bắt buộc chạy**.
 
-**Đúng khi:** ba khoá ở hai tệp **giống hệt nhau** (so từng ký tự trên giấy).
+**Đúng khi:** ba khoá và `TURNSTILE_SECRET_KEY` ở hai tệp **giống hệt nhau** (so từng ký tự
+trên giấy). Ở chặng 10, nhật ký máy chủ cán bộ **không** được có dòng đỏ
+"CHỐNG MÁY TỰ ĐỘNG ĐANG TẮT".
 
 ---
 
