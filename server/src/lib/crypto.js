@@ -120,6 +120,54 @@ export function decrypt(value) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * KHOÁ CON THEO MỤC ĐÍCH (ND-088)
+ *
+ * ENCRYPTION_KEY chỉ để mã hoá DANH TÍNH. Dữ liệu khác cần mã hoá (vd mã phiên xác minh số điện
+ * thoại — đi ra trình duyệt) dùng khoá con rút từ nó bằng HKDF-SHA256 với nhãn riêng từng mục
+ * đích: một khoá một việc, bản mã việc này không mở được bằng khoá việc kia, và KHÔNG thêm biến
+ * môi trường nào (thêm biến bắt buộc là thêm một cách làm máy chủ không khởi động được).
+ * Tiền tố riêng 'kc:v1:' để không bao giờ lẫn với bản mã danh tính 'enc:v1:'.
+ * ------------------------------------------------------------------------- */
+const TIEN_TO_KHOA_CON = 'kc:v1:';
+const khoaCon = new Map();
+
+function layKhoaCon(mucDich) {
+  if (typeof mucDich !== 'string' || !/^[a-z0-9_]+$/.test(mucDich)) throw new Error('mục đích khoá con sai dạng');
+  const goc = getKey();
+  if (!goc) return null;
+  if (!khoaCon.has(mucDich)) {
+    khoaCon.set(mucDich, Buffer.from(crypto.hkdfSync('sha256', goc, Buffer.alloc(0), `hop-thu-an-ninh-so/${mucDich}`, 32)));
+  }
+  return khoaCon.get(mucDich);
+}
+
+/** Mã hoá bằng khoá con của mục đích. Không có khoá thì NÉM LỖI như encrypt(). */
+export function maHoaTheoMucDich(mucDich, plain) {
+  const key = layKhoaCon(mucDich);
+  if (!key) throw new EncryptionUnavailableError(keyProblem);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(ALGO, key, iv);
+  const enc = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+  return TIEN_TO_KHOA_CON + iv.toString('hex') + ':' + cipher.getAuthTag().toString('hex') + ':' + enc.toString('hex');
+}
+
+/** Giải mã bằng khoá con. Sai mục đích / sai khoá / hỏng / không đúng tiền tố -> null (KHÔNG trả nguyên
+ *  văn như decrypt() làm với dữ liệu cũ: ở đây không có "dữ liệu cũ chưa mã hoá" nào hợp lệ). */
+export function giaiMaTheoMucDich(mucDich, value) {
+  if (typeof value !== 'string' || !value.startsWith(TIEN_TO_KHOA_CON)) return null;
+  const key = layKhoaCon(mucDich);
+  if (!key) return null;
+  try {
+    const [ivHex, tagHex, dataHex] = value.slice(TIEN_TO_KHOA_CON.length).split(':');
+    const decipher = crypto.createDecipheriv(ALGO, key, Buffer.from(ivHex, 'hex'));
+    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+    return Buffer.concat([decipher.update(Buffer.from(dataHex, 'hex')), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
 /** Che số điện thoại: 0909123456 -> 090****456 */
 export function maskPhone(phone) {
   const s = String(phone || '');

@@ -40,7 +40,7 @@ import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { layIpThat, khoaIp } from '../lib/helpers.js';
-import { hashIdentifier, encrypt, decrypt } from '../lib/crypto.js';
+import { hashIdentifier, maHoaTheoMucDich, giaiMaTheoMucDich } from '../lib/crypto.js';
 import { normalizePhone, getPhoneError } from '../lib/security.js';
 import { quaCongVao } from '../lib/cong-vao.js';
 import { danhGiaThoiGianDien } from '../lib/phieu-mo-form.js';
@@ -60,7 +60,7 @@ const MUC_DICH_VE = 'sdt_xac_minh';
 const MUC_DICH_PHIEN = 'sdt_phien_ma';
 /* ND-087: mã hoá giữ nguyên độ dài bản rõ — số thứ tự mã không đệm thì đọc độ dài mã phiên là biết
    hệ thống đã cấp cỡ chục, trăm hay nghìn mã. Đệm ra 16 chữ số: đủ cho mọi số nguyên an toàn của JS
-   (trên 2^53 thì phía đọc từ chối sẵn). Phiên cũ không đệm vẫn đọc được: Number('42') như Number('000…42') */
+   (trên 2^53 thì phía đọc từ chối sẵn); phía đọc Number('000…42') = 42 */
 const DO_DAI_SO_PHIEN = 16;
 const TRAN_MAC_DINH = 500;
 
@@ -230,7 +230,7 @@ router.post('/gui-ma', async (req, res) => {
       /* BUG-043: JWT chỉ KÝ, phần thân ai cũng đọc được — số thứ tự của mã để trần
          thì xin mã hai lần là biết giữa hai lần có bao nhiêu người vừa xin mã. Mã
          hoá (AES-GCM, IV ngẫu nhiên): không đọc được, không so thứ tự được */
-      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, k: encrypt(String(kq.insertId).padStart(DO_DAI_SO_PHIEN, '0')), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
+      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, k: maHoaTheoMucDich(MUC_DICH_PHIEN, String(kq.insertId).padStart(DO_DAI_SO_PHIEN, '0')), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
       /* Chỉ kênh thử (đã bị chặn ở production trong cauHinhKenh) mới trả mã */
       ...(gui.kenh === 'thu' ? { maThu: ma } : {}),
     });
@@ -250,8 +250,9 @@ function idTuPhien(phien, sdtBam) {
   try {
     const p = jwt.verify(phien, JWT_SECRET, { algorithms: ['HS256'] });
     if (p.purpose !== MUC_DICH_PHIEN || p.sdt !== sdtBam || typeof p.k !== 'string') return null;
-    /* decrypt hỏng trả chuỗi báo lỗi -> không phải số -> từ chối */
-    const id = Number(decrypt(p.k));
+    /* ND-088: khoá con riêng của mã phiên, không dùng khoá danh tính. Sai khoá / hỏng / phiên cũ
+       mã hoá bằng khoá danh tính -> null -> Number(null)=0 -> từ chối (phiên cũ: xin lại mã) */
+    const id = Number(giaiMaTheoMucDich(MUC_DICH_PHIEN, p.k));
     return Number.isSafeInteger(id) && id > 0 ? id : null;
   } catch {
     return null;

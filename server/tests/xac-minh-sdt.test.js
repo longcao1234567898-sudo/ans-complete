@@ -426,3 +426,21 @@ test('ND-087 — độ dài mã phiên không đổi theo số chữ số của 
   assert.ok(maxId > 99_999, 'bộ đếm phải đã vượt 99999 thì phép thử mới có nghĩa');
   assert.equal(dai, ngan, `độ dài k đổi theo bộ đếm: ${ngan} -> ${dai}`);
 });
+
+/* ---- ND-088 (RETEST P95, quan sát phụ): mã phiên KHÔNG mã hoá bằng khoá danh tính ----
+   Một khoá một mục đích: khoá ENCRYPTION_KEY chỉ dùng cho danh tính người gửi. Mã phiên dùng khoá
+   con rút từ nó (HKDF, nhãn riêng) — giải mã phiên bằng khoá danh tính phải KHÔNG ra số thứ tự. */
+test('ND-088 — mã phiên mã hoá bằng khoá con riêng, khoá danh tính không mở được', { skip: BO_QUA }, async () => {
+  const { decrypt, giaiMaTheoMucDich } = await import('../src/lib/crypto.js');
+  const so = sdtMoi();
+  const phien = (await guiMa(so)).body.phien;
+  const id = ctl.db.prepare('SELECT MAX(id) m FROM ma_xac_minh_sdt').get().m;
+  const { k } = jwt.decode(phien);
+  assert.notEqual(Number(decrypt(k)), id, 'khoá danh tính mở được mã phiên');
+  assert.equal(typeof giaiMaTheoMucDich, 'function', 'chưa có giaiMaTheoMucDich');
+  assert.equal(giaiMaTheoMucDich('sdt_phien_ma', k) !== null && Number(giaiMaTheoMucDich('sdt_phien_ma', k)), id);
+  assert.equal(giaiMaTheoMucDich('muc_dich_khac', k), null, 'khoá con của mục đích khác cũng mở được');
+  /* Phiên vẫn mở đúng mã */
+  const r = await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[daGui.length - 1]), phien });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+});
