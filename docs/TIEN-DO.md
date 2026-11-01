@@ -115,6 +115,7 @@ và [`/ket-thuc-phien`](../.claude/commands/ket-thuc-phien.md). Quy trình: [QUY
 | P102 | 2026-11-01 | `RETEST` | Retest độc lập **BUG-044** — phiên Claude mới trên đám mây (`session_01CG6nJ4J9NXQ2MmSRsAiscP`), chỉ trả kết luận, không sửa mã; chờ chép kết quả về | ĐANG CHẠY (phiên khác) | `8277a8e` | | |
 | P103 | 2026-11-01 | `RETEST` | Retest độc lập **BUG-033** — phiên Claude mới trên đám mây (`session_01CG6nJ3gi9t21mL6fp3srah`), chỉ trả kết luận, không sửa mã; chờ chép kết quả về | ĐANG CHẠY (phiên khác) | `8277a8e` | | |
 | P104 | 2026-11-01 | `RETEST` | Retest độc lập **ND-086** (giới hạn IP cán bộ ở bản chạy gộp) — phiên Claude mới trên đám mây (`session_01CG6nJ762SfAVqoQyUn5dMo`), chỉ trả kết luận; chờ chép kết quả về | ĐANG CHẠY (phiên khác) | `8277a8e` | | |
+| P105 | 2026-11-01 | `FIX` | **ND-087** — đệm số thứ tự trước khi mã hoá mã phiên xác minh số điện thoại (quan sát Info của RETEST P95); test đỏ trước | **XONG** | `3ff2552` | commit cùng dòng này | Test mới trong `xac-minh-sdt.test.js` ĐỎ trước (độ dài `k` 67 → 77 khi bộ đếm vượt 99999), XANH sau; test BUG-043 vẫn xanh (phiên đệm vẫn mở đúng mã). Phiên cũ chưa đệm vẫn đọc được — không ai đang dở bước bị bắt xin lại mã. `npm test` 1406, 1 đỏ là ND-056 (đã biết). Mức Info, hậu quả vá hụt không phải không hoàn tác được — không bắt buộc RETEST (luật 8 (c)) |
 <!--
 Dòng mẫu để copy:
 | P01 | 2026-09-11 | KHAO-SAT | Kiểm kê 48 endpoint, điền hết dấu ? trong bảng phân quyền | ĐANG CHẠY | abc1234 | | |

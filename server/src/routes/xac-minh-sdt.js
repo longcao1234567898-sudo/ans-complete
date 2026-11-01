@@ -58,6 +58,10 @@ export const SAI_TOI_DA = 5;
 export const VE_SONG = '30m';
 const MUC_DICH_VE = 'sdt_xac_minh';
 const MUC_DICH_PHIEN = 'sdt_phien_ma';
+/* ND-087: mã hoá giữ nguyên độ dài bản rõ — số thứ tự mã không đệm thì đọc độ dài mã phiên là biết
+   hệ thống đã cấp cỡ chục, trăm hay nghìn mã. Đệm ra 16 chữ số: đủ cho mọi số nguyên an toàn của JS
+   (trên 2^53 thì phía đọc từ chối sẵn). Phiên cũ không đệm vẫn đọc được: Number('42') như Number('000…42') */
+const DO_DAI_SO_PHIEN = 16;
 const TRAN_MAC_DINH = 500;
 
 /** Trần tin/ngày. Sai dạng (chữ, 0, số âm) thì TẮT — không đoán, không bỏ trần. */
@@ -226,7 +230,7 @@ router.post('/gui-ma', async (req, res) => {
       /* BUG-043: JWT chỉ KÝ, phần thân ai cũng đọc được — số thứ tự của mã để trần
          thì xin mã hai lần là biết giữa hai lần có bao nhiêu người vừa xin mã. Mã
          hoá (AES-GCM, IV ngẫu nhiên): không đọc được, không so thứ tự được */
-      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, k: encrypt(String(kq.insertId)), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
+      phien: jwt.sign({ purpose: MUC_DICH_PHIEN, k: encrypt(String(kq.insertId).padStart(DO_DAI_SO_PHIEN, '0')), sdt: sdtBam }, JWT_SECRET, { expiresIn: `${MA_SONG_PHUT + 5}m` }),
       /* Chỉ kênh thử (đã bị chặn ở production trong cauHinhKenh) mới trả mã */
       ...(gui.kenh === 'thu' ? { maThu: ma } : {}),
     });

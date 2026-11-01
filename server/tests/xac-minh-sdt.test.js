@@ -409,3 +409,20 @@ test('BUG-043 — đọc mã phiên (JWT chỉ ký, ai cũng giải được ph�
   const r = await goi('/xac-nhan', { soDienThoai: so, ma: maTrongTin(daGui[daGui.length - 1]), phien: lan2 });
   assert.equal(r.status, 200, JSON.stringify(r.body));
 });
+
+/* ---- ND-087 (RETEST P95): độ dài mã phiên không được lộ số chữ số của bộ đếm ----
+   AES-GCM giữ nguyên độ dài bản rõ: id 9 và id 1000 ra hai độ dài khác nhau -> đọc độ dài là
+   biết hệ thống đã cấp cỡ chục hay nghìn mã. Dòng giả đẩy bộ đếm lên đặt tao_luc ở tương lai để
+   lệnh dọn mã cũ (tao_luc < 1 ngày trước) không xoá nó và SQLite không dùng lại id. */
+test('ND-087 — độ dài mã phiên không đổi theo số chữ số của bộ đếm mã', { skip: BO_QUA }, async () => {
+  const doDai = async () => jwt.decode((await guiMa(sdtMoi())).body.phien).k.length;
+  const dat = (id) => ctl.db.prepare(
+    "INSERT INTO ma_xac_minh_sdt (id, sdt_bam, ma_bam, kenh, het_han, tao_luc) VALUES (?, 'gia', 'gia', 'thu', '2999-01-01 00:00:00', '2999-01-01 00:00:00')",
+  ).run(id);
+  const ngan = await doDai();
+  dat(99_999);
+  const dai = await doDai();
+  const maxId = ctl.db.prepare('SELECT MAX(id) m FROM ma_xac_minh_sdt').get().m;
+  assert.ok(maxId > 99_999, 'bộ đếm phải đã vượt 99999 thì phép thử mới có nghĩa');
+  assert.equal(dai, ngan, `độ dài k đổi theo bộ đếm: ${ngan} -> ${dai}`);
+});
