@@ -35,6 +35,23 @@ const BACKEND_VERSION = 'v9-2026-08';
  *        danh sách chung từ biến CORS_ORIGIN. Máy chủ cán bộ dùng để chỉ cho
  *        đúng origin trang cán bộ, tách khỏi origin trang công khai.
  */
+/**
+ * Địa chỉ máy chủ nghe (biến HOST — ND-083). Đứng sau Nginx cùng máy (Viettel, B7) thì
+ * ghi HOST=127.0.0.1: cổng 4000/4001 không bao giờ nhận kết nối từ ngoài máy, kể cả khi
+ * tường lửa B4 / Security Group bị cấu hình sai. Vì `trust proxy 1` tin chặng ngay
+ * trước làm proxy: ai gọi THẲNG được cổng thì tự đặt X-Forwarded-For lách mọi lớp chặn
+ * theo IP (đã thử P96: lọt ADMIN_ALLOWED_IPS). Để trống = như cũ, nghe mọi địa chỉ
+ * (Render bắt buộc). Giá trị lạ -> NÉM LỖI, không khởi động (luật 1, allow-list luật 5).
+ */
+const DANG_IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const DANG_IPV6 = /^[0-9a-f:]+$/i;
+export function diaChiNghe() {
+  const h = process.env.HOST ?? '';
+  if (h === '') return undefined;
+  if (h === 'localhost' || DANG_IPV4.test(h) || (h.includes(':') && DANG_IPV6.test(h))) return h;
+  throw new Error(`HOST="${h}" không hợp lệ — ghi một địa chỉ IP (vd 127.0.0.1) hoặc để trống`);
+}
+
 export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
   const app = express();
 

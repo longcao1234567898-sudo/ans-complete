@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
+import { diaChiNghe } from './nen-tang.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
 import { loadBannedWords } from './lib/security.js';
@@ -236,7 +237,7 @@ async function start() {
     console.error('❌ KHÔNG kết nối được MySQL:', err.message);
     console.error('   → Kiểm tra MySQL đã chạy chưa và thông tin trong server/.env');
   }
-  app.listen(PORT, () => {
+  app.listen(PORT, diaChiNghe(), () => {
   console.log('🤖 Phân tích ý kiến: ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash'));
   console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
   console.log(moTaCheDoEmail());

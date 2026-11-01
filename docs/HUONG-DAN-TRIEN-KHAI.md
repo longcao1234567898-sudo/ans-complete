@@ -222,6 +222,10 @@ Nội dung `cong-khai.env`. Chép **giá trị đang có** trên Render: Render 
 ```ini
 PORT=4000
 
+# Chỉ nhận kết nối từ chính máy này (Nginx) — cổng 4000/4001 không bao giờ lọt ra ngoài kể cả
+# khi tường lửa B4 bị cấu hình sai (ND-083). Ghi sai dạng thì máy chủ từ chối khởi động.
+HOST=127.0.0.1
+
 # TÊN máy CSDL (không ghi địa chỉ IP): máy chủ kiểm tên này với chứng chỉ của kho (BUG-033)
 DB_HOST=<máy CSDL>
 DB_PORT=<cổng CSDL>
@@ -253,6 +257,10 @@ Nội dung `can-bo.env`:
 
 ```ini
 ADMIN_PORT=4001
+
+# Chỉ nhận kết nối từ chính máy này (Nginx) — cổng 4000/4001 không bao giờ lọt ra ngoài kể cả
+# khi tường lửa B4 bị cấu hình sai (ND-083). Ghi sai dạng thì máy chủ từ chối khởi động.
+HOST=127.0.0.1
 
 DB_HOST=<giống hệt cong-khai.env>
 DB_PORT=<giống hệt>

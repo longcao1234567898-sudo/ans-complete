@@ -20,7 +20,7 @@ import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
 import { loadBannedWords } from './lib/security.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { taoApp, ganDuoi } from './nen-tang.js';
+import { taoApp, ganDuoi, diaChiNghe } from './nen-tang.js';
 
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
@@ -80,7 +80,7 @@ async function start() {
   } catch (err) {
     console.error('❌ [công khai] KHÔNG kết nối được MySQL:', err.message);
   }
-  app.listen(PORT, () => {
+  app.listen(PORT, diaChiNghe(), () => {
     console.log(`🌐 Máy chủ CÔNG KHAI chạy ở cổng ${PORT}`);
     console.log(moTaCheDoEmail());
     console.log(moTaXacMinhSdt());
