@@ -3,7 +3,7 @@
 Tài liệu này hướng dẫn từng bước, không giả định người đọc đã biết gì. **Làm lần đầu thì đi theo
 [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md)** — sổ tay chia chặng, chỉ tới đúng mục ở đây để chép lệnh.
 
-- **Phần B** — dựng **máy chủ người dân** và **máy chủ cán bộ** trên **Viettel Cloud** (thay Render)
+- **Phần B** — dựng **máy chủ người dân** và **máy chủ cán bộ** trên **Viettel Cloud** (thay Render); B11 — về sau tách máy chủ cán bộ sang máy riêng
 - **Phần C** — chuyển cơ sở dữ liệu sang **VNPT** (thay Aiven)
 - **Phần D** — thay **Cloudinary** (kho ảnh)
 - **Phần E** — thứ tự làm và danh sách kiểm cho ngày chuyển
@@ -585,6 +585,85 @@ Bản mới có tệp `database/nang_cap_vXX.sql` thì chạy tệp đó vào CS
 (cách chạy: xem C4).
 
 **Nên chụp Snapshot** trong trang quản trị Viettel trước mỗi lần cập nhật lớn.
+
+### B11. Về sau: tách máy chủ cán bộ sang máy riêng (sau bàn giao)
+
+**Hiện tại** (quyết định người vận hành, 2026-11-01 — chi phí máy có hạn): máy chủ người dân và
+máy chủ cán bộ nằm **chung một máy Viettel**, nhưng vẫn là **hai tiến trình riêng** (B8), hai tài
+khoản riêng (`hopthu-ck`, `hopthu-cb`), hai tệp `.env` riêng. Cách này không tốn thêm tiền so với
+chạy gộp, nên **giữ nguyên hai tiến trình** — đừng đổi sang `npm start` (một tiến trình
+`index.js` chạy cả hai phần) để "cho gọn":
+
+| | Hai tiến trình, một máy (đang làm) | Một tiến trình `npm start` |
+|---|---|---|
+| Phần người dân bị chiếm thì có mã cán bộ trong tay không | Không — tiến trình người dân không nạp mã cán bộ | **Có** — cùng một tiến trình |
+| Giới hạn IP cán bộ (`ADMIN_ALLOWED_IPS`) | Có | Có (từ P100, ND-086) |
+| Tốn thêm RAM | Một tiến trình nữa — trên máy thử P96 mỗi tiến trình chiếm chừng 80 MB (xem bằng `systemctl status`, dòng `Memory`) | — |
+
+> Lỡ đã chạy bằng `npm start`: khai `TURNSTILE_SECRET_KEY` và `ADMIN_ALLOWED_IPS` (nếu có IP tĩnh)
+> trong chính tệp `.env` duy nhất đó, và trong giao diện ghi `VITE_ADMIN_API_URL` **trùng**
+> `VITE_API_URL`. Khi nào làm lại được thì quay về hai tiến trình theo B7–B9.
+
+**Khi tách máy** (sau bàn giao), cách đơn giản và chắc nhất: máy mới (gọi là **máy B**) có **Nginx
+và HTTPS riêng**, tên `canbo-api.ten-mien.vn` trỏ thẳng về máy B. Như vậy cả hai máy vẫn ghi
+`HOST=127.0.0.1` — không mở cổng 4001 qua mạng nội bộ, không phải sửa giao diện (tên
+`canbo-api.` giữ nguyên, `VITE_ADMIN_API_URL` không đổi, không dựng lại giao diện).
+
+> **Tách máy được gì, không được gì — nói thẳng:** được: máy B chỉ chạy phần cán bộ, đặt Security
+> Group chỉ cho IP cơ quan vào cổng 443 (chặn ở tầng mạng, trước cả ứng dụng); máy người dân bị
+> quá tải hay bị chiếm thì phần cán bộ vẫn chạy. **Không** được: ba khoá bí mật an toàn hơn — máy
+> người dân vẫn phải giữ đủ ba khoá (để mã hoá danh tính lúc nhận tin), nên máy đó vẫn là thứ
+> phải bảo vệ nhất.
+
+Làm theo thứ tự — **máy A (máy cũ) vẫn chạy bình thường tới bước 6**, bước nào hỏng thì dừng, chưa
+ai bị ảnh hưởng:
+
+1. **Hạ thời gian nhớ DNS** của bản ghi `canbo-api` xuống 300 giây (trang quản lý DNS, ô TTL), làm
+   trước ít nhất một ngày — để lúc đổi IP thì mọi máy thấy ngay.
+2. **Dựng máy B** theo B3–B6 như máy A, nhưng ở B5 chỉ tạo tài khoản `hopthu-cb`. Tường lửa B4 như
+   cũ (22, 80, 443); cơ quan có IP tĩnh thì đặt Security Group cổng 443 chỉ cho IP đó (cổng 80 vẫn
+   phải mở cho Let's Encrypt cấp chứng chỉ).
+3. **Tệp `can-bo.env` cho máy B:** chép từ máy A bằng USB hoặc `scp` thẳng giữa hai máy — **không
+   gửi qua tin nhắn, email, hay cho bất kỳ ai, kể cả Claude**. Đặt ở `/etc/hop-thu/can-bo.env`,
+   `chmod 600`. Chép cả `/etc/hop-thu/ca-db.pem`. Không cần sửa dòng nào (`HOST=127.0.0.1` giữ
+   nguyên).
+4. **Cho máy B vào CSDL:** tài khoản MySQL gắn với địa chỉ máy, nên phải tạo thêm cho máy B
+   (bằng root của kho, như mục "Tài khoản CSDL cho ứng dụng" ở B7):
+
+   ```sql
+   CREATE USER 'hop_thu_ung_dung'@'IP-MAY-B' IDENTIFIED BY '<mật khẩu giống DB_PASSWORD trong can-bo.env>';
+   GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON hop_thu_an_ninh_so.* TO 'hop_thu_ung_dung'@'IP-MAY-B';
+   ```
+
+   Rồi vào trang quản trị kho (VNPT/vDBS) thêm IP máy B vào danh sách được kết nối. Kiểm:
+   ```bash
+   # trên máy B — đúng thì ra một dòng "1"
+   mysql --ssl-ca=/etc/hop-thu/ca-db.pem --ssl-mode=VERIFY_IDENTITY \
+     -h <máy CSDL> -P <cổng> -u hop_thu_ung_dung -p -e 'SELECT 1'
+   ```
+5. **Chạy máy chủ cán bộ trên máy B:** B8 chỉ tạo tệp `hop-thu-can-bo.service`, rồi
+   `systemctl enable --now hop-thu-can-bo` và `curl -s http://127.0.0.1:4001/api/health` — phải ra
+   `"ok":true` và `"db":true`. B9 chỉ chép khối `upstream hop_thu_can_bo` và khối `server` của
+   `canbo-api.ten-mien.vn` (các lệnh `ln -s`, `nginx -t`, `reload` như B9), **chưa chạy certbot**
+   (tên còn trỏ về máy A).
+6. **Đổi DNS:** bản ghi `canbo-api` → IP máy B. Đợi `nslookup canbo-api.ten-mien.vn` ra IP mới,
+   rồi trên máy B: `certbot --nginx -d canbo-api.ten-mien.vn`. Cán bộ đăng nhập thử, mở một hồ sơ,
+   xem danh tính một hồ sơ thử. Ba khoá giống nhau nên cán bộ đang đăng nhập **không** bị đăng
+   xuất.
+7. **Dọn máy A — đợi một tuần chạy ổn đã:**
+   - Ngay sau bước 6: `systemctl disable --now hop-thu-can-bo` trên máy A (để không còn hai nơi
+     cùng nhận yêu cầu cán bộ).
+   - Sau một tuần: xoá khối `upstream hop_thu_can_bo` và khối `server` của `canbo-api` khỏi
+     `/etc/nginx/sites-available/hop-thu` (`nginx -t && systemctl reload nginx`), xoá
+     `/etc/hop-thu/can-bo.env`, `rm /etc/systemd/system/hop-thu-can-bo.service`, `userdel hopthu-cb`.
+   - **Không** xoá tài khoản CSDL `'hop_thu_ung_dung'@'IP-MAY-A'` — máy chủ người dân vẫn dùng nó.
+8. **Cập nhật về sau (B10) phải làm trên CẢ HAI máy:** máy A khởi động lại
+   `hop-thu-cong-khai`, máy B khởi động lại `hop-thu-can-bo`. Tệp nâng cấp CSDL (C4) chỉ chạy
+   **một lần**, từ một máy. Sao lưu (Phần G) giữ nguyên ở máy A.
+
+**Quay lại nếu máy B hỏng:** đổi DNS `canbo-api` về IP máy A, rồi trên máy A
+`systemctl enable --now hop-thu-can-bo` (vì thế bước 7 đợi một tuần mới xoá tệp). Chứng chỉ HTTPS
+cũ trên máy A còn hạn thì chạy ngay; hết hạn thì `certbot --nginx -d canbo-api.ten-mien.vn`.
 
 ---
 

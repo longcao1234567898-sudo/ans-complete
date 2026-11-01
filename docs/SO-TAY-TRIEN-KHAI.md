@@ -331,6 +331,11 @@ Làm theo **tài liệu kỹ thuật, Phần G**, từ G2 tới G6:
 **Giai đoạn sau (chưa làm):** chuyển ảnh, tệp PDF/Word người dân gửi sang **Viettel Cloud Object
 Storage** — cần **một phiên sửa mã** của Claude trước (tài liệu kỹ thuật, Phần D hướng 2).
 
+**Sau bàn giao (khi có kinh phí):** tách máy chủ cán bộ sang một máy Viettel riêng — không cần sửa
+mã, không phải dựng lại giao diện, làm được từng bước mà máy cũ vẫn chạy (tài liệu kỹ thuật,
+**B11**). Tới lúc đó, **giữ nguyên hai máy chủ chạy riêng trên một máy** như chặng 10 — đừng gộp
+thành một (`npm start`) cho gọn.
+
 ---
 
 ## Khi gặp sự cố
