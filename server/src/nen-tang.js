@@ -170,9 +170,13 @@ export function ganDuoi(app, errorHandler) {
  * (test BUG-001 (d): mọi máy chủ dùng chung một lớp xác thực).
  */
 export function chanTheoIpPhanCanBo(layIpThat) {
-  const chan = chanTheoIp(layIpThat);
-  const laPhanCanBo = (p) => /^\/api\/(auth|admin)(\/|$)/.test(p);
-  return (req, res, next) => (laPhanCanBo(req.path) ? chan(req, res, next) : next());
+  /* Để CHÍNH Express khớp đường dẫn (RETEST P104): Express mặc định không phân biệt hoa thường,
+     /API/ADMIN vẫn vào adminRouter — tự so chuỗi bằng biểu thức chữ thường thì để lọt. Router
+     mới mặc định không phân biệt hoa thường nên khớp ít nhất mọi đường mà app khớp (app có bật
+     phân biệt hoa thường thì lớp này chặn RỘNG hơn — phía an toàn). */
+  const lop = express.Router();
+  lop.use(['/api/auth', '/api/admin'], chanTheoIp(layIpThat));
+  return lop;
 }
 
 export function chanTheoIp(layIpThat) {

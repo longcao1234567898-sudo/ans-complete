@@ -21,20 +21,36 @@ test('index.js: gắn chanTheoIpPhanCanBo TRƯỚC /api/auth và /api/admin', as
   assert.ok(chan < s.indexOf("app.use('/api/admin', adminRouter);"), 'phải gắn trước /api/admin');
 });
 
-test('chanTheoIpPhanCanBo chỉ chặn đường của cán bộ', async () => {
+/* RETEST P104 (phiên độc lập): Express khớp đường dẫn KHÔNG phân biệt hoa thường — /API/ADMIN vẫn
+   vào adminRouter, nên lớp chặn phải khớp đúng như Express khớp, không tự so chuỗi. Chạy thật qua
+   HTTP để đi cùng đường với yêu cầu thật (không dựng req giả). */
+test('chanTheoIpPhanCanBo chặn mọi cách viết đường dẫn mà Express vẫn đưa vào phần cán bộ', async () => {
+  const express = (await import('express')).default;
   const { chanTheoIpPhanCanBo } = await import('../src/nen-tang.js');
   const cu = process.env.ADMIN_ALLOWED_IPS;
   process.env.ADMIN_ALLOWED_IPS = '10.9.9.9';
+  const app = express();
+  app.use(chanTheoIpPhanCanBo(() => '1.2.3.4'));
+  const vao = express.Router();
+  vao.all('*', (req, res) => res.send('vao'));
+  app.use('/api/auth', vao);
+  app.use('/api/admin', vao);
+  app.use('/api/submissions', vao);
+  const sv = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  const goi = async (u) => (await fetch(`http://127.0.0.1:${sv.address().port}${u}`)).status;
   try {
-    const mw = chanTheoIpPhanCanBo(() => '1.2.3.4');
-    const chay = (path) => { let ma = 0; let qua = false; mw({ path }, { status: (m) => { ma = m; return { json: () => {} }; } }, () => { qua = true; }); return qua ? 'qua' : ma; };
-    assert.equal(chay('/api/auth/login'), 403);
-    assert.equal(chay('/api/admin/submissions'), 403);
-    assert.equal(chay('/api/admin'), 403);
-    assert.equal(chay('/api/submissions'), 'qua');
-    assert.equal(chay('/api/tracking/ABC123'), 'qua');
-    assert.equal(chay('/api/administrator'), 'qua');
-  } finally { if (cu === undefined) delete process.env.ADMIN_ALLOWED_IPS; else process.env.ADMIN_ALLOWED_IPS = cu; }
+    for (const u of ['/api/auth/login', '/api/admin', '/api/admin/submissions', '/API/ADMIN/submissions',
+      '/Api/Auth/login', '/api/AUTH/refresh', '/api/admin/', '/api/Admin']) {
+      const ma = await goi(u);
+      assert.ok(ma !== 200, `${u} vào được phần cán bộ (mã ${ma}) dù IP ngoài danh sách`);
+    }
+    for (const u of ['/api/submissions', '/API/SUBMISSIONS', '/api/administrator', '/api/authx']) {
+      assert.equal(await goi(u), u === '/api/administrator' || u === '/api/authx' ? 404 : 200, `${u}: phần công dân không được bị chặn IP`);
+    }
+  } finally {
+    sv.close();
+    if (cu === undefined) delete process.env.ADMIN_ALLOWED_IPS; else process.env.ADMIN_ALLOWED_IPS = cu;
+  }
 });
 
 test('index.js: phần công dân KHÔNG bị chặn IP', async () => {
