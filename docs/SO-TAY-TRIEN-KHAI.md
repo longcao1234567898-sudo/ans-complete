@@ -170,8 +170,8 @@ Chỗ khác so với B7 (vì kho ở Viettel):
 |---|---|
 | `DB_HOST` | `DIA-CHI-KHO` — chặng 6 kiểm 1 ra **Có** thì ghi đúng **tên trên chứng chỉ** (kiểm 1b), không ghi địa chỉ IP |
 | `DB_PORT` | Cổng kho (thường `3306`) |
-| `DB_USER` | `root` |
-| `DB_PASSWORD` | Mật khẩu root kho |
+| `DB_USER` | `hop_thu_ung_dung` — tài khoản riêng của ứng dụng, **không** dùng root. Tạo bằng hai lệnh SQL ở B7 mục "Tài khoản CSDL cho ứng dụng" (chạy bằng root kho) |
+| `DB_PASSWORD` | Mật khẩu của `hop_thu_ung_dung` (giữ mật khẩu root kho riêng — chỉ dùng cho chặng 9 và các tệp nâng cấp) |
 | `DB_SSL_CA` | Chặng 6 kiểm 1 ra **Có** → giữ dòng, dán tệp CA Viettel cấp vào `/etc/hop-thu/ca-db.pem`. Ra **Không** → **xoá hẳn dòng này** |
 | Ba khoá, `TURNSTILE_*`, `GEMINI_*`, `BREVO_*`, `MAIL_USER`, `CLOUDINARY_*` | Chép y nguyên từ giấy ở chặng 0 |
 | `TURNSTILE_SECRET_KEY` | Ghi ở **cả hai tệp** (`cong-khai.env` và `can-bo.env`), giống hệt nhau. Thiếu ở `can-bo.env` thì đăng nhập cán bộ mất lớp chống máy dò mật khẩu |

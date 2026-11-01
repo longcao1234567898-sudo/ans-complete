@@ -225,7 +225,8 @@ PORT=4000
 # TÊN máy CSDL (không ghi địa chỉ IP): máy chủ kiểm tên này với chứng chỉ của kho (BUG-033)
 DB_HOST=<máy CSDL>
 DB_PORT=<cổng CSDL>
-DB_USER=<tài khoản CSDL>
+# Tài khoản RIÊNG của ứng dụng (xem "Tài khoản CSDL cho ứng dụng" dưới) — KHÔNG dùng root
+DB_USER=hop_thu_ung_dung
 DB_PASSWORD=<mật khẩu CSDL>
 DB_NAME=hop_thu_an_ninh_so
 DB_SSL_CA=/etc/hop-thu/ca-db.pem
@@ -255,7 +256,7 @@ ADMIN_PORT=4001
 
 DB_HOST=<giống hệt cong-khai.env>
 DB_PORT=<giống hệt>
-DB_USER=<giống hệt>
+DB_USER=hop_thu_ung_dung
 DB_PASSWORD=<giống hệt>
 DB_NAME=hop_thu_an_ninh_so
 DB_SSL_CA=/etc/hop-thu/ca-db.pem
@@ -280,6 +281,22 @@ CLOUDINARY_API_SECRET=<xem Phần D>
 # 2 GB RAM thì ghi: tat
 TRICH_CHU_OCR=
 ```
+
+**Tài khoản CSDL cho ứng dụng (ND-082)** — tạo một lần bằng tài khoản quản trị (root) của kho:
+
+```sql
+CREATE USER 'hop_thu_ung_dung'@'IP-MAY-CHU' IDENTIFIED BY '<mật khẩu dài, chỉ chữ và số>';
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON hop_thu_an_ninh_so.* TO 'hop_thu_ung_dung'@'IP-MAY-CHU';
+```
+
+`IP-MAY-CHU` là địa chỉ (riêng) của máy chạy hai máy chủ; không rõ thì hỏi nhà cung cấp, đừng ghi
+`%`. Mật khẩu này ghi vào `DB_PASSWORD` ở **cả hai** tệp `.env`.
+
+> **Vì sao không dùng root:** trigger "nhật ký chỉ ghi thêm" (ADR-003) chặn sửa/xoá nhật ký thao
+> tác của cán bộ. Tài khoản root gỡ được chính trigger đó — máy chủ bị chiếm là xoá được dấu vết.
+> Tài khoản trên chỉ đọc/ghi dữ liệu và gọi thủ tục, đủ cho mọi việc của ứng dụng (đã chạy thử
+> đủ luồng người dân và cán bộ ở P99), **không** đổi được cấu trúc, trigger hay quyền. Vì vậy các
+> tệp nâng cấp CSDL (C4) và việc chép dữ liệu (C3) vẫn chạy bằng **root**.
 
 Dán **chứng chỉ CA của CSDL** (VNPT cấp — xem C1; tạm thời dùng `ca.pem` của Aiven) vào
 `/etc/hop-thu/ca-db.pem`, rồi khoá quyền:
@@ -657,7 +674,8 @@ SQL="SELECT (SELECT COUNT(*) FROM submissions) y_kien, (SELECT COUNT(*) FROM sub
 mysql --host=HOST-AIVEN --port=PORT-AIVEN --user=avnadmin -p --ssl-ca=/root/ca-aiven.pem hop_thu_an_ninh_so -e "$SQL"
 mysql --host=HOST-VNPT  --port=PORT-VNPT  --user=USER-VNPT -p --ssl-ca=/root/ca-vnpt.pem  hop_thu_an_ninh_so -e "$SQL"
 
-# 7. Trỏ máy chủ sang VNPT: sửa DB_HOST, DB_PORT, DB_USER, DB_PASSWORD ở CẢ HAI tệp .env
+# 7. Tạo tài khoản ứng dụng hop_thu_ung_dung trên kho mới (B7 — chạy bằng root kho), rồi trỏ máy chủ
+#    sang kho mới: sửa DB_HOST, DB_PORT, DB_USER=hop_thu_ung_dung, DB_PASSWORD ở CẢ HAI tệp .env
 nano /etc/hop-thu/cong-khai.env
 nano /etc/hop-thu/can-bo.env
 cp /root/ca-vnpt.pem /etc/hop-thu/ca-db.pem
@@ -695,6 +713,9 @@ service**. Đây là bản sao đầy đủ dữ liệu người dân: không xo
 | Tiếng Việt thành `Ã¡Ã ` | Thiếu `--default-character-set=utf8mb4` hoặc làm trên PowerShell | Làm lại trên máy Linux, đủ tham số |
 
 ### C4. Chạy tệp nâng cấp CSDL về sau
+
+Chạy bằng tài khoản **quản trị (root)** của kho — tài khoản ứng dụng `hop_thu_ung_dung` cố ý không
+có quyền đổi cấu trúc (B7).
 
 ```bash
 mysql --host=HOST-VNPT --port=PORT-VNPT --user=USER-VNPT -p \
