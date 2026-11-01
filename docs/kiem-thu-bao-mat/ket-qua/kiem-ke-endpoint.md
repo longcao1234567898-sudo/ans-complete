@@ -143,6 +143,8 @@ router**. Dựng lại bằng cách đọc trực tiếp từng file khởi đ�
 | **Công khai** | `may-chu-cong-khai.js` | 11 router: `auth`, `tracking`, `chat`, `news`, `ban-do`, `khieu-nai`, `thong-ke`, `diem-den`, `tts`, `submissions`, `otp`, `ai` — **KHÔNG có `adminRouter`** (đúng như chú thích đầu file) | 30 (4 `auth` + 26 route công khai còn lại) | `GET /api/health` qua `taoApp()` (`nen-tang.js`, có `may_chu:'cong-khai'`, **không có** `features`). Không có `/schema` |
 | **Cán bộ** | `may-chu-can-bo.js` | 2 router: `auth`, `admin` — **KHÔNG có bất kỳ router công khai nào khác** (không `submissions`, không `otp`, không `ai`…) | 52 (4 `auth` + 48 `admin`) | `GET /api/health` qua `taoApp()` (`may_chu:'can-bo'`). Không có `/schema`. **Thêm lớp `chanTheoIp` ở `nen-tang.js:141` gắn TRƯỚC mọi route, kể cả `/api/auth/login`** — chặn theo `ADMIN_ALLOWED_IPS`, để trống thì không chặn (mặc định demo) |
 
+> **Cập nhật P106 (BUG-045):** máy chủ công khai **bỏ** router `auth` — đăng nhập cán bộ chỉ còn ở bản gộp và máy chủ cán bộ. Bảng trên là ảnh chụp lúc kiểm kê; đếm lại bằng lệnh trong `CLAUDE.md`, đừng chép số.
+
 **Middleware nền chung** (`nen-tang.js`, dùng lại cho `may-chu-cong-khai.js` và
 `may-chu-can-bo.js`, KHÔNG dùng lại cho `index.js` — `index.js` tự chép tay toàn bộ khối
 này ở dòng 34–109): Helmet (CSP khoá hết, HSTS 2 năm), Permissions-Policy thủ công, CORS

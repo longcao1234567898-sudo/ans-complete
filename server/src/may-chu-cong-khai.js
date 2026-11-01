@@ -22,7 +22,6 @@ import { loadBannedWords } from './lib/security.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { taoApp, ganDuoi, diaChiNghe } from './nen-tang.js';
 
-import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
 import { canhBaoTurnstile } from './lib/turnstile.js';
 import trackingRouter from './routes/tracking.js';
@@ -42,8 +41,11 @@ import aiRouter from './routes/ai.js';
 const app = taoApp({ ten: 'cong-khai' });
 const PORT = process.env.PORT || 4000;
 
-/* CHỈ route công khai. Không có adminRouter ở đây — đó là điểm mấu chốt. */
-app.use('/api/auth', authRouter);
+/* CHỈ route công khai. Không có adminRouter ở đây — đó là điểm mấu chốt.
+   Cũng KHÔNG có /api/auth (BUG-045): đăng nhập cán bộ ở đây thì từ bất kỳ đâu cũng so được mật
+   khẩu — và làm khoá tài khoản — cán bộ, vòng qua giới hạn IP của máy chủ cán bộ. Giao diện
+   đăng nhập ở VITE_ADMIN_API_URL, cùng nơi có /api/admin; không route nào dưới đây cần phiên
+   cán bộ. */
 /* Cổng vào (ADR-003 việc 23) — vé xác minh cho gửi tin */
 app.use('/api/cong-vao', congVaoRouter);
 app.use('/api/tracking', trackingRouter);
