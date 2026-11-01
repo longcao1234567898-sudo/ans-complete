@@ -222,6 +222,7 @@ Nội dung `cong-khai.env`. Chép **giá trị đang có** trên Render: Render 
 ```ini
 PORT=4000
 
+# TÊN máy CSDL (không ghi địa chỉ IP): máy chủ kiểm tên này với chứng chỉ của kho (BUG-033)
 DB_HOST=<máy CSDL>
 DB_PORT=<cổng CSDL>
 DB_USER=<tài khoản CSDL>
@@ -686,7 +687,8 @@ service**. Đây là bản sao đầy đủ dữ liệu người dân: không xo
 | Thấy gì | Vì sao | Sửa |
 |---|---|---|
 | Lệnh `mysql` báo `ERROR 2026 ... certificate verify failed` | Dùng IP thay cho tên máy, hoặc sai tệp CA | Dùng đúng **tên máy (host)** VNPT cấp, đúng tệp CA của VNPT |
-| Máy chủ báo `HANDSHAKE_SSL_ERROR` | Tệp `ca-db.pem` không phải CA của VNPT | Dán lại đúng tệp CA |
+| Máy chủ báo `HANDSHAKE_SSL_ERROR` ... `self-signed certificate` / `unable to verify` | Tệp `ca-db.pem` không phải CA của nhà cung cấp kho | Dán lại đúng tệp CA |
+| Máy chủ báo `HANDSHAKE_SSL_ERROR` ... `Hostname/IP does not match` | `DB_HOST` không phải tên ghi trên chứng chỉ (thường là ghi địa chỉ IP) | Ghi đúng tên máy — xem Phụ lục "VIỆC CHỜ", Kiểm 1b |
 | `ERROR 1419 ... You do not have the SUPER privilege and binary logging is enabled` khi nhập | Tài khoản VNPT không có quyền SUPER, mà bản sao có trigger và thủ tục | Nhờ VNPT bật tham số `log_bin_trust_function_creators = 1` trong cấu hình CSDL. Rồi **xoá CSDL dở dang trên VNPT** (`DROP DATABASE hop_thu_an_ninh_so` — chỉ trên VNPT, kiểm kỹ host trước khi gõ) và làm lại từ bước 5 |
 | `Access denied ... SUPER privilege` / `DEFINER` khi nhập | Còn dòng DEFINER | Chạy lại bước 4 |
 | `Unable to create or change a table without a primary key` | VNPT bật chế độ bắt buộc khoá chính | Hỏi VNPT tắt `sql_require_primary_key` trong lúc nhập |
@@ -1272,8 +1274,24 @@ mysql -h DIA-CHI-KHO -u root -p --ssl-mode=REQUIRED -e "SHOW STATUS LIKE 'Ssl_ci
 
 | Thấy gì | Nghĩa là |
 |---|---|
-| Một dòng `Ssl_cipher` có chữ phía sau (vd `TLS_AES_256_GCM_SHA384`) | **Có mã hoá.** Hỏi Viettel tệp chứng chỉ CA để máy chủ kiểm cả "con dấu" (B7, `DB_SSL_CA`) |
+| Một dòng `Ssl_cipher` có chữ phía sau (vd `TLS_AES_256_GCM_SHA384`) | **Có mã hoá.** Hỏi Viettel tệp chứng chỉ CA để máy chủ kiểm cả "con dấu" (B7, `DB_SSL_CA`), rồi làm **Kiểm 1b** |
 | Báo lỗi có chữ `SSL` | **Không có mã hoá.** Vẫn dùng được vì đường nối nằm trong mạng con riêng — ghi vào sổ theo dõi, hỏi Viettel khi nào hỗ trợ |
+
+**Kiểm 1b — tên máy ghi trên chứng chỉ của kho** (chỉ khi Kiểm 1 ra "Có mã hoá")
+
+Máy chủ ứng dụng kiểm cả chứng chỉ lẫn **tên máy** (BUG-033): `DB_HOST` phải là đúng một tên
+ghi trên chứng chỉ, không được là địa chỉ IP — sai thì máy chủ **từ chối nối** (cố ý).
+
+```bash
+openssl s_client -starttls mysql -connect DIA-CHI-KHO:3306 </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Dòng `DNS:` (hoặc `CN =`) có đúng `DIA-CHI-KHO` | **Được.** Ghi `DB_HOST=DIA-CHI-KHO` ở B7 |
+| Tên khác `DIA-CHI-KHO` (vd tên nội bộ Viettel) | Dùng **tên trên chứng chỉ** làm `DB_HOST` nếu máy CS1 phân giải được tên đó; không thì hỏi Viettel tên máy đúng |
+| Chỉ có chữ kiểu `MySQL_Server_..._Auto_Generated` | Chứng chỉ tự sinh, không gắn tên máy — **báo Claude**, chưa chuyển |
 
 **Kiểm 2 — cấp được quyền `SHOW_ROUTINE` cho tài khoản sao lưu không**
 

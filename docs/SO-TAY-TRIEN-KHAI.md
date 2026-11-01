@@ -133,11 +133,12 @@ Chép nguyên khối lệnh ở **tài liệu kỹ thuật, mục B5**. Màn hì
 
 ## Chặng 6 — Kiểm 3 điều của kho vDBS (VIỆC CHỜ đã ghi)
 
-Làm đúng **tài liệu kỹ thuật, Phụ lục "VIỆC CHỜ"**: ba lệnh, mỗi lệnh hỏi mật khẩu root của kho.
+Làm đúng **tài liệu kỹ thuật, Phụ lục "VIỆC CHỜ"**: ba lệnh (cộng Kiểm 1b nếu kho có mã hoá), mỗi lệnh hỏi mật khẩu root của kho.
 
 | Kiểm | Ghi lại kết quả |
 |---|---|
 | 1. Kho có mã hoá đường nối không | ☐ Có  ☐ Không |
+| 1b. (Kiểm 1 ra Có) Tên máy trên chứng chỉ của kho | ............................ |
 | 2. Cấp được quyền `SHOW_ROUTINE` không | ☐ Được  ☐ `Access denied` |
 | 3. `log_bin_trust_function_creators` | ☐ `ON`  ☐ `OFF` → đã bật được  ☐ Không bật được |
 
@@ -167,7 +168,7 @@ Chỗ khác so với B7 (vì kho ở Viettel):
 
 | Dòng | Ghi gì |
 |---|---|
-| `DB_HOST` | `DIA-CHI-KHO` |
+| `DB_HOST` | `DIA-CHI-KHO` — chặng 6 kiểm 1 ra **Có** thì ghi đúng **tên trên chứng chỉ** (kiểm 1b), không ghi địa chỉ IP |
 | `DB_PORT` | Cổng kho (thường `3306`) |
 | `DB_USER` | `root` |
 | `DB_PASSWORD` | Mật khẩu root kho |
