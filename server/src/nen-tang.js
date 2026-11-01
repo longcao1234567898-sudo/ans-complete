@@ -163,6 +163,18 @@ export function ganDuoi(app, errorHandler) {
  * Đặt ở tầng ngoài cùng của máy chủ cán bộ, trước cả đăng nhập — người ngoài
  * dải IP bị chặn ngay, chưa cần tới bước nhập mật khẩu.
  */
+/**
+ * Giới hạn IP CHỈ cho phần cán bộ (/api/auth, /api/admin) — dùng ở bản chạy gộp
+ * index.js, nơi phần công dân chạy chung một máy chủ (ND-086). Gắn bằng app.use(...)
+ * không đường dẫn để /api/admin vẫn mount đúng dạng app.use('/api/admin', adminRouter)
+ * (test BUG-001 (d): mọi máy chủ dùng chung một lớp xác thực).
+ */
+export function chanTheoIpPhanCanBo(layIpThat) {
+  const chan = chanTheoIp(layIpThat);
+  const laPhanCanBo = (p) => /^\/api\/(auth|admin)(\/|$)/.test(p);
+  return (req, res, next) => (laPhanCanBo(req.path) ? chan(req, res, next) : next());
+}
+
 export function chanTheoIp(layIpThat) {
   const dsIp = (process.env.ADMIN_ALLOWED_IPS || '')
     .split(',').map((s) => s.trim()).filter(Boolean);

@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIp } from './nen-tang.js';
+import { diaChiNghe, chanTheoIpPhanCanBo } from './nen-tang.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
@@ -202,7 +202,8 @@ app.get('/api/health/schema', async (_req, res) => {
 /* ND-086: bản gộp cũng áp giới hạn IP cho PHẦN CÁN BỘ như may-chu-can-bo.js — người vận
    hành đang chạy chung một máy chủ (chi phí). Chỉ /api/auth (đăng nhập cán bộ) và
    /api/admin; phần công dân phải mở cho mọi người. ADMIN_ALLOWED_IPS trống = không chặn. */
-app.use('/api/auth', chanTheoIp(layIpThat), authRouter);
+app.use(chanTheoIpPhanCanBo(layIpThat));
+app.use('/api/auth', authRouter);
 /* Cổng vào (ADR-003 việc 23) — cấp vé xác minh cho gửi tin và đăng nhập */
 app.use('/api/cong-vao', congVaoRouter);
 app.use('/api/tracking', trackingRouter);
@@ -226,7 +227,7 @@ app.use('/api/submissions', submissionsRouter);
 app.use('/api/ai', aiRouter);
 
 // Admin API (bên trong tự yêu cầu đăng nhập + phân quyền)
-app.use('/api/admin', chanTheoIp(layIpThat), adminRouter);
+app.use('/api/admin', adminRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'Endpoint không tồn tại.' }));
 app.use(errorHandler);
