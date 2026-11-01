@@ -70,7 +70,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
  */
 export async function kiemTraMayChu(choMs: number): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/api/health`, { signal: AbortSignal.timeout(choMs) });
+    const res = await fetch(`${API_URL}/api/health`, { signal: hanCho(choMs) });   // hanCho chạy cả Safari < 16 (ND-080)
     if (res.status >= 500) return false;
     /* ND-084: máy chủ sống mà kho dữ liệu chết (db:false) cũng là sự cố — gửi tin, tra cứu
        đều hỏng; đưa người dân sang trang dự phòng có 113. Máy chủ cũ không có trường db
