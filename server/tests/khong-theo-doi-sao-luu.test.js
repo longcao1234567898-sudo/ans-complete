@@ -176,19 +176,58 @@ test('BUG-005 — chốt chặn: ngoài mọi repo Git thì cho ghi', { skip: bo
   assert.doesNotThrow(() => dich.kiemDichSaoLuu(ngoai));
 });
 
+/**
+ * Làm đúng như scripts-sao-luu.js: hỏi chốt chặn, không ném thì ghi. Trả lỗi
+ * chốt chặn ném ra, hoặc null nếu đã ghi. Test khẳng định theo KẾT QUẢ (thư mục
+ * đích thật vẫn rỗng), không chỉ theo câu báo — câu báo đổi theo phiên bản Git.
+ */
+function thuGhiNhuScript(duongDan) {
+  try { dich.kiemDichSaoLuu(duongDan); } catch (err) { return err; }
+  fs.mkdirSync(path.dirname(duongDan), { recursive: true });
+  fs.writeFileSync(duongDan, '-- BAN SAO LUU THU\n');
+  return null;
+}
+
 test('BUG-005 — chốt chặn: không bị lừa bởi junction/symlink trỏ sao-luu/ sang thư mục không bị chặn', { skip: boQua }, () => {
   assert.equal(typeof dich.kiemDichSaoLuu, 'function', 'dich-sao-luu.js chưa có chốt chặn kiemDichSaoLuu');
   // Repo tạm riêng: không tạo liên kết nào bên trong repo thật.
   const tam = fs.mkdtempSync(path.join(os.tmpdir(), 'bug005-lk-'));
+  const ngoai = fs.mkdtempSync(path.join(os.tmpdir(), 'bug005-lk-ngoai-'));
   try {
     execFileSync('git', ['init', '-q'], { cwd: tam });
     fs.writeFileSync(path.join(tam, '.gitignore'), 'sao-luu/\n');
-    fs.mkdirSync(path.join(tam, 'khac'));
+    const khac = path.join(tam, 'khac');
+    fs.mkdirSync(khac);
     // 'junction' chạy không cần quyền admin trên Windows; nơi khác Node bỏ qua tham số này.
-    fs.symlinkSync(path.join(tam, 'khac'), path.join(tam, 'sao-luu'), 'junction');
-    assert.throws(() => dich.kiemDichSaoLuu(path.join(tam, 'sao-luu', TEN_MAU)), /không bị \.gitignore chặn/);
+    fs.symlinkSync(khac, path.join(tam, 'sao-luu'), 'junction');
+
+    /* (a) Liên kết nằm TRONG repo. Hai cách từ chối đều đúng, tuỳ phiên bản Git
+       (ND-056): Git cũ thấy đường chữ bị ignore, chốt chặn bắt ở đường thật
+       ("không bị .gitignore chặn"); Git 2.43+ từ chối hỏi đường đi qua symlink
+       ("beyond a symbolic link", mã 128), chốt chặn fail-safe "không kiểm được".
+       Chỉ nhận mã 128 — không nhận ENOENT (không có git), lỗi đó có test riêng. */
+    const loiTrong = thuGhiNhuScript(path.join(tam, 'sao-luu', TEN_MAU));
+    assert.deepEqual(fs.readdirSync(khac), [], 'Chốt chặn đã cho ghi bản sao lưu vào thư mục không bị .gitignore chặn');
+    assert.ok(loiTrong instanceof Error, 'Chốt chặn không từ chối');
+    assert.match(loiTrong.message, /không bị \.gitignore chặn|Không hỏi được Git .*\(mã thoát 128\) — từ chối ghi/);
+
+    /* (b) Liên kết nằm NGOÀI mọi repo, trỏ vào thư mục không bị chặn trong repo.
+       Đường chữ không thuộc repo nào nên chỉ phép kiểm đường thật bắt được —
+       với mọi phiên bản Git. Thiếu (b) thì trên Git 2.43+ gỡ phép kiểm đường
+       thật mà (a) vẫn xanh, vì Git từ chối đường chữ hộ chốt chặn. */
+    // Đối chứng: thư mục thường cạnh liên kết thì được ghi — tức (b) bị từ chối
+    // là vì liên kết, không phải vì chỗ tạm này tình cờ nằm trong một repo nào đó.
+    const loiDoiChung = thuGhiNhuScript(path.join(ngoai, 'thuong', TEN_MAU));
+    assert.equal(loiDoiChung, null, `Thư mục thường ngoài repo mà vẫn bị từ chối — đối chứng (b) hỏng: ${loiDoiChung?.message}`);
+    fs.symlinkSync(khac, path.join(ngoai, 'sao-luu'), 'junction');
+    const loiNgoai = thuGhiNhuScript(path.join(ngoai, 'sao-luu', TEN_MAU));
+    assert.deepEqual(fs.readdirSync(khac), [], 'Chốt chặn đã cho ghi qua liên kết từ ngoài repo vào thư mục không bị .gitignore chặn');
+    assert.ok(loiNgoai instanceof Error, 'Chốt chặn không từ chối liên kết từ ngoài repo');
+    assert.match(loiNgoai.message, /không bị \.gitignore chặn/);
+    assert.ok(loiNgoai.message.includes(path.join(fs.realpathSync.native(khac), TEN_MAU)), `Câu báo không nêu đường thật: ${loiNgoai.message}`);
   } finally {
     fs.rmSync(tam, { recursive: true, force: true });
+    fs.rmSync(ngoai, { recursive: true, force: true });
   }
 });
 
