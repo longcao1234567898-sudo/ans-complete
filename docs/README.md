@@ -12,6 +12,7 @@ Vào đây trước. Mỗi tệp trong `docs/` có đúng một việc; bảng d
 | **Người đưa hệ thống lên mạng** (tất cả ở Viettel: máy chủ + kho dữ liệu vDBS, sao lưu Bizfly) | [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) (từng chặng, cho người không biết lập trình) → [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md) (lệnh chi tiết) |
 | **Người lập trình, sắp làm việc với Claude** | [SO-TAY-NGUOI-LAP-TRINH.md](SO-TAY-NGUOI-LAP-TRINH.md) → [TIEN-DO.md](TIEN-DO.md) |
 | **Người muốn biết dự án đang ở đâu** | [TIEN-DO.md](TIEN-DO.md) → [NO-KY-THUAT.md](NO-KY-THUAT.md) |
+| **Người trình bày, tập huấn, bàn giao** (bộ tài liệu Word) | [tai-lieu-word/README.md](tai-lieu-word/README.md) → `0_MUC_LUC.docx` |
 | **Người làm đợt kiểm thử bảo mật** | [kiem-thu-bao-mat/README.md](kiem-thu-bao-mat/README.md) |
 | **Claude, mở một phiên làm việc** | [../CLAUDE.md](../CLAUDE.md) → [QUY-TRINH-LAM-VIEC.md](QUY-TRINH-LAM-VIEC.md) |
 
@@ -37,6 +38,7 @@ docs/
 ├── HUONG-DAN-TRIEN-KHAI.md      Đưa lên mạng từng bước cho người mới: giao diện
 │                                 + hai máy chủ trên Viettel, CSDL VNPT, sao lưu
 ├── adr/                         Quyết định kiến trúc, mỗi quyết định một tệp
+├── tai-lieu-word/               Bộ tài liệu Word để trình bày, tập huấn, bàn giao
 │
 ├── TIEN-DO.md                   Nhật ký phiên — đang làm tới đâu   ← cập nhật liên tục
 ├── NO-KY-THUAT.md               Nợ đã biết nhưng cố ý chưa sửa      ← cập nhật liên tục
