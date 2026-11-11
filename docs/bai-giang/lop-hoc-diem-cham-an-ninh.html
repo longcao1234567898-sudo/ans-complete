@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lớp học Điểm Chạm An Ninh</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@600;700&display=swap">
+<style>
+/* Bố cục: một cột bài học như sổ tay tập huấn, mục lục dạng thẻ ở đầu, thanh tiến độ dính trên cùng.
+   Màu lấy từ bộ nhận diện của chính trang web: xanh rêu sắc phục, xanh navy, vàng đồng huy hiệu. */
+:root {
+  --nen: #f5f7f3;          /* giấy, ngả xanh rất nhẹ */
+  --mat: #ffffff;          /* mặt thẻ */
+  --chu: #17221b;          /* mực */
+  --phu: #4d5c52;          /* chữ phụ */
+  --vien: #d6ddd5;
+  --reu: #1b5e20;          /* xanh rêu — màu chính */
+  --reu-nhat: #e3efe3;
+  --navy: #1f3a5c;
+  --dong: #9a6b12;         /* vàng đồng — điểm nhấn */
+  --dong-nhat: #f6ecd6;
+  --dung: #1b7a3a; --dung-nen: #e2f3e6;
+  --sai: #a8332a; --sai-nen: #f8e3e0;
+  --ma: #eef2ec;
+  --chu-tieu-de: "Noto Serif", Georgia, "Times New Roman", serif;
+  --chu-than: "Be Vietnam Pro", "Segoe UI", Roboto, Arial, sans-serif;
+  --chu-may: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --nen: #0f1612; --mat: #17211b; --chu: #e4ece5; --phu: #a7b6ab; --vien: #2c3a31;
+    --reu: #74c98a; --reu-nhat: #1d3424; --navy: #9cb9df; --dong: #e0b259; --dong-nhat: #352a14;
+    --dung: #7fd99a; --dung-nen: #183323; --sai: #f1968c; --sai-nen: #3a1d1a; --ma: #1e2a22;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --nen: #0f1612; --mat: #17211b; --chu: #e4ece5; --phu: #a7b6ab; --vien: #2c3a31;
+  --reu: #74c98a; --reu-nhat: #1d3424; --navy: #9cb9df; --dong: #e0b259; --dong-nhat: #352a14;
+  --dung: #7fd99a; --dung-nen: #183323; --sai: #f1968c; --sai-nen: #3a1d1a; --ma: #1e2a22;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--nen); color: var(--chu);
+  font-family: var(--chu-than); font-size: 17px; line-height: 1.7;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--mat); }
+.khung { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--chu-tieu-de); line-height: 1.3; text-wrap: balance; color: var(--chu); }
+h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); margin: 0; }
+h2 { font-size: clamp(1.45rem, 3.6vw, 1.85rem); margin: 0; }
+h3 { font-size: 1.12rem; margin: 1.6em 0 .4em; font-family: var(--chu-than); font-weight: 700; }
+p { margin: .7em 0; }
+a { color: var(--reu); }
+:focus-visible { outline: 3px solid var(--dong); outline-offset: 2px; border-radius: 4px; }
+code, .may { font-family: var(--chu-may); font-size: .88em; background: var(--ma); padding: .08em .35em; border-radius: 4px; overflow-wrap: anywhere; }
+ul, ol { padding-left: 1.3em; }
+li { margin: .25em 0; }
+
+/* Thanh tiến độ */
+.thanh { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--mat); border-bottom: 1px solid var(--vien); }
+.thanh .khung { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+.thanh b { font-size: .85rem; white-space: nowrap; color: var(--reu); letter-spacing: .02em; }
+.tien-do { flex: 1; height: 8px; background: var(--ma); border-radius: 99px; overflow: hidden; min-width: 0; }
+.tien-do i { display: block; height: 100%; width: 0; background: var(--reu); transition: width .4s; }
+.thanh span { font-size: .85rem; color: var(--phu); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Mở đầu */
+.mo-dau { padding-block: 40px 28px; }
+.nhan { font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--dong); margin: 0 0 10px; }
+.mo-dau .dan { font-size: 1.1rem; color: var(--phu); max-width: 62ch; }
+.cach-hoc { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 22px; }
+.cach-hoc div { background: var(--mat); border: 1px solid var(--vien); border-radius: 10px; padding: 14px 16px; font-size: .95rem; }
+.cach-hoc strong { display: block; color: var(--reu); }
+
+/* Mục lục */
+.muc-luc { padding-block: 8px 24px; }
+.muc-luc ol { list-style: none; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.muc-luc a { display: flex; gap: 10px; align-items: baseline; text-decoration: none; color: var(--chu); background: var(--mat); border: 1px solid var(--vien); border-radius: 8px; padding: 10px 12px; height: 100%; }
+.muc-luc a:hover { border-color: var(--reu); }
+.muc-luc .so { font-family: var(--chu-tieu-de); font-weight: 700; color: var(--dong); min-width: 1.6em; font-variant-numeric: tabular-nums; }
+.muc-luc .xong { margin-left: auto; font-size: .8rem; color: var(--dung); white-space: nowrap; }
+
+/* Bài học */
+.bai { padding-block: 34px; border-top: 1px solid var(--vien); scroll-margin-top: 60px; }
+.bai-dau { display: flex; gap: 14px; align-items: baseline; }
+.bai-dau .so-bai { font-family: var(--chu-tieu-de); font-size: 2.4rem; line-height: 1; color: var(--dong); font-weight: 700; font-variant-numeric: tabular-nums; }
+.muc-tieu { color: var(--phu); font-size: .98rem; margin-top: 4px; }
+.vi-du { background: var(--dong-nhat); border-radius: 10px; padding: 14px 18px; margin: 18px 0; }
+.vi-du .nhan { margin-bottom: 4px; }
+.vi-du p { margin: .3em 0; }
+.nho { background: var(--reu-nhat); border-radius: 10px; padding: 14px 18px; margin: 18px 0; }
+.nho .nhan { color: var(--reu); margin-bottom: 4px; }
+.canh-bao { border: 2px solid var(--sai); border-radius: 10px; padding: 12px 16px; margin: 18px 0; }
+.canh-bao .nhan { color: var(--sai); margin-bottom: 4px; }
+.bang-cuon { overflow-x: auto; margin: 14px 0; }
+table { border-collapse: collapse; width: 100%; font-size: .94rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--vien); }
+th { font-size: .8rem; letter-spacing: .05em; text-transform: uppercase; color: var(--phu); }
+td:first-child { font-weight: 600; }
+.tu-moi { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.tu-moi li { margin: 0; font-size: .85rem; background: var(--mat); border: 1px solid var(--vien); border-radius: 99px; padding: 2px 10px; }
+.tu-moi li b { color: var(--navy); }
+
+/* Sơ đồ ba phần */
+.ba-phan { display: flex; align-items: stretch; gap: 8px; margin: 20px 0; }
+.ba-phan .o { flex: 1; min-width: 0; background: var(--mat); border: 2px solid var(--vien); border-radius: 12px; padding: 14px; }
+.ba-phan .o b { display: block; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--dong); }
+.ba-phan .o strong { display: block; font-size: 1.05rem; margin: 2px 0 6px; color: var(--reu); }
+.ba-phan .o p { margin: 0; font-size: .9rem; color: var(--phu); line-height: 1.5; }
+.ba-phan .mui { align-self: center; color: var(--phu); font-size: 1.4rem; }
+@media (max-width: 620px) { .ba-phan { flex-direction: column; } .ba-phan .mui { transform: rotate(90deg); } }
+
+/* Hành trình */
+.hanh-trinh { list-style: none; padding: 0; margin: 18px 0; counter-reset: b; }
+.hanh-trinh li { counter-increment: b; position: relative; padding: 0 0 16px 48px; margin: 0; }
+.hanh-trinh li::before { content: counter(b); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--reu); color: var(--mat); font-weight: 700; display: grid; place-items: center; font-size: .95rem; }
+.hanh-trinh li::after { content: ""; position: absolute; left: 15px; top: 34px; bottom: 2px; width: 2px; background: var(--vien); }
+.hanh-trinh li:last-child::after { display: none; }
+.hanh-trinh strong { display: block; }
+
+/* Câu hỏi */
+.luyen { margin-top: 26px; background: var(--mat); border: 1px solid var(--vien); border-radius: 12px; padding: 18px 18px 8px; }
+.luyen > .nhan { color: var(--navy); }
+.q { padding: 6px 0 14px; border-bottom: 1px dashed var(--vien); }
+.q:last-child { border-bottom: 0; }
+.q .de { font-weight: 600; margin: .3em 0 .6em; }
+.lua-chon { display: grid; gap: 8px; }
+.lua-chon button {
+  font: inherit; font-size: .97rem; line-height: 1.45; text-align: left; color: var(--chu);
+  background: var(--nen); border: 1.5px solid var(--vien); border-radius: 8px; padding: 10px 12px; cursor: pointer;
+  display: flex; gap: 10px; align-items: baseline;
+}
+.lua-chon button:hover:not([disabled]) { border-color: var(--reu); }
+.lua-chon button .k { font-weight: 700; color: var(--phu); min-width: 1.2em; }
+.lua-chon button.dung { background: var(--dung-nen); border-color: var(--dung); }
+.lua-chon button.sai { background: var(--sai-nen); border-color: var(--sai); }
+.lua-chon button[disabled] { cursor: default; }
+.giai { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--ma); font-size: .95rem; }
+.giai .kq { font-weight: 700; }
+.giai .kq.d { color: var(--dung); } .giai .kq.s { color: var(--sai); }
+.suy { margin-top: 18px; padding-bottom: 12px; }
+.suy .de { font-weight: 600; }
+.suy textarea { width: 100%; min-height: 84px; font: inherit; font-size: .95rem; color: var(--chu); background: var(--nen); border: 1.5px solid var(--vien); border-radius: 8px; padding: 10px; resize: vertical; }
+.nut { font: inherit; font-size: .92rem; font-weight: 600; color: var(--reu); background: transparent; border: 1.5px solid var(--reu); border-radius: 8px; padding: 6px 14px; cursor: pointer; margin-top: 8px; }
+.nut:hover { background: var(--reu-nhat); }
+.goi-y { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--dong); background: var(--dong-nhat); border-radius: 0 8px 8px 0; font-size: .95rem; }
+
+/* Kiểm tra cuối */
+.diem { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 14px 0; }
+.diem .so-lon { font-family: var(--chu-tieu-de); font-size: 2.2rem; color: var(--reu); font-variant-numeric: tabular-nums; }
+.diem p { margin: 0; color: var(--phu); }
+
+/* Từ điển */
+.tu-dien { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 16px; }
+.tu-dien div { background: var(--mat); border: 1px solid var(--vien); border-radius: 8px; padding: 10px 14px; }
+.tu-dien dt { font-weight: 700; color: var(--navy); }
+.tu-dien dd { margin: 2px 0 0; font-size: .93rem; color: var(--phu); line-height: 1.55; }
+
+footer { padding-block: 30px 50px; border-top: 1px solid var(--vien); color: var(--phu); font-size: .9rem; }
+footer .nut { margin-right: 8px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+
+<div class="thanh" role="status" aria-live="polite">
+  <div class="khung">
+    <b>LỚP HỌC</b>
+    <div class="tien-do" aria-hidden="true"><i id="vach"></i></div>
+    <span id="dem-tong">0 / 0 câu đúng</span>
+  </div>
+</div>
+
+<header class="khung mo-dau">
+  <p class="nhan">Hộp Thư An Ninh Số · Công an phường Chánh Hiệp</p>
+  <h1>Lớp học Điểm Chạm An Ninh</h1>
+  <p class="dan">Mười hai bài ngắn giúp bạn hiểu trang web tiếp nhận tin báo của Công an phường: nó làm gì, giữ kín người báo tin bằng cách nào, chạy ở đâu, và vì sao được làm như vậy. Không cần biết gì về máy tính hay lập trình. Mỗi khái niệm đều có một ví dụ đời thường.</p>
+  <div class="cach-hoc">
+    <div><strong>Đọc theo thứ tự</strong>Bài sau dựa vào bài trước. Mỗi bài đọc khoảng 5 phút.</div>
+    <div><strong>Làm câu hỏi cuối bài</strong>Bấm chọn một đáp án. Trang cho biết đúng sai và giải thích vì sao.</div>
+    <div><strong>Tự trả lời câu suy nghĩ</strong>Viết bằng lời của bạn trước, rồi mới bấm xem gợi ý.</div>
+    <div><strong>Làm bài kiểm tra cuối</strong>Đạt từ 12/15 câu là bạn đã nắm được những điều chính.</div>
+  </div>
+</header>
+
+<nav class="khung muc-luc" aria-label="Mục lục">
+  <h2 class="nhan" style="font-family:var(--chu-than)">Các bài học</h2>
+  <ol id="muc-luc">
+    <li><a href="#bai-1"><span class="so">1</span><span>Trang web này để làm gì</span><span class="xong" data-bai="1"></span></a></li>
+    <li><a href="#bai-2"><span class="so">2</span><span>Ba phần của một trang web</span><span class="xong" data-bai="2"></span></a></li>
+    <li><a href="#bai-3"><span class="so">3</span><span>Hành trình của một tin báo</span><span class="xong" data-bai="3"></span></a></li>
+    <li><a href="#bai-4"><span class="so">4</span><span>Giữ kín danh tính người báo</span><span class="xong" data-bai="4"></span></a></li>
+    <li><a href="#bai-5"><span class="so">5</span><span>Ai được xem gì, làm gì</span><span class="xong" data-bai="5"></span></a></li>
+    <li><a href="#bai-6"><span class="so">6</span><span>Chặn tin rác và máy tự động</span><span class="xong" data-bai="6"></span></a></li>
+    <li><a href="#bai-7"><span class="so">7</span><span>Máy xếp loại tin bằng từ khoá</span><span class="xong" data-bai="7"></span></a></li>
+    <li><a href="#bai-8"><span class="so">8</span><span>Mất mạng vẫn gửi được</span><span class="xong" data-bai="8"></span></a></li>
+    <li><a href="#bai-9"><span class="so">9</span><span>Ảnh và tài liệu gửi kèm</span><span class="xong" data-bai="9"></span></a></li>
+    <li><a href="#bai-10"><span class="so">10</span><span>Trang web chạy ở đâu</span><span class="xong" data-bai="10"></span></a></li>
+    <li><a href="#bai-11"><span class="so">11</span><span>Làm sao biết hệ thống an toàn</span><span class="xong" data-bai="11"></span></a></li>
+    <li><a href="#bai-12"><span class="so">12</span><span>Khi hệ thống gặp sự cố</span><span class="xong" data-bai="12"></span></a></li>
+    <li><a href="#kiem-tra"><span class="so">✓</span><span>Bài kiểm tra cuối</span><span class="xong" data-bai="kt"></span></a></li>
+    <li><a href="#tu-dien"><span class="so">Từ</span><span>Từ điển nhỏ</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ============================== BÀI 1 ============================== -->
+<section class="khung bai" id="bai-1" data-bai="1">
+  <div class="bai-dau"><span class="so-bai">1</span><div><h2>Trang web này để làm gì</h2><p class="muc-tieu">Học xong bài này bạn nói được: trang web phục vụ ai, giải quyết khó khăn gì, và điều gì quan trọng nhất phải giữ.</p></div></div>
+
+  <p>Trang web tên là <strong>Điểm Chạm An Ninh</strong>. Người dân dùng nó để gửi cho Công an phường bốn loại việc: <strong>tố giác tin báo</strong> về tội phạm, <strong>khiếu nại</strong>, <strong>phản ánh</strong> và <strong>đề xuất, thắc mắc</strong>. Cán bộ dùng phần riêng của trang để đọc, xử lý và trả lời. Tên đề tài và tên bộ tài liệu là <em>Hộp Thư An Ninh Số</em>; đó vẫn là một hệ thống.</p>
+
+  <p>Trước đây người dân chỉ báo tin được theo ba cách: đến trụ sở trong giờ hành chính, gọi trực ban, hoặc viết đơn giấy. Ba khó khăn hay gặp:</p>
+  <ul>
+    <li>Việc xảy ra ngoài giờ, nhà xa trụ sở thì ngại đi.</li>
+    <li>Sợ lộ mình là người báo, nhất là khi người bị báo là hàng xóm, người quen.</li>
+    <li>Báo xong không biết hồ sơ đang ở đâu, đã ai xử lý chưa.</li>
+  </ul>
+  <p>Trang web giải quyết cả ba: gửi được lúc nào cũng được, gửi ẩn danh được với tin tố giác, và mỗi tin có một mã để tự tra tiến độ.</p>
+
+  <div class="nho">
+    <p class="nhan">Điều quan trọng nhất của cả hệ thống</p>
+    <p>Thứ cần bảo vệ nhất không phải tiền, cũng không phải việc trang web luôn chạy. Đó là <strong>danh tính người tố giác</strong>. Lộ danh tính thì không lấy lại được, và có thể làm một người thật gặp nguy hiểm. Vì thế khi phải chọn, hệ thống luôn chọn cách bảo vệ người báo tin, kể cả khi phải tạm dừng phục vụ.</p>
+  </div>
+
+  <h3>Ba mối nguy hệ thống phải chống</h3>
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Mối nguy</th><th>Ví dụ</th></tr></thead>
+    <tbody>
+      <tr><td>Người ngoài đọc trộm</td><td>Kẻ xấu lấy được bản sao dữ liệu và muốn biết ai đã báo tin.</td></tr>
+      <tr><td>Người trong lạm quyền</td><td>Một cán bộ tò mò tra tên người báo một vụ mình không được giao.</td></tr>
+      <tr><td>Tin rác, máy tự động</td><td>Ai đó cho máy gửi hàng nghìn tin vô nghĩa để làm nghẽn kênh tiếp nhận.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Cả mười một bài sau đều quay về ba mối nguy này. Khi bạn thấy một quy định có vẻ rườm rà, hãy hỏi: nó chống mối nguy nào?</p>
+
+  <ul class="tu-moi"><li><b>Danh tính</b>: họ tên, số điện thoại, email của người gửi</li><li><b>Ẩn danh</b>: gửi mà không khai danh tính</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="1a" data-dap="c">
+      <p class="de">Theo thiết kế của hệ thống, thứ cần bảo vệ nhất là gì?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Trang web luôn mở được, không bao giờ ngừng</button>
+        <button type="button" data-k="b">Chi phí thuê máy chủ thấp nhất</button>
+        <button type="button" data-k="c">Danh tính người tố giác</button>
+      </div>
+      <p class="giai" hidden>Danh tính người tố giác. Trang ngừng vài giờ thì bật lại được; lộ danh tính một người thì không rút lại được. Vì vậy hệ thống chấp nhận tạm dừng còn hơn chạy sai.</p>
+    </div>
+    <div class="q" data-id="1b" data-dap="b">
+      <p class="de">Một cán bộ tra tên người báo của một hồ sơ mình không được giao. Đây là mối nguy nào?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Người ngoài đọc trộm</button>
+        <button type="button" data-k="b">Người trong lạm quyền</button>
+        <button type="button" data-k="c">Tin rác, máy tự động</button>
+      </div>
+      <p class="giai" hidden>Người trong lạm quyền. Hệ thống không chỉ chống người ngoài: nó còn phải đề phòng chính người có tài khoản cán bộ. Bài 5 nói cách làm.</p>
+    </div>
+    <div class="suy" data-id="1s">
+      <p class="de">Câu suy nghĩ: vì sao nhiều người dân biết chuyện mà vẫn không báo công an? Trang web giải quyết được lý do nào, không giải quyết được lý do nào?</p>
+      <textarea id="tl-1s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: giải quyết được việc ngại đi lại, ngoài giờ, sợ lộ mặt khi đến trụ sở, và việc không biết hồ sơ đi đâu. Không tự giải quyết được việc người dân không tin rằng tin báo sẽ được xử lý. Lòng tin đó đến từ cách cán bộ trả lời đúng hạn, không phải từ phần mềm.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 2 ============================== -->
+<section class="khung bai" id="bai-2" data-bai="2">
+  <div class="bai-dau"><span class="so-bai">2</span><div><h2>Ba phần của một trang web</h2><p class="muc-tieu">Học xong bạn phân biệt được giao diện, máy chủ và cơ sở dữ liệu, và hiểu vì sao mọi kiểm tra quan trọng phải nằm ở máy chủ.</p></div></div>
+
+  <div class="vi-du">
+    <p class="nhan">Ví dụ đời thường</p>
+    <p>Hãy hình dung trụ sở công an. Có <strong>quầy tiếp dân</strong> với tờ khai để người dân điền. Có <strong>phòng làm việc phía trong</strong>, nơi cán bộ nhận tờ khai, kiểm tra, đóng dấu. Và có <strong>tủ hồ sơ có khoá</strong> để cất giấy tờ. Trang web cũng có đúng ba phần như vậy.</p>
+  </div>
+
+  <div class="ba-phan" role="figure" aria-label="Ba phần của trang web">
+    <div class="o"><b>Phần 1</b><strong>Giao diện</strong><p>Thứ hiện trên điện thoại, máy tính của người dân: chữ, nút, ô nhập. Giống quầy tiếp dân và tờ khai.</p></div>
+    <div class="mui" aria-hidden="true">→</div>
+    <div class="o"><b>Phần 2</b><strong>Máy chủ</strong><p>Một chiếc máy tính chạy suốt ngày đêm ở trung tâm dữ liệu. Nhận tin, kiểm tra, mã hoá, trả kết quả. Giống phòng làm việc phía trong.</p></div>
+    <div class="mui" aria-hidden="true">→</div>
+    <div class="o"><b>Phần 3</b><strong>Cơ sở dữ liệu</strong><p>Nơi cất toàn bộ tin báo, tài khoản, nhật ký. Hiện có 31 “ngăn tủ” (bảng). Giống tủ hồ sơ có khoá.</p></div>
+  </div>
+
+  <p>Người dân chỉ chạm vào phần 1. Phần 1 nói chuyện với phần 2 qua mạng. Chỉ phần 2 được mở tủ ở phần 3. Người dân không bao giờ chạm thẳng vào tủ.</p>
+
+  <div class="nho">
+    <p class="nhan">Quy tắc vàng: kiểm ở máy chủ, luôn luôn</p>
+    <p>Giao diện chạy <strong>trên máy của người dân</strong>. Người dân, hoặc kẻ xấu, sửa được mọi thứ trên máy mình: xoá một nút, đổi một con số, bỏ qua một bước. Vì vậy những kiểm tra trên giao diện chỉ để người dùng đỡ nhầm. Lớp bảo vệ thật phải nằm ở máy chủ, nơi người ngoài không sửa được.</p>
+    <p>Giống như tờ khai ghi “bắt buộc có chữ ký” chẳng ngăn được ai nộp tờ không ký. Người ngăn được là cán bộ ở phòng trong, khi kiểm tra từng tờ.</p>
+  </div>
+
+  <h3>Hệ quả thứ hai: không để bí mật ở giao diện</h3>
+  <p>Mọi thứ nằm trong phần giao diện đều gửi tới máy người dân, ai tò mò cũng xem được. Vì vậy mật khẩu, khoá bí mật không bao giờ được đặt ở đây. Người lập trình gọi đây là luật “không đặt bí mật vào biến <code>VITE_</code>”: <code>VITE_</code> là tên những thiết lập sẽ bị đóng gói vào giao diện. Bản đầu của trang web từng để khoá dùng dịch vụ AI ở chỗ này; đã sửa.</p>
+
+  <h3>Hai máy chủ, một tủ hồ sơ</h3>
+  <p>Phần máy chủ thật ra gồm hai chương trình riêng chạy cùng một mã nguồn: <strong>máy chủ người dân</strong> (gửi tin, tra cứu, tin tức) và <strong>máy chủ cán bộ</strong> (đăng nhập, xử lý hồ sơ, nhật ký). Máy chủ người dân không chứa đoạn mã nào của phần cán bộ, cũng không nhận đăng nhập cán bộ. Nếu kẻ xấu chọc thủng máy chủ người dân, họ vẫn không chạm được tới chức năng cán bộ. Hai máy chủ dùng chung một tủ hồ sơ, nên tin người dân gửi vào là cán bộ thấy ngay.</p>
+
+  <ul class="tu-moi"><li><b>Giao diện</b>: phần hiện trên màn hình</li><li><b>Máy chủ</b>: máy tính xử lý ở trung tâm dữ liệu</li><li><b>Cơ sở dữ liệu</b>: nơi cất dữ liệu</li><li><b>Bảng</b>: một ngăn trong cơ sở dữ liệu</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="2a" data-dap="b">
+      <p class="de">Trang gửi tin có kiểm tra “nội dung phải dài ít nhất 20 ký tự” ngay trên điện thoại. Như vậy đã đủ chưa?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Đủ, vì người dân không gửi được tin ngắn hơn</button>
+        <button type="button" data-k="b">Chưa, máy chủ phải kiểm lại vì ai cũng sửa được phần chạy trên máy mình</button>
+        <button type="button" data-k="c">Không cần kiểm gì cả</button>
+      </div>
+      <p class="giai" hidden>Chưa. Kiểm trên điện thoại chỉ giúp người dân đỡ nhầm. Kẻ cố tình sửa được phần đó hoặc gửi thẳng vào máy chủ. Lớp kiểm thật nằm ở máy chủ.</p>
+    </div>
+    <div class="q" data-id="2b" data-dap="a">
+      <p class="de">Một khoá bí mật bị đặt nhầm vào phần giao diện. Chuyện gì xảy ra?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Ai mở trang web cũng có thể đọc được khoá đó</button>
+        <button type="button" data-k="b">Không sao, giao diện được giấu kín</button>
+        <button type="button" data-k="c">Chỉ cán bộ mới đọc được</button>
+      </div>
+      <p class="giai" hidden>Ai cũng đọc được. Giao diện được gửi nguyên vẹn tới máy mọi người truy cập. Vì vậy bí mật chỉ đặt ở máy chủ.</p>
+    </div>
+    <div class="q" data-id="2c" data-dap="c">
+      <p class="de">Vì sao máy chủ người dân không được chứa mã của phần cán bộ?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Để trang web chạy nhanh hơn</button>
+        <button type="button" data-k="b">Để tiết kiệm tiền thuê máy</button>
+        <button type="button" data-k="c">Để nếu máy chủ người dân bị chọc thủng, kẻ xấu vẫn không có chức năng cán bộ trong tay</button>
+      </div>
+      <p class="giai" hidden>Đúng ý thứ ba. Thứ không có ở đó thì không bị lấy được. Đây là cách “tách phòng”: phòng tiếp dân không cất chìa khoá tủ hồ sơ mật.</p>
+    </div>
+    <div class="suy" data-id="2s">
+      <p class="de">Câu suy nghĩ: ở trụ sở thật, việc nào giống “kiểm ở giao diện”, việc nào giống “kiểm ở máy chủ”?</p>
+      <textarea id="tl-2s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: dòng chữ hướng dẫn in sẵn trên tờ khai giống kiểm ở giao diện, giúp người khai đỡ sai. Cán bộ đối chiếu giấy tờ, kiểm chữ ký trước khi đóng dấu giống kiểm ở máy chủ. Chỉ bước sau mới thật sự ngăn được giấy tờ sai.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 3 ============================== -->
+<section class="khung bai" id="bai-3" data-bai="3">
+  <div class="bai-dau"><span class="so-bai">3</span><div><h2>Hành trình của một tin báo</h2><p class="muc-tieu">Học xong bạn kể lại được một tin báo đi từ điện thoại người dân tới khi có kết quả.</p></div></div>
+
+  <h3>Phía người dân: năm bước</h3>
+  <ol class="hanh-trinh">
+    <li><strong>Kể sự việc</strong>Gõ hoặc bấm micro để nói. Nên nêu ở đâu, lúc nào, chuyện gì, ai liên quan. Đính ảnh, tài liệu nếu có.</li>
+    <li><strong>Xem lại</strong>Hệ thống chuẩn hoá chính tả, gợi ý nhóm xử lý và chỉ ra những chữ nó dựa vào để gợi ý (bài 7).</li>
+    <li><strong>Chọn nhóm</strong>Chọn một trong bốn nhóm, sửa được nếu máy gợi ý sai. Ô “Tôi không phải người máy” xuất hiện ở bước này (bài 6).</li>
+    <li><strong>Khai danh tính hoặc ẩn danh</strong>Ghi họ tên, số điện thoại (có thể được hỏi mã xác minh gửi qua Zalo). Riêng tin tố giác được bật “Gửi ẩn danh”.</li>
+    <li><strong>Gửi và nhận mã</strong>Nhận <strong>mã tra cứu</strong> 6 ký tự và <strong>mã PIN</strong> 6 số, kèm một phiếu ảnh có mã QR.</li>
+  </ol>
+
+  <div class="vi-du">
+    <p class="nhan">Hai mã khác nhau, đừng nhầm</p>
+    <p><strong>Mã tra cứu</strong> giống số phiếu hẹn: chỉ để xem hồ sơ đang ở bước nào. Lộ ra người khác cũng chỉ biết hồ sơ đang ở đâu.</p>
+    <p><strong>Mã PIN</strong> giống chìa khoá một phòng tiếp riêng: mở được phòng trao đổi với cán bộ. Chỉ hiện <strong>một lần</strong>. Hệ thống không giữ PIN gốc nên không cấp lại được.</p>
+  </div>
+
+  <h3>Phía cán bộ</h3>
+  <ul>
+    <li>Tin <strong>có danh tính</strong> vào hàng <strong>Sàng lọc</strong>: cán bộ đọc trước, rồi xác nhận đưa vào xử lý, hoặc đánh “tin giả”, “tin rác”, hoặc chuyển “ngoài thẩm quyền”.</li>
+    <li>Tin <strong>ẩn danh</strong> vào hàng <strong>Chờ duyệt ẩn danh</strong>: cán bộ duyệt rồi mới xử lý.</li>
+    <li>Cần thêm chi tiết, cán bộ gửi <strong>yêu cầu bổ sung</strong>; người dân có 72 giờ để trả lời ở trang Tra cứu. Hoặc hỏi qua <strong>phòng trao đổi</strong> (người dân vào bằng PIN).</li>
+    <li>Xử lý xong, cán bộ đổi trạng thái sang “Đã giải quyết” kèm câu trả lời, hoặc “Từ chối” kèm lý do. Người dân thấy ngay khi tra cứu.</li>
+  </ul>
+
+  <h3>Hạn xử lý</h3>
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Nhóm</th><th>Hạn</th><th>Căn cứ</th></tr></thead>
+    <tbody>
+      <tr><td>Tố giác tin báo</td><td>20 ngày</td><td>Bộ luật Tố tụng hình sự 2015, Điều 147</td></tr>
+      <tr><td>Khiếu nại, tố cáo</td><td>30 ngày</td><td>Luật Khiếu nại 2011</td></tr>
+      <tr><td>Phản ánh, kiến nghị</td><td>15 ngày</td><td>Quy định nội bộ</td></tr>
+      <tr><td>Đề xuất, thắc mắc</td><td>10 ngày</td><td>Quy định nội bộ</td></tr>
+    </tbody>
+  </table></div>
+  <p>Trang cán bộ gắn nhãn màu: xanh còn hạn, cam còn từ 3 ngày trở xuống, đỏ quá hạn. Việc quá hạn được đẩy lên đầu danh sách. Bản cũ từng giấu việc quá hạn cho gọn danh sách; cán bộ tưởng mất dữ liệu. Bài học: đúng những việc cần thấy nhất thì không được giấu.</p>
+
+  <ul class="tu-moi"><li><b>Mã tra cứu</b>: 6 ký tự, để xem tiến độ</li><li><b>Mã PIN</b>: 6 số, mở phòng trao đổi</li><li><b>Sàng lọc</b>: đọc trước khi đưa vào xử lý</li><li><b>Trạng thái</b>: hồ sơ đang ở bước nào</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="3a" data-dap="b">
+      <p class="de">Một người dân làm mất mã PIN và gọi trực ban xin cấp lại. Cán bộ trả lời thế nào cho đúng?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Mở hệ thống xem lại PIN rồi đọc cho người dân</button>
+        <button type="button" data-k="b">PIN không cấp lại được; người dân vẫn tra cứu bằng mã tra cứu, muốn bổ sung thì gọi trực ban hoặc gửi tin mới</button>
+        <button type="button" data-k="c">Xoá hồ sơ cũ và bảo người dân gửi lại từ đầu</button>
+      </div>
+      <p class="giai" hidden>Hệ thống chỉ giữ một “dấu vân tay” của PIN chứ không giữ PIN gốc, nên chính cán bộ cũng không xem được. Đó là cố ý: ai lấy được dữ liệu cũng không mở được phòng trao đổi.</p>
+    </div>
+    <div class="q" data-id="3b" data-dap="a">
+      <p class="de">Tin có danh tính vừa gửi sẽ vào đâu trước tiên?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Hàng Sàng lọc</button>
+        <button type="button" data-k="b">Thẳng vào xử lý, không ai đọc trước</button>
+        <button type="button" data-k="c">Hàng Chờ duyệt ẩn danh</button>
+      </div>
+      <p class="giai" hidden>Hàng Sàng lọc. Tin ẩn danh mới vào hàng Chờ duyệt ẩn danh. Cả hai đều có người đọc trước khi vào xử lý.</p>
+    </div>
+    <div class="q" data-id="3c" data-dap="c">
+      <p class="de">Hạn xử lý một tin tố giác là bao lâu?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">10 ngày</button>
+        <button type="button" data-k="b">30 ngày</button>
+        <button type="button" data-k="c">20 ngày</button>
+      </div>
+      <p class="giai" hidden>20 ngày, theo Điều 147 Bộ luật Tố tụng hình sự 2015. Khiếu nại là 30 ngày theo Luật Khiếu nại.</p>
+    </div>
+    <div class="suy" data-id="3s">
+      <p class="de">Câu suy nghĩ: vì sao phải tách mã tra cứu và mã PIN, không dùng chung một mã?</p>
+      <textarea id="tl-3s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: mã tra cứu hay bị lộ (in trên phiếu, chụp gửi người nhà). Nếu cùng mã đó mở được phòng trao đổi, người khác sẽ đọc được câu hỏi nghiệp vụ của cán bộ, biết hướng xác minh, thậm chí giả làm người báo để đánh lạc hướng. Tách hai mã thì lộ mã tra cứu cũng chỉ lộ trạng thái.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 4 ============================== -->
+<section class="khung bai" id="bai-4" data-bai="4">
+  <div class="bai-dau"><span class="so-bai">4</span><div><h2>Giữ kín danh tính người báo</h2><p class="muc-tieu">Học xong bạn giải thích được mã hoá, băm, và vì sao hệ thống “thà từ chối còn hơn chạy sai”.</p></div></div>
+
+  <h3>Mã hoá: viết bằng mật mã, chìa khoá cất chỗ khác</h3>
+  <div class="vi-du">
+    <p class="nhan">Ví dụ đời thường</p>
+    <p>Bạn chép tên người báo bằng một bảng mật mã rồi bỏ vào tủ hồ sơ. Bảng mật mã cất trong két ở phòng khác. Kẻ trộm mở được tủ chỉ thấy một chuỗi ký tự vô nghĩa. Muốn đọc phải có cả tủ lẫn két.</p>
+  </div>
+  <p>Họ tên, số điện thoại, email của người gửi được <strong>mã hoá</strong> trước khi cất vào cơ sở dữ liệu, theo chuẩn AES-256-GCM, một chuẩn mã hoá được dùng rộng rãi trên thế giới. Trong tủ, tên người gửi trông như <code>enc:v1:8f3a…</code>. Chìa khoá giải mã (gọi là <strong>khoá mã hoá</strong>) nằm trên máy chủ, không nằm trong cơ sở dữ liệu.</p>
+  <p>Chuẩn này còn có một ưu điểm: nếu ai sửa lén dù một ký tự trong bản mã, lúc giải mã hệ thống phát hiện ngay. Với tin tố giác, biết dữ liệu có bị sửa hay không quan trọng ngang giữ bí mật.</p>
+
+  <h3>Băm: dấu vân tay của số điện thoại</h3>
+  <div class="vi-du">
+    <p class="nhan">Ví dụ đời thường</p>
+    <p>Dấu vân tay cho biết hai lần in có phải cùng một người không, nhưng nhìn dấu vân tay không vẽ lại được khuôn mặt. <strong>Băm</strong> biến số điện thoại thành một “dấu vân tay” như vậy.</p>
+  </div>
+  <p>Mã hoá mỗi lần ra một chuỗi khác nhau, nên không dùng để so “số này đã gửi bao nhiêu tin hôm nay”. Băm thì cùng một số luôn ra cùng một dấu vân tay, so được mà không lộ số thật. Hệ thống trộn thêm một chuỗi bí mật riêng (gọi là <em>muối</em>, tên kỹ thuật <code>HASH_PEPPER</code>) để kẻ xấu không thể thử lần lượt mọi số điện thoại Việt Nam rồi so.</p>
+
+  <h3>Ba chìa khoá bí mật</h3>
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Tên</th><th>Dùng để</th><th>Mất hoặc đổi thì sao</th></tr></thead>
+    <tbody>
+      <tr><td>JWT_SECRET</td><td>Ký “vé” đăng nhập của cán bộ</td><td>Mọi cán bộ phải đăng nhập lại. Thiếu khoá này máy chủ không khởi động.</td></tr>
+      <tr><td>ENCRYPTION_KEY</td><td>Mã hoá, giải mã danh tính</td><td><strong>Mất vĩnh viễn</strong> mọi danh tính đã lưu. Không ai cứu được.</td></tr>
+      <tr><td>HASH_PEPPER</td><td>“Muối” khi băm số điện thoại</td><td>Mất khả năng nhận ra tin trùng từ cùng một số.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ba khoá được chép ra giấy và hai USB, cất tủ có khoá. Không gửi cho ai, kể cả người hỗ trợ kỹ thuật.</p>
+
+  <div class="nho">
+    <p class="nhan">Thà từ chối còn hơn chạy sai</p>
+    <p>Bản đầu của hệ thống: nếu khoá mã hoá bị lỗi thì vẫn nhận tin và lưu tên ở dạng chữ thường “cho trang khỏi sập”. Nghe chu đáo, nhưng hậu quả là tên người tố giác nằm trơ trong tủ mà không ai biết. Bản hiện tại làm ngược lại: khoá lỗi thì <strong>từ chối nhận tin có danh tính</strong>, báo lỗi rõ ràng, nhưng <strong>vẫn nhận tố giác ẩn danh</strong>. Người lập trình gọi nguyên tắc này là <em>fail-safe</em>: khi hỏng thì ngắt về phía an toàn, như cầu dao điện tự nhảy.</p>
+  </div>
+
+  <h3>Cán bộ thấy gì</h3>
+  <p>Trên mọi màn hình, tên người gửi được che sẵn, ví dụ “Nguyễn V*** A**”. Chỉ lãnh đạo có nút xem đầy đủ (bài 5). Mỗi lần bấm, hệ thống ghi vào nhật ký <strong>trước</strong> rồi mới hiện tên. Ghi nhật ký không được thì không hiện. Nhật ký chỉ ghi thêm, không ai sửa hay xoá được, chặn ngay trong cơ sở dữ liệu.</p>
+
+  <ul class="tu-moi"><li><b>Mã hoá</b>: đổi thành bản mã, có khoá mới đọc lại được</li><li><b>Băm</b>: dấu vân tay, so được nhưng không đọc ngược được</li><li><b>Khoá</b>: chuỗi bí mật dùng để mã hoá hoặc ký</li><li><b>Fail-safe</b>: hỏng thì về phía an toàn</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="4a" data-dap="c">
+      <p class="de">Kẻ xấu lấy được bản sao toàn bộ cơ sở dữ liệu, nhưng không có khoá mã hoá. Họ đọc được tên người tố giác không?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Đọc được, vì tên nằm trong cơ sở dữ liệu</button>
+        <button type="button" data-k="b">Đọc được nếu dùng máy tính mạnh</button>
+        <button type="button" data-k="c">Không, họ chỉ thấy chuỗi bản mã vô nghĩa</button>
+      </div>
+      <p class="giai" hidden>Không đọc được. Đó là lý do khoá không bao giờ cất cùng chỗ với dữ liệu. Nếu họ có cả hai thì đọc được, nên khoá phải được giữ rất kỹ.</p>
+    </div>
+    <div class="q" data-id="4b" data-dap="a">
+      <p class="de">Đã mã hoá số điện thoại rồi, vì sao còn băm nữa?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Để so được “số này đã gửi mấy tin” mà không cần giải mã</button>
+        <button type="button" data-k="b">Để mã hoá chắc hơn hai lần</button>
+        <button type="button" data-k="c">Để cán bộ đọc được số điện thoại</button>
+      </div>
+      <p class="giai" hidden>Mã hoá dùng để đọc lại khi cần liên hệ. Băm dùng để so sánh. Hai việc khác nhau nên cần hai cách cất.</p>
+    </div>
+    <div class="q" data-id="4c" data-dap="b">
+      <p class="de">Khoá mã hoá trên máy chủ bị lỗi. Hệ thống làm gì?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Vẫn nhận mọi tin và lưu tên dạng chữ thường, sửa khoá sau</button>
+        <button type="button" data-k="b">Từ chối tin có danh tính, vẫn nhận tố giác ẩn danh, báo lỗi rõ</button>
+        <button type="button" data-k="c">Tắt toàn bộ trang web</button>
+      </div>
+      <p class="giai" hidden>Từ chối phần nguy hiểm, giữ phần an toàn. Kênh tố giác ẩn danh, kênh dành cho người sợ bị trả thù, không bị gián đoạn.</p>
+    </div>
+    <div class="suy" data-id="4s">
+      <p class="de">Câu suy nghĩ: vì sao mất khoá mã hoá còn tệ hơn mất mật khẩu đăng nhập?</p>
+      <textarea id="tl-4s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: mật khẩu mất thì đặt mật khẩu mới là xong. Khoá mã hoá mất thì mọi tên đã cất bằng khoá đó vĩnh viễn không đọc lại được, giống mất bảng mật mã duy nhất của cả kho hồ sơ. Vì thế khoá phải có bản sao cất ở nơi an toàn ngoài máy tính.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 5 ============================== -->
+<section class="khung bai" id="bai-5" data-bai="5">
+  <div class="bai-dau"><span class="so-bai">5</span><div><h2>Ai được xem gì, làm gì</h2><p class="muc-tieu">Học xong bạn nói được hai cấp quyền, và rủi ro nào đơn vị đã chấp nhận.</p></div></div>
+
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Cấp</th><th>Là ai</th><th>Làm được</th></tr></thead>
+    <tbody>
+      <tr><td>Cán bộ</td><td>Cán bộ, chiến sĩ</td><td>Sàng lọc, duyệt tin ẩn danh, xử lý, ghi chú, trao đổi với người dân, gộp tin trùng. <strong>Không</strong> xem danh tính, không đọc hai phần mật, không xem nhật ký, không xuất Excel.</td></tr>
+      <tr><td>Lãnh đạo</td><td>Trưởng và Phó trưởng</td><td>Mọi việc của cán bộ, cộng: xem danh tính, đọc Tin tố giác mật và Ngoài thẩm quyền, phân công, xuất Excel, xem nhật ký, quản lý tài khoản và nội dung trang.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Hai phần chỉ lãnh đạo đọc</h3>
+  <ul>
+    <li><strong>Tin tố giác mật</strong>: tin tố cáo cán bộ, người làm việc trong cơ quan nhà nước. Hệ thống tự nhận ra bằng từ khoá ngay lúc nhận tin và cất vào đây. Cán bộ chuyển thêm tin vào được, nhưng không chuyển ra được.</li>
+    <li><strong>Ngoài thẩm quyền</strong>: tin không thuộc việc của phường. Lãnh đạo quyết chuyển cơ quan khác hay trả lại xử lý.</li>
+  </ul>
+  <p>Bản đầu có ô chọn “cấp độ bảo mật” ba mức. Đã bỏ: ô chọn chỉ bảo vệ được tin nào có người nhớ bấm. Tự nhận ra bằng từ khoá thì không phụ thuộc trí nhớ của ai.</p>
+
+  <div class="canh-bao">
+    <p class="nhan">Rủi ro đã chấp nhận, nên nói thẳng</p>
+    <p>Trước đây chỉ Trưởng xem được danh tính. Theo yêu cầu vận hành, nay Trưởng và Phó cùng là lãnh đạo và cùng xem được. Hệ quả: nhiều người biết danh tính hơn, và một tố giác nhắm vào Phó trưởng thì chính Phó đọc được. Lớp bảo vệ còn lại là nhật ký: mọi lượt xem để lại dấu vết không xoá được, và Trưởng đọc được nhật ký.</p>
+  </div>
+
+  <h3>Chống chụp màn hình</h3>
+  <p>Trang cán bộ in chữ chìm mang tên người đang xem, làm mờ nội dung khi chuyển sang cửa sổ khác, chặn in và sao chép, ghi nhật ký khi bấm phím chụp màn hình. Trang web không chặn tuyệt đối được (lấy điện thoại chụp màn hình máy tính vẫn được), nên mục tiêu là răn đe và truy ra người làm: ảnh lọt ra ngoài mang tên người đã chụp.</p>
+
+  <ul class="tu-moi"><li><b>Phân quyền</b>: quy định ai làm được gì</li><li><b>Nhật ký</b>: sổ ghi ai làm gì, lúc nào</li><li><b>Chỉ ghi thêm</b>: viết thêm được, không sửa xoá được</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="5a" data-dap="a">
+      <p class="de">Một cán bộ (không phải lãnh đạo) cần biết tên người gửi để gọi điện xác minh. Họ làm gì?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Báo lãnh đạo; lãnh đạo xem danh tính và việc xem được ghi nhật ký</button>
+        <button type="button" data-k="b">Mượn tài khoản lãnh đạo để tự xem</button>
+        <button type="button" data-k="c">Mở cơ sở dữ liệu ra đọc</button>
+      </div>
+      <p class="giai" hidden>Báo lãnh đạo. Mượn tài khoản phá vỡ nhật ký (nhật ký sẽ ghi sai người); đọc cơ sở dữ liệu chỉ thấy bản mã. Cán bộ cũng có thể hỏi người dân qua phòng trao đổi mà không cần biết họ là ai.</p>
+    </div>
+    <div class="q" data-id="5b" data-dap="c">
+      <p class="de">Vì sao tin tố cáo cán bộ được hệ thống tự đưa vào phần chỉ lãnh đạo đọc, thay vì để cán bộ chọn?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Vì cán bộ không biết đọc tin</button>
+        <button type="button" data-k="b">Vì máy luôn chính xác hơn người</button>
+        <button type="button" data-k="c">Vì nếu chờ người chọn, chính cán bộ bị tố cáo có thể đã đọc tin trước</button>
+      </div>
+      <p class="giai" hidden>Bảo vệ phải xảy ra ngay lúc nhận tin, không phụ thuộc việc có ai nhớ bấm. Máy có thể bắt nhầm, nên lãnh đạo được đưa tin ra lại.</p>
+    </div>
+    <div class="suy" data-id="5s">
+      <p class="de">Câu suy nghĩ: nếu là Trưởng công an, bạn sẽ xem nhật ký bao lâu một lần và tìm điều gì?</p>
+      <textarea id="tl-5s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: mỗi tuần một lần. Tìm lượt xem danh tính hoặc xuất dữ liệu vào giờ không ai làm việc, một người xem danh tính nhiều bất thường, lượt mở tin mật không gắn với việc đang xử lý, và cảnh báo đăng nhập sai nhiều lần.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 6 ============================== -->
+<section class="khung bai" id="bai-6" data-bai="6">
+  <div class="bai-dau"><span class="so-bai">6</span><div><h2>Chặn tin rác và máy tự động</h2><p class="muc-tieu">Học xong bạn hiểu vì sao hệ thống không khoá theo địa chỉ mạng, và khoá theo thiết bị có những giới hạn gì.</p></div></div>
+
+  <h3>Ô “Tôi không phải người máy”</h3>
+  <p>Dịch vụ Cloudflare Turnstile xem cách trình duyệt hoạt động để đoán đây là người thật hay chương trình tự động. Thường nó tự tích xanh sau vài giây. Ô này xuất hiện ở bước chọn nhóm khi gửi tin và trước trang đăng nhập cán bộ. Máy chủ kiểm “vé” Turnstile ở mọi lần gửi tin, đăng nhập.</p>
+
+  <h3>Giới hạn số lần</h3>
+  <p>Giống quầy lấy số: mỗi người chỉ lấy tối đa vài số mỗi giờ. Hệ thống giới hạn riêng từng việc: gửi tin, tra cứu, xin mã xác minh, vào phòng trao đổi, đăng nhập. Tin ẩn danh chặt hơn: tối thiểu 50 ký tự, mỗi ngày tối đa 2 tin, cách nhau 10 phút.</p>
+
+  <div class="vi-du">
+    <p class="nhan">Vì sao không khoá theo địa chỉ mạng</p>
+    <p>Mỗi máy ra Internet có một “địa chỉ mạng”, giống số điện thoại của một căn nhà. Nhưng nhà mạng di động Việt Nam cho hàng trăm thuê bao dùng chung một địa chỉ, như cả chung cư dùng chung một số điện thoại bàn để gọi ra ngoài. Khoá một địa chỉ là khoá oan cả chung cư. Người dân ở quê phần lớn vào mạng bằng 4G, đúng nhóm bị khoá oan nhiều nhất và cũng đúng nhóm cần kênh tố giác nhất.</p>
+  </div>
+  <p>Vì vậy khi một địa chỉ mạng gửi nhiều, hệ thống chỉ đòi xác minh “không phải người máy” thêm một lần thay vì chặn; chỉ chặn hẳn ở mức rất cao.</p>
+
+  <h3>Khoá theo thiết bị</h3>
+  <ul>
+    <li>Chỉ áp cho tin <strong>có danh tính</strong>. Tin ẩn danh không mang mã thiết bị, để không ai nối được tin ẩn danh với tin có tên gửi từ cùng một máy.</li>
+    <li>Cán bộ bấm “Tin rác” thì thiết bị đó bị khoá 24 giờ. Ba lần <strong>liên tiếp</strong> trong 30 ngày thì khoá 30 ngày. Xen giữa có một tin được duyệt là chuỗi đứt, đếm lại.</li>
+    <li>Khoá <strong>luôn có hạn</strong>, vì điện thoại đổi chủ được. Máy bị khoá vẫn gửi được và vẫn thấy báo thành công, nhưng tin không vào hàng chờ; người bị khoá thấy ô khiếu nại mở khoá ngay trên biểu mẫu.</li>
+    <li>Máy dùng chung ở trụ sở được đánh dấu <strong>thiết bị tin cậy</strong>, để một người gửi rác không làm khoá máy của mọi người sau.</li>
+  </ul>
+
+  <h3>Đăng nhập cán bộ: không khoá tài khoản</h3>
+  <p>Nghe có vẻ an toàn khi “sai 5 lần thì khoá tài khoản”. Nhưng như vậy kẻ xấu chỉ cần cố ý gõ sai là khoá được cán bộ thật ra khỏi hệ thống. Thay vào đó: mỗi địa chỉ mạng thử tối đa 5 lần mỗi 15 phút; tài khoản đã sai 3 lần thì mỗi lần thử sau phải qua ô xác minh. Máy dò mật khẩu không vượt được ô đó, còn cán bộ thật tích một cái là vào.</p>
+
+  <ul class="tu-moi"><li><b>Địa chỉ mạng (IP)</b>: số nhận diện máy trên Internet</li><li><b>Giới hạn tần suất</b>: tối đa bao nhiêu lần trong bao lâu</li><li><b>Mã thiết bị</b>: số ngẫu nhiên trình duyệt tự tạo</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="6a" data-dap="b">
+      <p class="de">Vì sao hệ thống không khoá theo địa chỉ mạng (IP)?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Vì không biết được địa chỉ mạng</button>
+        <button type="button" data-k="b">Vì hàng trăm thuê bao 4G dùng chung một địa chỉ, khoá là khoá oan cả vùng</button>
+        <button type="button" data-k="c">Vì luật cấm</button>
+      </div>
+      <p class="giai" hidden>Nhà mạng cho nhiều thuê bao dùng chung địa chỉ. Khoá theo địa chỉ thì người báo tin thật bị chặn cùng kẻ rải rác.</p>
+    </div>
+    <div class="q" data-id="6b" data-dap="a">
+      <p class="de">Tin ẩn danh có bị khoá theo thiết bị không?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Không, tin ẩn danh không mang mã thiết bị để không ai nối được với tin có tên</button>
+        <button type="button" data-k="b">Có, khoá 30 ngày ngay lần đầu</button>
+        <button type="button" data-k="c">Có, nhưng chỉ khoá 1 giờ</button>
+      </div>
+      <p class="giai" hidden>Không mang mã thiết bị. Nếu mang, cán bộ có thể thấy “máy này vừa gửi tin ẩn danh và cũng từng gửi tin có tên Nguyễn Văn A”, tức là lộ danh tính qua đường vòng.</p>
+    </div>
+    <div class="q" data-id="6c" data-dap="c">
+      <p class="de">Vì sao đăng nhập cán bộ không khoá tài khoản sau nhiều lần gõ sai?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Vì quên làm</button>
+        <button type="button" data-k="b">Vì cán bộ hay quên mật khẩu</button>
+        <button type="button" data-k="c">Vì kẻ xấu sẽ cố ý gõ sai để khoá cán bộ thật ra ngoài</button>
+      </div>
+      <p class="giai" hidden>Khoá tài khoản mở ra một cách phá hoại mới. Bắt qua ô xác minh chặn được máy dò mật khẩu mà không khoá người thật.</p>
+    </div>
+    <div class="suy" data-id="6s">
+      <p class="de">Câu suy nghĩ: máy bị khoá vẫn thấy báo “gửi thành công”. Như vậy có lừa dối người dân không? Vì sao hệ thống chọn cách này?</p>
+      <textarea id="tl-6s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: nếu báo thẳng “bạn bị khoá”, kẻ rải rác biết ngay để đổi máy. Tin vẫn được lưu nên tin thật của người bị khoá oan không mất; cán bộ xem lại và gỡ khoá được. Người có danh tính bị khoá thấy ô khiếu nại. Đây là đánh đổi có chủ ý, và khoá luôn có hạn.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 7 ============================== -->
+<section class="khung bai" id="bai-7" data-bai="7">
+  <div class="bai-dau"><span class="so-bai">7</span><div><h2>Máy xếp loại tin bằng từ khoá</h2><p class="muc-tieu">Học xong bạn giải thích được vì sao hệ thống không dùng AI để xếp loại tin.</p></div></div>
+
+  <p>Khi người dân kể xong, hệ thống bỏ dấu tiếng Việt, chuẩn hoá chính tả, rồi so với những danh sách từ khoá. Mỗi chủ đề có điểm. Ví dụ gặp “ma tuy”, “bay lac”, “hang trang” thì cộng điểm cho nhóm Tố giác. Nhóm nào nhiều điểm nhất thì được gợi ý, và hệ thống <strong>chỉ ra đúng những chữ nó đã dựa vào</strong>.</p>
+  <p>Bộ từ khoá hiện có 29 chủ đề hiển thị cho cán bộ và hơn ba nghìn mục, cả tiếng Việt lẫn tiếng Anh. Có thêm các danh sách dấu hiệu khẩn cấp (“đang xảy ra”, “cấp cứu”…), dấu hiệu liên quan trẻ em, và dấu hiệu tin đã nêu nơi chốn, thời điểm chưa.</p>
+
+  <div class="vi-du">
+    <p class="nhan">Vì sao bỏ dấu khi so</p>
+    <p>Người dân gõ vội thường không bỏ dấu hoặc bỏ dấu sai. “ma tuý”, “ma túy”, “ma tuy” là ba cách viết. Bỏ dấu hết rồi mới so thì một mục bắt được cả ba.</p>
+  </div>
+
+  <h3>So với dùng AI</h3>
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Tiêu chí</th><th>Bộ từ khoá</th><th>Dịch vụ AI bên ngoài</th></tr></thead>
+    <tbody>
+      <tr><td>Ổn định</td><td>Cùng nội dung luôn ra cùng nhóm</td><td>Có thể khác nhau giữa hai lần hỏi</td></tr>
+      <tr><td>Giải thích được</td><td>Chỉ ra cụm từ đã khớp</td><td>Không nói được vì sao</td></tr>
+      <tr><td>Dữ liệu ra ngoài</td><td>Không rời hệ thống</td><td>Gửi nguyên văn tin báo sang công ty khác</td></tr>
+      <tr><td>Chi phí, mất mạng</td><td>Không tốn, vẫn chạy</td><td>Tính tiền mỗi lần, mất mạng là không xếp được</td></tr>
+      <tr><td>Hiểu câu lạ</td><td>Kém hơn</td><td>Tốt hơn</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ba dòng đầu quyết định trong môi trường hành chính: hai đơn giống nhau phải đi cùng một đường; cán bộ phải có căn cứ để phản bác khi máy xếp sai; nội dung tố giác không được rời khỏi hệ thống. Dòng cuối là nhược điểm thật, bù bằng việc bổ sung từ khoá dần. Máy chỉ <strong>gợi ý</strong>: người dân chọn lại được, cán bộ đổi được.</p>
+  <p>AI (Google Gemini) chỉ dùng cho <strong>trợ lý hỏi đáp</strong> hướng dẫn cách dùng trang, và không đọc nội dung tin đã gửi.</p>
+
+  <div class="nho">
+    <p class="nhan">Bài học khi thêm từ khoá</p>
+    <p>Cụm “so de” từng nằm trong bảng, nhưng nó nằm lọt giữa “hồ sơ để lâu”, cách nói rất hay gặp trong đơn khiếu nại. Đơn khiếu nại bị xếp nhầm sang Tố giác cờ bạc. Cụm càng ngắn càng dễ dính oan.</p>
+  </div>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="7a" data-dap="b">
+      <p class="de">Lý do nào KHÔNG phải lý do chọn bộ từ khoá thay cho AI?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Nội dung tố giác không rời khỏi hệ thống</button>
+        <button type="button" data-k="b">Bộ từ khoá hiểu câu lạ tốt hơn AI</button>
+        <button type="button" data-k="c">Chỉ ra được căn cứ đã xếp loại</button>
+      </div>
+      <p class="giai" hidden>Bộ từ khoá hiểu câu lạ <strong>kém</strong> hơn AI. Đây là nhược điểm thật, không giấu khi trình bày.</p>
+    </div>
+    <div class="q" data-id="7b" data-dap="a">
+      <p class="de">Máy xếp một tin vào nhóm sai. Chuyện gì xảy ra?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Người dân chọn lại được ở bước 3, cán bộ cũng đổi được khi xử lý</button>
+        <button type="button" data-k="b">Tin bị từ chối</button>
+        <button type="button" data-k="c">Không ai sửa được</button>
+      </div>
+      <p class="giai" hidden>Máy không quyết định thay con người. Vì máy chỉ ra cụm từ đã khớp, cán bộ thấy ngay vì sao nó nhầm.</p>
+    </div>
+    <div class="suy" data-id="7s">
+      <p class="de">Câu suy nghĩ: hãy nghĩ một từ lóng ở địa phương bạn mà bộ từ khoá có thể chưa biết. Cán bộ nên làm gì khi thấy máy bỏ sót?</p>
+      <textarea id="tl-7s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: ghi lại cụm từ và câu gốc, gửi người phụ trách kỹ thuật để bổ sung. Trước khi thêm cụm ngắn, đọc thử vài câu bình thường xem cụm đó có nằm lọt giữa câu khác không, như bài học “so de”.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 8 ============================== -->
+<section class="khung bai" id="bai-8" data-bai="8">
+  <div class="bai-dau"><span class="so-bai">8</span><div><h2>Mất mạng vẫn gửi được</h2><p class="muc-tieu">Học xong bạn giải thích được tin chờ gửi nằm ở đâu, tự gửi lúc nào, và giới hạn của nó.</p></div></div>
+
+  <div class="vi-du">
+    <p class="nhan">Ví dụ đời thường</p>
+    <p>Bạn viết thư xong mà bưu cục đóng cửa. Bạn bỏ thư vào hộp thư trước nhà, dán kín. Bưu tá ghé là thư đi. Bạn không cần đứng chờ.</p>
+  </div>
+  <p>Vùng sóng yếu, bấm Gửi đúng lúc rớt mạng là mất công gõ. Nay tin được cất <strong>trên chính điện thoại</strong> của người dân, đã mã hoá, và trang hiện thanh vàng “có tin chờ gửi”. Có mạng lại là máy tự gửi. Điện thoại Android còn tự gửi được khi đã đóng trang; iPhone thì gửi khi trang được mở lại.</p>
+
+  <h3>Không thành hai đơn</h3>
+  <p>Có lúc mạng rớt <strong>sau khi</strong> máy chủ đã lưu tin nhưng chưa kịp trả lời. Nếu gửi lại như bình thường, sẽ thành hai đơn. Vì vậy mỗi lần gửi mang một mã riêng. Máy chủ thấy lại mã đó thì trả lại đúng mã tra cứu và PIN cũ, không tạo đơn mới.</p>
+
+  <h3>Máy dùng chung</h3>
+  <p>Màn hình không bao giờ hiện lại nội dung tin chờ. Tin chờ của người khác trên cùng máy cũng không hiện gì, để người dùng sau không biết máy vừa có người báo công an. Người soạn được cấp một <strong>mã nhận kết quả</strong> 6 số; lỡ tắt trang thì vào trang Tra cứu nhập mã này để lấy mã tra cứu và PIN. Nhập sai nhiều lần thì ô nhập tạm khoá.</p>
+
+  <div class="canh-bao">
+    <p class="nhan">Giới hạn phải nói rõ</p>
+    <p>Mã hoá trên điện thoại chỉ chặn được đọc lướt. Người có toàn quyền trên chiếc máy đó (máy bị thu, công cụ chuyên dụng) vẫn có thể đọc được. Vì vậy tin chờ nằm trên máy ngắn nhất có thể: gửi được là xoá, có hạn sống. Tin chờ quá lâu thì máy dừng tự gửi và nhắc gọi trực ban, để không thành đơn trùng. Việc khẩn cấp thì gọi 113, không chờ máy tự gửi.</p>
+  </div>
+
+  <p>Khi chính máy chủ hoặc kho dữ liệu hỏng, trang tự đưa người dân sang <strong>trang dự phòng</strong> có số 113 và số trực ban.</p>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="8a" data-dap="c">
+      <p class="de">Mạng rớt đúng lúc máy chủ vừa lưu tin mà chưa trả lời. Khi gửi lại thì sao?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Thành hai đơn giống nhau</button>
+        <button type="button" data-k="b">Mất tin</button>
+        <button type="button" data-k="c">Máy chủ nhận ra lần gửi lại và trả đúng mã tra cứu, PIN cũ</button>
+      </div>
+      <p class="giai" hidden>Mỗi lần gửi mang một mã riêng, nên máy chủ biết đây là lần gửi lại của cùng một tin.</p>
+    </div>
+    <div class="q" data-id="8b" data-dap="a">
+      <p class="de">Vì sao màn hình không hiện lại nội dung tin chờ gửi?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Để người dùng sau trên máy dùng chung không đọc được tin, không biết máy vừa có người báo</button>
+        <button type="button" data-k="b">Vì màn hình điện thoại nhỏ</button>
+        <button type="button" data-k="c">Vì tin chờ không lưu nội dung</button>
+      </div>
+      <p class="giai" hidden>Tin có lưu nội dung (để gửi), nhưng giao diện không hiện lại. Danh tính người báo là thứ cần bảo vệ nhất, kể cả trước người dùng chung máy.</p>
+    </div>
+    <div class="suy" data-id="8s">
+      <p class="de">Câu suy nghĩ: một bà cụ mượn điện thoại con cháu gửi tin rồi trả máy. Người con mở máy có thấy gì không? Bà cụ lấy kết quả bằng cách nào?</p>
+      <textarea id="tl-8s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: người con mở lại trang không thấy thanh báo hay nội dung nào của tin đó, tin vẫn tự gửi ngầm. Bà cụ cần ghi lại mã nhận kết quả 6 số hiện lúc cất tin, sau đó dùng máy bất kỳ vào trang Tra cứu nhập mã để lấy mã tra cứu và PIN. Nếu không giữ được mã, gọi trực ban.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 9 ============================== -->
+<section class="khung bai" id="bai-9" data-bai="9">
+  <div class="bai-dau"><span class="so-bai">9</span><div><h2>Ảnh và tài liệu gửi kèm</h2><p class="muc-tieu">Học xong bạn nói được hệ thống kiểm tệp gửi kèm thế nào và việc gì máy không làm được.</p></div></div>
+
+  <p>Người dân đính được ảnh và tài liệu PDF, Word. Một tệp gửi kèm có thể là bằng chứng quý, nhưng cũng có thể là mã độc đội lốt ảnh. Các lớp kiểm:</p>
+  <ul>
+    <li><strong>Trên điện thoại</strong>: ảnh được vẽ lại trước khi gửi, nên thông tin vị trí GPS và phần mã nhúng trong ảnh bị bỏ.</li>
+    <li><strong>Trên máy chủ, với ảnh</strong>: đọc vài byte đầu của tệp để biết nó thật sự là gì, không tin đuôi tên tệp. Tệp chương trình đổi tên thành “.jpg” bị chặn.</li>
+    <li><strong>Trên máy chủ, với PDF và Word</strong>: soi bên trong, chặn PDF có lệnh tự chạy, chặn Word có macro. Tệp bị từ chối được báo rõ cho người gửi và cán bộ, không bỏ âm thầm.</li>
+    <li><strong>Không nhận đường dẫn ảnh từ trang khác</strong>: chỉ nhận tệp tải lên. Trang chia sẻ ảnh có thể đổi ảnh bất cứ lúc nào; trang web từng gặp đúng chuyện này với mã QR Zalo, đến ngày kiểm tra thì nó hiện ảnh một người lạ trên chân trang của Công an.</li>
+  </ul>
+
+  <h3>Đọc chữ trong tệp, ngay trong hệ thống</h3>
+  <p>Cán bộ bấm một nút là hệ thống trích chữ từ ảnh chụp đơn, PDF, Word (cả phông chữ đời cũ) để đọc và tìm kiếm. Việc này chạy ngay trên máy chủ, không gửi tệp đi đâu, và chạy trong một chương trình con không mang khoá bí mật, phòng khi tệp lạ có mã độc.</p>
+
+  <div class="nho">
+    <p class="nhan">Việc máy không làm, và không giả vờ làm</p>
+    <p>Bản trước gửi ảnh sang dịch vụ AI nước ngoài để nhận diện ảnh xấu. Đã bỏ: ảnh kèm tố giác có thể có mặt người, biển số, địa chỉ; gửi ra ngoài rủi ro hơn lợi ích. Máy không tự nhận ra được nội dung chính trị hay ảnh nhạy cảm. Đoán theo màu sắc thì chặn nhầm ảnh cờ Tổ quốc, ảnh vết thương làm bằng chứng. Máy làm phần kỹ thuật, người làm phần phán đoán.</p>
+  </div>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="9a" data-dap="b">
+      <p class="de">Một tệp tên “anh.jpg” thật ra là chương trình độc hại. Máy chủ nhận ra bằng cách nào?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Nhìn đuôi “.jpg”</button>
+        <button type="button" data-k="b">Đọc các byte đầu tệp để biết nó thật sự là loại gì</button>
+        <button type="button" data-k="c">Hỏi người gửi</button>
+      </div>
+      <p class="giai" hidden>Đuôi tên tệp ai cũng đổi được. Phần đầu mỗi loại tệp có “chữ ký” riêng, máy chủ đọc chữ ký đó.</p>
+    </div>
+    <div class="q" data-id="9b" data-dap="c">
+      <p class="de">Vì sao hệ thống bỏ việc gửi ảnh sang AI bên ngoài để lọc ảnh xấu?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Vì AI quá đắt</button>
+        <button type="button" data-k="b">Vì AI quá chậm</button>
+        <button type="button" data-k="c">Vì ảnh kèm tố giác có thể chứa mặt người, biển số, địa chỉ; gửi ra ngoài là rủi ro lớn hơn lợi ích</button>
+      </div>
+      <p class="giai" hidden>Bảo vệ người báo tin đứng trên tiện lợi. Ảnh nghi ngờ vẫn được nhận để cán bộ xem, vì chặn nhầm một bằng chứng thật tai hại hơn.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 10 ============================== -->
+<section class="khung bai" id="bai-10" data-bai="10">
+  <div class="bai-dau"><span class="so-bai">10</span><div><h2>Trang web chạy ở đâu</h2><p class="muc-tieu">Học xong bạn phân biệt được lúc chạy thử và lúc chạy thật, và biết khoá bí mật được cất ở đâu.</p></div></div>
+
+  <div class="vi-du">
+    <p class="nhan">Ví dụ đời thường</p>
+    <p>Trang web cần một “nhà” để ở: những chiếc máy tính chạy suốt ngày đêm trong trung tâm dữ liệu. Thay vì mua máy, đơn vị <strong>thuê</strong> chỗ của một nhà cung cấp, giống thuê kho thay vì xây kho.</p>
+  </div>
+
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Phần</th><th>Đang chạy thử</th><th>Chạy thật (chốt 20/10/2026)</th></tr></thead>
+    <tbody>
+      <tr><td>Giao diện</td><td>Netlify</td><td>Máy chủ Viettel Cloud</td></tr>
+      <tr><td>Máy chủ</td><td>Render (một chương trình gộp)</td><td>Cùng máy Viettel, hai chương trình riêng cho người dân và cán bộ</td></tr>
+      <tr><td>Cơ sở dữ liệu</td><td>Aiven</td><td>Viettel Database Service, nối bằng mạng nội bộ</td></tr>
+      <tr><td>Sao lưu</td><td>Làm bằng tay</td><td>Tự động mỗi đêm, mã hoá, gửi sang Bizfly (nhà cung cấp khác)</td></tr>
+    </tbody>
+  </table></div>
+  <p>Chạy thử dùng gói miễn phí, máy chủ đặt ở nước ngoài. Chạy thật đưa máy chủ, giao diện và dữ liệu về Viettel trong nước. Dự toán khoảng 1,2 triệu đồng mỗi tháng (giá tra tháng 10/2026, cần xin báo giá chính thức). Vài dịch vụ phụ vẫn ở nước ngoài: kho ảnh, ô chống người máy, trợ lý hỏi đáp, gửi thư; các dịch vụ này không nhận danh tính người gửi.</p>
+
+  <h3>Vì sao sao lưu phải gửi sang nhà khác</h3>
+  <p>Giống giữ bản sao giấy tờ quan trọng ở nhà người thân chứ không cất chung một tủ: cháy một nơi thì nơi kia còn. Bản sao lưu được mã hoá trước khi gửi đi, và mỗi tháng phải <strong>diễn tập khôi phục</strong> một lần. Bản sao lưu chưa từng khôi phục thử thì chưa chắc dùng được.</p>
+
+  <h3>Những lớp chắn ở máy chủ thật</h3>
+  <ul>
+    <li><strong>Tường lửa</strong> chỉ mở cửa cho trang web (và cửa quản trị máy). Hai chương trình máy chủ chỉ nhận kết nối từ chính máy đó, sau lớp <strong>Nginx</strong> (người gác cổng đứng trước, nhận kết nối có mã hoá HTTPS rồi chuyển vào).</li>
+    <li>Khoá bí mật nằm trong tệp cấu hình chỉ tài khoản quản trị máy đọc được, ngoài thư mục mã nguồn.</li>
+    <li>Ứng dụng nối cơ sở dữ liệu bằng một <strong>tài khoản riêng chỉ có quyền đọc, ghi</strong>, không gỡ được lớp chặn “nhật ký chỉ ghi thêm”.</li>
+    <li>Kết nối tới cơ sở dữ liệu được mã hoá, và máy chủ kiểm cả “giấy chứng nhận” lẫn <strong>tên</strong> của kho dữ liệu, để kẻ đứng giữa không giả làm kho được.</li>
+    <li>Nếu cơ quan có địa chỉ mạng cố định, phần cán bộ chỉ mở cho máy trong cơ quan.</li>
+  </ul>
+
+  <ul class="tu-moi"><li><b>Máy chủ đám mây</b>: máy tính thuê trong trung tâm dữ liệu</li><li><b>Sao lưu</b>: bản sao dữ liệu cất nơi khác</li><li><b>Tường lửa</b>: bộ lọc chỉ mở những cửa cần thiết</li><li><b>HTTPS</b>: kết nối có mã hoá, ổ khoá trên thanh địa chỉ</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="10a" data-dap="a">
+      <p class="de">Vì sao bản sao lưu được gửi sang một nhà cung cấp khác (Bizfly) chứ không để cùng Viettel?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Để một nơi gặp sự cố thì nơi kia còn dữ liệu</button>
+        <button type="button" data-k="b">Vì Viettel không cho sao lưu</button>
+        <button type="button" data-k="c">Để rẻ hơn</button>
+      </div>
+      <p class="giai" hidden>Không để mọi trứng vào một giỏ. Bản sao được mã hoá trước khi gửi nên nhà cung cấp kia cũng không đọc được.</p>
+    </div>
+    <div class="q" data-id="10b" data-dap="b">
+      <p class="de">Bạn chạy sao lưu đều đặn mỗi đêm nhưng chưa bao giờ thử khôi phục. Có ổn không?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Ổn, có bản sao là được</button>
+        <button type="button" data-k="b">Chưa ổn; phải diễn tập khôi phục định kỳ mới chắc bản sao dùng được</button>
+        <button type="button" data-k="c">Không cần sao lưu</button>
+      </div>
+      <p class="giai" hidden>Một bản sao hỏng chỉ lộ ra đúng lúc cần dùng. Diễn tập mỗi tháng biến “hy vọng” thành “đã biết”.</p>
+    </div>
+    <div class="suy" data-id="10s">
+      <p class="de">Câu suy nghĩ: chuyển hệ thống về Viettel giải quyết được những lo ngại nào? Còn lo ngại nào chưa giải quyết?</p>
+      <textarea id="tl-10s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: giải quyết được việc dữ liệu tố giác nằm ở nước ngoài, máy chủ miễn phí hay “ngủ”, và phụ thuộc gói dùng thử. Chưa giải quyết: kho ảnh và vài dịch vụ phụ còn ở nước ngoài; cần người vận hành biết cập nhật, theo dõi sao lưu; và hai chương trình vẫn chung một máy cho tới khi có kinh phí tách.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 11 ============================== -->
+<section class="khung bai" id="bai-11" data-bai="11">
+  <div class="bai-dau"><span class="so-bai">11</span><div><h2>Làm sao biết hệ thống an toàn</h2><p class="muc-tieu">Học xong bạn hiểu kiểm thử tự động, quy trình “người sửa không tự chấm bài”, và GitHub dùng để làm gì.</p></div></div>
+
+  <h3>GitHub: kho hồ sơ thiết kế có lịch sử</h3>
+  <p>Toàn bộ mã nguồn (bản thiết kế của trang web) nằm trên GitHub. Mỗi lần sửa được ghi thành một <strong>commit</strong>, giống một dòng ký sổ: ai sửa, lúc nào, sửa gì, vì sao. Sai thì quay về bản trước được. Kho hiện để công khai, nên tuyệt đối không đưa lên đó mật khẩu, khoá, địa chỉ kho dữ liệu, hay chi tiết lỗ hổng chưa vá. Sổ ghi lỗ hổng chi tiết chỉ nằm trên máy, không đưa lên.</p>
+
+  <h3>Kiểm thử tự động</h3>
+  <div class="vi-du">
+    <p class="nhan">Ví dụ đời thường</p>
+    <p>Hơn một nghìn bài kiểm tra nhỏ, máy tự chạy trong vài phút: “gửi tin có tên thì tên phải được mã hoá”, “cán bộ thường không xem được danh tính”, “gửi lại không thành hai đơn”… Mỗi lần sửa mã, chạy lại cả bộ để chắc không làm hỏng chỗ khác.</p>
+  </div>
+  <p>Khi vá một lỗ hổng, quy trình bắt buộc: viết bài kiểm tra tái hiện lỗi <strong>trước</strong>, chạy thấy nó <strong>đỏ</strong> (tức là lỗi có thật), rồi mới sửa, chạy lại thấy <strong>xanh</strong>. Không làm bước “đỏ trước” thì không chứng minh được bản vá đã chặn đúng chỗ.</p>
+
+  <h3>Người sửa không tự chấm bài mình</h3>
+  <p>Người vừa bỏ công sửa một lỗi sẽ đọc bản vá của mình dễ dãi, giống học sinh tự chấm bài. Vì vậy mỗi bản vá lỗ hổng do một phiên làm việc <strong>khác</strong> kiểm lại, phiên đó chưa từng sửa lỗi ấy: chạy lại cách tấn công gốc và các biến thể, rồi mới đọc bản vá.</p>
+
+  <div class="nho">
+    <p class="nhan">Chuyện có thật: chữ hoa</p>
+    <p>Một lần vá lớp chặn “phần cán bộ chỉ mở cho máy trong cơ quan”. Người vá kiểm đường dẫn <code>/api/admin</code>: bị chặn, tưởng xong. Phiên kiểm độc lập thử viết <code>/API/ADMIN</code> bằng chữ hoa và lọt qua, vì bộ định tuyến của máy chủ không phân biệt hoa thường, còn lớp chặn thì có. Kết luận: “chưa sửa được”. Bản vá làm lại, kiểm lần hai mới đạt. Đây chính là lý do của luật “không tự chấm bài”.</p>
+  </div>
+
+  <h3>Kết quả đợt tự rà soát</h3>
+  <p>Đợt rà soát ghi nhận 46 mã lỗi. 24 mục đã sửa và có phiên kiểm độc lập xác nhận; một số còn dở; 18 mã chưa xác định lại được trạng thái vì sổ ghi chi tiết cũ bị mất, phải coi là còn mở tới khi rà soát lại. Nói thật điều này khi được hỏi sẽ được tin hơn là nói “đã an toàn tuyệt đối”.</p>
+
+  <ul class="tu-moi"><li><b>Mã nguồn</b>: bản thiết kế viết bằng ngôn ngữ máy</li><li><b>Commit</b>: một lần ghi sổ sửa đổi</li><li><b>Kiểm thử</b>: bài kiểm tra máy tự chạy</li><li><b>Lỗ hổng</b>: chỗ hở kẻ xấu lợi dụng được</li></ul>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="11a" data-dap="c">
+      <p class="de">Vì sao bài kiểm tra cho một lỗ hổng phải chạy thấy “đỏ” trước khi sửa?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Cho đẹp</button>
+        <button type="button" data-k="b">Vì máy yêu cầu</button>
+        <button type="button" data-k="c">Để chứng minh bài kiểm tra bắt được đúng lỗi; sau khi sửa nó xanh mới có ý nghĩa</button>
+      </div>
+      <p class="giai" hidden>Một bài kiểm tra lúc nào cũng xanh thì không chứng minh được gì. Đỏ trước rồi xanh sau mới cho thấy bản vá chặn đúng chỗ.</p>
+    </div>
+    <div class="q" data-id="11b" data-dap="a">
+      <p class="de">Ai được kết luận một lỗ hổng “đã sửa xong”?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Một phiên kiểm độc lập, khác với phiên đã sửa</button>
+        <button type="button" data-k="b">Chính người vừa sửa</button>
+        <button type="button" data-k="c">Không cần ai, cứ đưa lên là xong</button>
+      </div>
+      <p class="giai" hidden>Người sửa đang ở thế muốn chứng minh mình đúng, nên dễ bỏ sót. Chuyện chữ hoa là ví dụ thật.</p>
+    </div>
+    <div class="q" data-id="11c" data-dap="b">
+      <p class="de">Thứ nào KHÔNG được đưa lên kho GitHub công khai?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Hướng dẫn sử dụng cho người dân</button>
+        <button type="button" data-k="b">Khoá mã hoá và chi tiết lỗ hổng chưa vá</button>
+        <button type="button" data-k="c">Mã nguồn giao diện</button>
+      </div>
+      <p class="giai" hidden>Kho công khai thì ai cũng đọc được. Khoá và chi tiết lỗ hổng chưa vá là thứ kẻ xấu cần nhất.</p>
+    </div>
+    <div class="suy" data-id="11s">
+      <p class="de">Câu suy nghĩ: nếu hội đồng hỏi “hệ thống còn lỗi không?”, bạn trả lời thế nào?</p>
+      <textarea id="tl-11s" aria-label="Câu trả lời của bạn"></textarea>
+      <button type="button" class="nut">Xem gợi ý</button>
+      <p class="goi-y" hidden>Gợi ý: trả lời thật và có số liệu: đã tự rà soát theo quy trình, ghi 46 mã lỗi, phần lớn đã sửa và có người khác kiểm lại; một số còn dở và một số cần rà lại; trước khi vận hành chính thức cần kiểm định bởi đơn vị độc lập. Kể một ví dụ cụ thể (chuyện chữ hoa) cho thấy quy trình có tác dụng.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BÀI 12 ============================== -->
+<section class="khung bai" id="bai-12" data-bai="12">
+  <div class="bai-dau"><span class="so-bai">12</span><div><h2>Khi hệ thống gặp sự cố</h2><p class="muc-tieu">Học xong bạn biết cán bộ trực làm gì trong năm phút đầu khi trang web hỏng.</p></div></div>
+
+  <div class="canh-bao">
+    <p class="nhan">Điều đầu tiên</p>
+    <p>Khi hệ thống hỏng, việc gấp không phải là sửa máy mà là bảo đảm người dân vẫn báo được tin. Mở ngay đường thay thế: điện thoại trực ban và sổ giấy. Việc khẩn cấp luôn gọi 113, kể cả lúc hệ thống bình thường.</p>
+  </div>
+
+  <h3>Bốn việc trong năm phút đầu</h3>
+  <ol>
+    <li>Cử người trực điện thoại, ghi số trực ban lên bảng thông báo.</li>
+    <li>Lấy sổ giấy ghi tin: ngày giờ, nội dung nguyên lời, địa điểm, tên và số điện thoại nếu người dân đồng ý.</li>
+    <li>Báo nhóm Zalo của phường: hệ thống đang bảo trì, báo tin qua số trực ban, việc khẩn gọi 113.</li>
+    <li>Dán giấy ở máy ki-ốt tại trụ sở để người dân không đứng chờ.</li>
+  </ol>
+
+  <h3>Nhận biết nhanh</h3>
+  <div class="bang-cuon"><table>
+    <thead><tr><th>Thấy</th><th>Nhiều khả năng</th></tr></thead>
+    <tbody>
+      <tr><td>Trang trắng trơn trên mọi máy</td><td>Phần giao diện hỏng</td></tr>
+      <tr><td>Trang tự chuyển sang trang có số 113</td><td>Máy chủ hoặc kho dữ liệu hỏng</td></tr>
+      <tr><td>Lần đầu trong ngày chậm 30–60 giây rồi bình thường</td><td>Máy chủ gói miễn phí vừa “thức dậy” (chỉ lúc chạy thử), không phải hỏng</td></tr>
+      <tr><td>Người dân thấy thanh vàng “có tin chờ gửi”</td><td>Máy họ đang mất mạng; có mạng là tự gửi</td></tr>
+      <tr><td>Nhật ký có người xem danh tính vào giờ lạ</td><td>Nghi bị xâm nhập: báo chỉ huy, không xoá gì</td></tr>
+    </tbody>
+  </table></div>
+  <p>Hệ thống chạy lại thì nhập các tin đã ghi trên giấy qua máy ki-ốt, ghi đúng giờ người dân báo thật, rồi ghi sự cố vào sổ.</p>
+
+  <div class="luyen">
+    <p class="nhan">Luyện tập</p>
+    <div class="q" data-id="12a" data-dap="b">
+      <p class="de">Trang web không vào được. Việc đầu tiên cán bộ trực nên làm?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Tìm cách sửa máy</button>
+        <button type="button" data-k="b">Mở đường nhận tin thay thế: điện thoại trực ban và sổ giấy</button>
+        <button type="button" data-k="c">Chờ người phụ trách kỹ thuật tới</button>
+      </div>
+      <p class="giai" hidden>Nhiệm vụ tiếp nhận tin của dân thuộc về cơ quan công an, không phải của máy. Máy hỏng thì đổi cách nhận tin, việc tiếp dân không dừng.</p>
+    </div>
+    <div class="q" data-id="12b" data-dap="c">
+      <p class="de">Thấy nhật ký có nhiều lượt xem danh tính lúc 2 giờ sáng. Nên làm gì?</p>
+      <div class="lua-chon">
+        <button type="button" data-k="a">Xoá các dòng nhật ký đó</button>
+        <button type="button" data-k="b">Bỏ qua</button>
+        <button type="button" data-k="c">Báo ngay chỉ huy, không xoá gì; người phụ trách đổi mật khẩu kho dữ liệu và khoá ký đăng nhập</button>
+      </div>
+      <p class="giai" hidden>Nhật ký là chứng cứ. Đổi khoá ký đăng nhập buộc mọi người đăng nhập lại. Không đổi khoá mã hoá khi chưa có kế hoạch, kẻo mất danh tính đã lưu.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== KIỂM TRA CUỐI ============================== -->
+<section class="khung bai" id="kiem-tra" data-bai="kt">
+  <div class="bai-dau"><span class="so-bai">✓</span><div><h2>Bài kiểm tra cuối</h2><p class="muc-tieu">15 câu trộn từ mọi bài. Đạt từ 12 câu là bạn đã nắm chắc những điều chính.</p></div></div>
+  <div class="diem" aria-live="polite"><span class="so-lon" id="diem-kt">0/15</span><p id="loi-kt">Chọn đáp án cho từng câu bên dưới.</p></div>
+
+  <div class="luyen">
+    <div class="q kt" data-id="k1" data-dap="b"><p class="de">1. Một người muốn khiếu nại quyết định xử phạt nhưng không muốn ghi tên. Được không?</p><div class="lua-chon"><button type="button" data-k="a">Được, mọi nhóm đều gửi ẩn danh được</button><button type="button" data-k="b">Không, chỉ nhóm Tố giác gửi ẩn danh được; khiếu nại phải có danh tính theo luật</button><button type="button" data-k="c">Được nếu gọi điện trước</button></div><p class="giai" hidden>Luật Khiếu nại yêu cầu người khiếu nại có danh tính. Ẩn danh chỉ dành cho tố giác.</p></div>
+    <div class="q kt" data-id="k2" data-dap="a"><p class="de">2. Lớp bảo vệ thật sự nằm ở đâu?</p><div class="lua-chon"><button type="button" data-k="a">Máy chủ</button><button type="button" data-k="b">Giao diện trên điện thoại</button><button type="button" data-k="c">Trình duyệt của cán bộ</button></div><p class="giai" hidden>Phần chạy trên máy người dùng ai cũng sửa được. Kiểm thật phải ở máy chủ.</p></div>
+    <div class="q kt" data-id="k3" data-dap="c"><p class="de">3. Trong cơ sở dữ liệu, tên người gửi có danh tính trông thế nào?</p><div class="lua-chon"><button type="button" data-k="a">Tên đầy đủ, ví dụ Nguyễn Văn An</button><button type="button" data-k="b">Tên che bớt, ví dụ Nguyễn V*** A**</button><button type="button" data-k="c">Một chuỗi bản mã bắt đầu bằng enc:v1:</button></div><p class="giai" hidden>Tên che bớt là thứ hiện trên màn hình cán bộ. Trong tủ dữ liệu thì chỉ có bản mã.</p></div>
+    <div class="q kt" data-id="k4" data-dap="b"><p class="de">4. Mất khoá mã hoá (ENCRYPTION_KEY) thì hậu quả là gì?</p><div class="lua-chon"><button type="button" data-k="a">Cán bộ phải đăng nhập lại</button><button type="button" data-k="b">Mất vĩnh viễn khả năng đọc mọi danh tính đã lưu</button><button type="button" data-k="c">Không sao, tạo khoá mới là xong</button></div><p class="giai" hidden>Đăng nhập lại là hậu quả của đổi JWT_SECRET. Khoá mã hoá thì không có bản thay thế.</p></div>
+    <div class="q kt" data-id="k5" data-dap="a"><p class="de">5. Ai xem được tên đầy đủ của người gửi?</p><div class="lua-chon"><button type="button" data-k="a">Chỉ lãnh đạo (Trưởng, Phó), và mỗi lượt xem được ghi nhật ký trước</button><button type="button" data-k="b">Mọi cán bộ được giao hồ sơ</button><button type="button" data-k="c">Không ai, kể cả lãnh đạo</button></div><p class="giai" hidden>Lãnh đạo xem được; cán bộ thường không. Với tin ẩn danh thì không ai xem được vì không có gì để xem.</p></div>
+    <div class="q kt" data-id="k6" data-dap="c"><p class="de">6. Nhật ký thao tác có sửa, xoá được không?</p><div class="lua-chon"><button type="button" data-k="a">Lãnh đạo sửa được</button><button type="button" data-k="b">Xoá được bằng lệnh trong cơ sở dữ liệu qua tài khoản của ứng dụng</button><button type="button" data-k="c">Không; chỉ ghi thêm, chặn ngay trong cơ sở dữ liệu</button></div><p class="giai" hidden>Trigger trong cơ sở dữ liệu chặn sửa, xoá; tài khoản của ứng dụng không gỡ được trigger.</p></div>
+    <div class="q kt" data-id="k7" data-dap="b"><p class="de">7. Thiết bị bị đánh “Tin rác” ba lần liên tiếp trong 30 ngày thì bị khoá bao lâu?</p><div class="lua-chon"><button type="button" data-k="a">Vĩnh viễn</button><button type="button" data-k="b">30 ngày</button><button type="button" data-k="c">24 giờ</button></div><p class="giai" hidden>Lần thường khoá 24 giờ; ba lần liên tiếp khoá 30 ngày. Khoá luôn có hạn.</p></div>
+    <div class="q kt" data-id="k8" data-dap="a"><p class="de">8. Ô “Tôi không phải người máy” chống mối nguy nào?</p><div class="lua-chon"><button type="button" data-k="a">Máy tự động gửi hàng loạt tin rác, dò mật khẩu</button><button type="button" data-k="b">Cán bộ lạm quyền</button><button type="button" data-k="c">Mất mạng</button></div><p class="giai" hidden>Đây là mối nguy thứ ba trong bài 1.</p></div>
+    <div class="q kt" data-id="k9" data-dap="c"><p class="de">9. Nội dung tin tố giác có được gửi sang AI để xếp loại không?</p><div class="lua-chon"><button type="button" data-k="a">Có, gửi sang Google</button><button type="button" data-k="b">Có, nhưng chỉ tin khẩn</button><button type="button" data-k="c">Không; xếp loại bằng bộ từ khoá chạy ngay trong hệ thống</button></div><p class="giai" hidden>AI chỉ dùng cho trợ lý hỏi đáp và không đọc tin đã gửi.</p></div>
+    <div class="q kt" data-id="k10" data-dap="b"><p class="de">10. Người dân bấm Gửi lúc mất mạng. Tin đi đâu?</p><div class="lua-chon"><button type="button" data-k="a">Mất</button><button type="button" data-k="b">Cất (đã mã hoá) trên điện thoại, có mạng là tự gửi</button><button type="button" data-k="c">Gửi qua tin nhắn SMS</button></div><p class="giai" hidden>Hàng chờ gửi ngầm. Gửi lại nhiều lần cũng chỉ thành một hồ sơ.</p></div>
+    <div class="q kt" data-id="k11" data-dap="a"><p class="de">11. Đuôi tệp “.jpg” có đủ để máy chủ tin đó là ảnh không?</p><div class="lua-chon"><button type="button" data-k="a">Không; máy chủ đọc byte đầu tệp để biết loại thật</button><button type="button" data-k="b">Đủ</button><button type="button" data-k="c">Đủ nếu tệp nhỏ</button></div><p class="giai" hidden>Đuôi tệp ai cũng đổi được.</p></div>
+    <div class="q kt" data-id="k12" data-dap="c"><p class="de">12. Phương án chạy thật đã chốt đặt máy chủ và dữ liệu ở đâu?</p><div class="lua-chon"><button type="button" data-k="a">Render và Aiven</button><button type="button" data-k="b">Máy tính ở trụ sở</button><button type="button" data-k="c">Viettel trong nước; sao lưu mã hoá sang Bizfly</button></div><p class="giai" hidden>Render và Aiven là nơi chạy thử.</p></div>
+    <div class="q kt" data-id="k13" data-dap="b"><p class="de">13. Người vừa vá một lỗ hổng có được tự kết luận “đã sửa xong” không?</p><div class="lua-chon"><button type="button" data-k="a">Được</button><button type="button" data-k="b">Không; phải có phiên kiểm độc lập</button><button type="button" data-k="c">Được nếu đã chạy kiểm thử</button></div><p class="giai" hidden>Người sửa không tự chấm bài mình. Chuyện chữ hoa là ví dụ.</p></div>
+    <div class="q kt" data-id="k14" data-dap="a"><p class="de">14. Đặt một khoá bí mật vào phần giao diện thì sao?</p><div class="lua-chon"><button type="button" data-k="a">Ai mở trang cũng đọc được</button><button type="button" data-k="b">An toàn vì được nén</button><button type="button" data-k="c">Chỉ lập trình viên đọc được</button></div><p class="giai" hidden>Giao diện gửi nguyên vẹn tới máy mọi người truy cập.</p></div>
+    <div class="q kt" data-id="k15" data-dap="c"><p class="de">15. Trang web hỏng giữa giờ trực. Thứ tự đúng là?</p><div class="lua-chon"><button type="button" data-k="a">Sửa máy trước, tiếp dân sau</button><button type="button" data-k="b">Tạm ngừng tiếp dân tới khi sửa xong</button><button type="button" data-k="c">Mở đường nhận tin thay thế trước, rồi mới tìm nguyên nhân</button></div><p class="giai" hidden>Việc tiếp dân không được dừng; việc khẩn luôn gọi 113.</p></div>
+  </div>
+</section>
+
+<!-- ============================== TỪ ĐIỂN ============================== -->
+<section class="khung bai" id="tu-dien">
+  <div class="bai-dau"><span class="so-bai">Từ</span><div><h2>Từ điển nhỏ</h2><p class="muc-tieu">Những từ kỹ thuật bạn sẽ nghe khi làm việc với người lập trình, giải thích bằng lời thường.</p></div></div>
+  <dl class="tu-dien">
+    <div><dt>Giao diện</dt><dd>Phần trang web hiện trên màn hình: chữ, nút, ô nhập.</dd></div>
+    <div><dt>Máy chủ</dt><dd>Máy tính chạy suốt ngày đêm ở trung tâm dữ liệu, xử lý tin và cất dữ liệu.</dd></div>
+    <div><dt>Cơ sở dữ liệu</dt><dd>Nơi cất dữ liệu có tổ chức, chia thành các bảng. Hệ thống này có 31 bảng.</dd></div>
+    <div><dt>Mã nguồn</dt><dd>Bản thiết kế của phần mềm, viết bằng ngôn ngữ lập trình.</dd></div>
+    <div><dt>GitHub, commit</dt><dd>GitHub là kho lưu mã nguồn có lịch sử. Mỗi commit là một lần ghi sổ sửa đổi.</dd></div>
+    <div><dt>Mã hoá</dt><dd>Biến chữ thành bản mã; chỉ người có khoá mới đọc lại được.</dd></div>
+    <div><dt>Băm</dt><dd>Tạo “dấu vân tay” của dữ liệu: so được, không đọc ngược ra dữ liệu gốc.</dd></div>
+    <div><dt>Khoá</dt><dd>Chuỗi bí mật dùng để mã hoá, giải mã hoặc ký. Hệ thống có ba khoá chính.</dd></div>
+    <div><dt>Fail-safe</dt><dd>Khi hỏng thì dừng về phía an toàn, không âm thầm chạy chế độ yếu.</dd></div>
+    <div><dt>Địa chỉ mạng (IP)</dt><dd>Số nhận diện một máy trên Internet. Nhiều thuê bao 4G có thể dùng chung một số.</dd></div>
+    <div><dt>Giới hạn tần suất</dt><dd>Quy định tối đa bao nhiêu lần làm một việc trong một khoảng thời gian.</dd></div>
+    <div><dt>Turnstile</dt><dd>Dịch vụ “Tôi không phải người máy” của Cloudflare.</dd></div>
+    <div><dt>Nhật ký</dt><dd>Sổ ghi ai làm gì, lúc nào, từ đâu. Ở hệ thống này chỉ ghi thêm.</dd></div>
+    <div><dt>Kiểm thử tự động</dt><dd>Các bài kiểm tra máy tự chạy để chắc phần mềm làm đúng. Hiện có hơn một nghìn bài.</dd></div>
+    <div><dt>Lỗ hổng, bản vá</dt><dd>Lỗ hổng là chỗ hở kẻ xấu lợi dụng được. Bản vá là lần sửa để bịt chỗ hở.</dd></div>
+    <div><dt>Sao lưu</dt><dd>Bản sao dữ liệu cất ở nơi khác để khôi phục khi có sự cố.</dd></div>
+    <div><dt>HTTPS</dt><dd>Kết nối có mã hoá giữa trình duyệt và máy chủ; có biểu tượng ổ khoá.</dd></div>
+    <div><dt>Nginx</dt><dd>Chương trình “gác cổng” đứng trước máy chủ, nhận kết nối HTTPS rồi chuyển vào trong.</dd></div>
+  </dl>
+</section>
+
+</main>
+
+<footer class="khung">
+  <p>Nội dung đối chiếu mã nguồn trang web ngày 11/11/2026. Tài liệu chi tiết hơn nằm trong bộ tài liệu Word (thư mục <code>docs/tai-lieu-word</code> trên GitHub). Câu trả lời bạn đã chọn và đã viết chỉ lưu trên máy này.</p>
+  <button type="button" class="nut" id="lam-lai">Làm lại từ đầu</button>
+</footer>
+
+<script>
+(function () {
+  var KHOA = 'lop-hoc-diem-cham-v1';
+  var trangThai = { tra: {}, viet: {} };
+  try { var cu = JSON.parse(localStorage.getItem(KHOA) || 'null'); if (cu && cu.tra) trangThai = cu; } catch (e) {}
+  function luu() { try { localStorage.setItem(KHOA, JSON.stringify(trangThai)); } catch (e) {} }
+
+  var cauHoi = Array.prototype.slice.call(document.querySelectorAll('.q'));
+
+  // Gắn chữ cái a, b, c trước mỗi lựa chọn
+  cauHoi.forEach(function (q) {
+    q.querySelectorAll('.lua-chon button').forEach(function (b) {
+      var k = document.createElement('span'); k.className = 'k'; k.textContent = b.dataset.k.toUpperCase();
+      var t = document.createElement('span'); t.innerHTML = b.innerHTML; b.innerHTML = ''; b.appendChild(k); b.appendChild(t);
+    });
+  });
+
+  function hien(q, chon) {
+    var dap = q.dataset.dap;
+    q.querySelectorAll('.lua-chon button').forEach(function (b) {
+      b.disabled = true;
+      if (b.dataset.k === dap) b.classList.add('dung');
+      else if (b.dataset.k === chon) b.classList.add('sai');
+    });
+    var g = q.querySelector('.giai');
+    if (g) {
+      if (!g.querySelector('.kq')) {
+        var kq = document.createElement('span');
+        var dung = chon === dap;
+        kq.className = 'kq ' + (dung ? 'd' : 's');
+        kq.textContent = dung ? 'Đúng. ' : 'Chưa đúng. Đáp án ' + dap.toUpperCase() + '. ';
+        g.insertBefore(kq, g.firstChild);
+      }
+      g.hidden = false;
+    }
+  }
+
+  cauHoi.forEach(function (q) {
+    var id = q.dataset.id;
+    if (trangThai.tra[id]) hien(q, trangThai.tra[id]);
+    q.querySelectorAll('.lua-chon button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (trangThai.tra[id]) return;
+        trangThai.tra[id] = b.dataset.k; luu(); hien(q, b.dataset.k); capNhat();
+      });
+    });
+  });
+
+  // Câu suy nghĩ: lưu bài viết, nút xem gợi ý
+  document.querySelectorAll('.suy').forEach(function (s) {
+    var id = s.dataset.id, o = s.querySelector('textarea'), nut = s.querySelector('.nut'), gy = s.querySelector('.goi-y');
+    if (trangThai.viet[id]) o.value = trangThai.viet[id];
+    o.addEventListener('input', function () { trangThai.viet[id] = o.value; luu(); });
+    nut.addEventListener('click', function () {
+      gy.hidden = !gy.hidden; nut.textContent = gy.hidden ? 'Xem gợi ý' : 'Ẩn gợi ý';
+    });
+  });
+
+  function capNhat() {
+    var tong = cauHoi.length, dung = 0, daLam = 0;
+    cauHoi.forEach(function (q) { var c = trangThai.tra[q.dataset.id]; if (c) { daLam++; if (c === q.dataset.dap) dung++; } });
+    document.getElementById('vach').style.width = (tong ? daLam / tong * 100 : 0) + '%';
+    document.getElementById('dem-tong').textContent = dung + ' / ' + tong + ' câu đúng';
+    // Đánh dấu bài trong mục lục
+    document.querySelectorAll('section[data-bai]').forEach(function (sec) {
+      var qs = sec.querySelectorAll('.q'), n = 0, d = 0;
+      qs.forEach(function (q) { var c = trangThai.tra[q.dataset.id]; if (c) { n++; if (c === q.dataset.dap) d++; } });
+      var nhan = document.querySelector('.muc-luc .xong[data-bai="' + sec.dataset.bai + '"]');
+      if (nhan) nhan.textContent = n === qs.length && qs.length ? '✓ ' + d + '/' + qs.length : (n ? n + '/' + qs.length : '');
+    });
+    // Điểm bài kiểm tra cuối
+    var kt = document.querySelectorAll('.q.kt'), lam = 0, diem = 0;
+    kt.forEach(function (q) { var c = trangThai.tra[q.dataset.id]; if (c) { lam++; if (c === q.dataset.dap) diem++; } });
+    document.getElementById('diem-kt').textContent = diem + '/' + kt.length;
+    var loi = document.getElementById('loi-kt');
+    if (lam < kt.length) loi.textContent = 'Đã làm ' + lam + '/' + kt.length + ' câu.';
+    else if (diem >= 12) loi.textContent = 'Đạt. Bạn đã nắm chắc những điều chính về hệ thống.';
+    else loi.textContent = 'Chưa đạt 12/15. Xem lại giải thích ở các câu sai, đọc lại bài tương ứng rồi bấm “Làm lại từ đầu”.';
+  }
+  capNhat();
+
+  // Làm lại: bấm hai lần để tránh xoá nhầm
+  var nutLai = document.getElementById('lam-lai'), cho = null;
+  nutLai.addEventListener('click', function () {
+    if (!cho) {
+      nutLai.textContent = 'Bấm lần nữa để xoá mọi câu trả lời';
+      cho = setTimeout(function () { nutLai.textContent = 'Làm lại từ đầu'; cho = null; }, 4000);
+      return;
+    }
+    clearTimeout(cho); cho = null;
+    trangThai = { tra: {}, viet: {} }; luu();
+    location.reload();
+  });
+})();
+</script>
+</body>
+</html>
