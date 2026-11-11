@@ -18,7 +18,9 @@
  *
  * GIỚI HẠN (trọng tài S1.0 chỉ ra — lưới xanh KHÔNG có nghĩa phân quyền đúng hết):
  *  - không đo phạm vi THEO HÀNG (cán bộ thường thấy hồ sơ nào: tests/pham-vi-ho-so*.test.js),
- *    tham số truy vấn (?phan=...), tham số đường dẫn khác `1`, vé đặt ở cookie/chuỗi truy vấn;
+ *    tham số truy vấn (?phan=...), tham số đường dẫn khác `1`; vé ngoài header Authorization chỉ
+ *    đo các tên thường gặp (cookie accessToken/token/jwt, ?token=, ?access_token= — ND-105),
+ *    cửa hậu theo header tuỳ ý thì không;
  *  - không đo bộ đệm trạng thái tài khoản 30 s (khoá giữa phiên — BUG-003) và vai trò trong vé
  *    lệch vai trò trong CSDL (R-BUG-008-1).
  *
@@ -122,6 +124,9 @@ const LOAI_VE = {
   'sub-chuoi': { auth: `Bearer ${kyCanBo({ ...admin1, sub: '1' })}` },
   'can-bo-khong-co': { auth: `Bearer ${kyCanBo({ ...admin1, sub: 99 })}` },
   'tai-khoan-bi-khoa': { auth: `Bearer ${kyCanBo({ ...admin1, sub: 4 })}` },
+  /* vé còn hạn, chữ ký đúng, vai đúng như trong CSDL — chỉ có tài khoản đã bị khoá (ND-105) */
+  'bi-khoa-vai-manager': { auth: `Bearer ${kyCanBo({ sub: 5, username: 'mk', role: 'manager', name: 'MK' })}` },
+  'bi-khoa-vai-handler': { auth: `Bearer ${kyCanBo({ sub: 6, username: 'hk', role: 'handler', name: 'HK' })}` },
   'sai-tien-to': { auth: `Token ${kyCanBo(admin1)}` },
   handler: { auth: `Bearer ${kyCanBo({ sub: 3, username: 'h', role: 'handler', name: 'H' })}`, vai: 'handler' },
   manager: { auth: `Bearer ${kyCanBo({ sub: 2, username: 'm', role: 'manager', name: 'M' })}`, vai: 'manager' },
@@ -232,6 +237,31 @@ for (const { ten, tep } of DIEM_KHOI_DONG) {
       assert.deepEqual(sai, [], inSai(sai));
     });
 
+    test('vé admin HỢP LỆ đặt ngoài header Authorization (cookie, chuỗi truy vấn) -> 401 mọi route', async () => {
+      /* ND-105 (RETEST P117 đột biến M23): mọi ô khác gửi vé ở header, nên một lớp xác thực
+         "nhận thêm" vé từ cookie hay ?token= vẫn để lưới xanh. Vé ở cookie trình duyệt tự gửi
+         kèm -> mở CSRF; vé ở URL lọt vào nhật ký truy cập, lịch sử, Referer. Chỉ đo các tên
+         thường gặp — tên lạ khác (M24: header tuỳ ý) không lưới hộp đen nào bắt hết. */
+      const ve = LOAI_VE.admin.auth.slice('Bearer '.length);
+      const kenh = {
+        'cookie accessToken': { cookie: `accessToken=${ve}` },
+        'cookie token': { cookie: `token=${ve}` },
+        'cookie jwt': { cookie: `jwt=${ve}` },
+        '?token=': { truyVan: `token=${ve}` },
+        '?access_token=': { truyVan: `access_token=${ve}` },
+      };
+      const ds = routePhanCanBo(ten).filter((r) => r.quyen !== 'mo');
+      const sai = [];
+      await chayGioiHan(ds.flatMap(({ method, path }) => Object.entries(kenh).map(([tenKenh, { cookie, truyVan }]) => async () => {
+        const d = dienThamSo(path);
+        const thuc = await goi(may.cong, method, truyVan ? `${d}?${truyVan}` : d, undefined, { cookie });
+        const kq = phanLoai(thuc, method);
+        if (kq !== 'chan-401') sai.push(`${method} ${d} [${tenKenh}] mong chan-401, được ${kq} (${thuc.ma})`);
+      })));
+      assert.ok(ds.length > 0);
+      assert.deepEqual(sai, [], inSai(sai));
+    });
+
     test('route không đòi vé (đăng nhập, làm mới, đăng xuất): vé không làm đổi kết quả', async () => {
       const ds = routePhanCanBo(ten).filter((r) => r.quyen === 'mo');
       const sai = [];
@@ -322,6 +352,22 @@ for (const { ten, tep } of DIEM_KHOI_DONG.filter((d) => d.ten !== 'cong-khai')) 
       }
       await chayGioiHan(viec);
       assert.ok(viec.length > 0);
+      assert.deepEqual(sai, [], inSai(sai));
+    });
+
+    test('X-Forwarded-For HAI chặng "<IP cơ quan>, 203.0.113.9" -> 403 mọi route phần cán bộ, kể cả đăng nhập', async () => {
+      /* ND-105 (RETEST P117 đột biến M05): Nginx NỐI IP thật vào CUỐI header, nên chặng đầu là
+         thứ client tự đặt. Các ô khác chỉ gửi một giá trị (chặng đầu = chặng cuối = req.ip), nên
+         lớp IP đọc nhầm chặng đầu thay req.ip (luật 3) vẫn để lưới xanh. */
+      const xff = `${IP_CO_QUAN}, 203.0.113.9`;
+      const ds = routePhanCanBo(ten);
+      const sai = [];
+      await chayGioiHan(ds.map(({ method, path }) => async () => {
+        const d = dienThamSo(path);
+        const kq = phanLoai(await goi(may.cong, method, d, LOAI_VE.admin.auth, { ip: xff }), method);
+        if (kq !== 'chan-403') sai.push(`${method} ${d} với XFF "${xff}" -> ${kq}`);
+      }));
+      assert.ok(ds.some((r) => r.quyen === 'mo'), 'phải gồm cả đăng nhập');
       assert.deepEqual(sai, [], inSai(sai));
     });
 

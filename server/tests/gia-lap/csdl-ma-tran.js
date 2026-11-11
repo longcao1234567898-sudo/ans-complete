@@ -8,7 +8,7 @@
  * Vì sao cố ý nghèo dữ liệu: ma trận đo LỚP QUYỀN, không đo nghiệp vụ. Một CSDL giả "trả
  * nguyên hàng bất kể câu SELECT" từng làm script kiểm chứng báo sai (bài học P23); còn
  * một CSDL giả trả "đang hoạt động" cho MỌI id thì từng che lỗ hổng BUG-001 (bài học P14).
- * Ở đây chỉ bốn id cố định là cán bộ; id khác — kể cả id lấy từ vé công dân — không có.
+ * Ở đây chỉ vài id cố định (CAN_BO_GIA) là cán bộ; id khác — kể cả id lấy từ vé công dân — không có.
  */
 
 /* id 1 trùng `sub` của vé chat công dân trong test (vé chat mang id ĐƠN): ca xấu nhất của
@@ -18,6 +18,11 @@ export const CAN_BO_GIA = Object.freeze({
   2: { role: 'manager', is_active: 1 },
   3: { role: 'handler', is_active: 1 },
   4: { role: 'admin', is_active: 0 }, // tài khoản đã bị khoá, vé vẫn còn hạn
+  /* Bị khoá ở MỌI vai, không chỉ admin (ND-105, RETEST P117 đột biến M04): lớp kiểm khoá viết
+     sai thành "chỉ kiểm khi vai admin" thì chỉ id 4 không bắt được — trước đây chỉ lượt CSDL
+     hỏng tình cờ bắt. */
+  5: { role: 'manager', is_active: 0 },
+  6: { role: 'handler', is_active: 0 },
 });
 
 const HOI_TRANG_THAI = /^\s*SELECT\s+is_active\s+FROM\s+staff\s+WHERE\s+id\s*=\s*\?\s*$/i;
