@@ -256,22 +256,29 @@ function chuanHoa(anh) {
   return di(anh);
 }
 
-/** Mọi thứ cán bộ đọc được về hai tố giác (N-4) */
+/** Mọi thứ cán bộ đọc được về hai tố giác (N-4)
+ *
+ *  Gọi LẦN LƯỢT, không bắn song song (ND-101): mở chi tiết hồ sơ ghi một dòng
+ *  nhật ký "Mở chi tiết hồ sơ", và chính dòng đó hiện trong lịch sử của hồ sơ kia
+ *  và trong /logs. Bắn cùng lúc thì dòng ấy có hay không tuỳ máy chạy câu nào
+ *  trước — hai kịch bản lệch nhau mà không do cùng/khác máy, test đỏ chập chờn
+ *  và che mất lần đỏ thật. Gọi lần lượt thì hai kịch bản đi đúng một trình tự,
+ *  phép so vẫn bắt được mọi khác biệt do máy gây ra. */
 async function chupManHinh(ghiChu, ids) {
-  const man = {
-    hangCho:     canBo('GET', '/submissions?status=pending_review&sort=moi_nhat'),
-    danhSach:    canBo('GET', '/submissions?sort=moi_nhat'),
-    nghiRac:     canBo('GET', '/submissions?nghiRac=1&sort=moi_nhat'),
-    thungRac:    canBo('GET', '/trash'),
-    danhSachKhoa: canBo('GET', '/chat/blacklist'),
-    khieuNai:    canBo('GET', '/chat/khieu-nai?tatCa=1'),
-    nhomSuKien:  canBo('GET', '/incident-groups'),
-    nhatKy:      lanhDao('GET', '/logs'),
-  };
-  for (const id of ids) man[`chiTiet_${id}`] = lanhDao('GET', `/submissions/${id}`);
+  const man = [
+    ['hangCho',      () => canBo('GET', '/submissions?status=pending_review&sort=moi_nhat')],
+    ['danhSach',     () => canBo('GET', '/submissions?sort=moi_nhat')],
+    ['nghiRac',      () => canBo('GET', '/submissions?nghiRac=1&sort=moi_nhat')],
+    ['thungRac',     () => canBo('GET', '/trash')],
+    ['danhSachKhoa', () => canBo('GET', '/chat/blacklist')],
+    ['khieuNai',     () => canBo('GET', '/chat/khieu-nai?tatCa=1')],
+    ['nhomSuKien',   () => canBo('GET', '/incident-groups')],
+    ['nhatKy',       () => lanhDao('GET', '/logs')],
+  ];
+  for (const id of ids) man.push([`chiTiet_${id}`, () => lanhDao('GET', `/submissions/${id}`)]);
   const ket = { ghiChu };
-  for (const [ten, p] of Object.entries(man)) {
-    const r = await p;
+  for (const [ten, goiMan] of man) {
+    const r = await goiMan();
     assert.equal(r.status, 200, `${ghiChu} — ${ten}: ${r.status} ${r.text.slice(0, 200)}`);
     ket[ten] = r.body;
   }
