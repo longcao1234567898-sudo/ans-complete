@@ -13,7 +13,6 @@ Vào đây trước. Mỗi tệp trong `docs/` có đúng một việc; bảng d
 | **Người lập trình, sắp làm việc với Claude** | [SO-TAY-NGUOI-LAP-TRINH.md](SO-TAY-NGUOI-LAP-TRINH.md) → [TIEN-DO.md](TIEN-DO.md) |
 | **Người muốn biết dự án đang ở đâu** | [TIEN-DO.md](TIEN-DO.md) → [NO-KY-THUAT.md](NO-KY-THUAT.md) |
 | **Người trình bày, tập huấn, bàn giao** (bộ tài liệu Word) | [tai-lieu-word/README.md](tai-lieu-word/README.md) → `0_MUC_LUC.docx` |
-| **Người không biết công nghệ, muốn tự học về trang web** | [bai-giang/lop-hoc-diem-cham-an-ninh.html](bai-giang/lop-hoc-diem-cham-an-ninh.html) (tải về rồi mở bằng trình duyệt: 12 bài, câu hỏi chấm tự động) |
 | **Người làm đợt kiểm thử bảo mật** | [kiem-thu-bao-mat/README.md](kiem-thu-bao-mat/README.md) |
 | **Claude, mở một phiên làm việc** | [../CLAUDE.md](../CLAUDE.md) → [QUY-TRINH-LAM-VIEC.md](QUY-TRINH-LAM-VIEC.md) |
 
@@ -40,7 +39,6 @@ docs/
 │                                 + hai máy chủ trên Viettel, CSDL VNPT, sao lưu
 ├── adr/                         Quyết định kiến trúc, mỗi quyết định một tệp
 ├── tai-lieu-word/               Bộ tài liệu Word để trình bày, tập huấn, bàn giao
-├── bai-giang/                   Lớp học một trang HTML cho người không biết công nghệ
 │
 ├── TIEN-DO.md                   Nhật ký phiên — đang làm tới đâu   ← cập nhật liên tục
 ├── NO-KY-THUAT.md               Nợ đã biết nhưng cố ý chưa sửa      ← cập nhật liên tục
