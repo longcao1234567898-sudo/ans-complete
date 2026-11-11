@@ -31,7 +31,7 @@ import adminRouter from './routes/admin/index.js';
 /* Máy chủ cán bộ vẫn cần route đăng nhập để cán bộ lấy phiên. */
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
-import { canhBaoTurnstile } from './lib/turnstile.js';
+import { kiemKhoaTurnstileKhiKhoiDong } from './lib/turnstile.js';
 
 /* CORS: chỉ cho origin của TRANG CÁN BỘ, khai riêng qua biến ADMIN_CORS_ORIGIN
    — tách khỏi origin trang công khai. Trang cán bộ khi vào nội bộ sẽ có địa chỉ
@@ -53,6 +53,10 @@ app.use('/api/admin', adminRouter);
 ganDuoi(app, errorHandler);
 
 async function start() {
+  /* BUG-002: máy chạy thật thiếu TURNSTILE_SECRET_KEY -> NÉM LỖI, không khởi động.
+     Kiểm ĐẦU TIÊN — trước việc nền, trước khi nghe cổng. development: chỉ cảnh báo. */
+  const cbTurnstile = kiemKhoaTurnstileKhiKhoiDong();
+  if (cbTurnstile) console.error(cbTurnstile);
   /* Dấu nối (mã máy, IP đã băm) tự xoá sau 30 ngày — không chờ ai mở trang
      nào. Bật TRƯỚC khi kiểm kết nối: CSDL chưa lên thì lượt đầu ghi lỗi, các
      chu kỳ sau tự thử lại. Xem lib/vong-doi-dau-noi.js. */
@@ -71,8 +75,11 @@ async function start() {
     : '🔓 Giới hạn IP: TẮT (chưa khai ADMIN_ALLOWED_IPS — dùng cho demo)');
   app.listen(PORT, diaChiNghe(), () => {
     console.log(`🏢 Máy chủ CÁN BỘ chạy ở cổng ${PORT}`);
-    const cb = canhBaoTurnstile();
-    if (cb) console.error(cb);
   });
 }
-start();
+
+/* BUG-002: start() ném lỗi (thiếu khoá bắt buộc...) -> THOÁT mã 1, tường minh — không
+   trông vào cách Node xử lý unhandledRejection mặc định (cờ --unhandled-rejections=warn
+   sẽ để tiến trình sống mà không phục vụ, không ai biết vì sao). */
+const dungKhiLoiKhoiDong = (e) => { console.error(e?.stack || e); process.exit(1); };
+start().catch(dungKhiLoiKhoiDong);

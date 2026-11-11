@@ -73,7 +73,7 @@ services:
       - key: GEMINI_CHAT_MODEL
         value: gemini-3.5-flash
       - key: TURNSTILE_SECRET_KEY
-        sync: false
+        sync: false            # BẮT BUỘC (BUG-002) — thiếu thì máy chủ KHÔNG khởi động
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: BREVO_API_KEY
@@ -117,6 +117,12 @@ services:
       - key: ENCRYPTION_KEY
         sync: false
       - key: HASH_PEPPER
+        sync: false
+
+      # ---------- Chống máy dò mật khẩu cán bộ: GIỐNG HỆT máy chủ công khai ----------
+      # BẮT BUỘC (BUG-002): đăng nhập cán bộ cố ý không khoá tài khoản khi sai mật
+      # khẩu, lớp thay thế là xác minh Turnstile. Thiếu thì máy chủ KHÔNG khởi động.
+      - key: TURNSTILE_SECRET_KEY
         sync: false
 
       # ---------- Địa chỉ trang cán bộ ----------

@@ -11,8 +11,9 @@
  *   · Vé không gắn với địa chỉ mạng: bà con dùng 4G đổi IP liên tục, gắn vào
  *     là đang điền đơn thì vé hỏng. Một bot lấy được vé dùng lại trong HAN_VE
  *     vẫn vướng giới hạn theo mạng, số điện thoại, nội dung ở route gửi tin.
- *   · Chưa khai TURNSTILE_SECRET_KEY: không bắt vé — giữ đúng hành vi cũ của
- *     lib/turnstile.js (không có khoá thì bỏ qua xác minh).
+ *   · Chưa khai TURNSTILE_SECRET_KEY: không bắt vé. Từ BUG-002 trạng thái này
+ *     chỉ còn ở máy NODE_ENV=development — máy chạy thật thiếu khoá không khởi
+ *     động (lib/turnstile.js, kiemKhoaTurnstileKhiKhoiDong).
  *   · Khoảng chuyển đổi: trình duyệt còn giữ giao diện cũ gửi captchaToken của
  *     từng form — vẫn nhận nếu Cloudflare xác nhận token đó.
  */

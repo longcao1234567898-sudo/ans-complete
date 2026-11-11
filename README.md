@@ -50,6 +50,7 @@ Không cần backend để chạy — mặc định hoạt động offline với
 cd server
 npm install
 cp .env.example .env    # rồi điền JWT_SECRET/ENCRYPTION_KEY/HASH_PEPPER (bắt buộc), xem server/README.md
+                         # máy cá nhân không có khoá Turnstile: sửa thêm NODE_ENV=development
 npm run dev              # http://localhost:4000
 ```
 Yêu cầu MySQL đang chạy + đã import database (xem mục dưới). Sau khi có backend, đặt `VITE_API_URL=http://localhost:4000` ở `.env` của frontend để 2 phần nói chuyện được với nhau.
@@ -118,7 +119,7 @@ cd server && node scripts-create-admin.js "<mật khẩu ≥ 12 ký tự: chữ 
 - Tra cứu tiến độ bằng mã 6 ký tự.
 - Tin tức đơn vị.
 - Điểm đen giao thông và đường hay ngập (cán bộ báo "đang ngập", tự hết sau 12 giờ), kèm **dự báo mưa tự động** 4 mức từ Open-Meteo — máy chủ lấy giùm, không cần khoá; tuỳ chỉnh bằng `DU_BAO_MUA_TOA_DO` ([ADR-004](docs/adr/004-canh-bao-mua-tu-dong-open-meteo.md)). Ngưỡng mưa riêng từng tuyến học từ các lần cán bộ báo ngập.
-- CAPTCHA Cloudflare Turnstile chống bot (tuỳ chọn, bật khi có `TURNSTILE_SECRET_KEY`).
+- CAPTCHA Cloudflare Turnstile chống bot (bắt buộc khi chạy thật — thiếu `TURNSTILE_SECRET_KEY` thì máy chủ không khởi động; `NODE_ENV=development` mới được bỏ qua).
 - Ảnh bằng chứng: kiểm duyệt AI + tái mã hoá qua canvas, tải lên Cloudinary nếu đã cấu hình (`VITE_CLOUDINARY_CLOUD_NAME`/`VITE_CLOUDINARY_PRESET`), fallback lưu base64 nếu chưa.
 - PWA: `manifest.json` + `sw.js`.
 

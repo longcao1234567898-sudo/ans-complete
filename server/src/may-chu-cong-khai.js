@@ -23,7 +23,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { taoApp, ganDuoi, diaChiNghe } from './nen-tang.js';
 
 import congVaoRouter from './routes/cong-vao.js';
-import { canhBaoTurnstile } from './lib/turnstile.js';
+import { kiemKhoaTurnstileKhiKhoiDong } from './lib/turnstile.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
@@ -69,6 +69,10 @@ app.use('/api/ai', aiRouter);
 ganDuoi(app, errorHandler);
 
 async function start() {
+  /* BUG-002: máy chạy thật thiếu TURNSTILE_SECRET_KEY -> NÉM LỖI, không khởi động.
+     Kiểm ĐẦU TIÊN — trước việc nền, trước khi nghe cổng. development: chỉ cảnh báo. */
+  const cbTurnstile = kiemKhoaTurnstileKhiKhoiDong();
+  if (cbTurnstile) console.error(cbTurnstile);
   /* Dấu nối (mã máy, IP đã băm) tự xoá sau 30 ngày — không chờ ai mở trang
      nào. Bật TRƯỚC khi kiểm kết nối: CSDL chưa lên thì lượt đầu ghi lỗi, các
      chu kỳ sau tự thử lại. Xem lib/vong-doi-dau-noi.js. */
@@ -86,8 +90,11 @@ async function start() {
     console.log(`🌐 Máy chủ CÔNG KHAI chạy ở cổng ${PORT}`);
     console.log(moTaCheDoEmail());
     console.log(moTaXacMinhSdt());
-    const cb = canhBaoTurnstile();
-    if (cb) console.error(cb);
   });
 }
-start();
+
+/* BUG-002: start() ném lỗi (thiếu khoá bắt buộc...) -> THOÁT mã 1, tường minh — không
+   trông vào cách Node xử lý unhandledRejection mặc định (cờ --unhandled-rejections=warn
+   sẽ để tiến trình sống mà không phục vụ, không ai biết vì sao). */
+const dungKhiLoiKhoiDong = (e) => { console.error(e?.stack || e); process.exit(1); };
+start().catch(dungKhiLoiKhoiDong);

@@ -63,7 +63,7 @@ Sau đó đăng nhập: username `admin`, password vừa đặt.
 
 ## Email OTP, CAPTCHA, upload ảnh
 - **OTP email** (`src/lib/mailer.js`): tự chọn 1 trong 3 cách theo biến môi trường đã đặt — Resend (`RESEND_API_KEY`+`MAIL_FROM`, khuyên dùng vì Render hay chặn cổng SMTP), Gmail SMTP (`MAIL_USER`+`MAIL_PASS`, app password), hoặc chế độ demo (chưa cấu hình gì — trả mã ra log/response để test). `BREVO_API_KEY` cũng được hỗ trợ, ưu tiên cao nhất nếu có.
-- **CAPTCHA** (`src/lib/turnstile.js`): Cloudflare Turnstile, tuỳ chọn — bật khi có `TURNSTILE_SECRET_KEY`, chưa đặt thì bỏ qua kiểm tra.
+- **CAPTCHA** (`src/lib/turnstile.js`): Cloudflare Turnstile, **bắt buộc khi chạy thật** — thiếu `TURNSTILE_SECRET_KEY` thì máy chủ không khởi động (chỉ `NODE_ENV=development` mới bỏ qua, kèm cảnh báo đỏ); Cloudflare không trả lời được thì từ chối (BUG-002).
 - **Ảnh bằng chứng**: frontend tự tải lên Cloudinary trực tiếp từ trình duyệt (unsigned preset, xem `src/services/uploadService.ts` ở frontend) nếu đã cấu hình `VITE_CLOUDINARY_*`; backend chỉ nhận link ảnh hoặc base64 fallback, không tự upload hộ.
 
 Toàn bộ biến môi trường trên (kể cả các biến tuỳ chọn) đã có mẫu đầy đủ trong `server/.env.example`.

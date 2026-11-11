@@ -19,7 +19,7 @@ import { aiAvailable } from './lib/ai.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
-import { canhBaoTurnstile } from './lib/turnstile.js';
+import { kiemKhoaTurnstileKhiKhoiDong } from './lib/turnstile.js';
 import trackingRouter from './routes/tracking.js';
 import chatRouter from './routes/chat.js';
 import newsRouter from './routes/news.js';
@@ -233,6 +233,10 @@ app.use((_req, res) => res.status(404).json({ error: 'Endpoint không tồn tạ
 app.use(errorHandler);
 
 async function start() {
+  /* BUG-002: máy chạy thật thiếu TURNSTILE_SECRET_KEY -> NÉM LỖI, không khởi động.
+     Kiểm ĐẦU TIÊN — trước việc nền, trước khi nghe cổng. development: chỉ cảnh báo. */
+  const cbTurnstile = kiemKhoaTurnstileKhiKhoiDong();
+  if (cbTurnstile) console.error(cbTurnstile);
   /* Dấu nối (mã máy, IP đã băm) tự xoá sau 30 ngày — không chờ ai mở trang
      nào. Bật TRƯỚC khi kiểm kết nối: CSDL chưa lên thì lượt đầu ghi lỗi, các
      chu kỳ sau tự thử lại. Xem lib/vong-doi-dau-noi.js. */
@@ -252,8 +256,6 @@ async function start() {
   console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
   console.log(moTaCheDoEmail());
   console.log(moTaXacMinhSdt());
-  const cbTurnstile = canhBaoTurnstile();
-  if (cbTurnstile) console.error(cbTurnstile);
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
     if (encryptionEnabled()) {
@@ -273,6 +275,10 @@ async function start() {
    trong khi bộ test phải chạy được trên máy không có MySQL. Test nạp file để
    kiểm tra toàn bộ router liên kết được (đúng loại lỗi đã làm chết backend:
    routes/ai.js import một export không tồn tại -> SyntaxError lúc khởi động). */
-if (process.env.NODE_ENV !== 'test') start();
+/* BUG-002: start() ném lỗi (thiếu khoá bắt buộc...) -> THOÁT mã 1, tường minh — không
+   trông vào cách Node xử lý unhandledRejection mặc định (cờ --unhandled-rejections=warn
+   sẽ để tiến trình sống mà không phục vụ, không ai biết vì sao). */
+const dungKhiLoiKhoiDong = (e) => { console.error(e?.stack || e); process.exit(1); };
+if (process.env.NODE_ENV !== 'test') start().catch(dungKhiLoiKhoiDong);
 
 export default app;
