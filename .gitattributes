@@ -1,0 +1,29 @@
+# Kiểu xuống dòng cố định cho cả repo (ND-102).
+#
+# Vì sao: máy Windows với core.autocrlf=true checkout ra CRLF, làm các test đọc
+# tệp (bash, migration SQL, cấu hình Nginx, khối lệnh trong hướng dẫn) đỏ trên
+# máy dev, và tệp .sh/.conf chép từ Windows lên máy chủ Linux có thể hỏng.
+# Ghi luật vào repo để kết quả không phụ thuộc cấu hình git của từng máy.
+#
+# text=auto: git tự nhận tệp văn bản. Tệp có byte NUL được coi là nhị phân và
+# để nguyên — ví dụ server/tests/logic-thuan.test.js cố ý chứa NUL trong chuỗi
+# thử sanitizeText, nên git không chuẩn hoá nó.
+* text=auto eol=lf
+
+# Nhị phân: liệt kê tường minh, không trông vào việc tự nhận.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.mp4  binary
+*.pdf  binary
+*.doc  binary
+*.docx binary
+*.xlsx binary
+*.zip  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.traineddata binary
