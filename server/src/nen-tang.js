@@ -22,7 +22,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { aiAvailable } from './lib/ai.js';
-import { encryptionEnabled } from './lib/crypto.js';
+import { encryptionEnabled, encryptionProblem } from './lib/crypto.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
 import { pool } from './db.js';
 
@@ -32,7 +32,7 @@ const BACKEND_VERSION = 'v9-2026-08';
  * Tạo một app Express đã gắn sẵn toàn bộ middleware bảo mật chung.
  *
  * @param {object} opts
- * @param {string} opts.ten - tên máy chủ để hiện ở /api/health (vd 'cong-khai')
+ * @param {string} opts.ten - tên máy chủ (vd 'cong-khai') — không còn trả ra /api/health (BUG-049), chỉ để đọc mã
  * @param {string[]} opts.corsThem - danh sách origin cho phép THÊM, ngoài
  *        danh sách chung từ biến CORS_ORIGIN. Máy chủ cán bộ dùng để chỉ cho
  *        đúng origin trang cán bộ, tách khỏi origin trang công khai.
@@ -79,7 +79,7 @@ export function danhSachOriginCors(corsThem = [], env = process.env) {
   return [...mayLapTrinh, ...tuBien, ...corsThem];
 }
 
-export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
+export function taoApp({ corsThem = [] } = {}) {
   const app = express();
 
   app.set('trust proxy', 1); // tin proxy (Render/Nginx) để lấy đúng IP thật
@@ -149,24 +149,55 @@ app.use(cookieParser());
   // Giới hạn chung: XEM 1.500 / GỬI 300 mỗi 15 phút mỗi IP, đếm riêng (lib/gioi-han-chung.js, ND-063)
   app.use(...gioiHanChung());
 
-  // Health check — mỗi máy chủ tự khai tên để phân biệt khi tách
-  /* ND-084: mã luôn 200 (tiến trình sống — Render dựa vào đây); kho chết thì ok:false, db:false
-     để công cụ theo dõi và giao diện (kiemTraMayChu -> trang dự phòng 113) biết */
-  const kiemKho = taoKiemKho(pool);
-  app.get('/api/health', async (_req, res) => {
-    const db = await kiemKho();
-    res.json({
-      ok: db,
-      db,
-      version: BACKEND_VERSION,
-      may_chu: ten,
-      ai: aiAvailable(),
-      encryption: encryptionEnabled(),
-      time: new Date().toISOString(),
-    });
-  });
+  app.get('/api/health', xuLyHealth());
 
   return app;
+}
+
+/**
+ * /api/health CÔNG KHAI — một nguồn cho cả ba điểm vào (BUG-049).
+ *
+ * Ai cũng gọi được đường này, nên nó chỉ trả lời hai câu: tiến trình sống (mã 200 — Render
+ * dựa vào đây; trả 5xx thì Render khởi động lại mãi mà không chữa được kho) và kho dữ liệu
+ * sống (ok/db — ND-084: giao diện thấy db:false thì đưa người dân sang trang dự phòng 113).
+ *
+ * Trước đây trả thêm phiên bản, tên máy chủ, AI, và MÃ HOÁ DANH TÍNH BẬT CHƯA — kẻ tấn công
+ * nhìn là biết máy nào cấu hình yếu, bản nào chưa vá. Thân trả lời là allow-list hai khoá
+ * (luật 5): thêm khoá mới vào đây là đưa nó ra Internet.
+ *
+ * Không có nhánh "chi tiết cho IP cơ quan": `trust proxy 1` tin chặng ngay trước, nên ai gọi
+ * thẳng được cổng thì tự khai X-Forwarded-For thành IP cơ quan (P96). Chi tiết in ở nhật ký
+ * khởi động (inTrangThaiKhoiDong) — chỉ người quản trị máy đọc được.
+ */
+export function xuLyHealth(kho = pool) {
+  const kiemKho = taoKiemKho(kho);
+  return async (_req, res) => {
+    const db = await kiemKho();
+    res.json({ ok: db, db });
+  };
+}
+
+/**
+ * In trạng thái máy chủ vào nhật ký lúc khởi động — thay cho phần chi tiết đã bỏ khỏi
+ * /api/health (BUG-049). Người vận hành xem ở Render → dịch vụ → Logs, hoặc
+ * `journalctl -u <dịch vụ>` trên máy tự quản. Mỗi máy tự in của mình: máy công khai là máy
+ * mã hoá danh tính, nên máy cán bộ báo "đã bật" không nói gì về máy công khai.
+ *
+ * @param {string} phienBan - index.js truyền số phiên bản của nó (còn lệch với tệp này — ND-012)
+ */
+export function inTrangThaiKhoiDong(phienBan = BACKEND_VERSION) {
+  console.log(`   Phiên bản backend: ${phienBan}`);
+  console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
+  if (encryptionEnabled()) {
+    console.log('🔒 Mã hoá danh tính: ĐÃ BẬT (AES-256-GCM)');
+  } else {
+    console.error('');
+    console.error('🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴');
+    console.error('   Lý do: ' + encryptionProblem());
+    console.error('   Hệ thống VẪN CHẠY nhưng TỪ CHỐI mọi ý kiến có danh tính.');
+    console.error('   Tố giác ẩn danh không bị ảnh hưởng.');
+    console.error('');
+  }
 }
 
 /** Gắn phần đuôi chung (404 + xử lý lỗi) — gọi SAU khi đã gắn hết route. */

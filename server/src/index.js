@@ -9,13 +9,11 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIpPhanCanBo, danhSachOriginCors } from './nen-tang.js';
-import { taoKiemKho } from './lib/kiem-kho.js';
+import { diaChiNghe, chanTheoIpPhanCanBo, danhSachOriginCors, xuLyHealth, inTrangThaiKhoiDong } from './nen-tang.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
 import { loadBannedWords } from './lib/security.js';
-import { aiAvailable } from './lib/ai.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './routes/auth.js';
 import congVaoRouter from './routes/cong-vao.js';
@@ -32,7 +30,6 @@ import submissionsRouter from './routes/submissions.js';
 import otpRouter from './routes/otp.js';
 import xacMinhSdtRouter, { moTaXacMinhSdt } from './routes/xac-minh-sdt.js';
 import { moTaCheDoEmail } from './lib/mailer.js';
-import { encryptionEnabled, encryptionProblem } from './lib/crypto.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin/index.js';
 
@@ -116,27 +113,12 @@ app.use(cookieParser());
 app.use(...gioiHanChung());
 
 /* PHIÊN BẢN BACKEND — tăng số này mỗi lần có thay đổi quan trọng.
-   Dùng để KIỂM TRA NHANH backend đã deploy bản mới chưa:
-   mở https://<địa-chỉ-backend>/api/health trên trình duyệt.
-   Thấy đúng số phiên bản mong đợi nghĩa là đã deploy. */
+   Dùng để KIỂM TRA NHANH backend đã deploy bản mới chưa: in ở nhật ký khởi động
+   ("Phiên bản backend: ...") — không còn ở /api/health công khai (BUG-049). */
 const BACKEND_VERSION = 'v8-2026-07';
 
-/* ND-084: như nen-tang.js — mã 200, kho chết thì ok:false, db:false */
-const kiemKho = taoKiemKho(pool);
-app.get('/api/health', async (_req, res) => {
-  const db = await kiemKho();
-  res.json({
-    ok: db,
-    db,
-    version: BACKEND_VERSION,
-    ai: aiAvailable(),
-    // false = ĐANG CÓ SỰ CỐ: hệ thống từ chối nhận ý kiến có danh tính
-    encryption: encryptionEnabled(),
-    // Liệt kê các chức năng mới — nhìn là biết bản này có gì
-    features: ['quyen-xoa-du-lieu', 'loc-muc-khan-cap', 'viec-can-gap'],
-    time: new Date().toISOString(),
-  });
-});
+/* /api/health công khai chỉ {ok, db} — dùng chung handler với hai máy tách (nen-tang.js, BUG-049) */
+app.get('/api/health', xuLyHealth());
 
 /* ===== CHẨN ĐOÁN CƠ SỞ DỮ LIỆU =====
    Mở https://<backend>/api/health/schema trên trình duyệt để biết CHÍNH XÁC
@@ -256,17 +238,7 @@ async function start() {
   console.log(moTaCheDoEmail());
   console.log(moTaXacMinhSdt());
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
-    console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
-    if (encryptionEnabled()) {
-      console.log('🔒 Mã hoá danh tính: ĐÃ BẬT (AES-256-GCM)');
-    } else {
-      console.error('');
-      console.error('🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴');
-      console.error('   Lý do: ' + encryptionProblem());
-      console.error('   Hệ thống VẪN CHẠY nhưng TỪ CHỐI mọi ý kiến có danh tính.');
-      console.error('   Tố giác ẩn danh không bị ảnh hưởng.');
-      console.error('');
-    }
+    inTrangThaiKhoiDong(BACKEND_VERSION);
   });
 }
 

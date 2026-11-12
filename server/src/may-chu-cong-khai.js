@@ -20,7 +20,7 @@ import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
 import { loadBannedWords } from './lib/security.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { taoApp, ganDuoi, diaChiNghe } from './nen-tang.js';
+import { taoApp, ganDuoi, diaChiNghe, inTrangThaiKhoiDong } from './nen-tang.js';
 
 import congVaoRouter from './routes/cong-vao.js';
 import { kiemKhoaTurnstileKhiKhoiDong } from './lib/turnstile.js';
@@ -90,6 +90,7 @@ async function start() {
     console.log(`🌐 Máy chủ CÔNG KHAI chạy ở cổng ${PORT}`);
     console.log(moTaCheDoEmail());
     console.log(moTaXacMinhSdt());
+    inTrangThaiKhoiDong();   // BUG-049: chi tiết ở nhật ký, không ở /api/health
   });
 }
 
