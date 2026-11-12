@@ -54,6 +54,31 @@ export function diaChiNghe() {
   throw new Error(`HOST="${h}" không hợp lệ — ghi một địa chỉ IP (vd 127.0.0.1) hoặc để trống`);
 }
 
+/**
+ * DANH SÁCH ORIGIN CORS — một nguồn duy nhất cho cả ba điểm vào (BUG-051).
+ *
+ * CORS ở đây đi kèm `credentials: true`: origin nào nằm trong danh sách thì trang chạy ở
+ * origin đó gọi API bằng cookie phiên của trình duyệt và ĐỌC được kết quả. Ba origin
+ * localhost của Vite chỉ có nghĩa trên máy lập trình; để chúng mở ở máy thật thì bất kỳ
+ * tiến trình nào nghe cổng 3000/4173/5173 trên máy cán bộ cũng đọc được dữ liệu cán bộ.
+ *
+ * Nới cho localhost phải KHAI TƯỜNG MINH (luật 1, quyết định F6): đúng chuỗi "development",
+ * so khớp chính xác giá trị trong process.env, không cắt khoảng trắng, không đổi hoa thường.
+ * (Khai trong tệp .env thì dotenv đã tự cắt khoảng trắng và chú thích cuối dòng trước khi
+ * tới đây — vẫn là khai tường minh "development".) Không đặt (Render không tự đặt NODE_ENV),
+ * "", "production", "test", "Development"... đều là máy thật. Bộ test hay máy thật cần
+ * localhost thì khai nó vào CORS_ORIGIN.
+ *
+ * So khớp origin là so CHÍNH XÁC từng chuỗi (allow-list, luật 5) — không so tiền tố, không
+ * biểu thức chính quy: "http://localhost:3000.evil.com" không phải "http://localhost:3000".
+ */
+const ORIGIN_MAY_LAP_TRINH = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
+export function danhSachOriginCors(corsThem = [], env = process.env) {
+  const mayLapTrinh = env.NODE_ENV === 'development' ? ORIGIN_MAY_LAP_TRINH : [];
+  const tuBien = (env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return [...mayLapTrinh, ...tuBien, ...corsThem];
+}
+
 export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
   const app = express();
 
@@ -85,12 +110,10 @@ export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
     next();
   });
 
-  /* CORS: origin dev + origin từ biến môi trường + origin thêm riêng cho điểm
-     vào này. Mọi địa chỉ đọc từ BIẾN, không viết cứng — để lúc bàn giao chỉ
-     đổi biến, không sửa mã. */
-  const devOrigins = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
-  const envOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const allowed = [...devOrigins, ...envOrigins, ...corsThem];
+  /* CORS: origin từ biến môi trường + origin thêm riêng cho điểm vào này (+ localhost
+     chỉ khi NODE_ENV=development — xem danhSachOriginCors). Mọi địa chỉ đọc từ BIẾN,
+     không viết cứng — để lúc bàn giao chỉ đổi biến, không sửa mã. */
+  const allowed = danhSachOriginCors(corsThem);
   app.use(
     cors({
       origin(origin, cb) {

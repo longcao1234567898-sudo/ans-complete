@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIpPhanCanBo } from './nen-tang.js';
+import { diaChiNghe, chanTheoIpPhanCanBo, danhSachOriginCors } from './nen-tang.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
@@ -76,10 +76,9 @@ app.use((_req, res, next) => {
   next();
 });
 
-// CORS: cho phép origin dev + origin production, kèm credentials cho cookie refresh token
-const devOrigins = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
-const envOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
-const allowed = [...devOrigins, ...envOrigins];
+/* CORS kèm credentials cho cookie refresh token. Danh sách origin lấy từ nen-tang.js
+   (một nguồn cho cả ba điểm vào — BUG-051: localhost chỉ mở khi NODE_ENV=development). */
+const allowed = danhSachOriginCors();
 app.use(
   cors({
     origin(origin, cb) {
