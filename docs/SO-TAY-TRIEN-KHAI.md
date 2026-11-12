@@ -226,11 +226,20 @@ Làm theo **tài liệu kỹ thuật, mục B9**. Trong khối cấu hình, thay
 - `nginx -t` phải ra **syntax is ok** và **test is successful**.
 - Lệnh `certbot`: nhập email cơ quan, gõ `Y`, được hỏi chuyển sang HTTPS thì chọn **chuyển**.
 
-**Đúng khi:** trên máy Windows mở trình duyệt vào `https://api.ten-mien.vn/api/health` → **có ổ
-khoá**, ra chữ có `"encryption":true`.
+**Đúng khi:**
+- Trên máy Windows mở trình duyệt vào `https://api.ten-mien.vn/api/health` → **có ổ khoá**, ra
+  đúng chữ `{"ok":true,"db":true}`.
+- Trên máy chủ gõ lệnh dưới → thấy dòng **`🔒 Mã hoá danh tính: ĐÃ BẬT`**:
+  ```bash
+  journalctl -u hop-thu-cong-khai | grep -E "Mã hoá|MÃ HOÁ|Lý do" | tail -3
+  ```
+  (Trang `/api/health` ai cũng mở được nên không còn ghi mã hoá bật hay chưa — chỉ người vào
+  được máy chủ mới xem được, ở nhật ký.)
 
-❌ `"encryption":false` → `ENCRYPTION_KEY` trong tệp `.env` sai/thiếu. Sửa, rồi
-`systemctl restart hop-thu-cong-khai hop-thu-can-bo`.
+❌ Thấy **`🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG`** → `ENCRYPTION_KEY` trong tệp `.env` sai/thiếu
+(dòng `Lý do:` ngay dưới nói rõ). Sửa, rồi `systemctl restart hop-thu-cong-khai hop-thu-can-bo`.
+
+❌ `"db":false` → máy chủ chạy nhưng không nối được CSDL — xem `journalctl -u hop-thu-cong-khai -n 50`.
 
 ---
 

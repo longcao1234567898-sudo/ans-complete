@@ -482,8 +482,24 @@ certbot renew --dry-run   # kiểm việc tự gia hạn
 > lỗi này, nhưng đặt dưới 5 s là cách phòng chuẩn và không tốn gì.
 
 Kiểm từ máy Windows: mở trình duyệt vào `https://api.ten-mien.vn/api/health`. Có ổ khoá và ra
-một đoạn chữ dạng `{"ok":true,...,"encryption":true,...}` là xong. `"encryption":false` nghĩa là
-máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env`.
+đúng `{"ok":true,"db":true}` là máy chủ và CSDL đều sống (`"db":false` = máy chủ chạy nhưng không
+nối được CSDL).
+
+Trang này công khai nên **không** cho biết mã hoá đã bật chưa (BUG-049). Kiểm mã hoá trên máy chủ:
+
+```bash
+journalctl -u hop-thu-cong-khai | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do" | tail -4
+journalctl -u hop-thu-can-bo    | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do" | tail -4
+```
+
+Phải thấy `🔒 Mã hoá danh tính: ĐÃ BẬT` ở **cả hai**, quan trọng nhất là `hop-thu-cong-khai` (máy
+nhận và mã hoá tố giác). Thấy `🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG` kèm dòng `Lý do:` nghĩa là
+máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env` rồi `systemctl restart` dịch vụ đó.
+Dòng `Phiên bản backend:` cho biết bản đang chạy (để biết đã cập nhật chưa). Các dòng này chỉ in lúc
+máy chủ khởi động — `tail -4` lấy lần khởi động gần nhất, dù máy đã chạy lâu và ghi nhiều nhật ký.
+
+Chạy trên Render: vào dịch vụ → tab **Logs**, gõ `Mã hoá` vào ô tìm — cùng các dòng trên, in
+mỗi lần máy chủ khởi động lại.
 
 ### B9b. (Tuỳ chọn) Bật IPv6 — chỉ khi Viettel cấp địa chỉ IPv6 cho máy
 
