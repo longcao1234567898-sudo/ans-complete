@@ -50,7 +50,8 @@ Không cần backend để chạy — mặc định hoạt động offline với
 cd server
 npm install
 cp .env.example .env    # rồi điền JWT_SECRET/ENCRYPTION_KEY/HASH_PEPPER (bắt buộc), xem server/README.md
-                         # máy cá nhân không có khoá Turnstile: sửa thêm NODE_ENV=development
+                         # máy cá nhân: sửa thêm NODE_ENV=development — frontend dev ở localhost:3000/4173/5173
+                         # mới gọi được API (CORS), và thiếu khoá Turnstile vẫn khởi động được
 npm run dev              # http://localhost:4000
 ```
 Yêu cầu MySQL đang chạy + đã import database (xem mục dưới). Sau khi có backend, đặt `VITE_API_URL=http://localhost:4000` ở `.env` của frontend để 2 phần nói chuyện được với nhau.
