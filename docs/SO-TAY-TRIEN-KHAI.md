@@ -229,15 +229,24 @@ Làm theo **tài liệu kỹ thuật, mục B9**. Trong khối cấu hình, thay
 **Đúng khi:**
 - Trên máy Windows mở trình duyệt vào `https://api.ten-mien.vn/api/health` → **có ổ khoá**, ra
   đúng chữ `{"ok":true,"db":true}`.
-- Trên máy chủ gõ lệnh dưới → thấy dòng **`🔒 Mã hoá danh tính: ĐÃ BẬT`**:
+- Trên máy chủ gõ hai lệnh dưới (chép **y nguyên**, mỗi lệnh một dòng) → **mỗi lệnh** ra dòng
+  **`🔒 Mã hoá danh tính: ĐÃ BẬT`**:
   ```bash
-  journalctl -u hop-thu-cong-khai | grep -E "Mã hoá|MÃ HOÁ|Lý do" | tail -3
+  journalctl -u hop-thu-cong-khai _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-cong-khai) | grep -E "Mã hoá|MÃ HOÁ|Lý do"
+  journalctl -u hop-thu-can-bo _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-can-bo) | grep -E "Mã hoá|MÃ HOÁ|Lý do"
   ```
+  Lệnh chỉ đọc nhật ký của **lần chạy hiện tại** của máy chủ; các lần chạy trước không lẫn vào.
+  Đừng thêm `| tail` vào cuối — làm vậy lại lẫn dòng của lần chạy trước.
   (Trang `/api/health` ai cũng mở được nên không còn ghi mã hoá bật hay chưa — chỉ người vào
   được máy chủ mới xem được, ở nhật ký.)
 
 ❌ Thấy **`🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG`** → `ENCRYPTION_KEY` trong tệp `.env` sai/thiếu
-(dòng `Lý do:` ngay dưới nói rõ). Sửa, rồi `systemctl restart hop-thu-cong-khai hop-thu-can-bo`.
+(dòng `Lý do:` ngay dưới nói rõ). Sửa, rồi `systemctl restart hop-thu-cong-khai hop-thu-can-bo`,
+rồi **gõ lại hai lệnh trên** — phải thấy `ĐÃ BẬT` ở cả hai.
+
+❌ Lệnh **không ra dòng nào** → **chưa** được coi là đã bật. Đợi 30 giây rồi gõ lại (máy chủ có thể
+chưa khởi động xong). Vẫn không ra → máy chủ đang hỏng và tự chạy lại liên tục: gõ
+`journalctl -u hop-thu-cong-khai -n 50` (hoặc `hop-thu-can-bo`), chụp gửi Claude (**che** dòng nào có khoá).
 
 ❌ `"db":false` → máy chủ chạy nhưng không nối được CSDL — xem `journalctl -u hop-thu-cong-khai -n 50`.
 

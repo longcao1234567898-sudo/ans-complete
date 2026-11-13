@@ -488,18 +488,30 @@ nối được CSDL).
 Trang này công khai nên **không** cho biết mã hoá đã bật chưa (BUG-049). Kiểm mã hoá trên máy chủ:
 
 ```bash
-journalctl -u hop-thu-cong-khai | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do" | tail -4
-journalctl -u hop-thu-can-bo    | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do" | tail -4
+journalctl -u hop-thu-cong-khai _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-cong-khai) | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do"
+journalctl -u hop-thu-can-bo _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-can-bo) | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do"
 ```
 
 Phải thấy `🔒 Mã hoá danh tính: ĐÃ BẬT` ở **cả hai**, quan trọng nhất là `hop-thu-cong-khai` (máy
 nhận và mã hoá tố giác). Thấy `🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG` kèm dòng `Lý do:` nghĩa là
-máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env` rồi `systemctl restart` dịch vụ đó.
-Dòng `Phiên bản backend:` cho biết bản đang chạy (để biết đã cập nhật chưa). Các dòng này chỉ in lúc
-máy chủ khởi động — `tail -4` lấy lần khởi động gần nhất, dù máy đã chạy lâu và ghi nhiều nhật ký.
+máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env`, `systemctl restart` dịch vụ đó rồi
+**chạy lại lệnh trên**. Dòng `Phiên bản backend:` cho biết bản đang chạy (để biết đã cập nhật chưa).
 
-Chạy trên Render: vào dịch vụ → tab **Logs**, gõ `Mã hoá` vào ô tìm — cùng các dòng trên, in
-mỗi lần máy chủ khởi động lại.
+Các dòng này chỉ in lúc máy chủ khởi động, và nhật ký giữ lại **mọi** lần khởi động trước. Mỗi lần
+khởi động systemd cấp một mã lần chạy (`InvocationID`) mới; lệnh trên chỉ đọc nhật ký mang mã của
+**lần đang chạy**, nên dòng của các lần trước — kể cả một lần trước còn báo "ĐÃ BẬT" — không lẫn vào.
+Đừng đổi thành `journalctl -u … | grep … | tail -n`: số dòng mỗi lần khởi động không cố định (tốt 2,
+hỏng 3), nên `tail` lấy lẫn dòng của lần chạy trước (BUG-057).
+
+**Không ra dòng nào** thì **không** được coi là đã bật: máy chủ chưa khởi động xong (đợi khoảng
+30 giây rồi chạy lại) hoặc đang sập rồi tự chạy lại liên tục — xem `systemctl status <dịch vụ>` và
+`journalctl -u <dịch vụ> -n 50`.
+
+Chạy trên Render: vào dịch vụ → tab **Logs**. Ở đây cũng có dòng của **mọi** lần khởi động (mỗi
+lần deploy hoặc Render tự khởi động lại), nên chỉ tin **lần mới nhất**: tìm `Phiên bản backend`,
+lấy dòng có giờ **muộn nhất** — giờ đó phải sau lần deploy gần nhất (tab **Events**) — rồi đọc các
+dòng in cùng lúc ngay sau nó: phải có `🔒 Mã hoá danh tính: ĐÃ BẬT`. Đừng tìm `Mã hoá` rồi tin một
+dòng bất kỳ trong kết quả: dòng "ĐÃ BẬT" đó có thể của một lần khởi động cũ.
 
 ### B9b. (Tuỳ chọn) Bật IPv6 — chỉ khi Viettel cấp địa chỉ IPv6 cho máy
 
