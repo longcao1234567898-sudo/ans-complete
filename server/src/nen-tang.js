@@ -54,6 +54,41 @@ export function diaChiNghe() {
   throw new Error(`HOST="${h}" không hợp lệ — ghi một địa chỉ IP (vd 127.0.0.1) hoặc để trống`);
 }
 
+/** Loopback: app chỉ nghe ở chính máy mình, không ai nối thẳng từ ngoài vào được. */
+function laDiaChiNoiBo(h) {
+  const s = String(h ?? '').trim().toLowerCase();
+  return s === 'localhost' || s === '::1' || s === '::ffff:127.0.0.1'
+    || /^127(\.\d{1,3}){3}$/.test(s);
+}
+
+/**
+ * CẢNH BÁO KHỞI ĐỘNG: bật chặn IP cán bộ mà app KHÔNG nghe localhost (BUG-047).
+ *
+ * Chặn IP cán bộ (chanTheoIp) tin vào req.ip qua `trust proxy 1` — chỉ ĐÚNG khi
+ * app nằm sau Nginx và KHÔNG nối thẳng từ ngoài được. RA-SOAT P113 chứng minh:
+ * nối THẲNG vào cổng app kèm X-Forwarded-For giả thì lách được chặn IP (qua Nginx
+ * thì spoof thất bại). Khi HOST để trống (nghe mọi giao diện) hoặc là một IP công
+ * khai, an toàn chỉ còn dựa vào tường lửa chặn cổng app — lớp ngoài tầm mã nguồn.
+ *
+ * KHÔNG từ chối khởi động (khác JWT_SECRET): có topology hợp lệ dùng HOST là IP
+ * nội bộ sau tường lửa (vd Nginx ở máy khác). Chặn cứng sẽ gãy các topology đó.
+ * Nhưng phải BÁO TO để người vận hành kiểm tường lửa hoặc đặt HOST=127.0.0.1.
+ *
+ * Trả chuỗi cảnh báo, hoặc null khi không có gì đáng lo (chưa bật chặn IP, hoặc
+ * app nghe localhost).
+ */
+export function canhBaoChanIpKhongAnToan() {
+  const dsIp = (process.env.ADMIN_ALLOWED_IPS || '').trim();
+  if (!dsIp) return null;                        // chưa bật chặn IP -> không có gì để lách
+  if (laDiaChiNoiBo(process.env.HOST)) return null;  // nghe localhost -> không nối thẳng được
+  const host = String(process.env.HOST ?? '').trim();
+  return '🔴 CHẶN IP CÁN BỘ CÓ THỂ BỊ LÁCH: đã khai ADMIN_ALLOWED_IPS nhưng HOST '
+    + (host ? `="${host}"` : 'để trống (app nghe MỌI giao diện)')
+    + ' — không phải localhost. Kẻ nối THẲNG vào cổng app kèm X-Forwarded-For giả sẽ '
+    + 'lách được chặn IP (BUG-047). Đặt HOST=127.0.0.1 để app chỉ nghe sau Nginx, và '
+    + 'bảo đảm tường lửa chặn cổng app từ bên ngoài.';
+}
+
 export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
   const app = express();
 

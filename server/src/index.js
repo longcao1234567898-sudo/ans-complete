@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIpPhanCanBo } from './nen-tang.js';
+import { diaChiNghe, chanTheoIpPhanCanBo, canhBaoChanIpKhongAnToan } from './nen-tang.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
@@ -254,6 +254,8 @@ async function start() {
   console.log(moTaXacMinhSdt());
   const cbTurnstile = canhBaoTurnstile();
   if (cbTurnstile) console.error(cbTurnstile);
+  const cbIp = canhBaoChanIpKhongAnToan();
+  if (cbIp) console.error(cbIp);
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     console.log(`   AI (Gemini): ${aiAvailable() ? 'ĐÃ BẬT' : 'chưa cấu hình key'}`);
     if (encryptionEnabled()) {
