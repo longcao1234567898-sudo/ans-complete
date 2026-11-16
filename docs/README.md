@@ -36,7 +36,7 @@ docs/
 ├── TONG-QUAN-HE-THONG.md        Hệ thống này là gì, gồm những phần nào
 ├── SO-TAY-TRIEN-KHAI.md        Sổ tay triển khai từng chặng, cho người không biết lập trình
 ├── HUONG-DAN-TRIEN-KHAI.md      Đưa lên mạng từng bước cho người mới: giao diện
-│                                 + hai máy chủ trên Viettel, CSDL VNPT, sao lưu
+│                                 + hai máy chủ trên Viettel, kho vDBS, sao lưu Bizfly
 ├── adr/                         Quyết định kiến trúc, mỗi quyết định một tệp
 ├── tai-lieu-word/               Bộ tài liệu Word để trình bày, tập huấn, bàn giao
 │

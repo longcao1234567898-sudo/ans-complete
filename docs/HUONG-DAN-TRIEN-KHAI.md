@@ -4,18 +4,19 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
 [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md)** — sổ tay chia chặng, chỉ tới đúng mục ở đây để chép lệnh.
 
 - **Phần B** — dựng **máy chủ người dân** và **máy chủ cán bộ** trên **Viettel Cloud** (thay Render); B11 — về sau tách máy chủ cán bộ sang máy riêng
-- **Phần C** — chuyển cơ sở dữ liệu sang **VNPT** (thay Aiven)
+- **Phần C** — chuyển cơ sở dữ liệu sang **kho Viettel vDBS** (thay Aiven), nối nội bộ với máy chủ
 - **Phần D** — thay **Cloudinary** (kho ảnh)
 - **Phần E** — thứ tự làm và danh sách kiểm cho ngày chuyển
 - **Phần F** — đưa **giao diện** lên **chính máy Viettel đó** (thay Netlify/Vercel)
-- **Phần G** — **sao lưu mã hoá** mỗi đêm sang nhà cung cấp khác — bắt buộc khi chạy thật
+- **Phần G** — **sao lưu mã hoá** mỗi đêm sang **Bizfly** (nhà cung cấp khác) — bắt buộc khi chạy thật
 - **Phụ lục** — dự toán chi phí
 
 > **Không dùng Vercel** (quyết định người vận hành, 2026-10-20): giao diện, máy chủ người dân và
 > máy chủ cán bộ cùng chạy trên **một máy Viettel**, đưa bản mới lên bằng kịch bản ở F7. Bản trước
 > có Phần A hướng dẫn Vercel — đã bỏ; những gì còn dùng được đã chuyển vào B2 và Phần F.
 
-> Viết ngày 2026-10-06, bổ sung 2026-10-20. Giao diện các trang Viettel, VNPT, Bizfly thay đổi
+> Viết ngày 2026-10-06, bổ sung 2026-10-20; viết lại theo phương án **toàn bộ ở Viettel + sao lưu
+> Bizfly** ngày 2026-11-16 (không còn dùng VNPT). Giao diện các trang Viettel, Bizfly thay đổi
 > theo thời gian: nếu tên nút khác đi, tìm nút có ý nghĩa tương tự. **Giá ở Phụ lục là giá tra
 > ngày 2026-10-20 — chỉ để lập dự toán ban đầu; trước khi mua phải xin báo giá chính thức.**
 
@@ -31,7 +32,7 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
  │ 1. GIAO DIỆN     │ ───────────► │ 2. MÁY CHỦ (2 tiến trình) │ ───────► │ 3. CƠ SỞ     │
  │ tệp tĩnh (dist/) │              │  · công khai (người dân)  │          │    DỮ LIỆU   │
  │ máy Viettel      │              │  · cán bộ                 │          │ MySQL        │
- └──────────────────┘              │ máy Viettel (cùng máy)    │          │ Aiven → VNPT │
+ └──────────────────┘              │ máy Viettel (cùng máy)    │          │ Aiven → vDBS │
         │                          └───────────────────────────┘          └──────────────┘
         │ tải ảnh lên (nếu có cấu hình)          │ đọc ảnh để OCR, xoá ảnh
         ▼                                        ▼
@@ -44,7 +45,7 @@ Tài liệu này hướng dẫn từng bước, không giả định người đ
 |---|---|---|---|
 | 1. Giao diện (trang người dân + trang cán bộ) | Chỉ tệp HTML/JS/CSS tĩnh. **Không giữ dữ liệu**, nhưng là nơi người dân **gõ** danh tính | Netlify/Vercel | **Máy Viettel** (Phần F) — Nginx phục vụ thẳng |
 | 2. Máy chủ (người dân + cán bộ, hai tiến trình) | Mã xử lý, các khoá bí mật (`JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER`…) | Render | **Cùng máy Viettel** (Phần B) |
-| 3. Cơ sở dữ liệu | **Toàn bộ dữ liệu**: ý kiến, danh tính (đã mã hoá), nhật ký | Aiven | VNPT (Phần C) |
+| 3. Cơ sở dữ liệu | **Toàn bộ dữ liệu**: ý kiến, danh tính (đã mã hoá), nhật ký | Aiven | **Viettel vDBS** (Phần C) — nối nội bộ với máy chủ |
 | 4. Kho ảnh | Ảnh bằng chứng, ảnh tin tức | Cloudinary | Xem Phần D |
 
 **Hai điều quan trọng nhất trong cả tài liệu:**
@@ -76,8 +77,8 @@ Render tự lo hết: HTTPS, tự khởi động lại, tường lửa. Trên m�
 - [ ] Có **Security Group** (tường lửa ở cổng mạng) chỉnh được trong trang quản trị.
 - [ ] Có **Snapshot** (chụp nguyên ổ đĩa) để quay lại khi cài hỏng.
 - [ ] Đăng ký cho **cá nhân hay cơ quan**, cần giấy tờ gì.
-- [ ] **Máy này nối được tới CSDL VNPT không** (xem C1). Hai nhà mạng khác nhau thì kết nối đi
-      qua Internet công cộng.
+- [ ] Thuê **cùng khu vực, cùng mạng (VPC)** với kho dữ liệu **vDBS Private Access** (C1) — kho
+      chỉ nối được từ máy trong mạng riêng đó, không qua Internet.
 
 ### B2. Tên miền
 
@@ -306,8 +307,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON hop_thu_an_ninh_so.* TO 'hop_th
 > đủ luồng người dân và cán bộ ở P99), **không** đổi được cấu trúc, trigger hay quyền. Vì vậy các
 > tệp nâng cấp CSDL (C4) và việc chép dữ liệu (C3) vẫn chạy bằng **root**.
 
-Dán **chứng chỉ CA của CSDL** (VNPT cấp — xem C1; tạm thời dùng `ca.pem` của Aiven) vào
-`/etc/hop-thu/ca-db.pem`, rồi khoá quyền:
+Kho vDBS có mã hoá (C2, Kiểm 1 ra **Có**): dán **tệp chứng chỉ CA Viettel cấp** vào
+`/etc/hop-thu/ca-db.pem`. Kho **không** mã hoá: **xoá hẳn dòng `DB_SSL_CA`** ở cả hai tệp `.env`
+(đường nối nằm trong mạng con riêng) và bỏ qua lệnh `nano` dưới. Rồi khoá quyền:
 
 ```bash
 nano /etc/hop-thu/ca-db.pem
@@ -488,7 +490,7 @@ máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env`
 ### B9b. (Tuỳ chọn) Bật IPv6 — chỉ khi Viettel cấp địa chỉ IPv6 cho máy
 
 **Vì sao nên bật:** trên mạng 4G, hàng trăm thuê bao dùng chung một địa chỉ IPv4. Giới hạn chống
-spam đếm theo mạng nên người dùng chung IP có thể bị chặn oan. Viettel, VNPT, MobiFone đã cấp IPv6
+spam đếm theo mạng nên người dùng chung IP có thể bị chặn oan. các nhà mạng lớn trong nước đã cấp IPv6
 cho đa số điện thoại 4G — có IPv6 thì mỗi thuê bao một dải riêng, bớt hẳn chặn oan.
 
 **Máy chủ đã sẵn sàng (P87):** mọi giới hạn theo mạng đếm theo **dải /64** của một thuê bao, không
@@ -635,7 +637,8 @@ ai bị ảnh hưởng:
    GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON hop_thu_an_ninh_so.* TO 'hop_thu_ung_dung'@'IP-MAY-B';
    ```
 
-   Rồi vào trang quản trị kho (VNPT/vDBS) thêm IP máy B vào danh sách được kết nối. Kiểm:
+   Rồi trên trang quản trị vDBS: **Actions → Connect To Other Subnet** thêm mạng con của máy B (nếu
+   máy B ở mạng con khác máy A). Kiểm:
    ```bash
    # trên máy B — đúng thì ra một dòng "1"
    mysql --ssl-ca=/etc/hop-thu/ca-db.pem --ssl-mode=VERIFY_IDENTITY \
@@ -667,70 +670,148 @@ cũ trên máy A còn hạn thì chạy ngay; hết hạn thì `certbot --nginx 
 
 ---
 
-## Phần C — Chuyển cơ sở dữ liệu sang VNPT (thay Aiven)
+## Phần C — Kho dữ liệu Viettel vDBS (thay Aiven)
 
-> **Đổi phương án (2026-10-20): kho dữ liệu đặt ở Viettel (vDBS, T2.VDBS 1 Standalone, MySQL 8.0,
-> Private Access) thay VNPT** — cùng nhà với máy chủ, nối bằng mạng nội bộ. Các lệnh C3, C4 dùng
-> nguyên, thay địa chỉ VNPT bằng địa chỉ riêng của kho vDBS; trình tự cho người làm lần đầu:
-> [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) chặng 1, 6, 9, 13. Phần C sẽ viết lại theo vDBS khi
-> có kết quả ba phép kiểm (Phụ lục "VIỆC CHỜ").
+Kho dữ liệu thuê ở **Viettel Database Service (vDBS)**, gói **T2.VDBS 1 Standalone, MySQL 8.0**,
+kiểu truy cập **Private Access**, **cùng khu vực và cùng mạng (VPC)** với máy CS1 ở Phần B. Kho
+nằm trong mạng con riêng của Viettel, **không có địa chỉ ra Internet**: chỉ máy CS1 nối vào được,
+qua đường nội bộ. Viettel lo sao lưu tự động, vá lỗi; Phần G gửi thêm một bản mã hoá sang Bizfly.
 
-VNPT có dịch vụ **VNPT MySQL**, dạng CSDL được quản lý sẵn (DBaaS): VNPT lo sao lưu, vá lỗi, dự
-phòng.
+Chữ thay dùng trong cả Phần C (và Phần G):
 
-### C1. Hỏi VNPT trước khi mua — câu nào "không" cũng phải biết trước
+| Chữ trong lệnh | Thay bằng | Lấy ở đâu |
+|---|---|---|
+| `DIA-CHI-KHO` | Tên máy riêng (private host) của kho | Trang quản trị vDBS. Kho có mã hoá thì dùng đúng **tên ghi trên chứng chỉ** (C2, Kiểm 1b) |
+| `CONG-KHO` | Cổng kho | Trang quản trị vDBS, thường `3306` |
+| `IP-MAY-CHU` | Địa chỉ **riêng** của máy CS1 trong mạng VPC | Trang quản trị máy CS1, hoặc gõ `hostname -I` trên máy (cụm số đầu, thường dạng `10.…` hay `192.168.…`) |
+| `HOST-AIVEN`, `PORT-AIVEN` | Địa chỉ, cổng kho Aiven cũ | Aiven Console → dịch vụ MySQL → Overview |
 
-- [ ] Phiên bản **MySQL 8.0** (Aiven đang chạy 8.0; khác phiên bản lớn dễ lỗi khi chép dữ liệu).
-- [ ] **Máy chủ ở Viettel kết nối vào được không?** CSDL nhiều nơi chỉ cho kết nối từ bên trong
-      mạng riêng của chính nhà cung cấp. Nếu VNPT chỉ cho vậy thì **không ghép được Viettel với
-      VNPT**. Khi đó chọn: máy chủ cũng thuê ở VNPT, hoặc CSDL cũng thuê ở Viettel.
-- [ ] Có **mã hoá kết nối (TLS/SSL)** và **cấp tệp chứng chỉ CA** không. **Bắt buộc phải có**:
-      kết nối đi qua Internet, không mã hoá thì danh tính vừa giải mã trên đường truyền bị đọc
-      trộm được.
-- [ ] Có **danh sách IP được phép kết nối** không. Chỉ cho đúng **IP máy Viettel** vào.
-- [ ] **Sao lưu tự động**: bao lâu một lần, giữ bao nhiêu ngày, có **khôi phục về một thời điểm**
-      (point-in-time recovery) không.
-- [ ] Đặt ở trung tâm dữ liệu nào; hợp đồng cho cá nhân hay cơ quan.
-- [ ] Cho đặt tham số **`log_bin_trust_function_creators = 1`** không. Bản sao dữ liệu có trigger
-      (nhật ký chỉ ghi thêm) và thủ tục; thiếu tham số này thì tài khoản thường không nhập được
-      (đã thử: `ERROR 1419`).
-- [ ] Cấu hình: bản nhỏ nhất (1–2 vCPU, 2 GB RAM, 20 GB) là đủ cho một phường lúc đầu.
-- [ ] Tạo được **tài khoản chỉ đọc** và cấp được quyền **`SHOW_ROUTINE`** cho nó không — cần cho
-      sao lưu sang nơi khác (Phần G, G2 bước 2).
-- [ ] **Báo giá** bản Single và bản HA (VNPT chưa công bố giá DBaaS — xem Phụ lục).
-
-> ⚠️ **Trước khi nối máy chủ với CSDL qua Internet (Viettel ↔ VNPT), phải vá xong BUG-033** và
-> BUG-033 phải qua RETEST độc lập (chi tiết trong sổ lỗi nội bộ `buglogs/`).
-
-### C2. Tạo CSDL trên VNPT
-
-Làm trong trang quản trị VNPT (tên nút tuỳ VNPT):
-
-1. Tạo phiên bản MySQL 8.0 → đặt mật khẩu quản trị → ghi lại **host**, **port**, **user**.
-2. Thêm **IP máy Viettel** vào danh sách được phép.
-3. Tải **tệp CA** về → dán vào `/etc/hop-thu/ca-db.pem` trên máy Viettel (thay tệp của Aiven
-   **vào đúng lúc chuyển**, xem C3 bước 7).
-4. Thử kết nối **từ máy Viettel**:
+**Một dòng gõ trước mọi lệnh của Phần C** — cho biết kho có mã hoá đường nối hay không (kết quả
+Kiểm 1 ở C2). Mỗi lần mở cửa sổ mới vào máy CS1 thì gõ lại dòng này:
 
 ```bash
-mysql --host=HOST-VNPT --port=PORT-VNPT --user=USER-VNPT -p \
-      --ssl-ca=/root/ca-vnpt.pem --ssl-mode=VERIFY_IDENTITY \
-      -e "SELECT VERSION();"
+# C2 Kiểm 1 ra CÓ mã hoá:
+KHO_TLS="--ssl-ca=/etc/hop-thu/ca-db.pem --ssl-mode=VERIFY_IDENTITY"
+# C2 Kiểm 1 ra KHÔNG mã hoá (gõ dòng này thay cho dòng trên):
+KHO_TLS=""
 ```
 
-Ra số phiên bản `8.0.x` là thông.
+### C1. Hỏi Viettel trước khi mua — câu nào "không" cũng phải biết trước
 
-### C3. Chép dữ liệu từ Aiven sang VNPT
+Đã biết từ tài liệu Viettel (tra 2026-10-20): kho vDBS nằm trong **mạng con riêng**, nối với máy
+chủ bằng **Actions → Connect To Other Subnet** (tự đặt luật tường lửa chỉ cho mạng con của máy
+chủ vào); sao lưu tự động **hằng ngày/tuần**, giữ **≥ 7 bản**, khôi phục thành kho mới; **không
+thấy** khôi phục về từng phút. Khách được giao **tài khoản root** của kho. Còn phải hỏi:
 
-Làm **trên máy Viettel** (Linux), không làm trên Windows: PowerShell tự đổi bảng mã khi ghi tệp
-và làm hỏng tiếng Việt trong bản sao.
+- [ ] Có **dùng thử** không, bao lâu. Dùng thử trước, chạy đủ các phép kiểm ở C2 rồi mới trả tiền.
+- [ ] **MySQL 8.0** (Aiven đang chạy 8.0; khác phiên bản lớn dễ lỗi khi chép dữ liệu).
+- [ ] Kho **Private Access** và máy CS1 phải **cùng khu vực, cùng VPC** — hỏi rõ khi đăng ký cả hai.
+- [ ] Có **mã hoá đường nối (TLS)** và cấp **tệp chứng chỉ CA** không. Không có vẫn dùng được, vì
+      đường nối không đi qua Internet — nhưng ghi lại, hỏi khi nào có.
+- [ ] Cho chỉnh tham số **`log_bin_trust_function_creators = 1`** không. Bản sao dữ liệu có trigger
+      (nhật ký chỉ ghi thêm) và thủ tục; thiếu tham số này thì không nhập được (đã thử: `ERROR 1419`).
+- [ ] Cấp được quyền **`SHOW_ROUTINE`** cho một tài khoản chỉ đọc không — cần cho sao lưu sang
+      Bizfly (Phần G, G2 bước 2).
+- [ ] Có bật chế độ **bắt buộc khoá chính** (`sql_require_primary_key`) không — có thì xin tắt.
+- [ ] Đăng ký cho **cá nhân hay cơ quan**, cần giấy tờ gì; **báo giá chính thức** (xem Phụ lục).
 
-**Chọn giờ vắng (vd 23 giờ).** Trong lúc chép, không được có ý kiến mới gửi vào Aiven, không thì
-ý kiến đó mất.
+> BUG-033 (máy chủ kiểm cả tên máy trên chứng chỉ của kho) đã vá và đã qua RETEST độc lập (P103).
+> Vì vậy kho có mã hoá thì `DB_HOST` **phải** là tên trên chứng chỉ — ghi địa chỉ IP là máy chủ
+> từ chối nối (cố ý). Xem Kiểm 1b.
+
+### C2. Tạo kho vDBS và các phép kiểm khi dùng thử
+
+**Trên trang quản trị Viettel** (tên nút có thể đổi — tìm nút cùng nghĩa):
+
+1. Tạo kho **T2.VDBS 1 Standalone**, **MySQL 8.0**, **Private Access**, chọn **đúng khu vực và VPC**
+   của máy CS1. Đặt **mật khẩu root của kho**: dài, **chỉ chữ và số**.
+2. **Actions → Connect To Other Subnet** → chọn mạng con (subnet) của máy CS1.
+3. Mục **sao lưu tự động**: bật, **hằng ngày**, giờ **01:00**, giữ **14 bản**.
+4. Ghi `DIA-CHI-KHO`, `CONG-KHO` ra giấy, cất cùng ba khoá. Mật khẩu root kho ghi riêng.
+
+**Trên máy CS1** (B3: vào máy bằng PowerShell; công cụ `mysql` đã cài ở B5). Mỗi lệnh hỏi mật
+khẩu root của kho — gõ vào, không hiện chữ là bình thường. **Không dán mật khẩu cho ai.**
+
+**Kiểm 0 — đường nội bộ đã thông chưa**
 
 ```bash
-# 1. Tắt nhận ý kiến: Render → từng dịch vụ → Settings → Suspend.
-#    Nếu đã chạy máy Viettel nối Aiven thì tắt luôn:
+mysql -h DIA-CHI-KHO -P CONG-KHO -u root -p -e "SELECT VERSION();"
+```
+
+Ra số `8.0.x` là thông. Đứng im rồi báo `Can't connect` → bước 2 chưa xong (hoặc kho và máy khác
+VPC): kiểm lại trên trang quản trị.
+
+**Kiểm 1 — kho có mã hoá đường nối không**
+
+```bash
+mysql -h DIA-CHI-KHO -P CONG-KHO -u root -p --ssl-mode=REQUIRED -e "SHOW STATUS LIKE 'Ssl_cipher';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Một dòng `Ssl_cipher` có chữ phía sau (vd `TLS_AES_256_GCM_SHA384`) | **Có mã hoá.** Xin Viettel **tệp chứng chỉ CA** của kho, dán vào `/etc/hop-thu/ca-db.pem` (B7), rồi làm **Kiểm 1b**. Đầu Phần C dùng dòng `KHO_TLS="--ssl-ca=…"` |
+| Báo lỗi có chữ `SSL` | **Không có mã hoá.** Vẫn dùng được (đường nối nằm trong mạng con riêng). Đầu Phần C dùng dòng `KHO_TLS=""`; ở B7 **xoá hẳn dòng `DB_SSL_CA`** |
+
+**Kiểm 1b — tên máy ghi trên chứng chỉ của kho** (chỉ khi Kiểm 1 ra "Có mã hoá")
+
+```bash
+openssl s_client -starttls mysql -connect DIA-CHI-KHO:CONG-KHO </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Dòng `DNS:` (hoặc `CN =`) có đúng `DIA-CHI-KHO` | **Được.** Ghi `DB_HOST=DIA-CHI-KHO` ở B7 |
+| Tên khác `DIA-CHI-KHO` (vd tên nội bộ Viettel) | Dùng **tên trên chứng chỉ** làm `DIA-CHI-KHO` từ đây về sau, nếu máy CS1 phân giải được tên đó (`getent hosts <tên>` ra địa chỉ); không thì hỏi Viettel tên máy đúng |
+| Chỉ có chữ kiểu `MySQL_Server_..._Auto_Generated` | Chứng chỉ tự sinh, không gắn tên máy — **báo Claude**, chưa chuyển |
+
+**Kiểm 2 — cấp được quyền `SHOW_ROUTINE` cho tài khoản sao lưu không**
+
+```bash
+mysql -h DIA-CHI-KHO -P CONG-KHO -u root -p $KHO_TLS -e "CREATE USER 'thu_quyen'@'%' IDENTIFIED BY 'ThuQuyen12345'; GRANT SHOW_ROUTINE ON *.* TO 'thu_quyen'@'%'; SHOW GRANTS FOR 'thu_quyen'@'%'; DROP USER 'thu_quyen'@'%';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Có dòng `GRANT SHOW_ROUTINE ON *.*` | **Được.** Phần G (G2 bước 2) làm đúng như viết |
+| `Access denied` | **Không được.** Báo Claude: sửa Phần G để dựng lại thủ tục từ mã nguồn thay vì lấy từ bản sao |
+
+(Tài khoản `thu_quyen` chỉ để thử, lệnh tự xoá nó ở cuối.)
+
+**Kiểm 3 — tham số `log_bin_trust_function_creators`**
+
+```bash
+mysql -h DIA-CHI-KHO -P CONG-KHO -u root -p $KHO_TLS -e "SHOW VARIABLES LIKE 'log_bin_trust_function_creators';"
+```
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| Giá trị `ON` | **Đã bật sẵn**, chép dữ liệu cũ sang được |
+| Giá trị `OFF` | Trang quản trị vDBS → mục **tham số / cấu hình (parameter)** của kho → đặt `log_bin_trust_function_creators` = `1`, khởi động lại kho nếu trang yêu cầu, chạy lại lệnh trên phải ra `ON`. Không có mục đó thì nhờ Viettel bật. **Không bật được thì dừng, chưa trả tiền** — báo Claude |
+
+Xong: gửi Claude **ảnh chụp kết quả các phép kiểm** (che mật khẩu nếu có) để đóng việc chờ ND-066.
+
+**Cuối cùng — tạo tài khoản riêng của ứng dụng** `hop_thu_ung_dung` bằng hai lệnh SQL ở B7 mục
+"Tài khoản CSDL cho ứng dụng" (chạy bằng root kho; `IP-MAY-CHU` là địa chỉ **riêng** của CS1).
+Tài khoản này giữ nguyên quyền khi xoá rồi tạo lại CSDL ở C3 — chỉ tạo **một lần**.
+
+### C3. Chép dữ liệu từ Aiven sang vDBS
+
+Làm **trên máy CS1** (Linux), không làm trên Windows: PowerShell tự đổi bảng mã khi ghi tệp và
+làm hỏng tiếng Việt trong bản sao. Gõ dòng `KHO_TLS=…` ở đầu Phần C trước.
+
+Làm **hai lần**:
+
+| Lần | Khi nào | Bước nào |
+|---|---|---|
+| **Tổng duyệt** | Sau khi C2 xong, trang cũ **vẫn chạy** | Bỏ bước 1 và bước 5a |
+| **Đêm chuyển** | Giờ vắng (vd 23 giờ), đã báo trước người dân | Đủ các bước. Bước 5a **bắt buộc** (xoá bản tổng duyệt) |
+
+Trong lúc chép thật, không được có ý kiến mới gửi vào Aiven, không thì ý kiến đó mất.
+
+```bash
+# 1. (CHỈ ĐÊM CHUYỂN) Tắt nhận ý kiến ở trang cũ: Render → từng dịch vụ → Settings → Suspend.
+#    Rồi dừng hai máy chủ trên CS1 (đang chạy với bản tổng duyệt):
 systemctl stop hop-thu-cong-khai hop-thu-can-bo
 
 # 2. Lấy ca.pem của Aiven (Aiven Console → dịch vụ MySQL → Overview → CA certificate)
@@ -743,30 +824,33 @@ mysqldump --host=HOST-AIVEN --port=PORT-AIVEN --user=avnadmin -p \
   --default-character-set=utf8mb4 \
   hop_thu_an_ninh_so > /root/sao-luu-aiven.sql
 
-# 4. Bỏ dòng "người tạo" gắn với tài khoản Aiven (VNPT không có tài khoản đó, nhập sẽ lỗi)
+# 4. Bỏ dòng "người tạo" gắn với tài khoản Aiven (kho vDBS không có tài khoản đó, nhập sẽ lỗi)
 sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' /root/sao-luu-aiven.sql > /root/sao-luu-sach.sql
 
-# 5. Tạo CSDL rỗng trên VNPT rồi nhập
-mysql --host=HOST-VNPT --port=PORT-VNPT --user=USER-VNPT -p \
-  --ssl-ca=/root/ca-vnpt.pem --ssl-mode=VERIFY_IDENTITY \
+# 5a. (CHỈ ĐÊM CHUYỂN) Xoá bản tổng duyệt trên vDBS.
+#     ⚠️ Nhìn kỹ: phải là DIA-CHI-KHO, KHÔNG phải HOST-AIVEN.
+mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS \
+  -e "DROP DATABASE hop_thu_an_ninh_so"
+
+# 5b. Tạo CSDL rỗng trên vDBS rồi nhập
+mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS \
   -e "CREATE DATABASE IF NOT EXISTS hop_thu_an_ninh_so CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
 
-mysql --host=HOST-VNPT --port=PORT-VNPT --user=USER-VNPT -p \
-  --ssl-ca=/root/ca-vnpt.pem --ssl-mode=VERIFY_IDENTITY \
+mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS \
   --default-character-set=utf8mb4 hop_thu_an_ninh_so < /root/sao-luu-sach.sql
 
-# 6. Đối chiếu — chạy câu này ở CẢ HAI bên (Aiven và VNPT), số phải bằng nhau
+# 6. Đối chiếu — chạy câu này ở CẢ HAI bên (Aiven và vDBS), bốn số phải bằng nhau
 SQL="SELECT (SELECT COUNT(*) FROM submissions) y_kien, (SELECT COUNT(*) FROM submission_images) tep,
             (SELECT COUNT(*) FROM staff) can_bo, (SELECT COUNT(*) FROM staff_activity_logs) nhat_ky"
-mysql --host=HOST-AIVEN --port=PORT-AIVEN --user=avnadmin -p --ssl-ca=/root/ca-aiven.pem hop_thu_an_ninh_so -e "$SQL"
-mysql --host=HOST-VNPT  --port=PORT-VNPT  --user=USER-VNPT -p --ssl-ca=/root/ca-vnpt.pem  hop_thu_an_ninh_so -e "$SQL"
+mysql --host=HOST-AIVEN  --port=PORT-AIVEN --user=avnadmin -p --ssl-ca=/root/ca-aiven.pem hop_thu_an_ninh_so -e "$SQL"
+mysql --host=DIA-CHI-KHO --port=CONG-KHO   --user=root     -p $KHO_TLS                     hop_thu_an_ninh_so -e "$SQL"
 
-# 7. Tạo tài khoản ứng dụng hop_thu_ung_dung trên kho mới (B7 — chạy bằng root kho), rồi trỏ máy chủ
-#    sang kho mới: sửa DB_HOST, DB_PORT, DB_USER=hop_thu_ung_dung, DB_PASSWORD ở CẢ HAI tệp .env
-nano /etc/hop-thu/cong-khai.env
-nano /etc/hop-thu/can-bo.env
-cp /root/ca-vnpt.pem /etc/hop-thu/ca-db.pem
-systemctl start hop-thu-cong-khai hop-thu-can-bo
+# 7. Bật (hoặc bật lại) hai máy chủ. Hai tệp .env đã trỏ sẵn vào vDBS từ B7
+#    (DB_HOST=DIA-CHI-KHO, DB_USER=hop_thu_ung_dung) — không phải sửa gì.
+systemctl restart hop-thu-cong-khai hop-thu-can-bo
+
+# 8. Xoá bản sao trên máy (trong đó có dữ liệu thật, gồm cả danh tính đã mã hoá)
+shred -u /root/sao-luu-aiven.sql /root/sao-luu-sach.sql
 ```
 
 **Kiểm sau khi chuyển** — làm đủ cả bốn việc:
@@ -778,12 +862,6 @@ systemctl start hop-thu-cong-khai hop-thu-can-bo
 3. Gửi thử một ý kiến từ trang người dân → thấy nó hiện ở trang cán bộ.
 4. Tra cứu bằng mã của ý kiến vừa gửi → ra đúng trạng thái.
 
-**Xoá bản sao trên máy** (trong đó có dữ liệu thật, gồm cả danh tính đã mã hoá):
-
-```bash
-shred -u /root/sao-luu-aiven.sql /root/sao-luu-sach.sql
-```
-
 **Aiven:** giữ nguyên **1–2 tuần** phòng khi phải quay lại. Sau đó vào Aiven Console → **Delete
 service**. Đây là bản sao đầy đủ dữ liệu người dân: không xoá thì nó nằm đó mãi.
 
@@ -791,22 +869,24 @@ service**. Đây là bản sao đầy đủ dữ liệu người dân: không xo
 
 | Thấy gì | Vì sao | Sửa |
 |---|---|---|
-| Lệnh `mysql` báo `ERROR 2026 ... certificate verify failed` | Dùng IP thay cho tên máy, hoặc sai tệp CA | Dùng đúng **tên máy (host)** VNPT cấp, đúng tệp CA của VNPT |
-| Máy chủ báo `HANDSHAKE_SSL_ERROR` ... `self-signed certificate` / `unable to verify` | Tệp `ca-db.pem` không phải CA của nhà cung cấp kho | Dán lại đúng tệp CA |
-| Máy chủ báo `HANDSHAKE_SSL_ERROR` ... `Hostname/IP does not match` | `DB_HOST` không phải tên ghi trên chứng chỉ (thường là ghi địa chỉ IP) | Ghi đúng tên máy — xem Phụ lục "VIỆC CHỜ", Kiểm 1b |
-| `ERROR 1419 ... You do not have the SUPER privilege and binary logging is enabled` khi nhập | Tài khoản VNPT không có quyền SUPER, mà bản sao có trigger và thủ tục | Nhờ VNPT bật tham số `log_bin_trust_function_creators = 1` trong cấu hình CSDL. Rồi **xoá CSDL dở dang trên VNPT** (`DROP DATABASE hop_thu_an_ninh_so` — chỉ trên VNPT, kiểm kỹ host trước khi gõ) và làm lại từ bước 5 |
+| `Can't connect to MySQL server on 'DIA-CHI-KHO'` (đứng lâu rồi báo) | Chưa làm **Connect To Other Subnet**, hoặc kho và máy CS1 khác VPC/khu vực | Làm lại C2 bước 2; hỏi Viettel nếu vẫn không thông |
+| `Access denied for user 'hop_thu_ung_dung'@'10.x.x.x'` | Tài khoản tạo với địa chỉ khác địa chỉ kho thấy | Câu báo lỗi **in đúng địa chỉ kho thấy** (`10.x.x.x`) — tạo lại tài khoản với đúng địa chỉ đó thay `IP-MAY-CHU` |
+| Lệnh `mysql` báo `ERROR 2026 ... certificate verify failed` | Dùng IP thay cho tên máy, hoặc sai tệp CA | Dùng đúng tên trên chứng chỉ (C2 Kiểm 1b), đúng tệp CA Viettel cấp |
+| Máy chủ báo `HANDSHAKE_SSL_ERROR` ... `self-signed certificate` / `unable to verify` | Tệp `ca-db.pem` không phải CA của kho vDBS | Dán lại đúng tệp CA |
+| Máy chủ báo `HANDSHAKE_SSL_ERROR` ... `Hostname/IP does not match` | `DB_HOST` không phải tên ghi trên chứng chỉ (thường là ghi địa chỉ IP) | Ghi đúng tên máy — C2 Kiểm 1b |
+| `ERROR 1419 ... You do not have the SUPER privilege and binary logging is enabled` khi nhập | Tham số `log_bin_trust_function_creators` chưa bật | Làm C2 Kiểm 3. Rồi xoá CSDL dở dang **trên vDBS** (lệnh bước 5a — kiểm kỹ địa chỉ trước khi gõ) và làm lại từ bước 5b |
 | `Access denied ... SUPER privilege` / `DEFINER` khi nhập | Còn dòng DEFINER | Chạy lại bước 4 |
-| `Unable to create or change a table without a primary key` | VNPT bật chế độ bắt buộc khoá chính | Hỏi VNPT tắt `sql_require_primary_key` trong lúc nhập |
+| `Unable to create or change a table without a primary key` | Kho bật chế độ bắt buộc khoá chính | Nhờ Viettel tắt `sql_require_primary_key` trong lúc nhập |
 | Tiếng Việt thành `Ã¡Ã ` | Thiếu `--default-character-set=utf8mb4` hoặc làm trên PowerShell | Làm lại trên máy Linux, đủ tham số |
 
 ### C4. Chạy tệp nâng cấp CSDL về sau
 
 Chạy bằng tài khoản **quản trị (root)** của kho — tài khoản ứng dụng `hop_thu_ung_dung` cố ý không
-có quyền đổi cấu trúc (B7).
+có quyền đổi cấu trúc (B7). Trước khi chạy: trang quản trị vDBS → **sao lưu thủ công** một bản.
 
 ```bash
-mysql --host=HOST-VNPT --port=PORT-VNPT --user=USER-VNPT -p \
-  --ssl-ca=/etc/hop-thu/ca-db.pem --default-character-set=utf8mb4 \
+mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS \
+  --default-character-set=utf8mb4 \
   hop_thu_an_ninh_so < /opt/hop-thu/database/nang_cap_vXX.sql
 ```
 
@@ -829,9 +909,9 @@ mysql --host=HOST-VNPT --port=PORT-VNPT --user=USER-VNPT -p \
 
 ### D2. Ba hướng
 
-| | **1. Không dùng kho ảnh — lưu thẳng vào CSDL VNPT** | **2. Kho lưu trữ trong nước (Object Storage, chuẩn S3)** | **3. Giữ Cloudinary** |
+| | **1. Không dùng kho ảnh — lưu thẳng vào kho vDBS** | **2. Kho lưu trữ trong nước (Object Storage, chuẩn S3)** | **3. Giữ Cloudinary** |
 |---|---|---|---|
-| Nhà cung cấp | Không cần thêm | **Viettel IDC** (Object Storage chuẩn S3), **Bizfly Cloud** Simple Storage (có vùng Hà Nội và TP.HCM), **VNG Cloud** vStorage. VNPT: hỏi xem có dịch vụ Object Storage không | Cloudinary (nước ngoài) |
+| Nhà cung cấp | Không cần thêm | **Viettel IDC** (Object Storage chuẩn S3), **Bizfly Cloud** Simple Storage (có vùng Hà Nội và TP.HCM), **VNG Cloud** vStorage. | Cloudinary (nước ngoài) |
 | Dữ liệu nằm ở | Việt Nam, cùng chỗ với mọi dữ liệu khác | Việt Nam | Nước ngoài |
 | Phải sửa mã? | **Không** cho ảnh bằng chứng. Ảnh tin tức: có (xem dưới) | **Có** — một phiên tính năng, có rà soát bảo mật | Không |
 | Xoá ảnh khi người dân xin xoá danh tính | Xoá dòng trong CSDL là hết | Máy chủ xoá trên kho | Như hiện nay |
@@ -873,10 +953,10 @@ Mọi thứ trên máy Viettel dựng và thử trước, song song.
 
 | Bước | Việc | Người dân có bị gián đoạn? |
 |---|---|---|
-| 1 | **B1–B9**: dựng máy Viettel, hai máy chủ (người dân + cán bộ), tạm nối **Aiven cũ** (dùng `ca.pem` của Aiven). Thử bằng `curl` tới `https://api.…` và `https://canbo-api.…` | Không |
-| 2 | **F2–F5**: dựng giao diện trên chính máy đó, thử bằng địa chỉ IP. **Chưa** đổi `@`/`www` | Không |
-| 3 | **C1–C2**: mua và tạo CSDL VNPT, thử kết nối từ máy Viettel | Không |
-| 4 | **Một đêm chuyển**: C3 (chép dữ liệu, Render đã Suspend) → đổi DNS `@`/`www` sang IP Viettel (F8) → F6 → kiểm đủ E2 | **Có**, khoảng 30–60 phút. Báo trước trên trang tin hoặc nhóm Zalo; việc gấp gọi 113 |
+| 1 | **B1–B7** + **C1–C2**: dựng máy CS1; thuê kho **vDBS** (dùng thử) cùng VPC, nối nội bộ, chạy các phép kiểm ở C2, tạo `hop_thu_ung_dung`; hai tệp `.env` trỏ thẳng vào vDBS | Không |
+| 2 | **C3 lần tổng duyệt** (trang cũ vẫn chạy) → **B8–B9**: hai máy chủ chạy với bản tổng duyệt. Thử bằng `curl` tới `https://api.…` và `https://canbo-api.…` | Không |
+| 3 | **F2–F5**: dựng giao diện trên chính máy đó. **Chưa** đổi `@`/`www` | Không |
+| 4 | **Một đêm chuyển**: C3 đủ bước (Render đã Suspend, xoá bản tổng duyệt, chép bản thật) → đổi DNS `@`/`www` sang IP Viettel (F8) → F6 → kiểm đủ E2 | **Có**, khoảng 30–60 phút. Báo trước trên trang tin hoặc nhóm Zalo; việc gấp gọi 113 |
 | 5 | **Phần G** ngay trong 1–2 ngày: sao lưu mã hoá, **diễn tập khôi phục G6 thành công** | Không |
 | 6 | Theo dõi 1–2 tuần. Ổn thì xoá Render (**Suspend** → **Delete**), Aiven, và dự án Netlify/Vercel (F8 bước 5) | Không |
 | 7 | **Phần D** hướng 1 | Không |
@@ -1089,9 +1169,9 @@ Lần chạy kịch bản sau sẽ đưa bản mới nhất lên lại.
 
 ## Phần G — Sao lưu mã hoá sang nhà cung cấp khác (bắt buộc khi chạy thật)
 
-### G1. Vì sao cần, khi VNPT đã tự sao lưu
+### G1. Vì sao cần, khi vDBS đã tự sao lưu
 
-VNPT sao lưu nằm **cùng một chỗ** với CSDL: tài khoản VNPT bị khoá, bị chiếm, xoá nhầm cả
+Sao lưu tự động của vDBS nằm **cùng một chỗ** với kho: tài khoản Viettel bị khoá, bị chiếm, xoá nhầm cả
 dịch vụ, hay trung tâm dữ liệu gặp sự cố thì mất cả CSDL lẫn bản sao. Phần này gửi thêm **một
 bản mỗi đêm sang kho của nhà cung cấp khác** (Bizfly Simple Storage — cùng loại kho ở Phần D
 hướng 2; dùng kho S3 của Viettel cũng được).
@@ -1117,19 +1197,19 @@ Bản sao chứa **nội dung tố giác** (danh tính đã được mã hoá b�
       bucket này được không — được thì giới hạn.
 - [ ] Ghi lại **địa chỉ endpoint S3** của vùng đã chọn (trang Bizfly ghi sẵn).
 
-**2. Trên VNPT — tài khoản CSDL chỉ đọc, chỉ dùng để sao lưu.** Không dùng tài khoản của máy
+**2. Trên kho vDBS (chạy bằng root kho) — tài khoản chỉ đọc, chỉ dùng để sao lưu.** Không dùng tài khoản của máy
 chủ: tài khoản đó ghi được, lộ ra là sửa được dữ liệu.
 
 ```sql
-CREATE USER 'sao_luu'@'IP-MAY-VIETTEL' IDENTIFIED BY '<mật khẩu dài, chỉ chữ và số>';
-GRANT SELECT, SHOW VIEW, TRIGGER, LOCK TABLES, EVENT ON hop_thu_an_ninh_so.* TO 'sao_luu'@'IP-MAY-VIETTEL';
-GRANT SHOW_ROUTINE ON *.* TO 'sao_luu'@'IP-MAY-VIETTEL';
+CREATE USER 'sao_luu'@'IP-MAY-CHU' IDENTIFIED BY '<mật khẩu dài, chỉ chữ và số>';
+GRANT SELECT, SHOW VIEW, TRIGGER, LOCK TABLES, EVENT ON hop_thu_an_ninh_so.* TO 'sao_luu'@'IP-MAY-CHU';
+GRANT SHOW_ROUTINE ON *.* TO 'sao_luu'@'IP-MAY-CHU';
 ```
 
 > ⚠️ **Đừng bỏ dòng `SHOW_ROUTINE`.** Đã thử: thiếu quyền này, `mysqldump` **không báo lỗi gì**
 > mà lặng lẽ bỏ hết các thủ tục (stored procedure) khỏi bản sao — trông như sao lưu thành công,
-> đến lúc khôi phục mới thấy thiếu. VNPT không cho cấp quyền này qua tài khoản quản trị thì
-> hỏi VNPT cấp giúp. Buổi diễn tập G6 so số thủ tục để bắt đúng lỗi này.
+> đến lúc khôi phục mới thấy thiếu. Root kho vDBS không cấp được quyền này (C2 Kiểm 2) thì
+> báo Claude trước khi làm tiếp. Buổi diễn tập G6 so số thủ tục để bắt đúng lỗi này.
 
 **3. Trên máy tính ở cơ quan (KHÔNG làm trên máy Viettel)** — tạo cặp khoá mã hoá:
 
@@ -1321,7 +1401,7 @@ age -d -i khoa-sao-luu.txt hop-thu-NGAY-GIO.sql.gz.age | gunzip \
   | sed -E 's/DEFINER=`[^`]+`@`[^`]+`//g' | mysql -u root -p thu_khoi_phuc
 ```
 
-So bản khôi phục với CSDL thật — chạy câu này trên **cả hai** (`thu_khoi_phuc` và CSDL VNPT):
+So bản khôi phục với CSDL thật — chạy câu này trên **cả hai** (`thu_khoi_phuc` và kho vDBS):
 
 ```sql
 SELECT 'bang', COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
@@ -1343,7 +1423,7 @@ rm hop-thu-NGAY-GIO.sql.gz.age
 > cho Bizfly, kết nối CSDL không qua TLS: khôi phục ra đủ bảng, trigger, thủ tục, view (đúng bằng CSDL gốc),
 > số ý kiến khớp từng dòng. Sao lưu hỏng giữa chừng (sai mật khẩu) thì báo `LOI` và **không** để
 > lại tệp cụt trên kho; bản cũ hơn 30 ngày bị xoá, tệp khác trong kho không bị đụng. **Chưa thử**
-> với Bizfly thật và TLS của VNPT — lần chạy tay đầu tiên ở G3 chính là phép thử đó.
+> với Bizfly thật và kho vDBS thật — lần chạy tay đầu tiên ở G3 chính là phép thử đó.
 
 ### G7. Lỗi hay gặp
 
@@ -1351,82 +1431,11 @@ rm hop-thu-NGAY-GIO.sql.gz.age
 |---|---|---|
 | Khôi phục ra `thu tuc` = 0, CSDL thật có | Thiếu quyền `SHOW_ROUTINE` (G2 bước 2) | Cấp quyền, chạy lại G3, làm lại G6 |
 | `Access denied ... PROCESS privilege` | Thiếu `--no-tablespaces` | Dùng đúng tệp lệnh ở G3 |
-| `Access denied for user 'sao_luu'` | Sai mật khẩu, hoặc VNPT chưa cho IP máy Viettel | Kiểm `sao-luu.cnf`; kiểm danh sách IP ở C1 |
-| `SSL connection error` | Sai đường dẫn hoặc sai tệp CA | `ssl-ca` phải trỏ đúng tệp CA của VNPT (B7) |
+| `Access denied for user 'sao_luu'` | Sai mật khẩu, hoặc tạo tài khoản sai địa chỉ máy | Kiểm `sao-luu.cnf`; câu báo lỗi in đúng địa chỉ kho thấy — tạo lại `sao_luu` với địa chỉ đó (như bảng lỗi C3) |
+| `SSL connection error` | Sai đường dẫn hoặc sai tệp CA | `ssl-ca` phải trỏ đúng tệp CA Viettel cấp (B7). Kho không mã hoá thì xoá hai dòng `ssl-ca=`, `ssl-mode=` |
 | `403 Forbidden` / `AccessDenied` từ rclone | Khoá Bizfly sai hoặc không có quyền với bucket | Kiểm `rclone.conf`, quyền của khoá |
 | `no identity matched any of the recipients` | Mở bằng sai khoá | Dùng đúng `khoa-sao-luu.txt` đi cặp với `AGE_RECIPIENT` |
 | Không có dòng `OK` đêm qua, cũng không có `LOI` | Bộ hẹn giờ chưa bật | `systemctl enable --now hop-thu-sao-luu.timer` |
-
----
-
-## Phụ lục — VIỆC CHỜ: kiểm kho dữ liệu Viettel (vDBS) khi dùng thử
-
-> Ghi ngày 2026-10-20 theo yêu cầu người vận hành: **làm khi đã có kho vDBS dùng thử** (gói
-> T2.VDBS 1 Standalone, MySQL 8.0, Private Access, chung VPC với máy CS1). Tài liệu Viettel
-> không trả lời ba câu này; chạy ba phép kiểm dưới đây là biết chắc.
-
-Đã biết từ tài liệu Viettel (tra 2026-10-20): kho vDBS nằm trong **mạng con riêng**, nối với máy
-chủ bằng **Actions → Connect To Other Subnet** (tự đặt luật tường lửa chỉ cho mạng con của máy
-chủ vào); sao lưu tự động **hằng ngày/tuần**, giữ **≥ 7 bản**, khôi phục thành kho mới; **không
-thấy** khôi phục về từng phút. Khách được giao **tài khoản root** của kho.
-
-Làm trên **máy CS1** (B3: vào máy bằng PowerShell). Lần đầu cài công cụ: `apt install -y mysql-client`.
-`DIA-CHI-KHO` là địa chỉ riêng (private host) Viettel ghi trên trang quản trị vDBS. Mỗi lệnh
-hỏi mật khẩu root của kho — gõ vào, không hiện chữ là bình thường. **Không dán mật khẩu cho ai.**
-
-**Kiểm 1 — kho có mã hoá đường nối không**
-
-```bash
-mysql -h DIA-CHI-KHO -u root -p --ssl-mode=REQUIRED -e "SHOW STATUS LIKE 'Ssl_cipher';"
-```
-
-| Thấy gì | Nghĩa là |
-|---|---|
-| Một dòng `Ssl_cipher` có chữ phía sau (vd `TLS_AES_256_GCM_SHA384`) | **Có mã hoá.** Hỏi Viettel tệp chứng chỉ CA để máy chủ kiểm cả "con dấu" (B7, `DB_SSL_CA`), rồi làm **Kiểm 1b** |
-| Báo lỗi có chữ `SSL` | **Không có mã hoá.** Vẫn dùng được vì đường nối nằm trong mạng con riêng — ghi vào sổ theo dõi, hỏi Viettel khi nào hỗ trợ |
-
-**Kiểm 1b — tên máy ghi trên chứng chỉ của kho** (chỉ khi Kiểm 1 ra "Có mã hoá")
-
-Máy chủ ứng dụng kiểm cả chứng chỉ lẫn **tên máy** (BUG-033): `DB_HOST` phải là đúng một tên
-ghi trên chứng chỉ, không được là địa chỉ IP — sai thì máy chủ **từ chối nối** (cố ý).
-
-```bash
-openssl s_client -starttls mysql -connect DIA-CHI-KHO:3306 </dev/null 2>/dev/null \
-  | openssl x509 -noout -subject -ext subjectAltName
-```
-
-| Thấy gì | Nghĩa là |
-|---|---|
-| Dòng `DNS:` (hoặc `CN =`) có đúng `DIA-CHI-KHO` | **Được.** Ghi `DB_HOST=DIA-CHI-KHO` ở B7 |
-| Tên khác `DIA-CHI-KHO` (vd tên nội bộ Viettel) | Dùng **tên trên chứng chỉ** làm `DB_HOST` nếu máy CS1 phân giải được tên đó; không thì hỏi Viettel tên máy đúng |
-| Chỉ có chữ kiểu `MySQL_Server_..._Auto_Generated` | Chứng chỉ tự sinh, không gắn tên máy — **báo Claude**, chưa chuyển |
-
-**Kiểm 2 — cấp được quyền `SHOW_ROUTINE` cho tài khoản sao lưu không**
-
-```bash
-mysql -h DIA-CHI-KHO -u root -p -e "CREATE USER 'thu_quyen'@'%' IDENTIFIED BY 'ThuQuyen12345'; GRANT SHOW_ROUTINE ON *.* TO 'thu_quyen'@'%'; SHOW GRANTS FOR 'thu_quyen'@'%'; DROP USER 'thu_quyen'@'%';"
-```
-
-| Thấy gì | Nghĩa là |
-|---|---|
-| Có dòng `GRANT SHOW_ROUTINE ON *.*` | **Được.** Phần G (G2 bước 2) làm đúng như viết |
-| `Access denied` | **Không được.** Báo Claude: sửa Phần G để dựng lại thủ tục từ mã nguồn thay vì lấy từ bản sao |
-
-(Tài khoản `thu_quyen` chỉ để thử, lệnh tự xoá nó ở cuối.)
-
-**Kiểm 3 — tham số `log_bin_trust_function_creators` chỉnh được không**
-
-```bash
-mysql -h DIA-CHI-KHO -u root -p -e "SHOW VARIABLES LIKE 'log_bin_trust_function_creators';"
-```
-
-| Thấy gì | Nghĩa là |
-|---|---|
-| Giá trị `ON` | **Đã bật sẵn**, chép dữ liệu cũ sang được |
-| Giá trị `OFF` | Vào trang quản trị vDBS, tìm mục **tham số / cấu hình (parameter)** của kho, đặt `log_bin_trust_function_creators` = `1`, khởi động lại kho nếu trang yêu cầu, chạy lại lệnh trên phải ra `ON`. Không có mục đó thì nhờ Viettel bật, hoặc nhờ Viettel chép dữ liệu cũ giúp |
-
-Xong ba phép kiểm: gửi Claude **ảnh chụp kết quả** (che mật khẩu nếu có) để cập nhật Phần C, G và
-đóng việc chờ ND-066.
 
 ---
 
@@ -1439,7 +1448,7 @@ Xong ba phép kiểm: gửi Claude **ảnh chụp kết quả** (che mật khẩ
 |------------------|------------------|----------:|----------:|------------------------------------------|
 | Viettel Cloud Server (2 máy chủ + giao diện + Nginx) | T1.Base 03: 2 vCPU, 4 GB RAM, 20 GB SSD | 438.900 | 438.900 | 399.000 chưa VAT. Đã đo tải trên đúng cấu hình này (B1) |
 | Thêm ổ SSD | +30 GB / +50 GB | 99.000 | 165.000 | ~30.000/10 GB chưa VAT — **cần Viettel báo giá** |
-| VNPT MySQL (CSDL) | 1 máy (Single) / 2 máy dự phòng (HA) | 572.000 | 1.144.000 | VNPT chưa công bố giá DBaaS; tính ~520.000 chưa VAT/máy, cao hơn VNPT Cloud Server cùng cấu hình (379.000) để không dự toán thiếu — **cần VNPT báo giá** |
+| Viettel vDBS (kho dữ liệu) | T2.VDBS 1 Standalone / bản dự phòng (HA) | 572.000 | 1.144.000 | Giữ mức dự toán cũ (~520.000 chưa VAT/kho) để không dự toán thiếu — **cần Viettel báo giá vDBS** |
 | Sao lưu khác nhà cung cấp (Phần G, kho S3 Bizfly) | ≤100 GB lưu, ≤50 GB tải về | 55.000 | 110.440 | 864 đ/GB/tháng, tải về 280 đ/GB, tối thiểu 50.000 (chưa VAT) |
 | Thay Cloudinary (Phần D hướng 1) | Ảnh lưu trong CSDL | 0 | 0 | Chọn hướng 2 thì dùng chung kho ở dòng trên |
 | Tên miền .vn (quy ra tháng) | | 38.333 | 55.833 | Gia hạn ~460.000/năm; năm đầu ~450.000–670.000 |
@@ -1452,11 +1461,9 @@ Xong ba phép kiểm: gửi Claude **ảnh chụp kết quả** (che mật khẩ
 
 ## Nguồn tham khảo (tra ngày 2026-10-06)
 
-- VNPT MySQL (DBaaS): <https://cloud.vnpt.vn/dich-vu/my-sql>, <https://cloud.vnpt.vn/dich-vu/cloud-database>
 - Viettel Cloud Server, Object Storage của Viettel IDC: <https://viettelcloud.vn>, <https://cloudian.com/press/viettel-idc-chooses-cloudian-object-storage-as-foundation-for-service-offerings.md>
 - Bizfly Cloud Simple Storage: <https://bizflycloud.vn/en/s3-simple-storage> (giá tra 2026-10-20: <https://bizflycloud.vn/s3-simple-storage>)
 - Giá Viettel Cloud Server (tra 2026-10-20): <https://viettelidcvn.com/cloud-server/>, <https://viettel-idc.com.vn/index.php/dich-vu/viettel-cloud-server.html>
-- Giá VNPT Cloud Server (tra 2026-10-20): <https://cloud.vnpt.vn/en/service/cloud-server>
 - Phí tên miền .vn (tra 2026-10-20): <https://www.matbao.net/ten-mien/bang-gia-ten-mien>, <https://nhanhoa.com/trang/ten-mien/bang-gia-ten-mien.html>
 - Công cụ mã hoá `age`: <https://github.com/FiloSottile/age> · `rclone` với kho S3: <https://rclone.org/s3/>
 - VNG Cloud vStorage: <https://docs.vngcloud.vn/vng-cloud-document/vn/vstorage/object-storage>

@@ -6,7 +6,7 @@ Mỗi bước ghi: **làm gì · bấm/gõ gì · thấy gì là đúng · sai t
 Các khối lệnh dài (tệp cấu hình) nằm ở [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md) — gọi tắt
 là **"tài liệu kỹ thuật"**. Sổ tay ghi đúng tên mục để mở ra chép (ví dụ "tài liệu kỹ thuật, mục B8").
 
-> **Phương án đã chốt (2026-10-20):** mọi thứ ở **Viettel** — máy chủ **Cloud Server gói CS1** (chạy
+> **Phương án đã chốt (2026-10-20, viết lại sổ tay 2026-11-16):** mọi thứ ở **Viettel** — máy chủ **Cloud Server gói CS1** (chạy
 > giao diện + máy chủ người dân + máy chủ cán bộ) và kho dữ liệu **Viettel Database Service (vDBS)**
 > gói **T2.VDBS 1 Standalone, MySQL 8.0**, nối với nhau bằng **mạng nội bộ (Private Access)**. Bản sao
 > lưu mã hoá gửi sang **Bizfly** (nhà khác). Không dùng Vercel, Render, Aiven, VNPT.
@@ -46,7 +46,8 @@ là **"tài liệu kỹ thuật"**. Sổ tay ghi đúng tên mục để mở ra
 - [ ] Vào được: tài khoản **GitHub** (kho `ans-complete`), **Cloudflare** (Turnstile), **Aiven**,
       **trang quản lý tên miền** (nơi đã mua tên miền).
 - [ ] Một **máy tính Windows** ở cơ quan để làm việc.
-- [ ] Hỏi Claude: **BUG-033 đã xử lý chưa** (phải xong trước đêm chuyển — chặng 13).
+- [ ] Hỏi Claude: **còn mã lỗi nào đang mở phải xong trước đêm chuyển không** (BUG-033 đã xong ở
+      P103; xem thêm chặng 13).
 
 **Xong khi:** đánh dấu đủ 5 ô.
 
@@ -56,20 +57,21 @@ là **"tài liệu kỹ thuật"**. Sổ tay ghi đúng tên mục để mở ra
 
 1. Đăng ký **Cloud Server gói CS1** (2 vCPU, 4 GB RAM) + **mua thêm 30 GB ổ** (tổng 50 GB).
    Hệ điều hành chọn **Ubuntu 24.04**. Chọn khu vực (Hà Nội hoặc TP.HCM) — **nhớ khu vực này**.
+   Trước khi mua, hỏi Viettel đủ các câu ở **tài liệu kỹ thuật, mục B1** (máy) và **C1** (kho).
 2. Đăng ký **vDBS gói T2.VDBS 1 Standalone**, **MySQL 8.0**, kiểu truy cập **Private Access**,
-   **cùng khu vực và cùng mạng (VPC)** với máy CS1. Đặt **mật khẩu root của kho**: dài, chỉ chữ và số.
-   (Có nút **Dùng thử** — dùng thử trước, chạy xong chặng 6 rồi mới trả tiền.)
-3. Trên trang quản trị vDBS: **Actions → Connect To Other Subnet** → chọn mạng con (subnet) của máy
-   CS1. Việc này mở đường nội bộ và tự đặt tường lửa chỉ cho máy CS1 vào kho.
-4. Trong vDBS, phần **sao lưu tự động**: bật, **hằng ngày**, giờ **01:00**, giữ **14 bản**.
-5. Ghi lại vào giấy (cất cùng ba khoá):
+   **cùng khu vực và cùng mạng (VPC)** với máy CS1. Bấm **Dùng thử** — chạy xong chặng 6 rồi mới
+   trả tiền. Cách tạo từng bước: **tài liệu kỹ thuật, mục C2**, phần "Trên trang quản trị Viettel"
+   (đặt mật khẩu root kho chỉ chữ và số · **Connect To Other Subnet** · bật sao lưu tự động 01:00,
+   giữ 14 bản).
+3. Ghi lại vào giấy (cất cùng ba khoá):
 
 | Ghi lại | Lấy ở đâu |
 |---|---|
-| `IP-MAY-VIETTEL` | Trang quản trị máy CS1 (4 cụm số, vd `103.45.67.89`) |
+| `IP-MAY-VIETTEL` | Trang quản trị máy CS1 — địa chỉ **công khai** (4 cụm số, vd `103.45.67.89`), dùng để vào máy và trỏ tên miền |
+| `IP-MAY-CHU` | Trang quản trị máy CS1 — địa chỉ **riêng** trong mạng VPC (thường `10.…` hay `192.168.…`), dùng để tạo tài khoản kho |
 | Mật khẩu root máy CS1 | Viettel gửi khi tạo máy |
 | `DIA-CHI-KHO` | Trang quản trị vDBS — địa chỉ **riêng (private host)** |
-| Cổng kho | Thường là `3306` |
+| `CONG-KHO` | Trang quản trị vDBS, thường là `3306` |
 | Mật khẩu root kho | Tự đặt ở bước 2 |
 
 **Xong khi:** máy CS1 và kho vDBS đều ở trạng thái **Active / Đang chạy**, đã ghi đủ bảng trên.
@@ -131,19 +133,24 @@ Chép nguyên khối lệnh ở **tài liệu kỹ thuật, mục B5**. Màn hì
 
 ---
 
-## Chặng 6 — Kiểm 3 điều của kho vDBS (VIỆC CHỜ đã ghi)
+## Chặng 6 — Kiểm kho vDBS (lúc còn dùng thử)
 
-Làm đúng **tài liệu kỹ thuật, Phụ lục "VIỆC CHỜ"**: ba lệnh (cộng Kiểm 1b nếu kho có mã hoá), mỗi lệnh hỏi mật khẩu root của kho.
+Làm đúng **tài liệu kỹ thuật, mục C2**, phần "Trên máy CS1": các phép kiểm, mỗi lệnh hỏi mật
+khẩu root của kho.
 
 | Kiểm | Ghi lại kết quả |
 |---|---|
+| 0. Đường nội bộ thông chưa (`SELECT VERSION()` ra `8.0.x`) | ☐ Thông  ☐ `Can't connect` |
 | 1. Kho có mã hoá đường nối không | ☐ Có  ☐ Không |
 | 1b. (Kiểm 1 ra Có) Tên máy trên chứng chỉ của kho | ............................ |
 | 2. Cấp được quyền `SHOW_ROUTINE` không | ☐ Được  ☐ `Access denied` |
 | 3. `log_bin_trust_function_creators` | ☐ `ON`  ☐ `OFF` → đã bật được  ☐ Không bật được |
 
-**Gửi Claude ảnh chụp kết quả** (che mật khẩu nếu có). Kiểm 3 ra "không bật được" thì **dừng**,
-chưa trả tiền vDBS — Claude sẽ đưa cách khác.
+Từ kết quả Kiểm 1, **ghi lên giấy dòng `KHO_TLS=…` phải gõ** (đầu Phần C tài liệu kỹ thuật) — dùng
+lại ở chặng 9, 13, 14 và mỗi lần nâng cấp kho.
+
+**Gửi Claude ảnh chụp kết quả** (che mật khẩu nếu có). Kiểm 0 không thông, hoặc Kiểm 3 ra "không
+bật được" thì **dừng**, chưa trả tiền vDBS — Claude sẽ đưa cách khác.
 
 ---
 
@@ -169,8 +176,9 @@ Chỗ khác so với B7 (vì kho ở Viettel):
 | Dòng | Ghi gì |
 |---|---|
 | `DB_HOST` | `DIA-CHI-KHO` — chặng 6 kiểm 1 ra **Có** thì ghi đúng **tên trên chứng chỉ** (kiểm 1b), không ghi địa chỉ IP |
-| `DB_PORT` | Cổng kho (thường `3306`) |
-| `DB_USER` | `hop_thu_ung_dung` — tài khoản riêng của ứng dụng, **không** dùng root. Tạo bằng hai lệnh SQL ở B7 mục "Tài khoản CSDL cho ứng dụng" (chạy bằng root kho) |
+| `HOST` | Giữ nguyên `127.0.0.1` như B7 ghi sẵn — **không đổi**. Đây là chốt để cổng 4000/4001 không lọt ra ngoài |
+| `DB_PORT` | `CONG-KHO` (thường `3306`) |
+| `DB_USER` | `hop_thu_ung_dung` — tài khoản riêng của ứng dụng, **không** dùng root. Tạo bằng hai lệnh SQL ở B7 mục "Tài khoản CSDL cho ứng dụng" (chạy bằng root kho, `IP-MAY-CHU` = địa chỉ **riêng** ở chặng 1) |
 | `DB_PASSWORD` | Mật khẩu của `hop_thu_ung_dung` (giữ mật khẩu root kho riêng — chỉ dùng cho chặng 9 và các tệp nâng cấp) |
 | `DB_SSL_CA` | Chặng 6 kiểm 1 ra **Có** → giữ dòng, dán tệp CA Viettel cấp vào `/etc/hop-thu/ca-db.pem`. Ra **Không** → **xoá hẳn dòng này** |
 | Ba khoá, `TURNSTILE_*`, `GEMINI_*`, `BREVO_*`, `MAIL_USER`, `CLOUDINARY_*` | Chép y nguyên từ giấy ở chặng 0 |
@@ -190,20 +198,13 @@ trên giấy). Ở chặng 10, nhật ký máy chủ cán bộ **không** đư�
 
 Chép thử một lần để chắc đường đi thông, **trang cũ vẫn chạy bình thường** (chưa tắt Render).
 
-Làm theo **tài liệu kỹ thuật, mục C3**, **bỏ bước 1** (không tắt Render) và **bỏ bước 7**:
-- Mọi chỗ ghi `HOST-VNPT`, `PORT-VNPT`, `USER-VNPT` → thay bằng `DIA-CHI-KHO`, cổng kho, `root`.
-- Chặng 6 kiểm 1 ra **Không** mã hoá → **xoá** hai tham số `--ssl-ca=/root/ca-vnpt.pem` và
-  `--ssl-mode=VERIFY_IDENTITY` khỏi các lệnh **nhắm vào vDBS** (giữ nguyên ở lệnh nhắm vào Aiven).
+Làm theo **tài liệu kỹ thuật, mục C3**, cột **"Tổng duyệt"**: gõ dòng `KHO_TLS=…` (chặng 6) trước,
+rồi chạy các bước 2, 3, 4, 5b, 6, 8 — **bỏ bước 1** (không tắt Render) và **bỏ bước 5a**. Bước 7
+để chặng 10 làm.
 
 **Đúng khi:** bước 6 (đối chiếu) ra **bốn số bằng nhau** ở Aiven và vDBS.
 
 ❌ Lỗi `ERROR 1419` → tham số chặng 6 kiểm 3 chưa bật. Lỗi khác → xem bảng lỗi cuối mục C3.
-
-Xong thì xoá bản sao trên máy:
-
-```bash
-shred -u /root/sao-luu-aiven.sql /root/sao-luu-sach.sql
-```
 
 ---
 
@@ -214,6 +215,9 @@ Làm theo **tài liệu kỹ thuật, mục B8**: tạo 2 tệp, rồi chạy kh
 **Đúng khi:**
 - `systemctl status ...` hiện chữ xanh **active (running)** ở cả hai (bấm `q` để thoát).
 - Hai lệnh `curl ...4000/api/health` và `curl ...4001/api/health` đều ra chữ có `"ok":true`.
+
+- Nhật ký máy chủ cán bộ (`journalctl -u hop-thu-can-bo -n 50`) **không** có dòng đỏ bắt đầu bằng
+  `🔴 CHẶN IP CÁN BỘ CÓ THỂ BỊ LÁCH` (có là dòng `HOST` ở chặng 8 bị sửa — trả về `127.0.0.1`).
 
 ❌ Không chạy → `journalctl -u hop-thu-cong-khai -n 50`, chụp gửi Claude (**che** dòng nào có khoá).
 
@@ -257,36 +261,29 @@ Làm theo **tài liệu kỹ thuật, Phần F**, các mục **F3, F4, F5** — 
 **Chọn giờ vắng** (vd 23 giờ). **Trên trang quản trị Viettel: chụp Snapshot máy CS1.**
 
 Kiểm trước khi bắt đầu:
-- [ ] Claude đã xác nhận BUG-033 xử lý xong.
+- [ ] Claude đã xác nhận không còn mã lỗi nào chặn đêm chuyển (chặng 0).
 - [ ] Ba khoá trên giấy khớp ba khoá trong hai tệp `.env`.
 
 Làm theo thứ tự:
 
-1. **Tắt nhận ý kiến ở trang cũ:** Render → từng dịch vụ → **Settings → Suspend**.
-2. **Chép dữ liệu thật lần cuối:** làm lại **chặng 9**, nhưng trước bước 5 của C3 phải **xoá bản
-   tổng duyệt** trên vDBS (⚠️ kiểm kỹ địa chỉ là `DIA-CHI-KHO`, **không** phải Aiven):
-   ```bash
-   mysql --host=DIA-CHI-KHO --user=root -p -e "DROP DATABASE hop_thu_an_ninh_so"
-   ```
-   (Kho có mã hoá — chặng 6 kiểm 1 ra **Có** — thì thêm `--ssl-ca=/etc/hop-thu/ca-db.pem` như các
-   lệnh khác.)
-   Rồi làm tiếp bước 5, 6 của C3. **Đúng khi:** đối chiếu bốn số bằng nhau.
-3. `systemctl restart hop-thu-cong-khai hop-thu-can-bo`
-4. **Đổi tên miền:** trang quản lý tên miền → sửa `@` và `www` sang **A → `IP-MAY-VIETTEL`**.
+1. **Chép dữ liệu thật lần cuối:** **tài liệu kỹ thuật, mục C3**, cột **"Đêm chuyển"** — gõ dòng
+   `KHO_TLS=…` trước, rồi **đủ các bước 1 → 8** (bước 1 tắt Render; bước 5a xoá bản tổng duyệt —
+   ⚠️ kiểm kỹ địa chỉ là `DIA-CHI-KHO`, **không** phải Aiven).
+   **Đúng khi:** bước 6 đối chiếu bốn số bằng nhau, bước 7 hai máy chủ chạy lại.
+2. **Đổi tên miền:** trang quản lý tên miền → sửa `@` và `www` sang **A → `IP-MAY-VIETTEL`**.
    Chờ tới khi `nslookup www.ten-mien.vn` ra IP Viettel (5–60 phút).
-5. **Ổ khoá cho trang chính:** chạy dòng `certbot --nginx -d ten-mien.vn -d www.ten-mien.vn`
+3. **Ổ khoá cho trang chính:** chạy dòng `certbot --nginx -d ten-mien.vn -d www.ten-mien.vn`
    (tài liệu kỹ thuật, cuối F5).
-6. **Nối giao diện với máy chủ:** **tài liệu kỹ thuật, F6** — thêm `www.ten-mien.vn` vào Turnstile
+4. **Nối giao diện với máy chủ:** **tài liệu kỹ thuật, F6** — thêm `www.ten-mien.vn` vào Turnstile
    (Cloudflare → Turnstile → Hostname Management).
-7. **Kiểm đủ 4 việc** (tài liệu kỹ thuật, cuối C3):
+5. **Kiểm đủ 4 việc** (tài liệu kỹ thuật, cuối C3):
    - [ ] Cán bộ đăng nhập được.
    - [ ] Mở một hồ sơ cũ, xem danh tính → **ra đúng họ tên**. Ra `[Dữ liệu hỏng hoặc sai khoá]` →
          **dừng, chép lại `ENCRYPTION_KEY` cho đúng**. Không xoá Aiven.
    - [ ] Gửi thử một ý kiến từ điện thoại → thấy ở trang cán bộ.
    - [ ] Tra cứu bằng mã vừa nhận → ra đúng trạng thái.
-8. Xoá bản sao trên máy: `shred -u /root/sao-luu-aiven.sql /root/sao-luu-sach.sql`
 
-**Đêm chuyển xong khi:** đủ 4 dấu ☑ ở bước 7.
+**Đêm chuyển xong khi:** đủ 4 dấu ☑ ở bước 5.
 
 ---
 
@@ -295,8 +292,8 @@ Làm theo thứ tự:
 Làm theo **tài liệu kỹ thuật, Phần G**, từ G2 tới G6:
 
 1. Bizfly: tạo bucket **riêng tư**, chọn **thành phố khác** với máy Viettel; tạo khoá truy cập.
-2. Tạo **tài khoản chỉ đọc** cho sao lưu (G2 bước 2 — thay `IP-MAY-VIETTEL` bằng `%`, vì máy chủ
-   vào kho qua mạng nội bộ).
+2. Tạo **tài khoản chỉ đọc** cho sao lưu (G2 bước 2 — `IP-MAY-CHU` là địa chỉ **riêng** ở chặng 1,
+   giống tài khoản ứng dụng).
 3. **Trên máy tính cơ quan** (không phải máy Viettel): tạo cặp khoá mã hoá; **khoá mở chép ra 2 USB,
    cất cùng ba khoá**.
 4. Trên máy Viettel: các tệp cấu hình, tệp lệnh, chạy thử bằng tay (G3) → thấy `OK hop-thu-...`.
