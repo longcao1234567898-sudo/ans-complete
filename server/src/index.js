@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIpPhanCanBo, danhSachOriginCors, xuLyHealth, inTrangThaiKhoiDong } from './nen-tang.js';
+import { diaChiNghe, chanTheoIpPhanCanBo, danhSachOriginCors, xuLyHealth, inTrangThaiKhoiDong, canhBaoChanIpKhongAnToan } from './nen-tang.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
@@ -237,6 +237,8 @@ async function start() {
   console.log('💬 Chatbox AI:       ' + (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash'));
   console.log(moTaCheDoEmail());
   console.log(moTaXacMinhSdt());
+  const cbIp = canhBaoChanIpKhongAnToan();
+  if (cbIp) console.error(cbIp);
     console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
     inTrangThaiKhoiDong(BACKEND_VERSION);
   });

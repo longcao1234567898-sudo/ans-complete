@@ -31,3 +31,25 @@ test('sổ tay giữ các quy tắc an toàn: không gửi khoá, không mở c�
   assert.match(s, /ENCRYPTION_KEY.*sai một ký tự.*mất vĩnh viễn/);
   assert.match(s, /Private Access/);
 });
+
+/* P116: phương án đã chốt là TOÀN BỘ ở Viettel (máy CS1 + kho vDBS nối nội bộ) và sao lưu
+   sang Bizfly. Trước P116, Phần C còn viết cho VNPT và sổ tay phải dặn "thay HOST-VNPT bằng…":
+   người cài làm theo nguyên văn là đi mua nhầm nhà cung cấp, hoặc gõ nhầm chữ thay. */
+test('tài liệu triển khai đi thẳng theo Viettel vDBS + Bizfly, không còn lệnh hay bước viết cho VNPT', async () => {
+  const kyThuat = await doc('HUONG-DAN-TRIEN-KHAI.md');
+  const soTay = await doc('SO-TAY-TRIEN-KHAI.md');
+  for (const [ten, s] of [['tài liệu kỹ thuật', kyThuat], ['sổ tay', soTay]]) {
+    assert.doesNotMatch(s, /HOST-VNPT|PORT-VNPT|USER-VNPT|ca-vnpt\.pem/, `${ten} còn chữ thay của VNPT`);
+    assert.doesNotMatch(s, /^#{2,3} .*VNPT/m, `${ten} còn mục mang tên VNPT`);
+  }
+  assert.match(kyThuat, /^## Phần C — Kho dữ liệu Viettel vDBS/m);
+  const c = kyThuat.slice(kyThuat.indexOf('## Phần C —'), kyThuat.indexOf('## Phần D —'));
+  assert.match(c, /Private Access/);
+  assert.match(c, /Connect To Other Subnet/);
+  /* lệnh nhắm vào kho mới đều dùng chữ thay của vDBS; lệnh nhắm vào Aiven giữ TLS riêng của Aiven */
+  for (const dong of c.split('\n').filter((d) => /^(mysql|mysqldump) /.test(d))) {
+    assert.match(dong, /DIA-CHI-KHO|HOST-AIVEN/, `lệnh không rõ nhắm vào kho nào: ${dong}`);
+  }
+  assert.match(kyThuat, /RCLONE_DICH=bizfly:/, 'sao lưu Phần G phải gửi sang Bizfly');
+  assert.doesNotMatch(kyThuat, /'sao_luu'@'%'/, 'tài khoản sao lưu phải giới hạn theo địa chỉ máy chủ');
+});
