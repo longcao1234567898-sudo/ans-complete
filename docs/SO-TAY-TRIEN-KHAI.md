@@ -233,14 +233,20 @@ Làm theo **tài liệu kỹ thuật, mục B9**. Trong khối cấu hình, thay
 **Đúng khi:**
 - Trên máy Windows mở trình duyệt vào `https://api.ten-mien.vn/api/health` → **có ổ khoá**, ra
   đúng chữ `{"ok":true,"db":true}`.
-- Trên máy chủ gõ hai lệnh dưới (chép **y nguyên**, mỗi lệnh một dòng) → **mỗi lệnh** ra dòng
-  **`🔒 Mã hoá danh tính: ĐÃ BẬT`**:
+- Trên máy chủ gõ hai lệnh dưới, chép **y nguyên**, gõ **từng lệnh một** — gõ lệnh đầu, đọc kết
+  quả, rồi mới gõ lệnh sau (kết quả không ghi tên máy, dán cả hai một lượt thì không biết dòng nào
+  của máy nào). **Mỗi lệnh** phải ra **đúng hai dòng**: **`active`**, rồi một dòng đúng nguyên văn
+  **`🔒 Mã hoá danh tính: ĐÃ BẬT (AES-256-GCM)`**:
   ```bash
-  journalctl -u hop-thu-cong-khai _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-cong-khai) | grep -E "Mã hoá|MÃ HOÁ|Lý do"
-  journalctl -u hop-thu-can-bo _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-can-bo) | grep -E "Mã hoá|MÃ HOÁ|Lý do"
+  systemctl is-active hop-thu-cong-khai && journalctl -o cat -u hop-thu-cong-khai _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-cong-khai) | grep -xE "🔒 Mã hoá danh tính: ĐÃ BẬT \(AES-256-GCM\)|🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴|   Lý do: (chưa đặt biến môi trường )?ENCRYPTION_KEY.*"
+  systemctl is-active hop-thu-can-bo && journalctl -o cat -u hop-thu-can-bo _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-can-bo) | grep -xE "🔒 Mã hoá danh tính: ĐÃ BẬT \(AES-256-GCM\)|🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴|   Lý do: (chưa đặt biến môi trường )?ENCRYPTION_KEY.*"
   ```
-  Lệnh chỉ đọc nhật ký của **lần chạy hiện tại** của máy chủ; các lần chạy trước không lẫn vào.
-  Đừng thêm `| tail` vào cuối — làm vậy lại lẫn dòng của lần chạy trước.
+  Ra **thêm hay thiếu** bất kỳ dòng nào khác → **chưa** được coi là đã bật.
+  Lệnh chỉ đọc nhật ký của **lần chạy hiện tại** của máy chủ, và chỉ khi máy chủ **đang chạy**; các
+  lần chạy trước không lẫn vào. Đừng thêm `| tail` vào cuối, đừng bỏ phần
+  `systemctl is-active … &&` ở đầu, đừng sửa phần trong ngoặc kép sau `grep -xE` — làm vậy lại có
+  thể thấy "ĐÃ BẬT" không phải của máy chủ đang chạy.
+  Kết quả là khoá máy chủ nạp **lúc khởi động**: sửa `.env` thì phải restart rồi mới kiểm.
   (Trang `/api/health` ai cũng mở được nên không còn ghi mã hoá bật hay chưa — chỉ người vào
   được máy chủ mới xem được, ở nhật ký.)
 
@@ -248,8 +254,16 @@ Làm theo **tài liệu kỹ thuật, mục B9**. Trong khối cấu hình, thay
 (dòng `Lý do:` ngay dưới nói rõ). Sửa, rồi `systemctl restart hop-thu-cong-khai hop-thu-can-bo`,
 rồi **gõ lại hai lệnh trên** — phải thấy `ĐÃ BẬT` ở cả hai.
 
-❌ Lệnh **không ra dòng nào** → **chưa** được coi là đã bật. Đợi 30 giây rồi gõ lại (máy chủ có thể
-chưa khởi động xong). Vẫn không ra → máy chủ đang hỏng và tự chạy lại liên tục: gõ
+❌ Dòng đầu là **`inactive`** hoặc **`failed`** → máy chủ **đang dừng**, **chưa** được coi là đã bật.
+Gõ `systemctl start hop-thu-cong-khai` (hoặc `hop-thu-can-bo`) rồi gõ lại lệnh trên.
+
+❌ Ra `active` mà **không có dòng nào khác** → **chưa** được coi là đã bật. Đợi 30 giây rồi gõ lại
+(máy chủ có thể chưa khởi động xong). Vẫn vậy → máy đã chạy lâu và nhật ký lần khởi động đã **bị
+dọn** (máy tự xoá nhật ký cũ khi đầy): gõ `systemctl restart hop-thu-cong-khai` (hoặc
+`hop-thu-can-bo`), đợi 30 giây, gõ lại lệnh trên.
+
+❌ Dòng đầu là **`activating`**, hoặc restart rồi vẫn chỉ ra `active` → **chưa** được coi là đã bật:
+máy chủ đang hỏng và tự chạy lại liên tục. Gõ
 `journalctl -u hop-thu-cong-khai -n 50` (hoặc `hop-thu-can-bo`), chụp gửi Claude (**che** dòng nào có khoá).
 
 ❌ `"db":false` → máy chủ chạy nhưng không nối được CSDL — xem `journalctl -u hop-thu-cong-khai -n 50`.

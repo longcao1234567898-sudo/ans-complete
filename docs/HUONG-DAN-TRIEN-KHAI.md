@@ -490,30 +490,56 @@ nối được CSDL).
 Trang này công khai nên **không** cho biết mã hoá đã bật chưa (BUG-049). Kiểm mã hoá trên máy chủ:
 
 ```bash
-journalctl -u hop-thu-cong-khai _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-cong-khai) | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do"
-journalctl -u hop-thu-can-bo _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-can-bo) | grep -E "Phiên bản|Mã hoá|MÃ HOÁ|Lý do"
+systemctl is-active hop-thu-cong-khai && journalctl -o cat -u hop-thu-cong-khai _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-cong-khai) | grep -xE "   Phiên bản backend: .*|🔒 Mã hoá danh tính: ĐÃ BẬT \(AES-256-GCM\)|🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴|   Lý do: (chưa đặt biến môi trường )?ENCRYPTION_KEY.*"
+systemctl is-active hop-thu-can-bo && journalctl -o cat -u hop-thu-can-bo _SYSTEMD_INVOCATION_ID=$(systemctl show -p InvocationID --value hop-thu-can-bo) | grep -xE "   Phiên bản backend: .*|🔒 Mã hoá danh tính: ĐÃ BẬT \(AES-256-GCM\)|🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴|   Lý do: (chưa đặt biến môi trường )?ENCRYPTION_KEY.*"
 ```
 
-Phải thấy `🔒 Mã hoá danh tính: ĐÃ BẬT` ở **cả hai**, quan trọng nhất là `hop-thu-cong-khai` (máy
-nhận và mã hoá tố giác). Thấy `🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG` kèm dòng `Lý do:` nghĩa là
-máy chủ không nhận được `ENCRYPTION_KEY` — kiểm lại tệp `.env`, `systemctl restart` dịch vụ đó rồi
-**chạy lại lệnh trên**. Dòng `Phiên bản backend:` cho biết bản đang chạy (để biết đã cập nhật chưa).
+Gõ **từng lệnh một** và đọc kết quả ngay dưới lệnh đó rồi mới gõ lệnh sau — kết quả không ghi tên
+máy chủ, dán cả hai một lượt thì không biết dòng nào của máy nào. Mỗi lệnh chỉ được coi là **đã
+bật** khi ra **đúng ba dòng**: `active` (dịch vụ đang chạy), `Phiên bản backend: …` (bản đang chạy —
+để biết đã cập nhật chưa), và một dòng đúng nguyên văn `🔒 Mã hoá danh tính: ĐÃ BẬT (AES-256-GCM)`.
+Phải đạt ở **cả hai**, quan trọng nhất là `hop-thu-cong-khai` (máy nhận và mã hoá tố giác). Ra
+**thêm hay thiếu** bất kỳ dòng nào khác → **chưa** được coi là đã bật.
+
+Thấy `🔴🔴🔴 MÃ HOÁ DANH TÍNH KHÔNG HOẠT ĐỘNG 🔴🔴🔴` kèm dòng `Lý do:` nghĩa là máy chủ không nhận
+được `ENCRYPTION_KEY` — kiểm lại tệp `.env`, `systemctl restart` dịch vụ đó rồi **chạy lại lệnh
+trên**. Kết quả là khoá máy chủ nạp **lúc khởi động**: sửa `.env` mà chưa restart thì lệnh vẫn báo
+theo khoá cũ.
+
+Vì sao lệnh lọc **nguyên dòng** (`-o cat` bỏ phần giờ/PID ở đầu, `grep -x` bắt khớp cả dòng) thay vì
+mọi dòng có chữ `Mã hoá`: nhật ký của lần chạy hiện tại còn có những dòng khác, không phải dòng trạng
+thái, mà vẫn có thể chứa chữ `Mã hoá` hay `ĐÃ BẬT` — lọc lỏng thì chúng lẫn vào kết quả và dễ đọc
+nhầm (BUG-057). Đừng nới mẫu `grep`.
 
 Các dòng này chỉ in lúc máy chủ khởi động, và nhật ký giữ lại **mọi** lần khởi động trước. Mỗi lần
 khởi động systemd cấp một mã lần chạy (`InvocationID`) mới; lệnh trên chỉ đọc nhật ký mang mã của
 **lần đang chạy**, nên dòng của các lần trước — kể cả một lần trước còn báo "ĐÃ BẬT" — không lẫn vào.
 Đừng đổi thành `journalctl -u … | grep … | tail -n`: số dòng mỗi lần khởi động không cố định (tốt 2,
-hỏng 3), nên `tail` lấy lẫn dòng của lần chạy trước (BUG-057).
+hỏng 3), nên `tail` lấy lẫn dòng của lần chạy trước (BUG-057). Cũng đừng bỏ phần
+`systemctl is-active … &&` ở đầu: khi dịch vụ **đã dừng** (`systemctl stop`), systemd vẫn giữ mã của
+lần chạy vừa kết thúc, nên thiếu phần này lệnh in "ĐÃ BẬT" của một máy chủ không còn chạy (BUG-057).
 
-**Không ra dòng nào** thì **không** được coi là đã bật: máy chủ chưa khởi động xong (đợi khoảng
-30 giây rồi chạy lại) hoặc đang sập rồi tự chạy lại liên tục — xem `systemctl status <dịch vụ>` và
-`journalctl -u <dịch vụ> -n 50`.
+**Dòng đầu không phải `active`**, hoặc **không ra dòng trạng thái nào**, thì **không** được coi là đã
+bật:
+- `inactive` hoặc `failed` — dịch vụ đang dừng hoặc đã hỏng hẳn: `systemctl start <dịch vụ>` (hỏng thì
+  xem `systemctl status <dịch vụ>`) rồi chạy lại lệnh.
+- `activating` — máy chủ đang sập rồi tự chạy lại liên tục: xem `systemctl status <dịch vụ>` và
+  `journalctl -u <dịch vụ> -n 50`.
+- `active` nhưng không có dòng trạng thái nào — máy chủ chưa khởi động xong: đợi khoảng 30 giây rồi
+  chạy lại. Vẫn không có: máy đã chạy lâu và nhật ký lần khởi động đã **bị dọn** (journald xoá nhật
+  ký cũ khi đầy) — `systemctl restart <dịch vụ>` rồi chạy lại lệnh; nếu vẫn không có thì xem
+  `systemctl status <dịch vụ>`.
 
-Chạy trên Render: vào dịch vụ → tab **Logs**. Ở đây cũng có dòng của **mọi** lần khởi động (mỗi
-lần deploy hoặc Render tự khởi động lại), nên chỉ tin **lần mới nhất**: tìm `Phiên bản backend`,
-lấy dòng có giờ **muộn nhất** — giờ đó phải sau lần deploy gần nhất (tab **Events**) — rồi đọc các
-dòng in cùng lúc ngay sau nó: phải có `🔒 Mã hoá danh tính: ĐÃ BẬT`. Đừng tìm `Mã hoá` rồi tin một
-dòng bất kỳ trong kết quả: dòng "ĐÃ BẬT" đó có thể của một lần khởi động cũ.
+Chạy trên Render: làm cho **cả hai** dịch vụ, `hop-thu-cong-khai` và `hop-thu-can-bo`, mỗi dịch vụ
+một lần. Vào dịch vụ: trang dịch vụ **không** được ghi **Suspended** (dịch vụ bị tạm ngưng vẫn giữ
+nhật ký cũ có "ĐÃ BẬT"). Sang tab **Logs**. Ở đây cũng có dòng của **mọi** lần khởi động (mỗi lần
+deploy hoặc Render tự khởi động lại), nên chỉ tin **lần mới nhất**: tìm `Phiên bản backend`, lấy
+dòng có giờ **muộn nhất** — giờ đó phải sau lần deploy gần nhất (tab **Events**) — rồi **xoá chữ
+trong ô tìm** để đọc các dòng in cùng lúc ngay sau nó: dòng `Phiên bản backend`, dòng `AI (Gemini)`,
+rồi **liền ngay sau** là dòng đúng nguyên văn `🔒 Mã hoá danh tính: ĐÃ BẬT (AES-256-GCM)` — ba dòng
+này máy chủ in liền một mạch, không dòng nào chen vào giữa được. Đừng tìm `Mã hoá` rồi tin một dòng
+bất kỳ trong kết quả: dòng "ĐÃ BẬT" đó có thể của một lần khởi động cũ, hoặc không phải dòng trạng
+thái (xem trên).
 
 ### B9b. (Tuỳ chọn) Bật IPv6 — chỉ khi Viettel cấp địa chỉ IPv6 cho máy
 
