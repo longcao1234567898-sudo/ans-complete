@@ -291,6 +291,17 @@ CLOUDINARY_API_SECRET=<xem Phần D>
 TRICH_CHU_OCR=
 ```
 
+> ⚠️ **`ADMIN_ALLOWED_IPS` chỉ chặn được khi đủ cả ba thứ dưới đây (ND-093).** Mất một là danh
+> sách IP cơ quan thành hàng rào giấy — đừng đổi cái nào, kể cả "tạm thời để thử":
+>
+> 1. `HOST=127.0.0.1` ở cả hai tệp `.env` (trên).
+> 2. Tường lửa và Security Group không mở cổng 4000, 4001 (B4).
+> 3. Nginx **ghi đè** địa chỉ người gửi: `proxy_set_header X-Forwarded-For $remote_addr;` (B9) — không
+>    dùng `$proxy_add_x_forwarded_for`.
+>
+> Máy chủ cán bộ in dòng đỏ `🔴 CHẶN IP CÁN BỘ CÓ THỂ BỊ LÁCH` khi khai `ADMIN_ALLOWED_IPS` mà `HOST`
+> không phải địa chỉ nội bộ (BUG-047) — thấy dòng đó trong `journalctl` là phải sửa ngay.
+
 **Tài khoản CSDL cho ứng dụng (ND-082)** — tạo một lần bằng tài khoản quản trị (root) của kho:
 
 ```sql
