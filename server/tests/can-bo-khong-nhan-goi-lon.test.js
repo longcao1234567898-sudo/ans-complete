@@ -34,3 +34,19 @@ test('may-chu-can-bo.js khai danh sách đường gói lớn rỗng; hai máy ch
   assert.match(await doc('may-chu-cong-khai.js'), /ganDocThan\(app\);/);
   assert.match(await doc('index.js'), /ganDocThan\(app\);/);
 });
+
+/* Phát hiện phụ C của RETEST BUG-048 lần 3: danh sách đường truyền vào ganDocThan phải viết thường,
+   không "/" cuối thì mới khớp — bẫy cho người gọi sau. Chuẩn hoá ngay khi nhận. */
+test('danh sách đường gói lớn viết hoa / có "/" cuối vẫn khớp như mặc định', async () => {
+  const app = nt.taoApp({ ten: 'thu' });
+  nt.ganDocThan(app, { duongGoiLon: ['/API/Submissions/'] });
+  app.post('/api/submissions', (_req, res) => res.json({ ok: true }));
+  const sv = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try {
+    const r = await fetch(`http://127.0.0.1:${sv.address().port}/api/submissions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ x: 'a'.repeat(2 * 1024 * 1024) }),
+    });
+    assert.equal(r.status, 200, `đường khai '/API/Submissions/' không khớp (ra ${r.status})`);
+  } finally { sv.closeAllConnections(); sv.close(); }
+});

@@ -263,7 +263,9 @@ function coVeChatHopLe(req) {
    không gắn hai route đó nên khai RỖNG — không thì nó đọc trọn gói lớn rồi mới trả 404 (RETEST
    BUG-048 lần 2). */
 export function ganDocThan(app, { duongGoiLon = DUONG_GOI_LON } = {}) {
-  const dsGoiLon = new Set(duongGoiLon);
+  /* Chuẩn hoá như laDuongGoiLon chuẩn hoá đường của yêu cầu (chữ thường, bỏ "/" cuối) — không thì
+     người gọi khai '/API/Submissions/' tưởng đã mở mà không khớp (RETEST BUG-048 lần 3) */
+  const dsGoiLon = new Set([...duongGoiLon].map((d) => String(d).toLowerCase().replace(/\/+$/, '')));
   const docLon = express.json({ limit: GIOI_HAN_GOI_LON });
   const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
   const gioiHanGoiLon = taoGioiHanGoiLon();
