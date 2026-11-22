@@ -77,7 +77,6 @@ router.post('/send', async (req, res) => {
   }
 
   const email = String(req.body?.email || '').trim().toLowerCase();
-  const ip = khoaIp(req);   // khoá đếm theo mạng (IPv6 gom /64 — P87)
 
   if (!validEmail(email)) {
     return res.status(400).json({ error: 'Email không đúng định dạng.' });
@@ -114,9 +113,11 @@ router.post('/send', async (req, res) => {
     const codeHash = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60_000);
 
+    /* KHÔNG ghi IP (BUG-055): đường email đếm theo email_hash, không đọc cột này — ghi vào chỉ
+       để lại băm email + IP thô + giờ, đối chiếu được với giờ gửi đơn có email */
     await pool.query(
-      'INSERT INTO otp_codes (email_hash, code_hash, expires_at, ip_address) VALUES (?,?,?,?)',
-      [eHash, codeHash, expiresAt, ip]
+      'INSERT INTO otp_codes (email_hash, code_hash, expires_at) VALUES (?,?,?)',
+      [eHash, codeHash, expiresAt]
     );
 
     const result = await sendOtpEmail(email, code);

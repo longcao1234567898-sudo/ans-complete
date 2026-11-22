@@ -80,3 +80,13 @@ test('cờ bật ("true"): /send vẫn chạy vào xử lý như cũ (đối ch�
   /* Chưa khai dịch vụ email ở máy thật -> 503 của BUG-025, tức là đã vào tới xử lý */
   assert.equal(r.status, 503, r.text.slice(0, 200));
 });
+
+test('BUG-055: cờ bật, /send tạo mã KHÔNG ghi IP — đường email đếm theo email, không đọc IP', { skip: BO_QUA }, async () => {
+  process.env.BAT_XAC_THUC_EMAIL = 'true';
+  process.env.NODE_ENV = 'development';   // chế độ demo của máy cá nhân: tạo mã, không gửi thư
+  const r = await goiOtp('/send', { email: 'nguoi.gui@vi-du.vn' });
+  assert.equal(r.status, 200, r.text.slice(0, 200));
+  const ds = ctl.db.prepare('SELECT ip_address FROM otp_codes').all();
+  assert.equal(ds.length, 1);
+  assert.equal(ds[0].ip_address, null, 'otp_codes còn ghi IP thô cạnh băm email');
+});

@@ -764,3 +764,28 @@ test('G4 — lượt tự dọn xoá IP thô mã cũ đã ghi ở hai bảng, kh
   const kn = db.prepare('SELECT identifier, device_id, content, ip_address FROM unlock_appeals').get();
   assert.deepEqual({ ...kn }, { identifier: MAY_P, device_id: MAY_P, content: 'khiếu nại cũ', ip_address: null });
 });
+
+/* ======================================================================== */
+/* H. Mã OTP cũ không nằm mãi kèm IP thô (BUG-055)                           */
+/* ======================================================================== */
+/* otp_codes ghi email_hash (hoặc băm mã phiên ẩn danh) + IP thô + giờ tạo. Mã chỉ sống 10 phút,
+   hạn mức đếm trong 1 giờ / 1 ngày — nhưng không lượt dọn nào xoá: email (đã băm) + IP + giờ
+   nằm vĩnh viễn, đối chiếu được với giờ gửi đơn. Có cả dòng của thời /anon-code còn dùng. */
+test('H1 — lượt tự dọn xoá dòng otp_codes quá 2 ngày, giữ dòng còn cần cho hạn mức', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  db.exec(`CREATE TABLE otp_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, email_hash TEXT, code_hash TEXT,
+    attempts INT DEFAULT 0, is_used INT DEFAULT 0, expires_at TEXT, created_at TEXT DEFAULT (NOW()), ip_address TEXT)`);
+  const them = (phut) => db.prepare(`INSERT INTO otp_codes (email_hash, code_hash, expires_at, created_at, ip_address)
+    VALUES ('e', 'c', ?, ?, ?)`).run(luc(phut - 10), luc(phut), IP_THO);
+  them(60);           // 1 giờ trước — còn trong cửa sổ đếm 1 ngày
+  them(20 * 60);      // 20 giờ trước — còn
+  them(3 * NGAY);     // 3 ngày trước — phải mất
+  them(400 * NGAY);   // dòng rất cũ — phải mất
+  await vongDoi.donDauNoi(pool);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM otp_codes').get().n, 2, 'mã OTP cũ (kèm IP thô) không bị dọn');
+});
+
+test('H2 — CSDL chưa có bảng otp_codes: lượt dọn không ném', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  await vongDoi.donDauNoi(pool);
+});

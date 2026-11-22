@@ -153,6 +153,25 @@ export async function xoaIpThoDaGhi(pool) {
 }
 
 /**
+ * Xoá dòng otp_codes quá 2 ngày (BUG-055). Mã sống 10 phút, hạn mức đếm trong 1 giờ (email) và
+ * 1 ngày (mã ẩn danh cũ) — quá 2 ngày không việc nào cần, mà mỗi dòng giữ băm email (hoặc băm mã
+ * phiên ẩn danh) + IP thô + giờ tạo, đối chiếu được với giờ gửi đơn. Xoá cả dòng, gồm dòng mã cũ
+ * ghi từ thời /anon-code còn dùng. Câu DELETE trong tệp SQL nền bị để dạng chú thích nên chưa bao
+ * giờ chạy. Thiếu bảng thì trả 0 như xoaIpThoDaGhi.
+ *
+ * @returns {number} số dòng đã xoá
+ */
+export async function xoaMaOtpQuaHan(pool) {
+  try {
+    const [kq] = await pool.query('DELETE FROM otp_codes WHERE created_at < NOW() - INTERVAL 2 DAY');
+    return kq?.affectedRows || 0;
+  } catch (err) {
+    if (err?.code === 'ER_NO_SUCH_TABLE' || /no such table/i.test(String(err?.message))) return 0;
+    throw err;
+  }
+}
+
+/**
  * Một lượt dọn đủ mọi dấu nối — cùng các việc với nang_cap_v21.sql và
  * nang_cap_v22.sql, để thứ tự "chạy tệp nâng cấp rồi mới cập nhật mã" không để
  * lại khoảng hở nào. Lỗi thì ném ra cho bên gọi ghi log.
@@ -166,7 +185,8 @@ export async function donDauNoi(pool) {
      nhưng không giữ thứ không còn dùng */
   const soMaLanGui = await xoaMaLanGuiQuaHan(pool);
   const { soYeuCauXoa, soKhieuNai } = await xoaIpThoDaGhi(pool);
-  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui, soYeuCauXoa, soKhieuNai };
+  const soMaOtp = await xoaMaOtpQuaHan(pool);
+  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui, soYeuCauXoa, soKhieuNai, soMaOtp };
 }
 
 /**
@@ -178,7 +198,7 @@ export async function donDauNoi(pool) {
 export function batTuDonDauNoi(pool, { chuKyMs = CHU_KY_MAC_DINH_MS } = {}) {
   const motLuot = async () => {
     try {
-      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui, soYeuCauXoa, soKhieuNai } = await donDauNoi(pool);
+      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui, soYeuCauXoa, soKhieuNai, soMaOtp } = await donDauNoi(pool);
       if (soDon > 0) console.log(`🧹 Đã xoá dấu nối (mã máy, IP đã băm) của ${soDon} đơn quá ${SO_NGAY_GIU_DAU_NOI} ngày`);
       if (soDongKhoa > 0) console.log(`🧹 Đã xoá ${soDongKhoa} dòng khoá hết hạn / không rõ loại`);
       if (soDonDaXoaDanhTinh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonDaXoaDanhTinh} đơn đã xoá danh tính`);
@@ -186,6 +206,7 @@ export function batTuDonDauNoi(pool, { chuKyMs = CHU_KY_MAC_DINH_MS } = {}) {
       if (soKhoaAnDanh > 0) console.log(`🧹 Đã xoá ${soKhoaAnDanh} dòng khoá loại ẩn danh của mã cũ`);
       if (soMaLanGui > 0) console.log(`🧹 Đã xoá mã lần gửi quá 24 giờ của ${soMaLanGui} đơn`);
       if (soYeuCauXoa + soKhieuNai > 0) console.log(`🧹 Đã xoá IP thô của ${soYeuCauXoa} yêu cầu xoá danh tính, ${soKhieuNai} khiếu nại`);
+      if (soMaOtp > 0) console.log(`🧹 Đã xoá ${soMaOtp} mã OTP quá 2 ngày`);
     } catch (err) {
       console.error('🔴 KHÔNG xoá được dấu nối quá hạn — sẽ thử lại chu kỳ sau:', err.message);
     }
