@@ -42,6 +42,19 @@ function gopNhuMysql(s) {
     .toLowerCase().replace(/ +$/, '');
 }
 
+/* Giả lập theo NGHĨA, không theo nguyên văn (RETEST lần 3 của BUG-057: giả lập cũ chỉ khớp câu
+   `username = ?`; đổi sang `IN (?, ?)` hay bỏ COLLATE là giả lập không chạy, SQLite so BINARY nên
+   test vô tình xanh trong khi MariaDB thật cho vào tài khoản). Quy tắc của MySQL: phép so trên cột
+   username KHÔNG kèm `COLLATE utf8mb4_bin` dùng collation của cột (utf8mb4_unicode_ci) — kể cả khi
+   bọc LOWER(). Câu có `COLLATE utf8mb4_bin` thì để nguyên: khung test dịch sang BINARY, đúng nghĩa. */
+function giaLapCollation(sql) {
+  if (!/FROM staff\b/i.test(sql) || /COLLATE utf8mb4_bin/i.test(sql)) return sql;
+  return sql
+    .replace(/(?:LOWER\()?\busername\b\)?\s+IN\s*\(([\s?,]+)\)/gi,
+      (_m, ds) => `GOP_MYSQL(username) IN (${ds.split(',').map(() => 'GOP_MYSQL(?)').join(', ')})`)
+    .replace(/(?:LOWER\()?\busername\b\)?\s*=\s*\?/gi, 'GOP_MYSQL(username) = GOP_MYSQL(?)');
+}
+
 function dung() {
   const ctl = dungCsdl(pool, { themCau: [
     'ALTER TABLE staff ADD COLUMN password_hash TEXT',
@@ -53,8 +66,7 @@ function dung() {
   ] });
   ctl.db.function('GOP_MYSQL', gopNhuMysql);
   const goc = pool.query;
-  pool.query = (sql, p) => goc(String(sql)
-    .replace(/FROM staff WHERE username = \?/g, 'FROM staff WHERE GOP_MYSQL(username) = GOP_MYSQL(?)'), p);
+  pool.query = (sql, p) => goc(giaLapCollation(String(sql)), p);
   ctl.db.prepare('DELETE FROM staff').run();
   ctl.db.prepare(`INSERT INTO staff (id, username, full_name, role, password_hash, failed_attempts)
     VALUES (9, 'canbo9', 'Cán bộ Chín', 'handler', ?, 0)`).run(bcrypt.hashSync('mat-khau-dung-9', 4));
