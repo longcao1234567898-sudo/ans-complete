@@ -187,6 +187,12 @@ export const GIOI_HAN_GOI_LON = '32mb';
 export const GIOI_HAN_GOI_THUONG = '1mb';
 const DUONG_GOI_LON = new Set(['/api/submissions', '/api/chat/bo-sung']);
 
+/* Đường KHÔNG đọc thân: POST /api/ai/moderate-image luôn trả blocked:false và không dùng thân
+   (routes/ai.js). Giao diện vẫn gửi data URL ảnh; giới hạn 1 MB làm ảnh lớn nhận 413, giao diện rơi
+   xuống phép đo màu da và có thể chặn oan ảnh (hồi quy do BUG-048, RETEST phát hiện). Không đọc gì
+   thì không 413 và không tốn bộ nhớ; Node tự bỏ phần thân chưa đọc. */
+const DUONG_KHONG_DOC_THAN = new Set(['/api/ai/moderate-image']);
+
 export function laDuongGoiLon(req) {
   if (req.method !== 'POST') return false;
   const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
@@ -258,6 +264,10 @@ export function ganDocThan(app) {
   const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
   const gioiHanGoiLon = taoGioiHanGoiLon();
   app.use((req, res, next) => {
+    if (req.method === 'POST'
+        && DUONG_KHONG_DOC_THAN.has(String(req.path || '').toLowerCase().replace(/\/+$/, ''))) {
+      return next();
+    }
     if (!laDuongGoiLon(req)) return docThuong(req, res, next);
     if (!laGoiLon(req)) return docLon(req, res, next);
     const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
