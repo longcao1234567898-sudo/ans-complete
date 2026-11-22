@@ -13,6 +13,7 @@
  * giọng nói, không thêm phụ thuộc gì.
  */
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
 import type { KhoaChu } from '../../i18n/chu';
 import { Volume2, Square } from 'lucide-react';
@@ -58,31 +59,69 @@ export default function HuongDanBuoc({ buoc }: { buoc: number }) {
     dkRef.current = docTiengViet(t(hd.khoaLoi), () => setDangDoc(false), ngonNgu);
   }
 
+  const buocTruocRef = useRef(buoc);
+  const huong = buoc >= buocTruocRef.current ? 1 : -1;
+  useEffect(() => {
+    buocTruocRef.current = buoc;
+  }, [buoc]);
+
   return (
-    <div className="mb-6 flex items-start gap-3 rounded-2xl border-2 border-primary-100 bg-primary-50/60 p-4 dark:border-primary-900/40 dark:bg-primary-900/15">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-600 text-lg font-extrabold text-white">
-        {buoc}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-base font-extrabold leading-tight text-primary-800 dark:text-primary-200">
-          {t('f.stepOf').replace('{n}', String(buoc))} — {t(hd.khoaTen)}
-        </p>
-        <p className="mt-0.5 text-sm leading-snug text-slate-600 dark:text-slate-300">
-          {t(hd.khoaLoi).replace(/^Bước \d trên 5\. /, '')}
-        </p>
+    <div className="mb-6 flex items-start gap-3 overflow-hidden rounded-2xl border-2 border-primary-100 bg-primary-50/75 p-4 shadow-soft transition-colors duration-200 dark:border-primary-900/40 dark:bg-primary-900/20">
+      <div className="relative h-11 w-11 shrink-0">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={buoc}
+            initial={{ opacity: 0, scale: 0.78 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.78 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-primary-600 to-primary-500 text-lg font-extrabold text-white shadow-sm"
+          >
+            {buoc}
+          </motion.span>
+        </AnimatePresence>
+      </div>
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={`${buoc}-${ngonNgu}`}
+            initial={{ opacity: 0, x: huong * 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: huong * -12 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <p className="text-base font-extrabold leading-tight text-primary-800 dark:text-primary-200">
+              {t('f.stepOf').replace('{n}', String(buoc))} — {t(hd.khoaTen)}
+            </p>
+            <p className="mt-0.5 text-sm leading-snug text-slate-600 dark:text-slate-300">
+              {t(hd.khoaLoi).replace(/^Bước \d trên 5\. /, '')}
+            </p>
+          </motion.div>
+        </AnimatePresence>
       </div>
       {supported && (
         <button
           type="button"
           onClick={doc}
           aria-label={dangDoc ? t('hd.stopRead') : t('hd.listenAgain')}
-          className={`flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
+          className={`flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-[transform,background-color,color,box-shadow] duration-150 active:scale-[0.97] ${
             dangDoc
-              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-primary-600 text-white hover:bg-primary-700'
+              ? 'bg-red-100 text-red-700 shadow-sm dark:bg-red-900/30 dark:text-red-300'
+              : 'bg-primary-600 text-white shadow-sm hover:bg-primary-700'
           }`}
         >
-          {dangDoc ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          {dangDoc ? (
+            <>
+              <span className="inline-flex h-3.5 items-end gap-[2px]" aria-hidden="true">
+                <span className="hd-song-am h-full w-[2.5px] rounded-full bg-current" style={{ animationDelay: '0ms' }} />
+                <span className="hd-song-am h-full w-[2.5px] rounded-full bg-current" style={{ animationDelay: '160ms' }} />
+                <span className="hd-song-am h-full w-[2.5px] rounded-full bg-current" style={{ animationDelay: '320ms' }} />
+              </span>
+              <Square className="h-3.5 w-3.5" />
+            </>
+          ) : (
+            <Volume2 className="h-4 w-4" />
+          )}
           {dangDoc ? t('hd.stopRead') : t('hd.listenAgain')}
         </button>
       )}

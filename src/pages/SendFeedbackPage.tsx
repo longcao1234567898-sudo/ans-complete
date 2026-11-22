@@ -60,10 +60,13 @@ export default function SendFeedbackPage() {
   useEffect(() => {
     if (buocTruoc.current === step) return;
     buocTruoc.current = step;
+    /* Trong lúc vòng hướng dẫn đang chạy, HuongDanBanDau tự điều phối nhịp cuộn
+       tới đúng phần tử đang chỉ — tránh hai lệnh cuộn chạy đè nhau gây giật. */
+    if (dangHuongDan) return;
     const khu = document.querySelector('[data-khu-bieu-mau]');
     if (khu) khu.scrollIntoView({ block: 'start', behavior: 'smooth' });
     else window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [step]);
+  }, [step, dangHuongDan]);
 
   /* Bản nháp THẬT của bà con, cất tạm trong lúc xem hướng dẫn. */
   const nhapThat = useRef<typeof draft | null>(null);
@@ -364,10 +367,10 @@ export default function SendFeedbackPage() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: 40 }}
+            initial={{ opacity: 0, x: dangHuongDan ? 18 : 32 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.32, ease: [0.21, 0.65, 0.36, 1] }}
+            exit={{ opacity: 0, x: dangHuongDan ? -18 : -32 }}
+            transition={{ duration: dangHuongDan ? 0.18 : 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
         {step === 1 && (
           <ContentInput
