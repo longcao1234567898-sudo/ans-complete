@@ -136,27 +136,6 @@ export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
     })
   );
 
-  /* 32mb: đủ cho một video 20MB sau khi mã hoá base64 (tăng khoảng 33%) cộng
-   phần nội dung và ảnh. Trước đây 12mb nên video vừa gửi đã bị từ chối. */
-app.use(express.json({ limit: '32mb' }));
-  /* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
-
-   ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
-   trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
-   được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
-   kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
-
-   Nay nói thẳng nguyên nhân và cách làm tiếp. */
-app.use((err, _req, res, next) => {
-  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
-    return res.status(413).json({
-      error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
-           + 'quay đoạn ngắn hơn, rồi gửi lại.',
-    });
-  }
-  return next(err);
-});
-
 app.use(cookieParser());
   // Giới hạn chung: XEM 1.500 / GỬI 300 mỗi 15 phút mỗi IP, đếm riêng (lib/gioi-han-chung.js, ND-063)
   app.use(...gioiHanChung());
@@ -185,6 +164,50 @@ app.use(cookieParser());
 export function ganDuoi(app, errorHandler) {
   app.use((_req, res) => res.status(404).json({ error: 'Endpoint không tồn tại.' }));
   app.use(errorHandler);
+}
+
+/* ĐỌC THÂN YÊU CẦU — gọi SAU taoApp (đã có giới hạn lượt chung), SAU chặn IP nếu có, TRƯỚC
+   mọi route (BUG-048). Trước đây đọc thân nằm trong taoApp, đứng trước cả giới hạn lượt lẫn
+   chặn IP cán bộ, với 32 MB cho mọi đường: IP đã bị 429 hay ngoài dải cơ quan vẫn được đọc
+   trọn 32 MB và JSON.parse vào bộ nhớ rồi mới bị từ chối — vài chục yêu cầu song song là máy
+   4 GB tràn bộ nhớ, kênh tiếp nhận ngừng.
+
+   32 MB: đủ cho một video 20 MB sau khi mã hoá base64 (tăng khoảng 33%) cộng nội dung và ảnh.
+   CHỈ hai đường nhận tệp của người dân cần: POST /api/submissions và POST /api/chat/bo-sung.
+   Allow-list (luật 5): so đúng đường đã chuẩn hoá chữ thường, bỏ "/" cuối; cách viết lạ khác
+   rơi về giới hạn nhỏ — phía an toàn. Mọi đường khác 1 MB: nội dung chữ dài nhất (tin tức,
+   lịch sử trò chuyện với trợ lý) còn cách xa mức đó. */
+export const GIOI_HAN_GOI_LON = '32mb';
+export const GIOI_HAN_GOI_THUONG = '1mb';
+const DUONG_GOI_LON = new Set(['/api/submissions', '/api/chat/bo-sung']);
+
+export function laDuongGoiLon(req) {
+  if (req.method !== 'POST') return false;
+  const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
+  return DUONG_GOI_LON.has(duong);
+}
+
+export function ganDocThan(app) {
+  const docLon = express.json({ limit: GIOI_HAN_GOI_LON });
+  const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
+  app.use((req, res, next) => (laDuongGoiLon(req) ? docLon : docThuong)(req, res, next));
+  /* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
+
+     ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
+     trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
+     được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
+     kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
+
+     Nay nói thẳng nguyên nhân và cách làm tiếp. */
+  app.use((err, _req, res, next) => {
+    if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+      return res.status(413).json({
+        error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
+             + 'quay đoạn ngắn hơn, rồi gửi lại.',
+      });
+    }
+    return next(err);
+  });
 }
 
 /**
