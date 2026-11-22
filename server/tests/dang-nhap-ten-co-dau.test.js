@@ -138,3 +138,36 @@ test('trộn cách viết khi dò tên gốc: viết hoa / khoảng trắng cộ
   assert.equal(r.status, 401, 'ba lần sai dưới ba cách viết hoa/khoảng trắng không được tính chung');
   assert.equal(r.canCaptcha, true);
 });
+
+/* Hồi quy của bản vá BUG-057 (RETEST độc lập đo trên MariaDB): tra tài khoản so TỪNG BYTE với tên
+   chuẩn dạng NFC, nên tài khoản có tên LƯU dạng NFD (dấu tổ hợp — bộ gõ trên vài máy sinh ra) không
+   đăng nhập được bằng bất kỳ cách gõ nào. Trước bản vá vào được nhờ collation. */
+function themCanBo(ctl, id, ten, matKhau) {
+  ctl.db.prepare(`INSERT INTO staff (id, username, full_name, role, password_hash, failed_attempts)
+    VALUES (?, ?, 'Cán bộ', 'handler', ?, 0)`).run(id, ten, bcrypt.hashSync(matKhau, 4));
+}
+
+test('tên LƯU dạng NFD: gõ NFC, gõ NFD, gõ HOA đều vào được', { skip: BO_QUA }, async () => {
+  for (const go of ['lêvăntám'.normalize('NFC'), 'lêvăntám'.normalize('NFD'), 'LÊVĂNTÁM']) {
+    const ctl = dung();
+    themCanBo(ctl, 21, 'lêvăntám'.normalize('NFD'), 'mat-khau-21');
+    const r = await dangNhap(go, 'mat-khau-21');
+    assert.equal(r.status, 200, `tên lưu NFD, gõ ${go === go.normalize('NFD') ? 'NFD' : 'NFC'} "${go}" không vào được (${r.status})`);
+  }
+});
+
+test('tên LƯU dạng NFC: gõ NFD vẫn vào được (canh bước chuẩn hoá NFC của tên gõ)', { skip: BO_QUA }, async () => {
+  const ctl = dung();
+  themCanBo(ctl, 22, 'trầnthịbé'.normalize('NFC'), 'mat-khau-22');
+  const r = await dangNhap('trầnthịbé'.normalize('NFD'), 'mat-khau-22');
+  assert.equal(r.status, 200, `tên lưu NFC, gõ NFD không vào được (${r.status})`);
+});
+
+test('tên lưu NFD: sai 3 lần dưới dạng NFC rồi gõ NFD + mật khẩu đúng -> vẫn bắt ô xác minh (một bộ đếm)', { skip: BO_QUA }, async () => {
+  const ctl = dung();
+  themCanBo(ctl, 23, 'lêvăntám'.normalize('NFD'), 'mat-khau-23');
+  for (let i = 0; i < 3; i++) await dangNhap('lêvăntám'.normalize('NFC'), `sai-${i}`);
+  const r = await dangNhap('lêvăntám'.normalize('NFD'), 'mat-khau-23');
+  assert.equal(r.status, 401, 'đổi dạng chuẩn hoá Unicode là thoát bộ đếm');
+  assert.equal(r.canCaptcha, true);
+});

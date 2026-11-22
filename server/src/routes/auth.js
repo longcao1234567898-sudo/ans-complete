@@ -163,7 +163,11 @@ router.post('/login', loginLimiter, async (req, res) => {
        lại khác (BUG-056), và mọi lần bắt chước collation bằng JavaScript đều hụt một nhóm ký tự —
        chỗ hụt làm tên có thật và tên không có phản hồi khác nhau (BUG-057, RETEST đo trên MariaDB).
        Nay hai chuỗi gõ vào được cùng một tài khoản thì CHẮC CHẮN cùng tenChuan, nên cùng bộ đếm;
-       và đường đi giống hệt cho tên có và tên không có. Vẫn không phân biệt hoa thường. */
+       và đường đi giống hệt cho tên có và tên không có. Vẫn không phân biệt hoa thường.
+       So với CẢ dạng NFC lẫn NFD của tenChuan: tên LƯU dạng dấu tổ hợp (NFD — vài bộ gõ sinh ra)
+       mới đăng nhập được (hồi quy của bản vá này, RETEST đo trên MariaDB). Hai dạng đều suy ra từ
+       cùng tenChuan nên khoá bộ đếm không đổi. Tên chứa chữ mà LOWER() của MySQL và toLowerCase()
+       của JS hạ khác nhau (İ, Σ cuối từ…) thì không đăng nhập được — từ chối, không mở (ND-104). */
     const tenChuan = username.trim().normalize('NFC').toLowerCase();
 
     /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
@@ -173,15 +177,15 @@ router.post('/login', loginLimiter, async (req, res) => {
       const [rows] = await pool.query(
         `SELECT id, full_name, username, password_hash, role, is_active,
                 COALESCE(failed_attempts, 0) AS failed_attempts, locked_until
-         FROM staff WHERE LOWER(username) = ? COLLATE utf8mb4_bin`,
-        [tenChuan]
+         FROM staff WHERE LOWER(username) COLLATE utf8mb4_bin IN (?, ?)`,
+        [tenChuan, tenChuan.normalize('NFD')]
       );
       staff = rows[0];
     } catch {
       // Chưa chạy v9 -> dùng truy vấn cũ
       const [rows] = await pool.query(
-        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE LOWER(username) = ? COLLATE utf8mb4_bin',
-        [tenChuan]
+        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE LOWER(username) COLLATE utf8mb4_bin IN (?, ?)',
+        [tenChuan, tenChuan.normalize('NFD')]
       );
       staff = rows[0];
     }
