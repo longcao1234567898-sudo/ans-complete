@@ -1,15 +1,16 @@
 # Kịch bản đồng hành — Claude hướng dẫn người vận hành đưa hệ thống lên Viettel
 
-Tài liệu này là **kế hoạch làm việc giữa người vận hành và Claude** trong việc **dựng sẵn máy chủ Viettel** (một buổi) rồi **bật lên khi cần** triển khai cho phường.
+Tài liệu này là **kế hoạch làm việc giữa người vận hành và Claude** trong việc **dựng sẵn máy chủ Viettel** (một buổi, chưa thuê kho dữ liệu), **mở kho** khi sắp dùng,
+rồi **bật lên** khi triển khai cho phường.
 Nó không thay [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) (các chặng làm gì) hay
 [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md) (lệnh chép ở đâu). Nó trả lời ba câu:
 
-1. Dựng sẵn gồm **giai đoạn** nào, lúc chờ giữ máy thế nào, ngày bật làm gì, cần chuẩn bị trước những gì.
+1. Dựng máy chủ gồm **giai đoạn** nào, lúc chờ giữ máy thế nào, mở kho và ngày bật làm gì.
 2. Sau mỗi bước, **gửi lại Claude cái gì** — và cái gì **tuyệt đối không gửi**.
 3. Claude **kiểm gì trước khi cho đi tiếp**, khi nào **phải dừng**, hỏng thì **lùi về đâu**.
 
-> Phương án: máy chủ **Viettel Cloud Server CS1**, kho dữ liệu **Viettel vDBS** (Private Access,
-> cùng VPC), sao lưu mã hoá sang **Bizfly**. Trang cũ (Netlify/Vercel + Render + Aiven) **vẫn
+> Phương án: máy chủ **Viettel Cloud Server CS1** (dựng trước), kho dữ liệu **Viettel vDBS**
+> (Private Access, cùng VPC — thuê sau), sao lưu mã hoá sang **Bizfly** (mở cùng lúc với kho). Trang cũ (Netlify/Vercel + Render + Aiven) **vẫn
 > phục vụ người dân tới tận ngày bật** (giai đoạn 7) — buổi dựng sẵn và thời gian chờ không ảnh
 > hưởng ai.
 
@@ -77,15 +78,15 @@ cho biết món đó có được nói trong trò chuyện không.
 | `IP-MAY-VIETTEL` (địa chỉ công khai CS1) | 1 | Được |
 | `IP-MAY-CHU` (địa chỉ riêng CS1 trong VPC) | 1 | Được |
 | Khu vực (Hà Nội / TP.HCM) của CS1 và vDBS | 1 | Được |
-| `DIA-CHI-KHO`, `CONG-KHO` | 1 | Được |
-| Kết quả Kiểm 1 → dòng `KHO_TLS=…` phải gõ | 3 | Được |
+| `DIA-CHI-KHO`, `CONG-KHO` | 6 | Được |
+| Kết quả Kiểm 1 → dòng `KHO_TLS=…` phải gõ | 6 | Được |
 | Mật khẩu root máy CS1 | 1 | **Không** |
-| Mật khẩu root kho vDBS | 1 | **Không** |
-| Mật khẩu `hop_thu_ung_dung` | 3 | **Không** |
+| Mật khẩu root kho vDBS | 6 | **Không** |
+| Mật khẩu `hop_thu_ung_dung` | 6 | **Không** |
 | Ba khoá `JWT_SECRET`, `ENCRYPTION_KEY`, `HASH_PEPPER` (+ 2 USB) | 1 | **Không** |
 | Các khoá dịch vụ (Turnstile, Gemini, Brevo, Cloudinary), thông tin kho Aiven | 1 | **Không** |
-| Khoá Bizfly, khoá mở bản sao (+ 2 USB) | 1 |
-| Mật khẩu `sao_luu` | 5 | **Không** |
+| Khoá Bizfly, khoá mở bản sao (+ 2 USB) | 6 |
+| Mật khẩu `sao_luu` | 6 | **Không** |
 
 ---
 
@@ -99,88 +100,90 @@ Người vận hành chốt bảy câu dưới đây ở giai đoạn 1. Cột c
 | 2 | Dùng tên miền đang có hay mua mới (`.vn` / `.gov.vn`)? | Giữ tên miền đang chạy, đỡ phải báo lại người dân |
 | 3 | Cơ quan có **IP tĩnh** không? (để chỉ cho máy ở cơ quan vào trang cán bộ — `ADMIN_ALLOWED_IPS`) | Có thì khai ở giai đoạn 3; không có thì để trống, bổ sung sau |
 | 4 | Ảnh bằng chứng: giữ Cloudinary hay chuyển? | **Giữ Cloudinary** lần này; chuyển sau (Phần D) — một lần chỉ đổi một thứ |
-| 5 | Lúc chờ: để máy chạy hay tắt (Stop)? | Theo giá Viettel (câu h ở giai đoạn 1): tắt mà hết tính tiền thì tắt |
+| 5 | Lúc chờ: để máy chạy hay tắt (Stop)? | Theo giá Viettel (câu b ở giai đoạn 1): tắt mà hết tính tiền thì tắt |
 | 6 | Ngày bật: ai báo người dân giờ đổi máy? | Tối ngày thường, đổi máy từ 22:00; báo trước 1–2 ngày |
 | 7 | Ai cầm USB khoá, ai giữ phiếu thông tin? | Hai người khác nhau, cùng biết chỗ cất |
 
 ---
 
-## 4. Lộ trình — DỰNG SẴN bây giờ, BẬT khi cần
+## 4. Lộ trình — MÁY CHỦ trước, KHO DỮ LIỆU sau, BẬT khi cần
 
-Người vận hành chọn **chưa đưa vào phục vụ người dân ngay**: dựng sẵn máy chủ Viettel cho xong,
-để đó ở **chế độ chờ**; tới lúc triển khai cho phường thì chỉ **bật và chuyển dữ liệu**.
+Người vận hành chốt: **bây giờ chỉ dựng máy chủ Viettel CS1**. Kho dữ liệu **vDBS chưa thuê**.
+Máy chủ dựng xong để ở **chế độ chờ**; khi sắp triển khai cho phường thì **mở kho**, rồi **bật**.
 
 | Giai đoạn | Việc | Khi nào | Thời gian | Người dân bị ảnh hưởng |
 |---|---|---|---|---|
-| **1** | Chuẩn bị: khoá, hỏi Viettel, thuê dịch vụ, DNS `api.`, tài khoản Bizfly | Trước buổi dựng 3–7 ngày | rải rác | Không |
-| **2–5** | **Buổi dựng sẵn**: vào máy, khoá cửa, kho, mã nguồn, tệp cấu hình, chép thử dữ liệu, chạy máy chủ, HTTPS, giao diện, sao lưu | Một buổi | 5–6 giờ | Không — trang cũ vẫn chạy |
-| **6** | **Đưa về chế độ chờ**: xoá bản chép thử, tắt máy chủ và sao lưu, chụp Snapshot | Cuối buổi dựng | 20 phút | Không |
-| — | **Chờ** — mỗi tháng kiểm một lần | Bao lâu cũng được | 10 phút/tháng | Không |
-| **7** | **NGÀY BẬT**: cập nhật mã mới nhất, bật máy chủ, chép dữ liệu thật, đổi tên miền | Khi triển khai cho phường | 1,5–2 giờ (tối) | **Có**, 30–60 phút |
+| **1** | Chuẩn bị: khoá, hỏi Viettel, **thuê máy CS1** (chưa thuê vDBS), DNS `api.` | Trước buổi dựng 3–7 ngày | rải rác | Không |
+| **2–4** | **Buổi dựng máy chủ**: vào máy, khoá cửa, cài phần mềm, mã nguồn, tệp cấu hình, chạy thử máy chủ, HTTPS, giao diện | Một buổi | 3–4 giờ | Không — trang cũ vẫn chạy |
+| **5** | **Chế độ chờ**: tắt máy chủ, chụp Snapshot; kiểm hằng tháng | Cuối buổi dựng → tới lúc mở kho | 15 phút + 10 phút/tháng | Không |
+| **6** | **Mở kho**: thuê vDBS, kiểm kho, nối máy chủ, chép thử dữ liệu, cài sao lưu Bizfly | Vài ngày trước ngày bật | 3 giờ | Không |
+| **7** | **NGÀY BẬT**: cập nhật mã, chép dữ liệu thật, đổi tên miền | Khi triển khai cho phường | 1,5–2 giờ (tối) | **Có**, 30–60 phút |
 | **8** | Dọn dẹp: xoá Aiven, Render, Netlify/Vercel | 1–2 tuần sau ngày bật | 30 phút | Không |
 
-**Vì sao không để sẵn dữ liệu thật trên máy chờ.** Bản chép thử ở giai đoạn 4 là **dữ liệu thật**
-(lời kể, danh tính đã mã hoá). Để nó nằm hàng tháng trên một máy chưa ai dùng, không ai theo dõi
-là thêm một chỗ có thể lộ mà chẳng được gì: tới ngày bật vẫn phải chép lại bản mới nhất, vì Aiven
-vẫn nhận ý kiến mỗi ngày. Nên giai đoạn 6 **xoá bản chép thử**.
+**Vì sao dựng máy chủ trước vẫn có ích.** Phần lâu và dễ sai nhất — khoá cửa máy, tường lửa, ba
+khoá bí mật, HTTPS, giao diện — làm xong và **kiểm xong** từ bây giờ. Máy chủ chạy được khi chưa
+có kho: trang `/api/health` trả `"encryption":true` (khoá đúng) và `"db":false` (chưa có kho —
+đúng như dự kiến). Tới lúc mở kho chỉ còn điền mấy dòng `DB_*` và chép dữ liệu.
 
-**Chi phí khi chờ.** Thuê là tính tiền theo tháng dù máy chưa phục vụ ai (dự toán ở Phụ lục tài
-liệu kỹ thuật). Hỏi Viettel ở giai đoạn 1: **tắt máy CS1 (Stop) và kho vDBS lúc chờ thì có còn
-tính tiền không, giữ Snapshot tốn bao nhiêu**. Câu trả lời quyết định có tắt hẳn máy lúc chờ hay
-không (mục giai đoạn 6).
+**Không có dữ liệu thật nào trên máy cho tới giai đoạn 6.** Máy chờ chỉ giữ mã nguồn, cấu hình và
+ba khoá (tệp chỉ root đọc được). Vì vậy nên **mở kho sát ngày bật** (vài ngày trước): đỡ tiền
+thuê kho, và bản chép thử dữ liệu người dân không phải nằm lâu trên kho chưa dùng.
 
-Trong buổi dựng sẵn, gặp điểm dừng ở đâu thì **dừng ở đó, hôm khác làm tiếp** — chưa ai dùng máy
-mới nên không có gì gấp. Nên có **hai người**: một người gõ, một người đọc lại lệnh nguy hiểm và
-giữ phiếu.
+**Chi phí khi chờ.** Máy CS1 tính tiền theo tháng dù chưa phục vụ ai. Hỏi Viettel ở giai đoạn 1:
+**tắt máy (Stop) lúc chờ còn tính tiền không, giữ Snapshot tốn bao nhiêu**.
+
+Gặp điểm dừng ở đâu thì **dừng ở đó, hôm khác làm tiếp** — chưa ai dùng máy mới. Nên có **hai
+người**: một người gõ, một người đọc lại lệnh nguy hiểm và giữ phiếu.
 
 Mỗi giai đoạn dưới đây có: **Các bước** · **Claude kiểm trước khi qua giai đoạn sau** · **Dừng
 lại nếu** (và đường lùi nếu có).
 
 ---
 
-### Giai đoạn 1 — Chuẩn bị (TRƯỚC buổi dựng sẵn, 3–7 ngày trước)
+### Giai đoạn 1 — Chuẩn bị (TRƯỚC buổi dựng máy chủ, 3–7 ngày trước)
 
 **Cần có:** máy tính Windows, giấy in phiếu ở mục 2, 2 USB, quyền vào GitHub, Render,
-Cloudflare, Aiven, trang quản lý tên miền.
+Cloudflare, trang quản lý tên miền.
 
 **Các bước:**
 
-1. Chốt bảy câu ở mục 3 (câu 6 để tới gần ngày bật cũng được).
+1. Chốt các câu ở mục 3 (câu 6 để tới gần ngày bật cũng được).
 2. Làm **chặng 0** của sổ tay: chép ba khoá và các khoá dịch vụ từ Render ra giấy + 2 USB.
 3. Mở trang quản lý tên miền, **chép lại giá trị hiện tại** của hai dòng `@` và `www` vào phiếu
-   (đây là đường lùi của ngày bật — trước ngày bật xem lại, đổi rồi thì ghi lại).
-4. Gửi Viettel danh sách câu hỏi — chép nguyên đoạn dưới vào email/Zalo cho nhân viên kinh doanh:
+   (đường lùi của ngày bật — trước ngày bật xem lại, đổi rồi thì ghi lại).
+4. Gửi Viettel danh sách câu hỏi — **hỏi cả phần kho** dù chưa thuê, để biết trước có vướng gì
+   không. Chép nguyên đoạn dưới vào email/Zalo cho nhân viên kinh doanh:
 
-> Đơn vị cần thuê: (1) **Cloud Server** Ubuntu 24.04, 2 vCPU, 4 GB RAM, SSD 50 GB, 1 IP công khai
-> cố định, có Security Group và Snapshot; (2) **vDBS T2.VDBS 1 Standalone, MySQL 8.0, Private
-> Access**, cùng khu vực và cùng VPC với máy trên. Xin hỏi:
-> a) vDBS có cho **dùng thử** không, bao lâu?
-> b) vDBS có **mã hoá kết nối TLS** không, có cấp **tệp chứng chỉ CA** không?
-> c) Tài khoản root của kho có chỉnh được tham số **`log_bin_trust_function_creators = 1`** không?
-> d) Root của kho có cấp được quyền **`SHOW_ROUTINE`** cho tài khoản khác không?
-> e) Kho có bật **`sql_require_primary_key`** không, tắt được không?
-> f) Sao lưu tự động của vDBS: bao lâu một lần, giữ bao nhiêu bản, có khôi phục về thời điểm không?
-> g) Hợp đồng cho **cơ quan** cần giấy tờ gì; xin **báo giá chính thức** cả hai dịch vụ (đã gồm VAT).
-> h) Máy chủ và kho **tắt (Stop) trong thời gian chưa dùng** thì có còn tính tiền không? Giữ
-> **Snapshot** tốn bao nhiêu? Dùng thử vDBS hết hạn thì dữ liệu/cấu hình kho còn giữ không?
+> Đơn vị cần thuê **ngay**: **Cloud Server** Ubuntu 24.04, 2 vCPU, 4 GB RAM, SSD 50 GB, 1 IP công
+> khai cố định, có Security Group và Snapshot. **Sau này** sẽ thuê thêm **vDBS T2.VDBS 1
+> Standalone, MySQL 8.0, Private Access** cùng VPC với máy trên. Xin hỏi:
+> a) Máy chủ thuê bây giờ, vài tháng sau thuê vDBS thì có nối **Private Access cùng VPC** được
+> không? Có cần chọn sẵn khu vực / VPC nào ngay từ lúc tạo máy không?
+> b) Máy chủ **tắt (Stop) trong thời gian chưa dùng** thì có còn tính tiền không? Giữ
+> **Snapshot** tốn bao nhiêu?
+> c) vDBS có cho **dùng thử** không, bao lâu?
+> d) vDBS có **mã hoá kết nối TLS** không, có cấp **tệp chứng chỉ CA** không?
+> e) Tài khoản root của kho có chỉnh được tham số **`log_bin_trust_function_creators = 1`** không?
+> f) Root của kho có cấp được quyền **`SHOW_ROUTINE`** cho tài khoản khác không?
+> g) Kho có bật **`sql_require_primary_key`** không, tắt được không?
+> h) Sao lưu tự động của vDBS: bao lâu một lần, giữ bao nhiêu bản, có khôi phục về thời điểm không?
+> i) Hợp đồng cho **cơ quan** cần giấy tờ gì; xin **báo giá chính thức** cả hai dịch vụ (đã gồm VAT).
 
-5. Viettel trả lời xong → **chặng 1**: thuê CS1 và vDBS. Ghi đủ bảng chặng 1 vào phiếu.
+5. Viettel trả lời xong → **chặng 1 bước 1**: thuê **máy CS1** (chưa thuê vDBS — bỏ bước 2 của
+   chặng 1). Chọn khu vực theo câu (a). Ghi vào phiếu: `IP-MAY-VIETTEL`, `IP-MAY-CHU`, khu vực,
+   mật khẩu root máy.
 6. **Chặng 2**: thêm hai dòng DNS `api`, `canbo-api`. **Không** đụng `@`, `www`.
-7. **Bizfly** (chặng 14 bước 1): tạo tài khoản, bucket **riêng tư** ở **thành phố khác** với máy
-   Viettel, tạo khoá truy cập. Ghi khoá lên giấy.
-8. **Trên máy tính cơ quan** (chặng 14 bước 3): tạo cặp khoá mã hoá bản sao; khoá mở chép ra 2 USB.
 
-**Claude kiểm trước buổi dựng sẵn:**
+**Claude kiểm trước buổi dựng máy chủ:**
 - [ ] Ba khoá đã ở trên giấy **và** 2 USB (người vận hành xác nhận, **không** đọc khoá cho Claude).
 - [ ] Đã ghi giá trị DNS cũ của `@`, `www`.
-- [ ] Viettel đã trả lời câu (a) và (c). Câu (c) trả lời **"không"** → dừng, xem dưới.
-- [ ] Máy CS1 và kho vDBS ở trạng thái **Active**, cùng khu vực.
+- [ ] Viettel đã trả lời câu (a). Câu (e) trả lời **"không"** → chưa sao, nhưng báo Claude: sẽ
+      phải chuẩn bị cách khác trước giai đoạn 6.
+- [ ] Máy CS1 ở trạng thái **Active**.
 - [ ] `nslookup api.ten-mien.vn` và `nslookup canbo-api.ten-mien.vn` ra đúng `IP-MAY-VIETTEL`.
-- [ ] Bucket Bizfly đã có, khoá mở bản sao đã ở 2 USB.
 
-**Dừng lại nếu:** Viettel nói **không** chỉnh được `log_bin_trust_function_creators` và không
-giúp chép dữ liệu → chưa mua vDBS. Báo Claude để tìm cách khác (dựng lại trigger/thủ tục từ mã
-nguồn sau khi nhập dữ liệu).
+**Dừng lại nếu:** Viettel nói máy thuê trước **không nối được** với vDBS thuê sau (câu a) → chưa
+thuê máy, báo Claude.
 
 ---
 
@@ -213,19 +216,26 @@ khôi phục Snapshot vừa chụp ở bước 1.
 
 ---
 
-### Giai đoạn 3 — Kiểm kho, mã nguồn, tệp cấu hình (chặng 6–8) · khoảng 1 giờ
+### Giai đoạn 3 — Mã nguồn và tệp cấu hình, CHƯA có kho (chặng 7–8) · khoảng 1 giờ
 
 **Các bước:**
 
-1. **Chặng 6** — các phép kiểm kho (tài liệu kỹ thuật **C2**). Ghi dòng `KHO_TLS=…` vào phiếu.
-2. Tạo tài khoản `hop_thu_ung_dung` (cuối C2). Lỡ báo `Access denied …@'10.x.x.x'` sau này thì
-   dùng đúng địa chỉ trong câu báo lỗi.
-3. **Chặng 7** — deploy key chỉ đọc, lấy mã nguồn.
-4. **Chặng 8** — hai tệp `cong-khai.env`, `can-bo.env`. Câu 3 ở mục 3 có IP tĩnh → ghi vào
-   `ADMIN_ALLOWED_IPS` của `can-bo.env`.
+1. **Chặng 7** — deploy key chỉ đọc, lấy mã nguồn.
+2. **Chặng 8** — hai tệp `cong-khai.env`, `can-bo.env`, **trừ phần kho**:
 
-Ở bước 4, người vận hành **tự gõ khoá từ giấy**; Claude chỉ nói dòng nào ghi gì. Khi xong, **không
-dán tệp cho Claude** — chạy lệnh kiểm dưới, lệnh này chỉ in **tên biến**, không in giá trị:
+| Dòng | Lúc này ghi gì |
+|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_PASSWORD` | **Để trống** (giữ dòng, sau dấu `=` không ghi gì) — điền ở giai đoạn 6 |
+| `DB_USER`, `DB_NAME` | Ghi như B7: `hop_thu_ung_dung`, `hop_thu_an_ninh_so` |
+| `DB_SSL_CA` | **Chưa ghi dòng này.** Ghi dòng mà chưa có tệp CA thì máy chủ không khởi động được. Giai đoạn 6 mới biết kho có cần |
+| Ba khoá, `TURNSTILE_SECRET_KEY`, các khoá dịch vụ, `HOST=127.0.0.1`, `CORS_ORIGIN`… | Ghi đủ như chặng 8 |
+| `ADMIN_ALLOWED_IPS` | Câu 3 ở mục 3 có IP tĩnh → ghi vào `can-bo.env`; không thì để trống |
+
+Ba khoá ghi **ngay bây giờ** (không đợi mở kho): để kiểm được `"encryption":true` ở giai đoạn 4,
+và để đêm bật không phải gõ khoá vội. Tệp chỉ root đọc được (`chmod 600` ở cuối B7).
+
+Người vận hành **tự gõ khoá từ giấy**; Claude chỉ nói dòng nào ghi gì. Khi xong, **không dán tệp
+cho Claude** — chạy lệnh kiểm dưới, lệnh này chỉ in **tên biến**, không in giá trị:
 
 ```bash
 # So hai tệp: những biến phải giống hệt nhau. Chỉ in "GIỐNG"/"KHÁC", không in khoá.
@@ -239,28 +249,24 @@ ls -l /etc/hop-thu/                                                             
 ```
 
 **Claude kiểm trước khi qua giai đoạn 4:**
-- [ ] Kiểm 0 ra `8.0.x`; Kiểm 3 ra `ON` (hoặc đã bật được).
 - [ ] Đủ mười dòng `GIỐNG`; hai dòng đếm đều ra `4` (không khoá nào bị bỏ trống).
 - [ ] `HOST=127.0.0.1` ở cả hai tệp; `DB_USER=hop_thu_ung_dung` (không phải `root`).
-- [ ] `DB_SSL_CA` có mặt **khi và chỉ khi** Kiểm 1 ra "Có mã hoá".
+- [ ] **Chưa có** dòng `DB_SSL_CA`.
 - [ ] Hai tệp `.env` có quyền `-rw-------`.
-
-**Dừng lại nếu:** Kiểm 3 không bật được; Kiểm 1b ra chứng chỉ tự sinh (`…Auto_Generated`) — dừng buổi
-dựng, báo Claude.
 
 ---
 
-### Giai đoạn 4 — Tổng duyệt, chạy máy chủ, HTTPS, giao diện (chặng 9–12) · khoảng 2 giờ
+### Giai đoạn 4 — Chạy thử máy chủ, HTTPS, giao diện — chưa có kho (chặng 10–12) · 1,5 giờ
 
-**Cần có:** thông tin kho Aiven (trên phiếu), điện thoại có 4G để thử từ ngoài.
+**Cần có:** điện thoại có 4G để thử từ ngoài.
 
 **Các bước:**
 
-1. **Chặng 9** — chép thử dữ liệu Aiven → vDBS (C3 cột "Tổng duyệt"). Trang cũ vẫn chạy.
-2. **Chặng 10** — hai máy chủ tự chạy.
-3. **Chặng 11** — Nginx, HTTPS cho `api.` và `canbo-api.`.
-4. **Chặng 12** — dựng giao diện trên máy (F3–F5, **chưa** `certbot` cho `www`).
-5. **Kiểm từ ngoài vào** — trên máy Windows ở cơ quan, PowerShell:
+1. **Chặng 10** — hai máy chủ tự chạy (B8). Lúc này nhật ký **sẽ có** hai dòng đỏ
+   `KHÔNG kết nối được MySQL` và `KHÔNG xoá được dấu nối quá hạn` — **bình thường**, chưa có kho.
+2. **Chặng 11** — Nginx, HTTPS cho `api.` và `canbo-api.`.
+3. **Chặng 12** — dựng giao diện trên máy (F3–F5, **chưa** `certbot` cho `www`).
+4. **Kiểm từ ngoài vào** — trên máy Windows ở cơ quan, PowerShell:
 
 ```powershell
 # Ba cổng nội bộ phải ĐÓNG từ Internet: mỗi lệnh phải ra "TcpTestSucceeded : False"
@@ -272,80 +278,43 @@ Test-NetConnection IP-MAY-VIETTEL -Port 443
 ```
 
 **Claude kiểm trước khi qua giai đoạn 5:**
-- [ ] Chặng 9: bốn số đối chiếu bằng nhau.
 - [ ] `systemctl status hop-thu-cong-khai hop-thu-can-bo`: cả hai `active (running)`.
-- [ ] `https://api.ten-mien.vn/api/health` mở trên điện thoại 4G: có ổ khoá, `"ok":true`,
-      `"encryption":true`.
+- [ ] `https://api.ten-mien.vn/api/health` **và** `https://canbo-api.ten-mien.vn/api/health` mở
+      trên điện thoại 4G: có ổ khoá, `"encryption":true`, `"db":false` (**đúng như dự kiến**).
 - [ ] `journalctl -u hop-thu-can-bo -n 50` **không** có dòng đỏ `🔴 CHẶN IP CÁN BỘ CÓ THỂ BỊ LÁCH`
-      hay `CHỐNG MÁY TỰ ĐỘNG ĐANG TẮT`.
+      hay `CHỐNG MÁY TỰ ĐỘNG ĐANG TẮT` (hai dòng đỏ về MySQL thì được).
 - [ ] Ba cổng 4000, 4001, 3306 ra `False`; cổng 443 ra `True`.
 - [ ] Giao diện: kịch bản dựng in `✅ Đã đưa lên`; `nginx -t` sạch.
-- [ ] Đã xoá bản sao tổng duyệt trên máy (`shred`, C3 bước 8).
 
-**Dừng lại nếu:** `"encryption":false`; một trong ba cổng nội bộ ra `True`; bốn số không bằng
-nhau. **Chưa đủ dấu thì chưa đưa về chế độ chờ** — máy chờ phải là máy đã kiểm xong.
+**Dừng lại nếu:** `"encryption":false` (khoá sai/thiếu — sửa `ENCRYPTION_KEY` theo giấy); một
+trong ba cổng nội bộ ra `True`. **Chưa đủ dấu thì chưa đưa về chế độ chờ** — máy chờ phải là máy
+đã kiểm xong.
 
 **Đường lùi:** chưa ai dùng máy mới — sửa thoải mái. Hỏng nặng: khôi phục Snapshot.
 
 ---
 
-### Giai đoạn 5 — Cài sao lưu Bizfly, chạy thử trên bản tổng duyệt (chặng 14) · khoảng 1,5 giờ
+### Giai đoạn 5 — Chế độ chờ (cuối buổi dựng máy chủ, 15 phút)
 
-Làm ngay trong buổi dựng sẵn, trên dữ liệu chép thử đang có trong vDBS. Tài khoản `sao_luu` giữ
-nguyên quyền khi xoá rồi tạo lại CSDL, nên ngày bật chỉ cần bật lại và chạy một lần (giai đoạn 7).
-
-**Các bước:** chặng 14 của sổ tay, bước 2, 4, 5 (tài liệu kỹ thuật G2 bước 2 và 4, G3, G4) —
-bucket và khoá mã hoá đã làm ở giai đoạn 1.
-
-**Claude kiểm trước khi qua giai đoạn 6:**
-- [ ] Tài khoản `sao_luu` chỉ có quyền đọc + `SHOW_ROUTINE`, gắn `IP-MAY-CHU` (không phải `%`).
-- [ ] Chạy tay G3 in `OK hop-thu-….sql.gz.age`; `systemctl list-timers | grep sao-luu` có dòng.
-- [ ] Trên Bizfly thấy tệp `hop-thu-….sql.gz.age` (không có tệp `.dang-tai` sót lại).
-
-**Dừng lại nếu:** G3 báo `LOI` — sửa xong mới đưa về chờ. vDBS tự sao lưu, nhưng bản ở nhà cung
-cấp khác là bắt buộc khi chạy thật; để tới ngày bật mới phát hiện hỏng là muộn.
-
----
-
-### Giai đoạn 6 — Đưa về chế độ chờ (cuối buổi dựng sẵn, 20 phút)
-
-Mục đích: máy dựng xong, kiểm xong, nhưng **không phục vụ ai, không giữ dữ liệu thật**, để tới
-ngày bật chỉ cần làm giai đoạn 7.
-
-**Các bước** — trên máy CS1, gõ dòng `KHO_TLS=…` (phiếu) trước:
+**Các bước:**
 
 ```bash
-# 1. Tắt hai máy chủ và KHÔNG cho tự bật lại khi máy khởi động lại
+# Tắt hai máy chủ và KHÔNG cho tự bật lại khi máy khởi động lại.
+# Nginx vẫn chạy để chứng chỉ HTTPS của api. và canbo-api. tự gia hạn.
 systemctl disable --now hop-thu-cong-khai hop-thu-can-bo
-
-# 2. Tắt sao lưu tự động (kho sắp trống — để chạy thì đêm nào cũng báo LOI)
-systemctl disable --now hop-thu-sao-luu.timer
-
-# 3. ⚠️ Xoá bản chép thử dữ liệu thật trên vDBS. Nhìn kỹ: DIA-CHI-KHO, KHÔNG phải Aiven.
-mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS \
-  -e "DROP DATABASE hop_thu_an_ninh_so"
-
-# 4. Không còn bản sao thô nào trên máy
-ls /root/*.sql 2>/dev/null    # không được in ra gì
 ```
 
-5. **Bizfly:** xoá các tệp sao lưu chạy thử ở giai đoạn 5 (chúng chứa bản tổng duyệt — dữ liệu
-   thật, dù đã mã hoá). Bucket và khoá giữ nguyên.
-6. Trang quản trị Viettel → **chụp Snapshot** máy CS1, đặt tên kiểu `cho-bat-NGAY`.
-7. Theo câu trả lời của Viettel về chi phí: nếu tắt máy thì **hết** tính tiền máy → có thể **Stop**
-   máy CS1 (bật lại ở ngày bật). Không thì để máy chạy — Nginx vẫn chạy để chứng chỉ HTTPS của
-   `api.` và `canbo-api.` tự gia hạn.
+1. Trang quản trị Viettel → **chụp Snapshot** máy CS1, đặt tên kiểu `may-chu-cho-NGAY`.
+2. Theo câu (b) Viettel trả lời: tắt máy mà **hết** tính tiền → có thể **Stop** máy (giai đoạn 6
+   bật lại). Không thì để máy chạy.
+3. Ghi lên phiếu: **ngày dựng xong**, bản mã nguồn đang chạy (`cd /opt/hop-thu && git log -1 --format=%h`).
 
-Những thứ **giữ nguyên** trong lúc chờ (để ngày bật khỏi làm lại): tệp `.env`, tài khoản
-`hop_thu_ung_dung` và `sao_luu` trên kho (quyền vẫn còn khi xoá CSDL), Nginx + chứng chỉ, giao
-diện đã dựng, cấu hình sao lưu, deploy key, tường lửa.
+Những thứ **giữ nguyên** trong lúc chờ: tệp `.env`, Nginx + chứng chỉ, giao diện đã dựng, deploy
+key, tường lửa.
 
 **Claude kiểm:**
-- [ ] `systemctl is-enabled hop-thu-cong-khai hop-thu-can-bo hop-thu-sao-luu.timer` ra ba dòng `disabled`.
-- [ ] `mysql … -e "SHOW DATABASES"` (bằng root kho) **không** còn `hop_thu_an_ninh_so`.
-- [ ] `ls /root/*.sql` không ra gì; Bizfly không còn tệp `hop-thu-….sql.gz.age` chạy thử.
-- [ ] Snapshot `cho-bat-…` đã có.
-- [ ] Ghi lên phiếu: **ngày dựng xong**, **ngày hết hạn dùng thử vDBS** (nếu còn dùng thử).
+- [ ] `systemctl is-enabled hop-thu-cong-khai hop-thu-can-bo` ra hai dòng `disabled`.
+- [ ] Snapshot `may-chu-cho-…` đã có.
 
 #### Trong lúc chờ — mỗi tháng một lần (10 phút)
 
@@ -358,38 +327,92 @@ Máy chờ vẫn là máy có ba khoá trên đĩa — không dùng không có n
 | Không ai lạ đăng nhập | `last -n 20` | Chỉ thấy các lần chính mình vào |
 | Tường lửa còn nguyên | `ufw status` | Đúng 22, 80, 443 |
 | Ổ đĩa | `df -h /` | `Use%` dưới 70% |
-| Chứng chỉ HTTPS (máy để chạy) | `certbot certificates` | Còn hạn trên 30 ngày |
-| Hạn dùng thử / hợp đồng | Trang quản trị Viettel | Chưa hết hạn — sắp hết thì quyết: trả tiền giữ hay tạm trả máy |
+| Chứng chỉ HTTPS | `certbot certificates` | Còn hạn trên 30 ngày |
+| Hợp đồng | Trang quản trị Viettel | Chưa hết hạn |
 
 Máy đã **Stop** thì không cần kiểm hằng tháng — chỉ kiểm hạn hợp đồng.
+
+---
+
+### Giai đoạn 6 — Mở kho dữ liệu (vài ngày trước ngày bật, khoảng 3 giờ)
+
+**Cần có:** phiếu thông tin, thông tin kho Aiven (giấy ở chặng 0), tài khoản Bizfly (mở mới), máy
+tính cơ quan (tạo khoá mã hoá bản sao), 2 USB.
+
+**A. Đánh thức máy chủ** (máy đã Stop → bật lại trên trang Viettel; chụp Snapshot trước khi làm gì):
+
+1. Chạy bảng "mỗi tháng một lần" ở giai đoạn 5 — đủ dấu mới đi tiếp.
+2. **Cập nhật mã mới nhất** (tài liệu kỹ thuật F7, **trừ** dòng `systemctl restart`):
+   `git pull` → `npm ci --omit=dev` → `bash deploy/dung-giao-dien.sh` ra `✅`.
+3. Máy đã Stop lâu: `certbot renew` rồi `certbot certificates` còn hạn.
+
+**B. Thuê và kiểm kho:**
+
+4. **Chặng 1 bước 2** — thuê vDBS (dùng thử), **cùng khu vực và VPC** với CS1. Cách tạo:
+   tài liệu kỹ thuật **C2** phần "Trên trang quản trị Viettel". Ghi `DIA-CHI-KHO`, `CONG-KHO`,
+   mật khẩu root kho lên phiếu.
+5. **Chặng 6** — các phép kiểm kho (C2 phần "Trên máy CS1"). Ghi dòng `KHO_TLS=…` lên phiếu.
+6. Tạo tài khoản `hop_thu_ung_dung` (cuối C2). Lỡ báo `Access denied …@'10.x.x.x'` sau này thì
+   dùng đúng địa chỉ trong câu báo lỗi.
+7. **Điền phần kho** vào **cả hai** tệp `.env`: `DB_HOST=DIA-CHI-KHO` (kho có mã hoá thì đúng tên
+   trên chứng chỉ — Kiểm 1b), `DB_PORT`, `DB_PASSWORD`. Kho có mã hoá → **thêm** dòng
+   `DB_SSL_CA=/etc/hop-thu/ca-db.pem` và dán tệp CA (B7). Chạy lại lệnh so `GIỐNG/KHÁC` ở giai đoạn 3.
+
+**C. Chép thử và chạy với dữ liệu:**
+
+8. **Chặng 9** — chép thử dữ liệu Aiven → vDBS (C3 cột "Tổng duyệt"). Trang cũ vẫn chạy.
+9. Bật hai máy chủ: `systemctl enable --now hop-thu-cong-khai hop-thu-can-bo`.
+
+**D. Sao lưu Bizfly** (trên dữ liệu chép thử):
+
+10. **Chặng 14** — bước 1 (bucket riêng tư, thành phố khác), 2 (tài khoản `sao_luu`), 3 (khoá mã
+    hoá trên máy cơ quan, khoá mở ra 2 USB), 4 (cấu hình, chạy tay G3), 5 (bật tự động G4).
+
+**Claude kiểm:**
+- [ ] Kiểm 0 ra `8.0.x`; Kiểm 3 ra `ON` (hoặc đã bật được).
+- [ ] Chặng 9: bốn số đối chiếu bằng nhau.
+- [ ] `https://api.ten-mien.vn/api/health`: lần này `"ok":true`, `"db":true`, `"encryption":true`.
+- [ ] Nhật ký hai máy chủ **hết** dòng đỏ về MySQL.
+- [ ] `sao_luu` chỉ có quyền đọc + `SHOW_ROUTINE`, gắn `IP-MAY-CHU` (không phải `%`).
+- [ ] Chạy tay G3 in `OK hop-thu-….sql.gz.age`; `systemctl list-timers | grep sao-luu` có dòng.
+- [ ] Đã xoá bản sao trên máy (`shred`, C3 bước 8).
+
+**Dừng lại nếu:** Kiểm 3 không bật được; Kiểm 1b ra chứng chỉ tự sinh (`…Auto_Generated`); xem
+danh tính ra `[Dữ liệu hỏng hoặc sai khoá]`; G3 báo `LOI`. Dừng ở đây không ảnh hưởng ai.
+
+**Chưa bật ngay sau giai đoạn này?** (ngày bật còn xa hơn dự tính) — đừng để bản chép thử dữ liệu
+thật nằm trên kho chưa dùng. Đưa về chờ lại:
+
+```bash
+systemctl disable --now hop-thu-cong-khai hop-thu-can-bo
+systemctl disable --now hop-thu-sao-luu.timer      # kho sắp trống — để chạy thì đêm nào cũng báo LOI
+# ⚠️ Nhìn kỹ: DIA-CHI-KHO, KHÔNG phải Aiven.
+mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS -e "DROP DATABASE hop_thu_an_ninh_so"
+```
+
+Rồi xoá các tệp sao lưu chạy thử trên Bizfly (bucket, khoá giữ nguyên). Tài khoản
+`hop_thu_ung_dung`, `sao_luu` và tệp `.env` giữ nguyên — ngày bật dùng tiếp.
 
 ---
 
 ### Giai đoạn 7 — NGÀY BẬT (khi triển khai cho phường, 1,5–2 giờ, buổi tối)
 
 **Trước 1–2 ngày:** báo người dân (trang tin, nhóm Zalo khu phố): tối … từ 22:00 tạm dừng nhận ý
-kiến khoảng 1 giờ; việc gấp gọi 113. **Báo Claude ngày bật** để Claude xem trước mã nguồn mới
-có tệp nâng cấp CSDL hay thay đổi nào đụng tới các bước dưới không.
+kiến khoảng 1 giờ; việc gấp gọi 113. **Báo Claude ngày bật** để Claude xem trước mã nguồn mới có
+tệp nâng cấp CSDL hay thay đổi nào đụng tới các bước dưới không.
 
-**A. Đánh thức máy** (làm buổi chiều, trang cũ vẫn chạy):
-
-1. Máy đã Stop → bật lại trên trang quản trị Viettel. Chụp **Snapshot** trước khi làm gì.
-2. Chạy bảng "mỗi tháng một lần" ở trên — đủ dấu mới đi tiếp.
-3. **Cập nhật mã mới nhất** (tài liệu kỹ thuật F7, **trừ** dòng `systemctl restart`):
-   `git pull` → `npm ci --omit=dev` → `bash deploy/dung-giao-dien.sh` ra `✅`.
-4. **Chứng chỉ HTTPS** (máy đã Stop lâu có thể hết hạn): `certbot renew` rồi `certbot certificates`.
-5. Kho vDBS còn chạy: Kiểm 0 ở C2 ra `8.0.x`.
+**A. Buổi chiều** (trang cũ vẫn chạy): mã nguồn có bản mới từ giai đoạn 6 → cập nhật (F7, trừ dòng
+`systemctl restart`). Đã đưa về chờ lại ở cuối giai đoạn 6 → bật lại hai máy chủ cho tự chạy:
+`systemctl enable hop-thu-cong-khai hop-thu-can-bo` (chưa chạy ngay — bước B2 sẽ chạy).
 
 **B. Đổi máy** (giờ đã báo, vd 22:00) — theo đúng thứ tự:
 
-1. Trang quản trị vDBS → **sao lưu thủ công**.
-2. Bật lại hai máy chủ cho tự chạy (chưa chạy ngay — bước 3 sẽ chạy):
-   `systemctl enable hop-thu-cong-khai hop-thu-can-bo`
-3. **Chặng 13 bước 1** — C3 cột "Đêm chuyển", đủ bước 1 → 8, **bỏ bước 5a** (CSDL đã xoá ở giai
-   đoạn 6 — chạy 5a sẽ báo "database doesn't exist", không sao).
-4. **Tệp nâng cấp CSDL mới** (nếu Claude báo có `database/nang_cap_vXX.sql` mới hơn bản đang ở
+1. Trang quản trị Viettel → **chụp Snapshot** máy CS1. Trang quản trị vDBS → **sao lưu thủ công**.
+2. **Chặng 13 bước 1** — C3 cột "Đêm chuyển", đủ bước 1 → 8. ⚠️ bước 5a (đã xoá bản chép thử ở
+   cuối giai đoạn 6 thì 5a báo "database doesn't exist" — không sao, làm tiếp).
+3. **Tệp nâng cấp CSDL mới** (nếu Claude báo có `database/nang_cap_vXX.sql` mới hơn bản đang ở
    Aiven): chạy theo C4, rồi `systemctl restart hop-thu-cong-khai hop-thu-can-bo`.
-5. **Dọn hồ sơ mẫu (ND-095).** Kho cũ có thể còn 4 hồ sơ mẫu `DEMO01`–`DEMO04` mang tên giả chữ
+4. **Dọn hồ sơ mẫu (ND-095).** Kho cũ có thể còn 4 hồ sơ mẫu `DEMO01`–`DEMO04` mang tên giả chữ
    thường. Đếm trước, rồi xoá — tệp chỉ xoá đúng hồ sơ mẫu, không đụng hồ sơ thật:
 
    ```bash
@@ -401,14 +424,14 @@ có tệp nâng cấp CSDL hay thay đổi nào đụng tới các bước dư�
 
    Lệnh đầu không ra dòng nào → kho cũ không có hồ sơ mẫu, bỏ lệnh thứ hai. Có → lệnh thứ hai in
    `so_ho_so_mau_da_xoa` bằng đúng số dòng vừa thấy. (Gửi Claude **số dòng**, không cần gửi tên.)
-6. **Chặng 13 bước 2** — đổi DNS `@`, `www` sang `IP-MAY-VIETTEL`. Chờ `nslookup` ra IP mới.
-7. **Chặng 13 bước 3–4** — `certbot` cho trang chính; thêm `www.ten-mien.vn` vào Turnstile.
-8. **Chặng 13 bước 5** — kiểm đủ bốn việc, **bằng điện thoại 4G** (không dùng mạng cơ quan, để
+5. **Chặng 13 bước 2** — đổi DNS `@`, `www` sang `IP-MAY-VIETTEL`. Chờ `nslookup` ra IP mới.
+6. **Chặng 13 bước 3–4** — `certbot` cho trang chính; thêm `www.ten-mien.vn` vào Turnstile.
+7. **Chặng 13 bước 5** — kiểm đủ bốn việc, **bằng điện thoại 4G** (không dùng mạng cơ quan, để
    chắc người ngoài vào được).
-9. **Bật lại sao lưu:** `systemctl enable --now hop-thu-sao-luu.timer`, chạy tay G3 một lần →
+8. **Sao lưu bản thật:** `systemctl enable --now hop-thu-sao-luu.timer`, chạy tay G3 một lần →
    `OK hop-thu-…`.
-10. **Diễn tập khôi phục G6** với bản vừa chạy — làm luôn nếu còn sức; mệt thì **sáng hôm sau**,
-    chậm nhất trong 1–2 ngày.
+9. **Diễn tập khôi phục G6** với bản vừa chạy — làm luôn nếu còn sức; mệt thì **sáng hôm sau**,
+   chậm nhất trong 1–2 ngày.
 
 **Claude kiểm trước khi tuyên bố xong:**
 - [ ] Bốn số đối chiếu bằng nhau.
@@ -419,7 +442,7 @@ có tệp nâng cấp CSDL hay thay đổi nào đụng tới các bước dư�
 - [ ] `https://www.ten-mien.vn` có ổ khoá; F12 → Console không có dòng đỏ `CORS` / `Content Security Policy`.
 - [ ] Ý kiến gửi thử: cán bộ chuyển trạng thái và ghi rõ "ý kiến thử khi chuyển máy" cho khỏi lẫn với ý kiến thật.
 - [ ] `Test-NetConnection` cổng 4000, 4001, 3306 vẫn ra `False` (như giai đoạn 4).
-- [ ] Sao lưu bản thật có dòng `OK`; bộ hẹn giờ sao lưu đã `enabled`.
+- [ ] Sao lưu bản thật có dòng `OK`; bộ hẹn giờ sao lưu `enabled`.
 - [ ] (Tối nay hoặc sáng mai) **G6 diễn tập khôi phục: bốn dòng đối chiếu bằng nhau** (bảng,
       trigger, thủ tục, view). Khôi phục ra số thủ tục = 0 → thiếu `SHOW_ROUTINE`, báo Claude ngay.
 
@@ -430,12 +453,12 @@ có tệp nâng cấp CSDL hay thay đổi nào đụng tới các bước dư�
 
 | Đã tới bước | Lùi thế nào |
 |---|---|
-| Trước bước 6 (chưa đổi DNS) | Render → từng dịch vụ → **Resume**. Người dân vẫn ở trang cũ, chưa ai thấy máy mới. Xong. |
-| Sau bước 6 (đã đổi DNS) | Trang quản lý tên miền → trả `@`, `www` về **giá trị cũ trên phiếu** → Render **Resume** → `systemctl stop hop-thu-cong-khai hop-thu-can-bo` trên CS1 (để không ai gửi nhầm vào máy mới trong lúc DNS chưa cập nhật hết) |
+| Trước bước 5 (chưa đổi DNS) | Render → từng dịch vụ → **Resume**. Người dân vẫn ở trang cũ, chưa ai thấy máy mới. Xong. |
+| Sau bước 5 (đã đổi DNS) | Trang quản lý tên miền → trả `@`, `www` về **giá trị cũ trên phiếu** → Render **Resume** → `systemctl stop hop-thu-cong-khai hop-thu-can-bo` trên CS1 (để không ai gửi nhầm vào máy mới trong lúc DNS chưa cập nhật hết) |
 
 Aiven **không bị đụng** trong ngày bật (chỉ đọc ra), nên lùi về trang cũ không mất gì — trừ ý
-kiến người dân gửi vào máy mới sau bước 6. Lùi sau bước 6 thì báo Claude: Claude hướng dẫn lấy
-những ý kiến đó ra từ vDBS trước khi xoá. Lùi xong, muốn đưa máy về chờ lại thì làm lại giai đoạn 6.
+kiến người dân gửi vào máy mới sau bước 5. Lùi sau bước 5 thì báo Claude: Claude hướng dẫn lấy
+những ý kiến đó ra từ vDBS trước khi xoá.
 
 ---
 
@@ -468,7 +491,7 @@ từ chối chạy khi thiếu khoá, nhưng mấy điều dưới đây ứng d
 | `TURNSTILE_SECRET_KEY` ở **cả hai** tệp | Thiếu ở `can-bo.env` là máy tự động dò được mật khẩu cán bộ | Lệnh kiểm giai đoạn 3; nhật ký không có `CHỐNG MÁY TỰ ĐỘNG ĐANG TẮT` |
 | Không bật proxy (đám mây cam) Cloudflare cho DNS | Mọi người dân chung một IP, chặn spam hỏng | Ảnh trang DNS |
 | Không còn bản sao dữ liệu thô nằm lại | Bản sao có danh tính đã mã hoá và lời kể | `ls /root/*.sql` không ra gì |
-| Hồ sơ mẫu đã dọn | Tên thô trong kho chạy thật (ND-095) | Giai đoạn 7, bước B5 |
+| Hồ sơ mẫu đã dọn | Tên thô trong kho chạy thật (ND-095) | Giai đoạn 7, bước B4 |
 
 ---
 
@@ -479,23 +502,28 @@ từ chối chạy khi thiếu khoá, nhưng mấy điều dưới đây ứng d
 | **Ba tệp Word** trong `docs/tai-lieu-word/` chưa cập nhật theo phương án vDBS + Bizfly | **Không dùng chúng để cài đặt.** Chỉ làm theo sổ tay và tài liệu kỹ thuật |
 | **BUG-047** — bản vá đã có, chờ kiểm độc lập | Không chặn: hai lớp chặn (`HOST=127.0.0.1` + Security Group) đã có trong các bước và được kiểm ở giai đoạn 3, 4 |
 | **ND-094** — sức ghi khi quá đông (kho nối tối đa 10 kết nối) | Không chặn ở quy mô phường. Sau khi chạy ổn, đo lại trên chính máy Viettel rồi mới chỉnh |
-| **Mã nguồn đổi trong lúc chờ** (bản vá, tệp nâng cấp CSDL mới) | Ngày bật bước A3 cập nhật mã, B4 chạy tệp nâng cấp mới — Claude xem trước khi báo ngày bật |
-| **ND-066** — các phép kiểm vDBS | Làm ở giai đoạn 3; gửi Claude kết quả để đóng |
-| Lệnh Phần C và G **chưa chạy trên vDBS và Bizfly thật** | Giai đoạn 3, 4, 5 chính là lần chạy thật đầu tiên — vì vậy mới làm từng bước, có điểm dừng, và tách hẳn đổi máy sang ngày bật |
+| **Mã nguồn đổi trong lúc chờ** (bản vá, tệp nâng cấp CSDL mới) | Giai đoạn 6 bước 2 và ngày bật bước A cập nhật mã, B3 chạy tệp nâng cấp mới — Claude xem trước khi báo ngày bật |
+| **ND-066** — các phép kiểm vDBS | Làm ở giai đoạn 6; gửi Claude kết quả để đóng |
+| Lệnh Phần C và G **chưa chạy trên vDBS và Bizfly thật** | Giai đoạn 6, 7 chính là lần chạy thật đầu tiên — vì vậy mới làm từng bước, có điểm dừng, và mở kho trước ngày bật vài ngày |
 
 ---
 
 ## 7. Câu gửi Claude để bắt đầu
 
-**Buổi dựng sẵn:**
+**Buổi dựng máy chủ:**
 
-> Bắt đầu buổi dựng sẵn máy chủ Viettel theo `docs/KICH-BAN-DONG-HANH-TRIEN-KHAI.md`. Giai đoạn 1
+> Bắt đầu buổi dựng máy chủ Viettel theo `docs/KICH-BAN-DONG-HANH-TRIEN-KHAI.md`. Giai đoạn 1
 > đã xong: … (ô nào chưa đánh dấu thì ghi ra).
+
+**Mở kho:**
+
+> Mở kho dữ liệu theo `docs/KICH-BAN-DONG-HANH-TRIEN-KHAI.md` giai đoạn 6. Máy chủ dựng xong ngày …,
+> đang để chạy / đã Stop. Dự định ngày bật: … .
 
 **Ngày bật:**
 
-> Chuẩn bị ngày bật theo `docs/KICH-BAN-DONG-HANH-TRIEN-KHAI.md` giai đoạn 7. Máy dựng xong ngày …,
-> đang để chạy / đã Stop. Giờ đổi máy đã báo người dân: … .
+> Chuẩn bị ngày bật theo `docs/KICH-BAN-DONG-HANH-TRIEN-KHAI.md` giai đoạn 7. Kho mở ngày …,
+> đã / chưa đưa về chờ lại. Giờ đổi máy đã báo người dân: … .
 
 Bị đứt giữa chừng (mất mạng, phải nghỉ) thì gửi: *"Làm tiếp, đang ở giai đoạn N bước M, kết quả
 bước trước: …"* (không ghi khoá, mật khẩu).
