@@ -82,3 +82,27 @@ test('kịch bản đồng hành: mọi chặng và mục kỹ thuật nhắc t�
   const bat = kb.slice(kb.indexOf('### Giai đoạn 7 —'), kb.indexOf('### Giai đoạn 8 —'));
   assert.match(bat, /systemctl enable --now hop-thu-sao-luu\.timer/, 'ngày bật phải bật lại sao lưu');
 });
+
+/* P118: phiếu biến là chỗ người vận hành dựa vào để "không sót dòng nào". Mã đọc thêm biến môi
+   trường mới mà phiếu không ghi thì người cài không biết phải đặt — test quét chính mã nguồn. */
+test('phiếu biến triển khai ghi đủ mọi biến môi trường máy chủ và giao diện đọc', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const phieu = await doc('PHIEU-BIEN-TRIEN-KHAI.md');
+  const duyet = async (dir) => (await readdir(dir, { withFileTypes: true, recursive: true }))
+    .filter((f) => f.isFile() && /\.(js|ts|tsx)$/.test(f.name))
+    .map((f) => new URL(`${f.parentPath ?? f.path}/${f.name}`, 'file://').pathname);
+  const goc = new URL('../../', import.meta.url).pathname;
+  const tep = [...await duyet(goc + 'server/src'), ...await duyet(goc + 'src')];
+  const bien = new Set();
+  for (const t of tep) {
+    const s = await readFile(t, 'utf8');
+    for (const m of s.matchAll(/process\.env\.([A-Z][A-Z0-9_]+)|\benv\(['"]([A-Z][A-Z0-9_]+)['"]|import\.meta\.env\.(VITE_[A-Z0-9_]+)/g)) {
+      bien.add(m[1] ?? m[2] ?? m[3]);
+    }
+  }
+  assert.ok(bien.size >= 20, `chỉ quét được ${bien.size} biến — đường dẫn quét có vẻ sai`);
+  const thieu = [...bien].filter((b) => !phieu.includes(`\`${b}\``));
+  assert.deepEqual(thieu, [], `phiếu biến chưa ghi: ${thieu.join(', ')}`);
+  assert.match(phieu, /🔒/, 'phải đánh dấu dòng nào là bí mật');
+  assert.match(phieu, /Không\.\*\* Note trên điện thoại/, 'phải dặn không ghi khoá vào note');
+});

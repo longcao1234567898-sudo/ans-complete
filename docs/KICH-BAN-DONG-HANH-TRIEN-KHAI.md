@@ -68,6 +68,9 @@ to địa chỉ / tên trong lệnh trước khi bấm Enter**:
 
 ## 2. Phiếu thông tin — in ra, điền tay, cất tủ có khoá
 
+> Danh sách **đầy đủ từng biến** của hai tệp `.env`, giao diện, kho vDBS và sao lưu Bizfly —
+> kèm cột "phải khớp với" và bảng đánh dấu dán vào note: [PHIEU-BIEN-TRIEN-KHAI.md](PHIEU-BIEN-TRIEN-KHAI.md).
+
 Ghi **trên giấy**, không gõ vào máy tính dùng chung, không chụp gửi ai. Cột "Nhắc Claude được"
 cho biết món đó có được nói trong trò chuyện không.
 
