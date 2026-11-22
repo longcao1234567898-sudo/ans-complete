@@ -148,7 +148,10 @@ const TEP_DUOC_GIU = 'Ảnh, giấy tờ bà con gửi kèm (nếu có) được
   + 'trong hệ thống chỉ lãnh đạo đơn vị mở được và mỗi lần mở đều ghi nhật ký. Bà con cần xoá hẳn tệp nào '
   + '(ví dụ ảnh căn cước) thì liên hệ trực ban đơn vị.';
 
-router.post('/:code/request-deletion', async (req, res) => {
+/* CÙNG bộ đếm với tra cứu (BUG-051): mã 6 ký tự là thứ duy nhất đứng giữa người lạ và hồ sơ,
+   phản hồi ở đây (404 / ẩn danh / đã xoá / đang chờ) dò mã được như tra cứu. Dùng chung MỘT bộ
+   đếm để hai cửa cộng lại vẫn chỉ 30 lượt/phút/mạng, không thành 60. */
+router.post('/:code/request-deletion', gioiHanTraCuu, async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
   if (!/^[A-Z0-9]{6}$/.test(code)) {
     return res.status(400).json({ error: 'Mã tra cứu phải gồm 6 ký tự.' });
