@@ -308,6 +308,9 @@ Làm theo **tài liệu kỹ thuật, Phần G**, từ G2 tới G6:
 
 - [ ] Render → **Suspend** rồi **Delete** từng dịch vụ.
 - [ ] Aiven → **Delete service** (đây là bản sao đầy đủ dữ liệu người dân — không xoá thì nằm đó mãi).
+      Kho Aiven và các bản sao lưu tự động của nó còn **IP thô** ghi từ trước bản vá BUG-049/BUG-055;
+      kho vDBS thì máy chủ tự dọn ngay lượt khởi động đầu tiên. Xoá dịch vụ Aiven là xoá luôn các bản
+      sao lưu đó — kiểm trên Aiven Console không còn bản sao lưu nào (Backups) sau khi xoá.
 - [ ] Netlify/Vercel → xoá dự án; bỏ địa chỉ `….netlify.app`/`….vercel.app` khỏi `CORS_ORIGIN` và
       Turnstile (tài liệu kỹ thuật, F8 bước 5).
 - [ ] Báo Claude: **xoá tệp cấu hình Vercel/Netlify khỏi mã nguồn** (việc ND-065).
