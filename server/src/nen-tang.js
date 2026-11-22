@@ -20,7 +20,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
+import { khoaIp } from './lib/helpers.js';
 import { aiAvailable } from './lib/ai.js';
 import { encryptionEnabled } from './lib/crypto.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
@@ -191,10 +193,79 @@ export function laDuongGoiLon(req) {
   return DUONG_GOI_LON.has(duong);
 }
 
+/* GÓI LỚN = khai dài quá giới hạn thường, hoặc gửi kiểu chunked (không khai độ dài). Gói khai
+   ≤ 1 MB thì bộ đọc chỉ đọc đúng chừng đó byte — không cần đếm. */
+const BYTE_GOI_THUONG = 1024 * 1024;
+function laGoiLon(req) {
+  if (req.headers['transfer-encoding']) return true;
+  const dai = Number(req.headers['content-length']);
+  return !Number.isFinite(dai) || dai > BYTE_GOI_THUONG;
+}
+
+/* GIỚI HẠN SỐ GÓI LỚN ĐANG ĐỌC CÙNG LÚC (BUG-048 lần 2). Giới hạn lượt chung đếm LƯỢT, không đếm
+   yêu cầu ĐANG CHẠY: 30 yêu cầu × 30 MB gửi song song lọt hết, bộ nhớ tiến trình lên 2,8 GB (RETEST
+   đo). Mỗi gói lớn giữ chừng 90 MB lúc đọc và xử lý; 6 cùng lúc ~ 0,5 GB — máy 4 GB chịu được.
+   Giữ chỗ tới khi phản hồi xong HOẶC kết nối đứt (huỷ giữa chừng phải trả chỗ, không thì kẹt vĩnh
+   viễn). 503 + Retry-After: hàng chờ gửi ngầm của giao diện (ADR-008) tự gửi lại, ý kiến không mất. */
+export const GOI_LON_MOI_MANG = 2;
+export const GOI_LON_TOAN_MAY = 6;
+function taoGioiHanGoiLon() {
+  const theoMang = new Map();
+  let tong = 0;
+  return (req, res, next) => {
+    const k = khoaIp(req);
+    const dang = theoMang.get(k) || 0;
+    if (dang >= GOI_LON_MOI_MANG || tong >= GOI_LON_TOAN_MAY) {
+      res.set('Retry-After', '10');
+      return res.status(503).json({
+        error: 'Máy chủ đang nhận nhiều tệp cùng lúc. Bà con chờ vài giây rồi gửi lại — '
+          + 'nội dung chưa bị mất. Việc khẩn cấp xin gọi ngay 113.',
+      });
+    }
+    theoMang.set(k, dang + 1);
+    tong += 1;
+    let daTra = false;
+    const traCho = () => {
+      if (daTra) return;
+      daTra = true;
+      tong -= 1;
+      const con = (theoMang.get(k) || 1) - 1;
+      if (con <= 0) theoMang.delete(k); else theoMang.set(k, con);
+    };
+    res.on('finish', traCho);
+    res.on('close', traCho);
+    return next();
+  };
+}
+
+/* /api/chat/bo-sung đòi vé phòng trao đổi ở header — kiểm TRƯỚC khi đọc gói lớn: không vé thì
+   không tốn bộ nhớ đọc 32 MB (BUG-048 lần 2). Chỉ là lớp chặn sớm; route vẫn tự kiểm vé đầy đủ. */
+function coVeChatHopLe(req) {
+  const ve = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  /* Đọc khoá lúc kiểm, không nạp lib/token.js ở đầu tệp (mọi điểm vào dùng nen-tang). Thiếu
+     khoá -> coi như không vé (từ chối), máy thật thì đã không khởi động được (luật 1). */
+  const khoa = String(process.env.JWT_SECRET || '').trim();
+  if (!ve || !khoa) return false;
+  try {
+    return jwt.verify(ve, khoa, { algorithms: ['HS256'] }).purpose === 'chat_reporter';
+  } catch {
+    return false;
+  }
+}
+
 export function ganDocThan(app) {
   const docLon = express.json({ limit: GIOI_HAN_GOI_LON });
   const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
-  app.use((req, res, next) => (laDuongGoiLon(req) ? docLon : docThuong)(req, res, next));
+  const gioiHanGoiLon = taoGioiHanGoiLon();
+  app.use((req, res, next) => {
+    if (!laDuongGoiLon(req)) return docThuong(req, res, next);
+    if (!laGoiLon(req)) return docLon(req, res, next);
+    const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
+    if (duong === '/api/chat/bo-sung' && !coVeChatHopLe(req)) {
+      return res.status(401).json({ error: 'Bà con vào lại bằng mã tra cứu và mã PIN để bổ sung thông tin.' });
+    }
+    return gioiHanGoiLon(req, res, () => docLon(req, res, next));
+  });
   /* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
 
      ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,

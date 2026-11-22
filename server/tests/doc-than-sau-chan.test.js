@@ -13,6 +13,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { datBienMoiTruongHopLe } from './helpers-test.js';
+
+datBienMoiTruongHopLe();   // khoá ký vé phòng trao đổi (ô 1)
 
 const ma = (f) => readFile(new URL(`../src/${f}`, import.meta.url), 'utf8');
 const boChuThich = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -22,8 +25,8 @@ async function chay(app, fn) {
   try { return await fn(`http://127.0.0.1:${sv.address().port}`); } finally { sv.close(); }
 }
 
-const goiJson = (url, than) => fetch(url, {
-  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: than,
+const goiJson = (url, than, header = {}) => fetch(url, {
+  method: 'POST', headers: { 'Content-Type': 'application/json', ...header }, body: than,
 });
 
 /* ~2 MB JSON hợp lệ: lớn hơn giới hạn thường, nhỏ hơn 32 MB */
@@ -46,8 +49,12 @@ async function dungApp({ chanIp } = {}) {
 test('gói 2 MB: chỉ POST /api/submissions và /api/chat/bo-sung nhận, đường khác 413', async () => {
   const app = await dungApp();
   await chay(app, async (goc) => {
+    /* BUG-048 lần 2: gói lớn vào /api/chat/bo-sung phải kèm vé phòng trao đổi ở header
+       (tests/goi-lon-dong-thoi.test.js) — ở đây gửi như người dân thật, có vé */
+    const jwt = (await import('jsonwebtoken')).default;
+    const ve = jwt.sign({ sub: 1, purpose: 'chat_reporter' }, process.env.JWT_SECRET, { expiresIn: '1h' });
     for (const d of ['/api/submissions', '/api/chat/bo-sung']) {
-      const r = await goiJson(goc + d, THAN_2MB);
+      const r = await goiJson(goc + d, THAN_2MB, { Authorization: `Bearer ${ve}` });
       assert.equal(r.status, 200, `${d} phải nhận gói 2 MB (ảnh, tài liệu)`);
     }
     for (const d of ['/api/news/x', '/api/admin/x', '/api/submissions/kiem-tra-khoa']) {
