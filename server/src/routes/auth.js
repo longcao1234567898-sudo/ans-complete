@@ -104,21 +104,22 @@ function gopTen(ten) {
 const khoaLanSai = (ten) => 'dang-nhap-sai:'
   + crypto.createHash('sha256').update(gopTen(ten)).digest('hex');
 
-async function soLanSaiCuaTen(ten) {
-  const [rows] = await pool.query(
-    'SELECT so FROM dem_gioi_han WHERE khoa = ? AND het_han > NOW()', [khoaLanSai(ten)]
-  );
-  return Number(rows[0]?.so || 0);
-}
-
-async function tangLanSaiCuaTen(ten) {
-  /* Gán `so` TRƯỚC `het_han`: phép so het_han <= NOW() đọc hạn CŨ (như lib/dem-gioi-han.js) */
+/* GIÀNH LƯỢT TRƯỚC KHI SO MẬT KHẨU (BUG-052 lần 2, luật 6). Mỗi lượt đăng nhập TĂNG bộ đếm trước,
+   rồi đọc lại để biết mình là lần thử thứ mấy; đúng mật khẩu thì xoá bộ đếm. Trước đây đọc số lần
+   sai -> so bcrypt (~200 ms) -> mới tăng: N lượt song song cùng đọc thấy "chưa tới 3", cùng được so
+   mật khẩu không qua ô xác minh (RETEST đo: 12 lượt thì 6 lọt). Đọc lại sau khi tăng có thể thấy cả
+   lượt song song khác -> đếm DƯ, bắt ô xác minh sớm hơn: phía an toàn.
+   Gán `so` TRƯỚC `het_han`: phép so het_han <= NOW() đọc hạn CŨ (như lib/dem-gioi-han.js). */
+async function giuLanThu(ten) {
+  const khoa = khoaLanSai(ten);
   await pool.query(
     `INSERT INTO dem_gioi_han (khoa, so, het_han) VALUES (?, 1, NOW() + INTERVAL ? SECOND)
      ON DUPLICATE KEY UPDATE so = CASE WHEN het_han <= NOW() THEN 1 ELSE so + 1 END,
                              het_han = NOW() + INTERVAL ? SECOND`,
-    [khoaLanSai(ten), GIAY_NHO_LAN_SAI, GIAY_NHO_LAN_SAI]
+    [khoa, GIAY_NHO_LAN_SAI, GIAY_NHO_LAN_SAI]
   );
+  const [rows] = await pool.query('SELECT so FROM dem_gioi_han WHERE khoa = ?', [khoa]);
+  return Number(rows[0]?.so || 1);
 }
 
 /** Ghi vết mọi lần đăng nhập thất bại — để phát hiện tấn công đang diễn ra */
@@ -182,7 +183,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     /* ĐÃ SAI NHIỀU LẦN -> BẮT QUA CAPTCHA (không khoá tài khoản). Đếm theo TÊN ĐÃ GÕ, như nhau
        cho tên có thật và không có (BUG-054) — không đọc staff.failed_attempts ở đây. */
     const tenDem = staff ? staff.username : username;   // BUG-056: tên có thật -> tên gốc
-    const soLanSaiHienTai = await soLanSaiCuaTen(tenDem);
+    const soLanThu = await giuLanThu(tenDem);           // BUG-052 lần 2: giành lượt TRƯỚC
+    const soLanSaiHienTai = soLanThu - 1;               // số lần sai trước lượt này
     if (soLanSaiHienTai >= SO_LAN_SAI_BAT_CAPTCHA) {
       const kq = await verifyTurnstile(req.body?.captchaToken, ip);
       if (!kq.ok) {
@@ -201,11 +203,11 @@ router.post('/login', loginLimiter, async (req, res) => {
       // GHI VẾT — trước đây chỉ ghi lần đăng nhập THÀNH CÔNG, nên không
       // phát hiện được khi hệ thống đang bị dò mật khẩu.
       await ghiThatBai(staff?.id ?? null, username, ipKhoa);
-      await tangLanSaiCuaTen(tenDem);
+      /* Bộ đếm theo tên đã tăng ở giuLanThu — không tăng lần nữa */
 
       /* staff.failed_attempts: giữ để ghi nhận theo tài khoản. Lớp CHẶN là bộ đếm theo tên đã gõ
          ở trên (BUG-054) — cũng không theo IP, kẻ đổi IP vẫn không vượt được. */
-      const soLanSai = soLanSaiHienTai + 1;
+      const soLanSai = soLanThu;
       if (staff) {
         /* TĂNG TRONG CSDL, không ghi đè số đã đọc (BUG-052, luật 6): đọc ở trên rồi so bcrypt
            ~80 ms mới ghi, nên N lần sai song song cùng đọc một số cũ, cùng ghi "cũ + 1" —
