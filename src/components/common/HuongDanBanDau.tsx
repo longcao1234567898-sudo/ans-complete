@@ -29,7 +29,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Rocket, CheckCircle2, Volume2, VolumeX, X } from 'lucide-react';
 import { STORAGE_KEYS } from '../../utils/constants';
-import { docTiengViet, type DieuKhienDoc } from '../../utils/tiengNoi';
+import { docHuongDan, type DieuKhienDoc } from '../../utils/tiengNoi';
 import type { KhoaChu } from '../../i18n/chu';
 import { useNgonNgu } from '../../i18n/useNgonNgu';
 import { duocTuHienHuongDan } from '../../utils/huongDan';
@@ -946,11 +946,15 @@ export default function HuongDanBanDau() {
     if (!hien) return;
     dungDoc();
     const b = boBuoc[buoc];
-    const loi = `${dich(b.khoaTieuDe)}. ${dich(b.khoaNoiDung)}`;
     /* Chờ một nhịp ngắn cho chữ bước mới lướt xong rồi mới đọc. */
     const t = setTimeout(() => {
       setDangDoc(true);
-      dieuKhienDoc.current = docTiengViet(loi, () => setDangDoc(false), ngonNgu);
+      dieuKhienDoc.current = docHuongDan(
+        dich(b.khoaTieuDe),
+        dich(b.khoaNoiDung),
+        () => setDangDoc(false),
+        ngonNgu
+      );
     }, 420);
     return () => { clearTimeout(t); dungDoc(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1080,8 +1084,12 @@ export default function HuongDanBanDau() {
   function docLai() {
     if (dangDoc) { dungDoc(); return; }
     setDangDoc(true);
-    dieuKhienDoc.current = docTiengViet(
-      `${dich(b.khoaTieuDe)}. ${dich(b.khoaNoiDung)}`, () => setDangDoc(false), ngonNgu);
+    dieuKhienDoc.current = docHuongDan(
+      dich(b.khoaTieuDe),
+      dich(b.khoaNoiDung),
+      () => setDangDoc(false),
+      ngonNgu
+    );
   }
 
   /* Cử chỉ vuốt ngang trên thẻ (điện thoại): vuốt trái -> Tiếp tục, vuốt phải -> Quay lại.
