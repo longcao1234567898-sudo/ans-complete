@@ -9,7 +9,7 @@ Vào đây trước. Mỗi tệp trong `docs/` có đúng một việc; bảng d
 | Bạn là | Đọc theo thứ tự này |
 |---|---|
 | **Người mới, muốn hiểu hệ thống** | [TONG-QUAN-HE-THONG.md](TONG-QUAN-HE-THONG.md) → [../README.md](../README.md) (cách chạy) |
-| **Người đưa hệ thống lên mạng** (tất cả ở Viettel: máy chủ + kho dữ liệu vDBS, sao lưu Bizfly) | [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) (từng chặng, cho người không biết lập trình) → [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md) (lệnh chi tiết) |
+| **Người đưa hệ thống lên mạng** (tất cả ở Viettel: máy chủ + kho dữ liệu vDBS, sao lưu Bizfly) | [SO-TAY-TRIEN-KHAI.md](SO-TAY-TRIEN-KHAI.md) (từng chặng, cho người không biết lập trình) → [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md) (lệnh chi tiết). Làm cùng Claude: [KICH-BAN-DONG-HANH-TRIEN-KHAI.md](KICH-BAN-DONG-HANH-TRIEN-KHAI.md) (dựng sẵn một buổi, chế độ chờ, ngày bật; điểm kiểm, đường lùi) |
 | **Người lập trình, sắp làm việc với Claude** | [SO-TAY-NGUOI-LAP-TRINH.md](SO-TAY-NGUOI-LAP-TRINH.md) → [TIEN-DO.md](TIEN-DO.md) |
 | **Người muốn biết dự án đang ở đâu** | [TIEN-DO.md](TIEN-DO.md) → [NO-KY-THUAT.md](NO-KY-THUAT.md) |
 | **Người trình bày, tập huấn, bàn giao** (bộ tài liệu Word) | [tai-lieu-word/README.md](tai-lieu-word/README.md) → `0_MUC_LUC.docx` |
@@ -35,6 +35,7 @@ docs/
 │
 ├── TONG-QUAN-HE-THONG.md        Hệ thống này là gì, gồm những phần nào
 ├── SO-TAY-TRIEN-KHAI.md        Sổ tay triển khai từng chặng, cho người không biết lập trình
+├── KICH-BAN-DONG-HANH-TRIEN-KHAI.md  Claude hướng dẫn dựng sẵn rồi bật: điểm kiểm, điểm dừng, đường lùi
 ├── HUONG-DAN-TRIEN-KHAI.md      Đưa lên mạng từng bước cho người mới: giao diện
 │                                 + hai máy chủ trên Viettel, kho vDBS, sao lưu Bizfly
 ├── adr/                         Quyết định kiến trúc, mỗi quyết định một tệp

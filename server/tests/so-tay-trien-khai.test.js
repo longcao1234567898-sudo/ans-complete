@@ -53,3 +53,32 @@ test('tài liệu triển khai đi thẳng theo Viettel vDBS + Bizfly, không c�
   assert.match(kyThuat, /RCLONE_DICH=bizfly:/, 'sao lưu Phần G phải gửi sang Bizfly');
   assert.doesNotMatch(kyThuat, /'sao_luu'@'%'/, 'tài khoản sao lưu phải giới hạn theo địa chỉ máy chủ');
 });
+
+/* P117: kịch bản đồng hành chỉ trỏ sang sổ tay ("chặng 9") và tài liệu kỹ thuật ("C3", "G6").
+   Đổi tên mục mà quên kịch bản thì đúng buổi đang làm dở, người vận hành không tìm ra chỗ chép. */
+test('kịch bản đồng hành: mọi chặng và mục kỹ thuật nhắc tới đều có thật, giữ quy tắc không gửi khoá', async () => {
+  const kb = await doc('KICH-BAN-DONG-HANH-TRIEN-KHAI.md');
+  const soTay = await doc('SO-TAY-TRIEN-KHAI.md');
+  const kyThuat = await doc('HUONG-DAN-TRIEN-KHAI.md');
+  const muc = new Set([...kb.matchAll(/\b([BCDEFG])(\d{1,2})\b/g)].map((m) => m[1] + m[2]));
+  muc.delete('F12'); // phím F12 mở bảng Console của trình duyệt, không phải mục tài liệu
+  const thieuMuc = [...muc].filter((m) => !kyThuat.includes(`### ${m}.`));
+  assert.deepEqual(thieuMuc, [], `kịch bản trỏ tới mục không có: ${thieuMuc.join(', ')}`);
+  const chang = new Set([...kb.matchAll(/[Cc]hặng (\d{1,2})(?:[–-](\d{1,2}))?/g)].flatMap((m) => {
+    const a = Number(m[1]); const b = Number(m[2] ?? m[1]);
+    return Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  }));
+  const thieuChang = [...chang].filter((n) => !soTay.includes(`## Chặng ${n} —`));
+  assert.deepEqual(thieuChang, [], `kịch bản trỏ tới chặng không có: ${thieuChang.join(', ')}`);
+  assert.match(kb, /KHÔNG BAO GIỜ gửi/);
+  assert.match(kb, /ENCRYPTION_KEY/);
+  assert.match(kb, /xoa_ho_so_mau\.sql/, 'đêm chuyển phải dọn hồ sơ mẫu (ND-095)');
+  assert.match(kb, /Test-NetConnection IP-MAY-VIETTEL -Port 4001/, 'phải kiểm từ ngoài cổng cán bộ đóng');
+  /* Máy dựng sẵn để chờ: không giữ bản chép thử dữ liệu thật, không để máy chủ/sao lưu tự chạy */
+  const cho = kb.slice(kb.indexOf('### Giai đoạn 6 —'), kb.indexOf('### Giai đoạn 7 —'));
+  assert.match(cho, /systemctl disable --now hop-thu-cong-khai hop-thu-can-bo/);
+  assert.match(cho, /systemctl disable --now hop-thu-sao-luu\.timer/);
+  assert.match(cho, /DROP DATABASE hop_thu_an_ninh_so/, 'chế độ chờ phải xoá bản chép thử dữ liệu thật');
+  const bat = kb.slice(kb.indexOf('### Giai đoạn 7 —'), kb.indexOf('### Giai đoạn 8 —'));
+  assert.match(bat, /systemctl enable --now hop-thu-sao-luu\.timer/, 'ngày bật phải bật lại sao lưu');
+});
