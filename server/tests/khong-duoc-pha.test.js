@@ -137,7 +137,8 @@ describe('G5 — KHÔNG khoá tài khoản khi sai mật khẩu, sai >= 3 lần 
 
   test('chỉ tăng bộ đếm failed_attempts', async () => {
     const nguon = await doc('../src/routes/auth.js');
-    assert.match(nguon, /UPDATE staff SET failed_attempts = \? WHERE id = \?/);
+    /* BUG-052: tăng trong CSDL (atomic, luật 6) thay cho ghi đè số đã đọc — ý kiểm giữ nguyên */
+    assert.match(nguon, /UPDATE staff SET failed_attempts = COALESCE\(failed_attempts, 0\) \+ 1 WHERE id = \?/);
   });
 
   test('sai >= 3 lần -> trả canCaptcha: true để giao diện hiện ô xác minh', async () => {

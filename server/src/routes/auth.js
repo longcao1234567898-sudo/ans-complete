@@ -150,11 +150,14 @@ router.post('/login', loginLimiter, async (req, res) => {
       /* Tăng bộ đếm và khoá tạm nếu vượt ngưỡng.
          Đây là lớp chặn theo TÀI KHOẢN — bổ sung cho lớp chặn theo IP.
          Kẻ tấn công đổi IP vẫn không vượt được lớp này. */
-      let soLanSai = soLanSaiHienTai + 1;
+      const soLanSai = soLanSaiHienTai + 1;
       if (staff) {
+        /* TĂNG TRONG CSDL, không ghi đè số đã đọc (BUG-052, luật 6): đọc ở trên rồi so bcrypt
+           ~80 ms mới ghi, nên N lần sai song song cùng đọc một số cũ, cùng ghi "cũ + 1" —
+           bộ đếm chỉ tăng 1, kẻ dò nhiều IP lách được ngưỡng bắt ô xác minh. */
         try {
-          await pool.query('UPDATE staff SET failed_attempts = ? WHERE id = ?',
-            [soLanSai, staff.id]);
+          await pool.query('UPDATE staff SET failed_attempts = COALESCE(failed_attempts, 0) + 1 WHERE id = ?',
+            [staff.id]);
         } catch { /* chưa nâng cấp v9 -> bỏ qua */ }
       }
 
