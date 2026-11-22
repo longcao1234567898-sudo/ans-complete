@@ -264,6 +264,14 @@ export function ganDocThan(app) {
   const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
   const gioiHanGoiLon = taoGioiHanGoiLon();
   app.use((req, res, next) => {
+    /* KHÔNG NHẬN THÂN NÉN (BUG-048 lần 3). Lớp giới hạn gói lớn đo bằng Content-Length — byte
+       TRÊN ĐƯỜNG TRUYỀN; thân gzip 30 MB chỉ ~30 KB trên đường truyền nên lọt qua, rồi bộ đọc giải
+       nén trọn vào bộ nhớ (RETEST đo: 30 lượt 2,8 GB, 100 lượt 6,6 GB). Giao diện không bao giờ nén
+       thân yêu cầu — allow-list (luật 5): chỉ nhận thân không nén. Từ chối TRƯỚC khi đọc. */
+    const nen = String(req.headers['content-encoding'] || '').trim().toLowerCase();
+    if (nen && nen !== 'identity') {
+      return res.status(415).json({ error: 'Máy chủ không nhận dữ liệu gửi lên ở dạng nén.' });
+    }
     if (req.method === 'POST'
         && DUONG_KHONG_DOC_THAN.has(String(req.path || '').toLowerCase().replace(/\/+$/, ''))) {
       return next();
