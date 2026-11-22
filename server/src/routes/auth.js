@@ -86,8 +86,23 @@ const SO_LAN_SAI_BAT_CAPTCHA = 3;
    nhỏ đã chấp nhận: kẻ dò được thêm 3 lần thử sau MỖI 30 ngày im lặng, đổi lại bảng không giữ mãi
    tên rác người ta gõ. Lưu bản băm của tên, không lưu tên. */
 const GIAY_NHO_LAN_SAI = 30 * 86400;
+
+/* GỘP TÊN ÍT NHẤT NHƯ MYSQL GỘP (BUG-056, sinh ra bởi bản vá BUG-054). Cột staff.username dùng
+   utf8mb4_unicode_ci — so bỏ qua hoa thường VÀ dấu: 'cánbo9' khớp tài khoản 'canbo9'. Khoá đếm
+   chỉ hạ chữ thường thì mỗi cách viết có dấu là một bộ đếm mới, lách được ô xác minh.
+
+   Hai lớp: (1) tên CÓ THẬT -> đếm theo tên GỐC trong CSDL (staff.username), mọi cách viết MySQL
+   coi là một đều dồn về một bộ đếm, bất kể collation; (2) tên KHÔNG có -> gộp dấu ở đây, cố ý THÔ
+   hơn MySQL (gộp nhiều hơn chỉ làm bắt ô xác minh sớm hơn), để hai trường hợp phản hồi như nhau
+   khi kẻ dò đổi dấu — không lộ tên nào có thật. */
+function gopTen(ten) {
+  return String(ten).normalize('NFKD').replace(/[\p{M}\p{Cf}]/gu, '').toLowerCase()
+    .replace(/đ/g, 'd').replace(/ß/g, 'ss').replace(/æ/g, 'ae').replace(/œ/g, 'oe')
+    .replace(/ø/g, 'o').replace(/ł/g, 'l').replace(/ı/g, 'i')
+    .replace(/\s+/g, ' ').trim();
+}
 const khoaLanSai = (ten) => 'dang-nhap-sai:'
-  + crypto.createHash('sha256').update(String(ten).trim().toLowerCase()).digest('hex');
+  + crypto.createHash('sha256').update(gopTen(ten)).digest('hex');
 
 async function soLanSaiCuaTen(ten) {
   const [rows] = await pool.query(
@@ -166,7 +181,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     /* ĐÃ SAI NHIỀU LẦN -> BẮT QUA CAPTCHA (không khoá tài khoản). Đếm theo TÊN ĐÃ GÕ, như nhau
        cho tên có thật và không có (BUG-054) — không đọc staff.failed_attempts ở đây. */
-    const soLanSaiHienTai = await soLanSaiCuaTen(username);
+    const tenDem = staff ? staff.username : username;   // BUG-056: tên có thật -> tên gốc
+    const soLanSaiHienTai = await soLanSaiCuaTen(tenDem);
     if (soLanSaiHienTai >= SO_LAN_SAI_BAT_CAPTCHA) {
       const kq = await verifyTurnstile(req.body?.captchaToken, ip);
       if (!kq.ok) {
@@ -185,7 +201,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       // GHI VẾT — trước đây chỉ ghi lần đăng nhập THÀNH CÔNG, nên không
       // phát hiện được khi hệ thống đang bị dò mật khẩu.
       await ghiThatBai(staff?.id ?? null, username, ipKhoa);
-      await tangLanSaiCuaTen(username);
+      await tangLanSaiCuaTen(tenDem);
 
       /* staff.failed_attempts: giữ để ghi nhận theo tài khoản. Lớp CHẶN là bộ đếm theo tên đã gõ
          ở trên (BUG-054) — cũng không theo IP, kẻ đổi IP vẫn không vượt được. */
@@ -214,7 +230,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     // Đăng nhập đúng -> xoá bộ đếm sai (cả bộ đếm theo tên đã gõ, BUG-054)
-    await pool.query('DELETE FROM dem_gioi_han WHERE khoa = ?', [khoaLanSai(username)]);
+    await pool.query('DELETE FROM dem_gioi_han WHERE khoa = ?', [khoaLanSai(staff.username)]);
     try {
       await pool.query(
         'UPDATE staff SET failed_attempts = 0 WHERE id = ?',
