@@ -91,7 +91,7 @@ mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v34.sql           #    N
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v35.sql           #    Ghi lại tệp đính kèm không nhận được để cán bộ biết (BUG-035) — bảng tep_khong_nhan, không lưu tên tệp; chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v36.sql           #    Lưu được thiết bị tin cậy (máy ki-ốt dùng chung) — nới blacklists.kind, khôi phục dòng tin cậy bị ghi rỗng (ND-028); cần quyền ALTER, chạy lúc nào cũng được
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v37.sql           #    Đếm lần thử mã PIN phòng trao đổi theo hồ sơ (BUG-040) — bảng khoa_mo_phong; **chạy TRƯỚC khi cập nhật máy chủ** (thiếu bảng thì phòng trao đổi không mở)
-mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v38.sql           #    Mã xác minh số điện thoại qua Zalo/SMS (P86) — bảng ma_xac_minh_sdt (không lưu số, không lưu mã) + dem_gioi_han; chưa chạy thì tính năng tắt, gửi ý kiến vẫn bình thường
+mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v38.sql           #    Mã xác minh số điện thoại qua Zalo/SMS (P86) — bảng ma_xac_minh_sdt (không lưu số, không lưu mã) + dem_gioi_han. ⚠️ BẮT BUỘC từ P118: thiếu dem_gioi_han thì đăng nhập cán bộ báo lỗi (ND-100)
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v39.sql           #    Nhãn "đã xác minh số điện thoại" cho tin có danh tính (P89) — thêm cột sdt_xac_minh; chưa chạy thì vẫn nhận ý kiến, chỉ không lưu nhãn
 mysql -u root -p hop_thu_an_ninh_so < database/nang_cap_v40.sql           #    Gửi lại cùng một lần không tạo đơn trùng (P91) — 3 cột lan_gui_* trên submissions (chỉ giữ băm, tự xoá sau 24 giờ và khi xoá danh tính); chưa chạy thì vẫn nhận ý kiến, chỉ không nhận ra lần gửi lại
 ```

@@ -14,6 +14,11 @@ SET NAMES utf8mb4; -- đọc tệp đúng UTF-8 dù máy cài mặc định lati
 --     song song không lọt quá trần, nên không ai làm anh mất quá số tiền trần.
 --
 -- Chưa chạy tệp này thì máy chủ không gửi mã (503) — gửi ý kiến vẫn bình thường.
+--
+-- ⚠️ TỪ P118 TỆP NÀY BẮT BUỘC (ND-100): đăng nhập cán bộ đếm lần sai trong bảng
+-- dem_gioi_han (BUG-052, BUG-054, BUG-056). Thiếu bảng thì MỌI lượt đăng nhập cán bộ
+-- trả 500 — đóng an toàn, không mở cửa; nhật ký máy chủ in "Lỗi đăng nhập: Table
+-- '...dem_gioi_han' doesn't exist". Kho chép từ bản đang chạy (đã tới v40) có sẵn bảng.
 -- Chạy lại nhiều lần không sao (IF NOT EXISTS). QUYỀN: cần quyền CREATE.
 -- ============================================================================
 
