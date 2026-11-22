@@ -278,12 +278,13 @@ describe('G9 — quyền xoá dữ liệu theo Nghị định 13/2023', () => {
     const nguon = await doc('../src/routes/tracking.js');
     assert.match(nguon, /const hoSoDaDong = sub\.status === 'resolved' \|\| sub\.status === 'rejected'/);
     assert.match(nguon, /identity_erased = TRUE/);
-    assert.match(nguon, /VALUES \(\?,\?,'done',\?,NOW\(\)\)/);
+    /* BUG-049: câu ghi nhận không còn cột IP người xin xoá — đổi mẫu theo, ý kiểm giữ nguyên */
+    assert.match(nguon, /VALUES \(\?,\?,'done',NOW\(\)\)/);
   });
 
   test('hồ sơ ĐANG XỬ LÝ -> ghi nhận pending, chưa xoá', async () => {
     const nguon = await doc('../src/routes/tracking.js');
-    assert.match(nguon, /VALUES \(\?,\?,'pending',\?,\?\)/);
+    assert.match(nguon, /VALUES \(\?,\?,'pending',\?\)/);
   });
 
   test('tin ẩn danh -> báo không có gì để xoá', async () => {

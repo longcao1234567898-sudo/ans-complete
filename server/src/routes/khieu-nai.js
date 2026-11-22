@@ -29,7 +29,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { layIpThat, khoaIp } from '../lib/helpers.js';
+import { khoaIp } from '../lib/helpers.js';
 import { sanitizeText } from '../lib/security.js';
 
 const router = Router();
@@ -108,7 +108,6 @@ router.get('/trang-thai', gioiHan, async (req, res) => {
 router.post('/', gioiHan, async (req, res) => {
   const deviceId = String(req.body?.deviceId || '').trim().slice(0, 64);
   const noiDungTho = String(req.body?.noiDung || '');
-  const ip = layIpThat(req);
 
   /* Làm sạch nội dung như mọi đầu vào khác — khiếu nại cũng hiện lên màn hình
      cán bộ nên vẫn phải chống mã độc chèn vào. */
@@ -154,12 +153,13 @@ router.post('/', gioiHan, async (req, res) => {
     }
 
     /* Ghi khiếu nại cho TỪNG dòng khoá đang khớp (nay chỉ còn khoá thiết bị —
-       không còn khoá địa chỉ mạng, BUG-016). */
+       không còn khoá địa chỉ mạng, BUG-016). KHÔNG ghi IP người khiếu nại (BUG-049):
+       đếm lượt theo mã máy, không mã nào đọc IP này — ghi vào chỉ để lại IP thô vĩnh viễn. */
     for (const k of khoa) {
       await pool.query(
-        `INSERT INTO unlock_appeals (identifier, kind, content, device_id, ip_address)
-         VALUES (?,?,?,?,?)`,
-        [k.identifier, k.kind, noiDung, deviceId || null, ip]
+        `INSERT INTO unlock_appeals (identifier, kind, content, device_id)
+         VALUES (?,?,?,?)`,
+        [k.identifier, k.kind, noiDung, deviceId || null]
       );
     }
 
