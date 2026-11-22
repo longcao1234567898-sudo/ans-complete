@@ -89,7 +89,8 @@ test('taoApp không tự đọc thân; giới hạn lượt chung nằm trong ta
 test('cả ba biến thể khởi động: đọc thân SAU chặn IP và TRƯỚC mọi route', async () => {
   const cb = boChuThich(await ma('may-chu-can-bo.js'));
   const iChan = cb.indexOf('app.use(chanTheoIp(layIpThat));');
-  const iDoc = cb.indexOf('ganDocThan(app);');
+  /* máy chủ cán bộ gọi kèm tham số { duongGoiLon: [] } — tìm lời gọi, không tìm nguyên dòng */
+  const iDoc = cb.indexOf('ganDocThan(app');
   assert.ok(iChan > 0 && iDoc > iChan, 'may-chu-can-bo.js: phải gọi ganDocThan(app) sau chanTheoIp');
   assert.ok(iDoc < cb.indexOf("app.use('/api/auth'"), 'may-chu-can-bo.js: ganDocThan phải trước route');
 

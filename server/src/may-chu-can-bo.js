@@ -44,8 +44,9 @@ const PORT = process.env.ADMIN_PORT || 4001;
 
 /* LỚP 1: giới hạn IP — áp cho TẤT CẢ route của máy chủ này, kể cả đăng nhập. */
 app.use(chanTheoIp(layIpThat));
-/* Đọc thân yêu cầu SAU chặn IP (BUG-048): IP ngoài dải bị từ chối trước khi tốn bộ nhớ đọc gói */
-ganDocThan(app);
+/* Đọc thân yêu cầu SAU chặn IP (BUG-048): IP ngoài dải bị từ chối trước khi tốn bộ nhớ đọc gói.
+   Không đường nào ở máy chủ này cần gói lớn -> danh sách rỗng, mọi đường tối đa 1 MB. */
+ganDocThan(app, { duongGoiLon: [] });
 
 app.use('/api/auth', authRouter);
 /* Cổng vào (ADR-003 việc 23) — vé xác minh cho đăng nhập cán bộ */

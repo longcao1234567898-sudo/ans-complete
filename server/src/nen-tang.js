@@ -193,10 +193,10 @@ const DUONG_GOI_LON = new Set(['/api/submissions', '/api/chat/bo-sung']);
    thì không 413 và không tốn bộ nhớ; Node tự bỏ phần thân chưa đọc. */
 const DUONG_KHONG_DOC_THAN = new Set(['/api/ai/moderate-image']);
 
-export function laDuongGoiLon(req) {
+export function laDuongGoiLon(req, dsDuong = DUONG_GOI_LON) {
   if (req.method !== 'POST') return false;
   const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
-  return DUONG_GOI_LON.has(duong);
+  return dsDuong.has(duong);
 }
 
 /* GÓI LỚN = khai dài quá giới hạn thường, hoặc gửi kiểu chunked (không khai độ dài). Gói khai
@@ -259,7 +259,11 @@ function coVeChatHopLe(req) {
   }
 }
 
-export function ganDocThan(app) {
+/* duongGoiLon: các đường được đọc 32 MB. Mặc định hai đường nhận tệp của người dân; máy chủ cán bộ
+   không gắn hai route đó nên khai RỖNG — không thì nó đọc trọn gói lớn rồi mới trả 404 (RETEST
+   BUG-048 lần 2). */
+export function ganDocThan(app, { duongGoiLon = DUONG_GOI_LON } = {}) {
+  const dsGoiLon = new Set(duongGoiLon);
   const docLon = express.json({ limit: GIOI_HAN_GOI_LON });
   const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
   const gioiHanGoiLon = taoGioiHanGoiLon();
@@ -276,7 +280,7 @@ export function ganDocThan(app) {
         && DUONG_KHONG_DOC_THAN.has(String(req.path || '').toLowerCase().replace(/\/+$/, ''))) {
       return next();
     }
-    if (!laDuongGoiLon(req)) return docThuong(req, res, next);
+    if (!laDuongGoiLon(req, dsGoiLon)) return docThuong(req, res, next);
     if (!laGoiLon(req)) return docLon(req, res, next);
     const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
     if (duong === '/api/chat/bo-sung' && !coVeChatHopLe(req)) {
