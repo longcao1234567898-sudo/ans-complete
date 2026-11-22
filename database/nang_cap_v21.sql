@@ -44,6 +44,9 @@ USE hop_thu_an_ninh_so;
 -- KHÔNG làm ở tệp này (SEC-DEC-008, thứ tự phiên FIX):
 --   · Mã máy của đơn ẨN DANH còn trong 30 ngày — tệp nâng cấp của phiên sau.
 --   · IP thô ở các bảng khác (unlock_appeals, otp_codes, data_deletion_requests).
+--     [Cập nhật P118: nay lượt tự dọn trong mã làm việc này — xoá IP thô ở
+--     unlock_appeals, data_deletion_requests (BUG-049) và xoá dòng otp_codes quá
+--     2 ngày (BUG-055). Tệp này vẫn không làm; không cần chạy thêm gì.]
 --   · Mã máy trong khiếu nại cũ (unlock_appeals.identifier, .device_id).
 --
 -- ⚠️ updated_at = updated_at KHÔNG THỪA. Cột này là ON UPDATE CURRENT_TIMESTAMP:

@@ -20,7 +20,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
+import { khoaIp } from './lib/helpers.js';
 import { aiAvailable } from './lib/ai.js';
 import { encryptionEnabled } from './lib/crypto.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
@@ -123,9 +125,13 @@ export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
   /* CORS: origin dev + origin từ biến môi trường + origin thêm riêng cho điểm
      vào này. Mọi địa chỉ đọc từ BIẾN, không viết cứng — để lúc bàn giao chỉ
      đổi biến, không sửa mã. */
-  const devOrigins = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
+  /* Nguồn dev (localhost) CHỈ khi máy khai tường minh development/test (BUG-053): trước đây
+     luôn có, kèm credentials — trang bất kỳ chạy ở localhost trên máy cán bộ thành nguồn được
+     tin của máy chủ thật. Không dựa vào "khác production": Render không đặt NODE_ENV. */
+  const mayCaNhan = ['development', 'test'].includes(process.env.NODE_ENV || '');
+  const devOrigins = mayCaNhan ? ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'] : [];
   const envOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const allowed = [...devOrigins, ...envOrigins, ...corsThem];
+  const allowed = [...envOrigins, ...corsThem, ...devOrigins];
   app.use(
     cors({
       origin(origin, cb) {
@@ -135,27 +141,6 @@ export function taoApp({ ten = 'gop', corsThem = [] } = {}) {
       credentials: true,
     })
   );
-
-  /* 32mb: đủ cho một video 20MB sau khi mã hoá base64 (tăng khoảng 33%) cộng
-   phần nội dung và ảnh. Trước đây 12mb nên video vừa gửi đã bị từ chối. */
-app.use(express.json({ limit: '32mb' }));
-  /* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
-
-   ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
-   trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
-   được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
-   kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
-
-   Nay nói thẳng nguyên nhân và cách làm tiếp. */
-app.use((err, _req, res, next) => {
-  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
-    return res.status(413).json({
-      error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
-           + 'quay đoạn ngắn hơn, rồi gửi lại.',
-    });
-  }
-  return next(err);
-});
 
 app.use(cookieParser());
   // Giới hạn chung: XEM 1.500 / GỬI 300 mỗi 15 phút mỗi IP, đếm riêng (lib/gioi-han-chung.js, ND-063)
@@ -185,6 +170,129 @@ app.use(cookieParser());
 export function ganDuoi(app, errorHandler) {
   app.use((_req, res) => res.status(404).json({ error: 'Endpoint không tồn tại.' }));
   app.use(errorHandler);
+}
+
+/* ĐỌC THÂN YÊU CẦU — gọi SAU taoApp (đã có giới hạn lượt chung), SAU chặn IP nếu có, TRƯỚC
+   mọi route (BUG-048). Trước đây đọc thân nằm trong taoApp, đứng trước cả giới hạn lượt lẫn
+   chặn IP cán bộ, với 32 MB cho mọi đường: IP đã bị 429 hay ngoài dải cơ quan vẫn được đọc
+   trọn 32 MB và JSON.parse vào bộ nhớ rồi mới bị từ chối — vài chục yêu cầu song song là máy
+   4 GB tràn bộ nhớ, kênh tiếp nhận ngừng.
+
+   32 MB: đủ cho một video 20 MB sau khi mã hoá base64 (tăng khoảng 33%) cộng nội dung và ảnh.
+   CHỈ hai đường nhận tệp của người dân cần: POST /api/submissions và POST /api/chat/bo-sung.
+   Allow-list (luật 5): so đúng đường đã chuẩn hoá chữ thường, bỏ "/" cuối; cách viết lạ khác
+   rơi về giới hạn nhỏ — phía an toàn. Mọi đường khác 1 MB: nội dung chữ dài nhất (tin tức,
+   lịch sử trò chuyện với trợ lý) còn cách xa mức đó. */
+export const GIOI_HAN_GOI_LON = '32mb';
+export const GIOI_HAN_GOI_THUONG = '1mb';
+const DUONG_GOI_LON = new Set(['/api/submissions', '/api/chat/bo-sung']);
+
+/* Đường KHÔNG đọc thân: POST /api/ai/moderate-image luôn trả blocked:false và không dùng thân
+   (routes/ai.js). Giao diện vẫn gửi data URL ảnh; giới hạn 1 MB làm ảnh lớn nhận 413, giao diện rơi
+   xuống phép đo màu da và có thể chặn oan ảnh (hồi quy do BUG-048, RETEST phát hiện). Không đọc gì
+   thì không 413 và không tốn bộ nhớ; Node tự bỏ phần thân chưa đọc. */
+const DUONG_KHONG_DOC_THAN = new Set(['/api/ai/moderate-image']);
+
+export function laDuongGoiLon(req) {
+  if (req.method !== 'POST') return false;
+  const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
+  return DUONG_GOI_LON.has(duong);
+}
+
+/* GÓI LỚN = khai dài quá giới hạn thường, hoặc gửi kiểu chunked (không khai độ dài). Gói khai
+   ≤ 1 MB thì bộ đọc chỉ đọc đúng chừng đó byte — không cần đếm. */
+const BYTE_GOI_THUONG = 1024 * 1024;
+function laGoiLon(req) {
+  if (req.headers['transfer-encoding']) return true;
+  const dai = Number(req.headers['content-length']);
+  return !Number.isFinite(dai) || dai > BYTE_GOI_THUONG;
+}
+
+/* GIỚI HẠN SỐ GÓI LỚN ĐANG ĐỌC CÙNG LÚC (BUG-048 lần 2). Giới hạn lượt chung đếm LƯỢT, không đếm
+   yêu cầu ĐANG CHẠY: 30 yêu cầu × 30 MB gửi song song lọt hết, bộ nhớ tiến trình lên 2,8 GB (RETEST
+   đo). Mỗi gói lớn giữ chừng 90 MB lúc đọc và xử lý; 6 cùng lúc ~ 0,5 GB — máy 4 GB chịu được.
+   Giữ chỗ tới khi phản hồi xong HOẶC kết nối đứt (huỷ giữa chừng phải trả chỗ, không thì kẹt vĩnh
+   viễn). 503 + Retry-After: hàng chờ gửi ngầm của giao diện (ADR-008) tự gửi lại, ý kiến không mất. */
+export const GOI_LON_MOI_MANG = 2;
+export const GOI_LON_TOAN_MAY = 6;
+function taoGioiHanGoiLon() {
+  const theoMang = new Map();
+  let tong = 0;
+  return (req, res, next) => {
+    const k = khoaIp(req);
+    const dang = theoMang.get(k) || 0;
+    if (dang >= GOI_LON_MOI_MANG || tong >= GOI_LON_TOAN_MAY) {
+      res.set('Retry-After', '10');
+      return res.status(503).json({
+        error: 'Máy chủ đang nhận nhiều tệp cùng lúc. Bà con chờ vài giây rồi gửi lại — '
+          + 'nội dung chưa bị mất. Việc khẩn cấp xin gọi ngay 113.',
+      });
+    }
+    theoMang.set(k, dang + 1);
+    tong += 1;
+    let daTra = false;
+    const traCho = () => {
+      if (daTra) return;
+      daTra = true;
+      tong -= 1;
+      const con = (theoMang.get(k) || 1) - 1;
+      if (con <= 0) theoMang.delete(k); else theoMang.set(k, con);
+    };
+    res.on('finish', traCho);
+    res.on('close', traCho);
+    return next();
+  };
+}
+
+/* /api/chat/bo-sung đòi vé phòng trao đổi ở header — kiểm TRƯỚC khi đọc gói lớn: không vé thì
+   không tốn bộ nhớ đọc 32 MB (BUG-048 lần 2). Chỉ là lớp chặn sớm; route vẫn tự kiểm vé đầy đủ. */
+function coVeChatHopLe(req) {
+  const ve = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  /* Đọc khoá lúc kiểm, không nạp lib/token.js ở đầu tệp (mọi điểm vào dùng nen-tang). Thiếu
+     khoá -> coi như không vé (từ chối), máy thật thì đã không khởi động được (luật 1). */
+  const khoa = String(process.env.JWT_SECRET || '').trim();
+  if (!ve || !khoa) return false;
+  try {
+    return jwt.verify(ve, khoa, { algorithms: ['HS256'] }).purpose === 'chat_reporter';
+  } catch {
+    return false;
+  }
+}
+
+export function ganDocThan(app) {
+  const docLon = express.json({ limit: GIOI_HAN_GOI_LON });
+  const docThuong = express.json({ limit: GIOI_HAN_GOI_THUONG });
+  const gioiHanGoiLon = taoGioiHanGoiLon();
+  app.use((req, res, next) => {
+    if (req.method === 'POST'
+        && DUONG_KHONG_DOC_THAN.has(String(req.path || '').toLowerCase().replace(/\/+$/, ''))) {
+      return next();
+    }
+    if (!laDuongGoiLon(req)) return docThuong(req, res, next);
+    if (!laGoiLon(req)) return docLon(req, res, next);
+    const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
+    if (duong === '/api/chat/bo-sung' && !coVeChatHopLe(req)) {
+      return res.status(401).json({ error: 'Bà con vào lại bằng mã tra cứu và mã PIN để bổ sung thông tin.' });
+    }
+    return gioiHanGoiLon(req, res, () => docLon(req, res, next));
+  });
+  /* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
+
+     ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
+     trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
+     được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
+     kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
+
+     Nay nói thẳng nguyên nhân và cách làm tiếp. */
+  app.use((err, _req, res, next) => {
+    if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+      return res.status(413).json({
+        error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
+             + 'quay đoạn ngắn hơn, rồi gửi lại.',
+      });
+    }
+    return next(err);
+  });
 }
 
 /**

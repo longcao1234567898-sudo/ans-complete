@@ -26,6 +26,7 @@ Mở tệp **0_MUC_LUC.docx** trước — nó nói dùng tài liệu nào khi n
 | 15 | `15_HUONG_DAN_NGUOI_DAN.docx` | **Mới.** In phát cho bà con |
 | 16 | `16_HUONG_DAN_CAN_BO.docx` | **Mới.** Tập huấn cán bộ và lãnh đạo |
 | 17 | `17_TOM_TAT_KIEM_THU_BAO_MAT.docx` | **Mới.** Tóm tắt đợt kiểm thử bảo mật — chỉ mã lỗi và trạng thái |
+| 18 | `18_PHIEU_TRIEN_KHAI_VIETTEL.docx` | **Mới (21/11/2026).** In ra khi triển khai lên Viettel: câu hỏi trước khi mua, sổ ghi thông số, nơi cất bí mật, bảng kiểm 16 chặng, phiếu đêm chuyển, sổ việc định kỳ. Không chứa lệnh — lệnh chỉ ở `HUONG-DAN-TRIEN-KHAI.md` |
 
 ## Luật cho bộ tài liệu này
 
@@ -36,3 +37,5 @@ Mở tệp **0_MUC_LUC.docx** trước — nó nói dùng tài liệu nào khi n
   `CLAUDE.md`), đừng chép số cũ sang bản sau.
 - Tài liệu triển khai lên Viettel nằm ở dạng Markdown, không nằm trong bộ Word này:
   [`../SO-TAY-TRIEN-KHAI.md`](../SO-TAY-TRIEN-KHAI.md), [`../HUONG-DAN-TRIEN-KHAI.md`](../HUONG-DAN-TRIEN-KHAI.md).
+  Tệp 18 chỉ là phiếu in để điền tay, trỏ về đúng mục của hai tệp đó — sửa quy trình thì sửa Markdown
+  trước, rồi soát lại tệp 18 cho khớp số chặng, số mục.

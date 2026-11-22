@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { layIpThat, ghiNhatKy, khoaIp } from '../lib/helpers.js';
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
@@ -72,6 +73,51 @@ const COOKIE_OPTS = {
    Bảo vệ đúng thứ cần bảo vệ mà không tạo cửa phá hoại mới. */
 const SO_LAN_SAI_BAT_CAPTCHA = 3;
 
+/* ĐẾM LẦN SAI THEO TÊN ĐÃ GÕ, KHÔNG THEO TÀI KHOẢN (BUG-054).
+
+   Trước: chỉ tài khoản CÓ THẬT có bộ đếm (staff.failed_attempts), tên không có thật luôn 0 —
+   cùng một chuỗi thao tác cho ra phản hồi khác nhau (canCaptcha ở lần sai thứ 3, lời "tích vào ô
+   xác minh" ở lần thứ 4), kẻ dò biết tên nào là cán bộ thật. Nay đếm theo tên đã gõ (cắt khoảng
+   trắng, chữ thường — MySQL so tên không phân biệt hoa thường) trong dem_gioi_han, NHƯ NHAU cho
+   tên có và không có. Câu tăng là một câu (luật 6).
+
+   Cửa sổ TRƯỢT 30 ngày: mỗi lần sai đẩy hạn ra thêm 30 ngày, nên bộ đếm chỉ về 0 khi đăng nhập
+   đúng hoặc 30 ngày liền không ai gõ sai tên đó. Bộ đếm cũ không bao giờ tự về 0 — đây là nới
+   nhỏ đã chấp nhận: kẻ dò được thêm 3 lần thử sau MỖI 30 ngày im lặng, đổi lại bảng không giữ mãi
+   tên rác người ta gõ. Lưu bản băm của tên, không lưu tên. */
+const GIAY_NHO_LAN_SAI = 30 * 86400;
+
+/* KHOÁ BỘ ĐẾM tính từ tenChuan (xem chỗ tra tài khoản ở /login — BUG-056, BUG-057). gopTen gộp
+   THÊM dấu, ký tự định dạng, vài chữ ghép: chỉ làm các cách viết na ná cộng chung một bộ đếm
+   (bắt ô xác minh sớm hơn). An toàn không dựa vào việc gộp này đủ hay thiếu: cùng tenChuan thì
+   cùng khoá, và chỉ đúng tenChuan mới vào được tài khoản. */
+function gopTen(ten) {
+  return String(ten).normalize('NFKD').replace(/[\p{M}\p{Cf}]/gu, '').toLowerCase()
+    .replace(/đ/g, 'd').replace(/ß/g, 'ss').replace(/æ/g, 'ae').replace(/œ/g, 'oe')
+    .replace(/ø/g, 'o').replace(/ł/g, 'l').replace(/ı/g, 'i')
+    .replace(/\s+/g, ' ').trim();
+}
+const khoaLanSai = (ten) => 'dang-nhap-sai:'
+  + crypto.createHash('sha256').update(gopTen(ten)).digest('hex');
+
+/* GIÀNH LƯỢT TRƯỚC KHI SO MẬT KHẨU (BUG-052 lần 2, luật 6). Mỗi lượt đăng nhập TĂNG bộ đếm trước,
+   rồi đọc lại để biết mình là lần thử thứ mấy; đúng mật khẩu thì xoá bộ đếm. Trước đây đọc số lần
+   sai -> so bcrypt (~200 ms) -> mới tăng: N lượt song song cùng đọc thấy "chưa tới 3", cùng được so
+   mật khẩu không qua ô xác minh (RETEST đo: 12 lượt thì 6 lọt). Đọc lại sau khi tăng có thể thấy cả
+   lượt song song khác -> đếm DƯ, bắt ô xác minh sớm hơn: phía an toàn.
+   Gán `so` TRƯỚC `het_han`: phép so het_han <= NOW() đọc hạn CŨ (như lib/dem-gioi-han.js). */
+async function giuLanThu(ten) {
+  const khoa = khoaLanSai(ten);
+  await pool.query(
+    `INSERT INTO dem_gioi_han (khoa, so, het_han) VALUES (?, 1, NOW() + INTERVAL ? SECOND)
+     ON DUPLICATE KEY UPDATE so = CASE WHEN het_han <= NOW() THEN 1 ELSE so + 1 END,
+                             het_han = NOW() + INTERVAL ? SECOND`,
+    [khoa, GIAY_NHO_LAN_SAI, GIAY_NHO_LAN_SAI]
+  );
+  const [rows] = await pool.query('SELECT so FROM dem_gioi_han WHERE khoa = ?', [khoa]);
+  return Number(rows[0]?.so || 1);
+}
+
 /** Ghi vết mọi lần đăng nhập thất bại — để phát hiện tấn công đang diễn ra */
 async function ghiThatBai(staffId, username, ip) {
   try {
@@ -89,7 +135,11 @@ async function ghiThatBai(staffId, username, ip) {
 /** POST /api/auth/login */
 router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu.' });
+  /* Chỉ nhận chuỗi, có trần độ dài: mảng/đối tượng làm bcryptjs ném lỗi -> 500 (BUG-054) */
+  if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password
+      || username.length > 100 || password.length > 200) {
+    return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu.' });
+  }
 
   try {
     const ip = (layIpThat(req) || '').trim();
@@ -106,6 +156,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     const cong = await quaCongVao(req.body, ip);
     if (!cong.ok) return res.status(403).json({ error: cong.error, code: cong.code });
 
+    /* TÊN CHUẨN — MỘT chuỗi dùng cho CẢ việc tra tài khoản LẪN khoá bộ đếm lần sai (BUG-057).
+       Tra bằng LOWER(username) so TỪNG BYTE (utf8mb4_bin) với tên đã cắt khoảng trắng, NFC, chữ
+       thường — KHÔNG để collation utf8mb4_unicode_ci của cột quyết định. Collation đó coi 'cánbo9',
+       'canbo9' + U+0001, 'canbo٩'… là một với 'canbo9': mỗi cách viết vào được tài khoản mà bộ đếm
+       lại khác (BUG-056), và mọi lần bắt chước collation bằng JavaScript đều hụt một nhóm ký tự —
+       chỗ hụt làm tên có thật và tên không có phản hồi khác nhau (BUG-057, RETEST đo trên MariaDB).
+       Nay hai chuỗi gõ vào được cùng một tài khoản thì CHẮC CHẮN cùng tenChuan, nên cùng bộ đếm;
+       và đường đi giống hệt cho tên có và tên không có. Vẫn không phân biệt hoa thường. */
+    const tenChuan = username.trim().normalize('NFC').toLowerCase();
+
     /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
        được khi database chưa nâng cấp v9 — không làm sập đăng nhập. */
     let staff;
@@ -113,21 +173,23 @@ router.post('/login', loginLimiter, async (req, res) => {
       const [rows] = await pool.query(
         `SELECT id, full_name, username, password_hash, role, is_active,
                 COALESCE(failed_attempts, 0) AS failed_attempts, locked_until
-         FROM staff WHERE username = ?`,
-        [String(username).trim()]
+         FROM staff WHERE LOWER(username) = ? COLLATE utf8mb4_bin`,
+        [tenChuan]
       );
       staff = rows[0];
     } catch {
       // Chưa chạy v9 -> dùng truy vấn cũ
       const [rows] = await pool.query(
-        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE username = ?',
-        [String(username).trim()]
+        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE LOWER(username) = ? COLLATE utf8mb4_bin',
+        [tenChuan]
       );
       staff = rows[0];
     }
 
-    /* ĐÃ SAI NHIỀU LẦN -> BẮT QUA CAPTCHA (không khoá tài khoản) */
-    const soLanSaiHienTai = Number(staff?.failed_attempts || 0);
+    /* ĐÃ SAI NHIỀU LẦN -> BẮT QUA CAPTCHA (không khoá tài khoản). Đếm theo TÊN ĐÃ GÕ, như nhau
+       cho tên có thật và không có (BUG-054) — không đọc staff.failed_attempts ở đây. */
+    const soLanThu = await giuLanThu(tenChuan);         // BUG-052 lần 2: giành lượt TRƯỚC
+    const soLanSaiHienTai = soLanThu - 1;               // số lần sai trước lượt này
     if (soLanSaiHienTai >= SO_LAN_SAI_BAT_CAPTCHA) {
       const kq = await verifyTurnstile(req.body?.captchaToken, ip);
       if (!kq.ok) {
@@ -146,15 +208,18 @@ router.post('/login', loginLimiter, async (req, res) => {
       // GHI VẾT — trước đây chỉ ghi lần đăng nhập THÀNH CÔNG, nên không
       // phát hiện được khi hệ thống đang bị dò mật khẩu.
       await ghiThatBai(staff?.id ?? null, username, ipKhoa);
+      /* Bộ đếm theo tên đã tăng ở giuLanThu — không tăng lần nữa */
 
-      /* Tăng bộ đếm và khoá tạm nếu vượt ngưỡng.
-         Đây là lớp chặn theo TÀI KHOẢN — bổ sung cho lớp chặn theo IP.
-         Kẻ tấn công đổi IP vẫn không vượt được lớp này. */
-      let soLanSai = soLanSaiHienTai + 1;
+      /* staff.failed_attempts: giữ để ghi nhận theo tài khoản. Lớp CHẶN là bộ đếm theo tên đã gõ
+         ở trên (BUG-054) — cũng không theo IP, kẻ đổi IP vẫn không vượt được. */
+      const soLanSai = soLanThu;
       if (staff) {
+        /* TĂNG TRONG CSDL, không ghi đè số đã đọc (BUG-052, luật 6): đọc ở trên rồi so bcrypt
+           ~80 ms mới ghi, nên N lần sai song song cùng đọc một số cũ, cùng ghi "cũ + 1" —
+           bộ đếm chỉ tăng 1, kẻ dò nhiều IP lách được ngưỡng bắt ô xác minh. */
         try {
-          await pool.query('UPDATE staff SET failed_attempts = ? WHERE id = ?',
-            [soLanSai, staff.id]);
+          await pool.query('UPDATE staff SET failed_attempts = COALESCE(failed_attempts, 0) + 1 WHERE id = ?',
+            [staff.id]);
         } catch { /* chưa nâng cấp v9 -> bỏ qua */ }
       }
 
@@ -171,7 +236,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Tài khoản đã bị khoá.' });
     }
 
-    // Đăng nhập đúng -> xoá bộ đếm sai
+    // Đăng nhập đúng -> xoá bộ đếm sai (cả bộ đếm theo tên đã gõ, BUG-054)
+    await pool.query('DELETE FROM dem_gioi_han WHERE khoa = ?', [khoaLanSai(tenChuan)]);
     try {
       await pool.query(
         'UPDATE staff SET failed_attempts = 0 WHERE id = ?',

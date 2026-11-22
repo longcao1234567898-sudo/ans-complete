@@ -39,6 +39,8 @@ export function sangSqlite(sql) {
   s = s.replace(/FIELD\(([\w.]+),\s*'([^']+)',\s*'([^']+)',\s*'([^']+)'\)/gi,
     "(CASE $1 WHEN '$2' THEN 1 WHEN '$3' THEN 2 WHEN '$4' THEN 3 ELSE 4 END)");
   s = s.replace(/\bDATE\(([\w.]+)\)/gi, 'date($1)');
+  /* So từng byte: MySQL COLLATE utf8mb4_bin = SQLite COLLATE BINARY (routes/auth.js, BUG-057) */
+  s = s.replace(/COLLATE utf8mb4_bin/gi, 'COLLATE BINARY');
   s = s.replace(/ON DUPLICATE KEY UPDATE\s+([\s\S]+)$/i,
     (_m, ds) => `ON CONFLICT DO UPDATE SET ${ds.replace(/VALUES\((\w+)\)/gi, 'excluded.$1')}`);
   return s;

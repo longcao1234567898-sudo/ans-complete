@@ -23,6 +23,9 @@ import { BO_QUA, dungCsdl, goi } from './khung-sqlite.js';
 
 datBienMoiTruongHopLe();
 for (const k of ['BREVO_API_KEY', 'RESEND_API_KEY', 'MAIL_USER', 'MAIL_PASS']) delete process.env[k];
+/* Các ca dưới kiểm lúc xác thực email ĐANG BẬT mà chưa khai dịch vụ thư. Cờ tắt thì /send đóng
+   hẳn ở cửa (BUG-050, tests/otp-dong-khi-tat.test.js) — không tới được nhánh này. */
+process.env.BAT_XAC_THUC_EMAIL = 'true';
 const { pool } = await import('../src/db.js');
 const { default: otpRouter } = await import('../src/routes/otp.js');
 

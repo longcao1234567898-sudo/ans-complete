@@ -129,6 +129,49 @@ export async function xoaDauNoiDonAnDanh(pool) {
 }
 
 /**
+ * Xoá IP THÔ mà mã cũ đã ghi vào yêu cầu xoá danh tính và khiếu nại mở khoá (BUG-049). Mã
+ * hiện tại không ghi hai cột này nữa; không có thời hạn giữ nào hợp lý cho một IP thô gắn với
+ * người vừa xin xoá danh tính, nên xoá hết, không chờ 30 ngày.
+ *
+ * @returns {{ soYeuCauXoa: number, soKhieuNai: number }}
+ */
+export async function xoaIpThoDaGhi(pool) {
+  /* Bảng chưa tạo (chưa chạy nang_cap_v8 / v17) = không có IP nào để xoá: trả 0, đúng sự thật.
+     CHỈ bỏ qua đúng lỗi thiếu bảng — lỗi khác vẫn ném để lượt dọn báo đỏ. */
+  const xoa = async (cau) => {
+    try {
+      const [kq] = await pool.query(cau);
+      return kq?.affectedRows || 0;
+    } catch (err) {
+      if (err?.code === 'ER_NO_SUCH_TABLE' || /no such table/i.test(String(err?.message))) return 0;
+      throw err;
+    }
+  };
+  const soYeuCauXoa = await xoa('UPDATE data_deletion_requests SET requester_ip = NULL WHERE requester_ip IS NOT NULL');
+  const soKhieuNai = await xoa('UPDATE unlock_appeals SET ip_address = NULL WHERE ip_address IS NOT NULL');
+  return { soYeuCauXoa, soKhieuNai };
+}
+
+/**
+ * Xoá dòng otp_codes quá 2 ngày (BUG-055). Mã sống 10 phút, hạn mức đếm trong 1 giờ (email) và
+ * 1 ngày (mã ẩn danh cũ) — quá 2 ngày không việc nào cần, mà mỗi dòng giữ băm email (hoặc băm mã
+ * phiên ẩn danh) + IP thô + giờ tạo, đối chiếu được với giờ gửi đơn. Xoá cả dòng, gồm dòng mã cũ
+ * ghi từ thời /anon-code còn dùng. Câu DELETE trong tệp SQL nền bị để dạng chú thích nên chưa bao
+ * giờ chạy. Thiếu bảng thì trả 0 như xoaIpThoDaGhi.
+ *
+ * @returns {number} số dòng đã xoá
+ */
+export async function xoaMaOtpQuaHan(pool) {
+  try {
+    const [kq] = await pool.query('DELETE FROM otp_codes WHERE created_at < NOW() - INTERVAL 2 DAY');
+    return kq?.affectedRows || 0;
+  } catch (err) {
+    if (err?.code === 'ER_NO_SUCH_TABLE' || /no such table/i.test(String(err?.message))) return 0;
+    throw err;
+  }
+}
+
+/**
  * Một lượt dọn đủ mọi dấu nối — cùng các việc với nang_cap_v21.sql và
  * nang_cap_v22.sql, để thứ tự "chạy tệp nâng cấp rồi mới cập nhật mã" không để
  * lại khoảng hở nào. Lỗi thì ném ra cho bên gọi ghi log.
@@ -141,7 +184,9 @@ export async function donDauNoi(pool) {
   /* P91: băm mã lần gửi chỉ cần 24 giờ (lib/lan-gui.js) — không nối được với gì,
      nhưng không giữ thứ không còn dùng */
   const soMaLanGui = await xoaMaLanGuiQuaHan(pool);
-  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui };
+  const { soYeuCauXoa, soKhieuNai } = await xoaIpThoDaGhi(pool);
+  const soMaOtp = await xoaMaOtpQuaHan(pool);
+  return { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui, soYeuCauXoa, soKhieuNai, soMaOtp };
 }
 
 /**
@@ -153,13 +198,15 @@ export async function donDauNoi(pool) {
 export function batTuDonDauNoi(pool, { chuKyMs = CHU_KY_MAC_DINH_MS } = {}) {
   const motLuot = async () => {
     try {
-      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui } = await donDauNoi(pool);
+      const { soDon, soDongKhoa, soDonDaXoaDanhTinh, soDonAnDanh, soKhoaAnDanh, soMaLanGui, soYeuCauXoa, soKhieuNai, soMaOtp } = await donDauNoi(pool);
       if (soDon > 0) console.log(`🧹 Đã xoá dấu nối (mã máy, IP đã băm) của ${soDon} đơn quá ${SO_NGAY_GIU_DAU_NOI} ngày`);
       if (soDongKhoa > 0) console.log(`🧹 Đã xoá ${soDongKhoa} dòng khoá hết hạn / không rõ loại`);
       if (soDonDaXoaDanhTinh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonDaXoaDanhTinh} đơn đã xoá danh tính`);
       if (soDonAnDanh > 0) console.log(`🧹 Đã xoá mã máy còn sót của ${soDonAnDanh} đơn ẩn danh`);
       if (soKhoaAnDanh > 0) console.log(`🧹 Đã xoá ${soKhoaAnDanh} dòng khoá loại ẩn danh của mã cũ`);
       if (soMaLanGui > 0) console.log(`🧹 Đã xoá mã lần gửi quá 24 giờ của ${soMaLanGui} đơn`);
+      if (soYeuCauXoa + soKhieuNai > 0) console.log(`🧹 Đã xoá IP thô của ${soYeuCauXoa} yêu cầu xoá danh tính, ${soKhieuNai} khiếu nại`);
+      if (soMaOtp > 0) console.log(`🧹 Đã xoá ${soMaOtp} mã OTP quá 2 ngày`);
     } catch (err) {
       console.error('🔴 KHÔNG xoá được dấu nối quá hạn — sẽ thử lại chu kỳ sau:', err.message);
     }

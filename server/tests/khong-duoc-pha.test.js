@@ -137,7 +137,8 @@ describe('G5 — KHÔNG khoá tài khoản khi sai mật khẩu, sai >= 3 lần 
 
   test('chỉ tăng bộ đếm failed_attempts', async () => {
     const nguon = await doc('../src/routes/auth.js');
-    assert.match(nguon, /UPDATE staff SET failed_attempts = \? WHERE id = \?/);
+    /* BUG-052: tăng trong CSDL (atomic, luật 6) thay cho ghi đè số đã đọc — ý kiểm giữ nguyên */
+    assert.match(nguon, /UPDATE staff SET failed_attempts = COALESCE\(failed_attempts, 0\) \+ 1 WHERE id = \?/);
   });
 
   test('sai >= 3 lần -> trả canCaptcha: true để giao diện hiện ô xác minh', async () => {
@@ -278,12 +279,13 @@ describe('G9 — quyền xoá dữ liệu theo Nghị định 13/2023', () => {
     const nguon = await doc('../src/routes/tracking.js');
     assert.match(nguon, /const hoSoDaDong = sub\.status === 'resolved' \|\| sub\.status === 'rejected'/);
     assert.match(nguon, /identity_erased = TRUE/);
-    assert.match(nguon, /VALUES \(\?,\?,'done',\?,NOW\(\)\)/);
+    /* BUG-049: câu ghi nhận không còn cột IP người xin xoá — đổi mẫu theo, ý kiểm giữ nguyên */
+    assert.match(nguon, /VALUES \(\?,\?,'done',NOW\(\)\)/);
   });
 
   test('hồ sơ ĐANG XỬ LÝ -> ghi nhận pending, chưa xoá', async () => {
     const nguon = await doc('../src/routes/tracking.js');
-    assert.match(nguon, /VALUES \(\?,\?,'pending',\?,\?\)/);
+    assert.match(nguon, /VALUES \(\?,\?,'pending',\?\)/);
   });
 
   test('tin ẩn danh -> báo không có gì để xoá', async () => {

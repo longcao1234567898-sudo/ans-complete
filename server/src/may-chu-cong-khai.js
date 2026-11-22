@@ -20,7 +20,7 @@ import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
 import { batGiuThuc } from './lib/giu-thuc.js';
 import { loadBannedWords } from './lib/security.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { taoApp, ganDuoi, diaChiNghe } from './nen-tang.js';
+import { taoApp, ganDuoi, ganDocThan, diaChiNghe } from './nen-tang.js';
 
 import congVaoRouter from './routes/cong-vao.js';
 import { canhBaoTurnstile } from './lib/turnstile.js';
@@ -40,6 +40,8 @@ import aiRouter from './routes/ai.js';
 
 const app = taoApp({ ten: 'cong-khai' });
 const PORT = process.env.PORT || 4000;
+/* Đọc thân yêu cầu SAU giới hạn lượt chung trong taoApp, TRƯỚC mọi route (BUG-048) */
+ganDocThan(app);
 
 /* CHỈ route công khai. Không có adminRouter ở đây — đó là điểm mấu chốt.
    Cũng KHÔNG có /api/auth (BUG-045): đăng nhập cán bộ ở đây thì từ bất kỳ đâu cũng so được mật

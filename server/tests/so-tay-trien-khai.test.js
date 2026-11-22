@@ -54,7 +54,7 @@ test('tài liệu triển khai đi thẳng theo Viettel vDBS + Bizfly, không c�
   assert.doesNotMatch(kyThuat, /'sao_luu'@'%'/, 'tài khoản sao lưu phải giới hạn theo địa chỉ máy chủ');
 });
 
-/* P117: kịch bản đồng hành chỉ trỏ sang sổ tay ("chặng 9") và tài liệu kỹ thuật ("C3", "G6").
+/* P125: kịch bản đồng hành chỉ trỏ sang sổ tay ("chặng 9") và tài liệu kỹ thuật ("C3", "G6").
    Đổi tên mục mà quên kịch bản thì đúng buổi đang làm dở, người vận hành không tìm ra chỗ chép. */
 test('kịch bản đồng hành: mọi chặng và mục kỹ thuật nhắc tới đều có thật, giữ quy tắc không gửi khoá', async () => {
   const kb = await doc('KICH-BAN-DONG-HANH-TRIEN-KHAI.md');
@@ -83,7 +83,7 @@ test('kịch bản đồng hành: mọi chặng và mục kỹ thuật nhắc t�
   assert.match(bat, /systemctl enable --now hop-thu-sao-luu\.timer/, 'ngày bật phải bật lại sao lưu');
 });
 
-/* P118: phiếu biến là chỗ người vận hành dựa vào để "không sót dòng nào". Mã đọc thêm biến môi
+/* P127: phiếu biến là chỗ người vận hành dựa vào để "không sót dòng nào". Mã đọc thêm biến môi
    trường mới mà phiếu không ghi thì người cài không biết phải đặt — test quét chính mã nguồn. */
 test('phiếu biến triển khai ghi đủ mọi biến môi trường máy chủ và giao diện đọc', async () => {
   const { readdir } = await import('node:fs/promises');

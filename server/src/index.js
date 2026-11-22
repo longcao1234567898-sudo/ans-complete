@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIpPhanCanBo, canhBaoChanIpKhongAnToan } from './nen-tang.js';
+import { diaChiNghe, chanTheoIpPhanCanBo, ganDocThan, canhBaoChanIpKhongAnToan } from './nen-tang.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
@@ -77,9 +77,13 @@ app.use((_req, res, next) => {
 });
 
 // CORS: cho phép origin dev + origin production, kèm credentials cho cookie refresh token
-const devOrigins = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
+/* Nguồn dev (localhost) CHỈ khi máy khai tường minh development/test (BUG-053): trước đây
+   luôn có, kèm credentials — trang bất kỳ chạy ở localhost trên máy cán bộ thành nguồn được
+   tin của máy chủ thật. Không dựa vào "khác production": Render không đặt NODE_ENV. */
+const mayCaNhan = ['development', 'test'].includes(process.env.NODE_ENV || '');
+const devOrigins = mayCaNhan ? ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'] : [];
 const envOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
-const allowed = [...devOrigins, ...envOrigins];
+const allowed = [...envOrigins, ...devOrigins];
 app.use(
   cors({
     origin(origin, cb) {
@@ -89,27 +93,6 @@ app.use(
     credentials: true,
   })
 );
-
-/* 32mb: đủ cho một video 20MB sau khi mã hoá base64 (tăng khoảng 33%) cộng
-   phần nội dung và ảnh. Trước đây 12mb nên video vừa gửi đã bị từ chối. */
-app.use(express.json({ limit: '32mb' }));
-/* BÁO LỖI RÕ KHI GÓI DỮ LIỆU QUÁ LỚN.
-
-   ⚠️ Không có khối này thì gói vượt giới hạn bị từ chối với một lỗi khó hiểu,
-   trình duyệt chỉ thấy "lỗi mạng" — bà con bấm gửi mà không biết vì sao không
-   được, cứ bấm đi bấm lại. Đã xảy ra thật khi đính video lớn lúc chưa cấu hình
-   kho ảnh: gói phình quá 32MB và cả ý kiến bị mất theo.
-
-   Nay nói thẳng nguyên nhân và cách làm tiếp. */
-app.use((err, _req, res, next) => {
-  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
-    return res.status(413).json({
-      error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
-           + 'quay đoạn ngắn hơn, rồi gửi lại.',
-    });
-  }
-  return next(err);
-});
 
 app.use(cookieParser());
 
@@ -203,6 +186,8 @@ app.get('/api/health/schema', async (_req, res) => {
    hành đang chạy chung một máy chủ (chi phí). Chỉ /api/auth (đăng nhập cán bộ) và
    /api/admin; phần công dân phải mở cho mọi người. ADMIN_ALLOWED_IPS trống = không chặn. */
 app.use(chanTheoIpPhanCanBo(layIpThat));
+/* Đọc thân yêu cầu SAU giới hạn lượt chung và chặn IP phần cán bộ, TRƯỚC mọi route (BUG-048) */
+ganDocThan(app);
 app.use('/api/auth', authRouter);
 /* Cổng vào (ADR-003 việc 23) — cấp vé xác minh cho gửi tin và đăng nhập */
 app.use('/api/cong-vao', congVaoRouter);

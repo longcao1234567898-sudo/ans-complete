@@ -291,6 +291,17 @@ CLOUDINARY_API_SECRET=<xem Phần D>
 TRICH_CHU_OCR=
 ```
 
+> ⚠️ **`ADMIN_ALLOWED_IPS` chỉ chặn được khi đủ cả ba thứ dưới đây (ND-093).** Mất một là danh
+> sách IP cơ quan thành hàng rào giấy — đừng đổi cái nào, kể cả "tạm thời để thử":
+>
+> 1. `HOST=127.0.0.1` ở cả hai tệp `.env` (trên).
+> 2. Tường lửa và Security Group không mở cổng 4000, 4001 (B4).
+> 3. Nginx **ghi đè** địa chỉ người gửi: `proxy_set_header X-Forwarded-For $remote_addr;` (B9) — không
+>    dùng `$proxy_add_x_forwarded_for`.
+>
+> Máy chủ cán bộ in dòng đỏ `🔴 CHẶN IP CÁN BỘ CÓ THỂ BỊ LÁCH` khi khai `ADMIN_ALLOWED_IPS` mà `HOST`
+> không phải địa chỉ nội bộ (BUG-047) — thấy dòng đó trong `journalctl` là phải sửa ngay.
+
 **Tài khoản CSDL cho ứng dụng (ND-082)** — tạo một lần bằng tài khoản quản trị (root) của kho:
 
 ```sql
@@ -883,6 +894,10 @@ service**. Đây là bản sao đầy đủ dữ liệu người dân: không xo
 
 Chạy bằng tài khoản **quản trị (root)** của kho — tài khoản ứng dụng `hop_thu_ung_dung` cố ý không
 có quyền đổi cấu trúc (B7). Trước khi chạy: trang quản trị vDBS → **sao lưu thủ công** một bản.
+
+> Dựng kho **mới từ đầu** (không chép từ kho đang chạy) thì phải chạy đủ các tệp nâng cấp theo thứ
+> tự trong `README.md`, **kể cả `nang_cap_v38.sql`**: đăng nhập cán bộ cần bảng `dem_gioi_han` trong
+> tệp đó — thiếu thì không cán bộ nào đăng nhập được (ND-100). Kho chép từ Aiven ở C3 đã có sẵn.
 
 ```bash
 mysql --host=DIA-CHI-KHO --port=CONG-KHO --user=root -p $KHO_TLS \

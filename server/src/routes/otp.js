@@ -39,6 +39,31 @@ function validEmail(e) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
 }
 
+/* ĐÓNG ĐƯỜNG KHI TÍNH NĂNG KHÔNG DÙNG (BUG-050).
+
+   Xác thực email chỉ chạy khi BAT_XAC_THUC_EMAIL đúng bằng 'true' — CÙNG phép so với
+   routes/submissions.js (nơi đòi vé). Cờ tắt mà /send vẫn mở thì bất kỳ ai cũng dùng máy chủ
+   gửi thư "mã xác thực" của đơn vị tới email tuỳ ý (không qua cổng "không phải người máy",
+   chỉ giới hạn theo từng email): đốt hạn mức Brevo, tên miền bị đánh dấu thư rác, người nhận
+   bị quấy rối — và mỗi lần gọi băm bcrypt trên luồng chính.
+
+   Mã ẩn danh (/anon-code, /anon-verify): máy chủ KHÔNG đòi vé này ở cấu hình nào (xem
+   submissions.js, "VẪN NHẬN otpToken ... chỉ là không bắt buộc"). Hai đường đóng hẳn; mã xử lý
+   giữ lại vì các test G11 canh việc bật lại — muốn bật lại thì gỡ dòng này VÀ bật kiểm vé ở
+   submissions.js trong cùng một thay đổi.
+
+   So đường đã chuẩn hoá chữ thường, bỏ "/" cuối: Express khớp route không phân biệt hoa
+   thường, /ANON-CODE vẫn vào handler. */
+const DUONG_DA_BO = new Set(['/anon-code', '/anon-verify']);
+const batXacThucEmail = () => String(process.env.BAT_XAC_THUC_EMAIL || 'false') === 'true';
+router.use((req, res, next) => {
+  const duong = String(req.path || '').toLowerCase().replace(/\/+$/, '');
+  if (DUONG_DA_BO.has(duong) || !batXacThucEmail()) {
+    return res.status(404).json({ error: 'Endpoint không tồn tại.' });
+  }
+  return next();
+});
+
 /** POST /api/otp/send — gửi mã về email */
 router.post('/send', async (req, res) => {
   /* Chưa khai dịch vụ email mà không phải máy cá nhân: từ chối ngay, trước
@@ -52,7 +77,6 @@ router.post('/send', async (req, res) => {
   }
 
   const email = String(req.body?.email || '').trim().toLowerCase();
-  const ip = khoaIp(req);   // khoá đếm theo mạng (IPv6 gom /64 — P87)
 
   if (!validEmail(email)) {
     return res.status(400).json({ error: 'Email không đúng định dạng.' });
@@ -89,9 +113,11 @@ router.post('/send', async (req, res) => {
     const codeHash = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + OTP_TTL_MIN * 60_000);
 
+    /* KHÔNG ghi IP (BUG-055): đường email đếm theo email_hash, không đọc cột này — ghi vào chỉ
+       để lại băm email + IP thô + giờ, đối chiếu được với giờ gửi đơn có email */
     await pool.query(
-      'INSERT INTO otp_codes (email_hash, code_hash, expires_at, ip_address) VALUES (?,?,?,?)',
-      [eHash, codeHash, expiresAt, ip]
+      'INSERT INTO otp_codes (email_hash, code_hash, expires_at) VALUES (?,?,?)',
+      [eHash, codeHash, expiresAt]
     );
 
     const result = await sendOtpEmail(email, code);

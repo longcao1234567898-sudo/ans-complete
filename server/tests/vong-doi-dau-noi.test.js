@@ -690,3 +690,102 @@ test('F2 — đơn bị xoá danh tính bằng mã cũ SAU khi v21 đã chạy (
   assert.deepEqual(sau[1], truoc[1]);
   assert.deepEqual(conLai(), [MAY_KIOSK]);
 });
+
+/* ======================================================================== */
+/* G. Không lưu IP thô ở yêu cầu xoá danh tính và khiếu nại (BUG-049)        */
+/* ======================================================================== */
+/* Đơn chỉ lưu IP ĐÃ BĂM (routes/submissions.js), và xoá danh tính đặt nó về NULL. Ngay sau
+   đó, yêu cầu xoá lại ghi IP THÔ của người xin xoá vào data_deletion_requests, gắn với chính
+   submission_id — người muốn biến mất để lại địa chỉ mạng rõ nhất. Khiếu nại mở khoá cũng ghi
+   IP thô. Không mã nào đọc hai cột này; không lượt dọn nào xoá chúng. */
+
+const { default: khieuNaiRouter } = await import('../src/routes/khieu-nai.js');
+const IP_THO = '203.0.113.77';
+async function goiTuIp(duongGoc, router, method, duong, body) {
+  dongHo += 60_000;
+  const app = express();
+  app.set('trust proxy', 1);
+  app.use(express.json());
+  app.use(duongGoc, router);
+  const server = app.listen(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}${duongGoc}${duong}`, {
+      method, headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': IP_THO },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return { status: res.status, text: await res.text() };
+  } finally { server.close(); }
+}
+const cotIpYeuCauXoa = () => db.prepare('SELECT status, requester_ip FROM data_deletion_requests ORDER BY id')
+  .all().map((r) => ({ ...r }));
+
+test('G1 — xin xoá danh tính hồ sơ đã đóng: không ghi IP thô vào data_deletion_requests', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  themDon(1, { an: 0, status: 'resolved' });
+  const r = await goiTuIp('/api/tracking', trackingRouter, 'POST', `/${maTraCuu(1)}/request-deletion`);
+  assert.equal(r.status, 200, r.text.slice(0, 200));
+  const ds = cotIpYeuCauXoa();
+  assert.equal(ds.length, 1);
+  assert.equal(ds[0].status, 'done');
+  assert.equal(ds[0].requester_ip, null, 'IP thô của người xin xoá danh tính nằm cạnh submission_id');
+});
+
+test('G2 — xin xoá danh tính hồ sơ đang xử lý: yêu cầu chờ cũng không ghi IP thô', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  themDon(1, { an: 0, status: 'processing' });
+  const r = await goiTuIp('/api/tracking', trackingRouter, 'POST', `/${maTraCuu(1)}/request-deletion`);
+  assert.equal(r.status, 200, r.text.slice(0, 200));
+  const ds = cotIpYeuCauXoa();
+  assert.equal(ds[0].status, 'pending');
+  assert.equal(ds[0].requester_ip, null);
+});
+
+test('G3 — khiếu nại mở khoá: không ghi IP thô vào unlock_appeals', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  db.prepare(`INSERT INTO blacklists (identifier, kind, loai_don, reason, expires_at)
+    VALUES (?, 'device', 'co_ten', 'rác', datetime(NOW(), '+1 days'))`).run(MAY_P);
+  const r = await goiTuIp('/api/khieu-nai', khieuNaiRouter, 'POST', '/',
+    { deviceId: MAY_P, noiDung: 'Tôi gửi tin báo nghiêm túc, xin xem xét gỡ khoá cho máy.' });
+  assert.equal(r.status, 201, r.text.slice(0, 200));
+  const ds = db.prepare('SELECT ip_address FROM unlock_appeals').all();
+  assert.equal(ds.length, 1);
+  assert.equal(ds[0].ip_address, null, 'khiếu nại còn ghi IP thô');
+});
+
+test('G4 — lượt tự dọn xoá IP thô mã cũ đã ghi ở hai bảng, không đụng cột khác', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  db.prepare(`INSERT INTO data_deletion_requests (submission_id, tracking_code, status, requester_ip)
+    VALUES (1, 'MA0001', 'done', ?)`).run(IP_THO);
+  db.prepare(`INSERT INTO unlock_appeals (identifier, kind, content, device_id, ip_address)
+    VALUES (?, 'device', 'khiếu nại cũ', ?, ?)`).run(MAY_P, MAY_P, IP_THO);
+  await vongDoi.donDauNoi(pool);
+  const yc = db.prepare('SELECT submission_id, tracking_code, status, requester_ip FROM data_deletion_requests').get();
+  assert.deepEqual({ ...yc }, { submission_id: 1, tracking_code: 'MA0001', status: 'done', requester_ip: null });
+  const kn = db.prepare('SELECT identifier, device_id, content, ip_address FROM unlock_appeals').get();
+  assert.deepEqual({ ...kn }, { identifier: MAY_P, device_id: MAY_P, content: 'khiếu nại cũ', ip_address: null });
+});
+
+/* ======================================================================== */
+/* H. Mã OTP cũ không nằm mãi kèm IP thô (BUG-055)                           */
+/* ======================================================================== */
+/* otp_codes ghi email_hash (hoặc băm mã phiên ẩn danh) + IP thô + giờ tạo. Mã chỉ sống 10 phút,
+   hạn mức đếm trong 1 giờ / 1 ngày — nhưng không lượt dọn nào xoá: email (đã băm) + IP + giờ
+   nằm vĩnh viễn, đối chiếu được với giờ gửi đơn. Có cả dòng của thời /anon-code còn dùng. */
+test('H1 — lượt tự dọn xoá dòng otp_codes quá 2 ngày, giữ dòng còn cần cho hạn mức', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  db.exec(`CREATE TABLE otp_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, email_hash TEXT, code_hash TEXT,
+    attempts INT DEFAULT 0, is_used INT DEFAULT 0, expires_at TEXT, created_at TEXT DEFAULT (NOW()), ip_address TEXT)`);
+  const them = (phut) => db.prepare(`INSERT INTO otp_codes (email_hash, code_hash, expires_at, created_at, ip_address)
+    VALUES ('e', 'c', ?, ?, ?)`).run(luc(phut - 10), luc(phut), IP_THO);
+  them(60);           // 1 giờ trước — còn trong cửa sổ đếm 1 ngày
+  them(20 * 60);      // 20 giờ trước — còn
+  them(3 * NGAY);     // 3 ngày trước — phải mất
+  them(400 * NGAY);   // dòng rất cũ — phải mất
+  await vongDoi.donDauNoi(pool);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM otp_codes').get().n, 2, 'mã OTP cũ (kèm IP thô) không bị dọn');
+});
+
+test('H2 — CSDL chưa có bảng otp_codes: lượt dọn không ném', { skip: BO_QUA }, async () => {
+  dungCsdl();
+  await vongDoi.donDauNoi(pool);
+});
