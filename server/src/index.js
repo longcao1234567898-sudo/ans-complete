@@ -77,9 +77,13 @@ app.use((_req, res, next) => {
 });
 
 // CORS: cho phép origin dev + origin production, kèm credentials cho cookie refresh token
-const devOrigins = ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'];
+/* Nguồn dev (localhost) CHỈ khi máy khai tường minh development/test (BUG-053): trước đây
+   luôn có, kèm credentials — trang bất kỳ chạy ở localhost trên máy cán bộ thành nguồn được
+   tin của máy chủ thật. Không dựa vào "khác production": Render không đặt NODE_ENV. */
+const mayCaNhan = ['development', 'test'].includes(process.env.NODE_ENV || '');
+const devOrigins = mayCaNhan ? ['http://localhost:3000', 'http://localhost:4173', 'http://localhost:5173'] : [];
 const envOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
-const allowed = [...devOrigins, ...envOrigins];
+const allowed = [...envOrigins, ...devOrigins];
 app.use(
   cors({
     origin(origin, cb) {
