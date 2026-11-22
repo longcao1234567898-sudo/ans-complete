@@ -87,14 +87,10 @@ const SO_LAN_SAI_BAT_CAPTCHA = 3;
    tên rác người ta gõ. Lưu bản băm của tên, không lưu tên. */
 const GIAY_NHO_LAN_SAI = 30 * 86400;
 
-/* GỘP TÊN ÍT NHẤT NHƯ MYSQL GỘP (BUG-056, sinh ra bởi bản vá BUG-054). Cột staff.username dùng
-   utf8mb4_unicode_ci — so bỏ qua hoa thường VÀ dấu: 'cánbo9' khớp tài khoản 'canbo9'. Khoá đếm
-   chỉ hạ chữ thường thì mỗi cách viết có dấu là một bộ đếm mới, lách được ô xác minh.
-
-   Hai lớp: (1) tên CÓ THẬT -> đếm theo tên GỐC trong CSDL (staff.username), mọi cách viết MySQL
-   coi là một đều dồn về một bộ đếm, bất kể collation; (2) tên KHÔNG có -> gộp dấu ở đây, cố ý THÔ
-   hơn MySQL (gộp nhiều hơn chỉ làm bắt ô xác minh sớm hơn), để hai trường hợp phản hồi như nhau
-   khi kẻ dò đổi dấu — không lộ tên nào có thật. */
+/* KHOÁ BỘ ĐẾM tính từ tenChuan (xem chỗ tra tài khoản ở /login — BUG-056, BUG-057). gopTen gộp
+   THÊM dấu, ký tự định dạng, vài chữ ghép: chỉ làm các cách viết na ná cộng chung một bộ đếm
+   (bắt ô xác minh sớm hơn). An toàn không dựa vào việc gộp này đủ hay thiếu: cùng tenChuan thì
+   cùng khoá, và chỉ đúng tenChuan mới vào được tài khoản. */
 function gopTen(ten) {
   return String(ten).normalize('NFKD').replace(/[\p{M}\p{Cf}]/gu, '').toLowerCase()
     .replace(/đ/g, 'd').replace(/ß/g, 'ss').replace(/æ/g, 'ae').replace(/œ/g, 'oe')
@@ -160,6 +156,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     const cong = await quaCongVao(req.body, ip);
     if (!cong.ok) return res.status(403).json({ error: cong.error, code: cong.code });
 
+    /* TÊN CHUẨN — MỘT chuỗi dùng cho CẢ việc tra tài khoản LẪN khoá bộ đếm lần sai (BUG-057).
+       Tra bằng LOWER(username) so TỪNG BYTE (utf8mb4_bin) với tên đã cắt khoảng trắng, NFC, chữ
+       thường — KHÔNG để collation utf8mb4_unicode_ci của cột quyết định. Collation đó coi 'cánbo9',
+       'canbo9' + U+0001, 'canbo٩'… là một với 'canbo9': mỗi cách viết vào được tài khoản mà bộ đếm
+       lại khác (BUG-056), và mọi lần bắt chước collation bằng JavaScript đều hụt một nhóm ký tự —
+       chỗ hụt làm tên có thật và tên không có phản hồi khác nhau (BUG-057, RETEST đo trên MariaDB).
+       Nay hai chuỗi gõ vào được cùng một tài khoản thì CHẮC CHẮN cùng tenChuan, nên cùng bộ đếm;
+       và đường đi giống hệt cho tên có và tên không có. Vẫn không phân biệt hoa thường. */
+    const tenChuan = username.trim().normalize('NFC').toLowerCase();
+
     /* Lấy thêm failed_attempts và locked_until. Dùng COALESCE để vẫn chạy
        được khi database chưa nâng cấp v9 — không làm sập đăng nhập. */
     let staff;
@@ -167,23 +173,22 @@ router.post('/login', loginLimiter, async (req, res) => {
       const [rows] = await pool.query(
         `SELECT id, full_name, username, password_hash, role, is_active,
                 COALESCE(failed_attempts, 0) AS failed_attempts, locked_until
-         FROM staff WHERE username = ?`,
-        [String(username).trim()]
+         FROM staff WHERE LOWER(username) = ? COLLATE utf8mb4_bin`,
+        [tenChuan]
       );
       staff = rows[0];
     } catch {
       // Chưa chạy v9 -> dùng truy vấn cũ
       const [rows] = await pool.query(
-        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE username = ?',
-        [String(username).trim()]
+        'SELECT id, full_name, username, password_hash, role, is_active FROM staff WHERE LOWER(username) = ? COLLATE utf8mb4_bin',
+        [tenChuan]
       );
       staff = rows[0];
     }
 
     /* ĐÃ SAI NHIỀU LẦN -> BẮT QUA CAPTCHA (không khoá tài khoản). Đếm theo TÊN ĐÃ GÕ, như nhau
        cho tên có thật và không có (BUG-054) — không đọc staff.failed_attempts ở đây. */
-    const tenDem = staff ? staff.username : username;   // BUG-056: tên có thật -> tên gốc
-    const soLanThu = await giuLanThu(tenDem);           // BUG-052 lần 2: giành lượt TRƯỚC
+    const soLanThu = await giuLanThu(tenChuan);         // BUG-052 lần 2: giành lượt TRƯỚC
     const soLanSaiHienTai = soLanThu - 1;               // số lần sai trước lượt này
     if (soLanSaiHienTai >= SO_LAN_SAI_BAT_CAPTCHA) {
       const kq = await verifyTurnstile(req.body?.captchaToken, ip);
@@ -232,7 +237,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     // Đăng nhập đúng -> xoá bộ đếm sai (cả bộ đếm theo tên đã gõ, BUG-054)
-    await pool.query('DELETE FROM dem_gioi_han WHERE khoa = ?', [khoaLanSai(staff.username)]);
+    await pool.query('DELETE FROM dem_gioi_han WHERE khoa = ?', [khoaLanSai(tenChuan)]);
     try {
       await pool.query(
         'UPDATE staff SET failed_attempts = 0 WHERE id = ?',
