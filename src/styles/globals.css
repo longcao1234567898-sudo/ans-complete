@@ -392,3 +392,41 @@ h1, h2, h3, h4, h5, h6 {
 @media (prefers-reduced-motion: reduce) {
   .vong-nguy-co { animation: none; stroke-opacity: .6; }
 }
+
+/* =====================================================================
+   HƯỚNG DẪN SỬ DỤNG (HuongDanBanDau & HuongDanBuoc)
+   Chỉ chạy trên GPU (transform + opacity), KHÔNG animate box-shadow hay
+   top/left/width/height để giữ 60fps mượt mà trên cả điện thoại yếu.
+   ===================================================================== */
+@keyframes hd-halo-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.14;
+    transform: scale(1.035, 1.07);
+  }
+}
+.hd-vong-tho {
+  animation: hd-halo-breathe 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes hd-eq-bar {
+  0%, 100% { transform: scaleY(0.32); }
+  50%      { transform: scaleY(1); }
+}
+.hd-song-am {
+  transform-origin: bottom;
+  animation: hd-eq-bar 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hd-vong-tho,
+  .hd-song-am {
+    animation: none !important;
+    transform: none !important;
+  }
+}
