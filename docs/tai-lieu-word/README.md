@@ -27,6 +27,7 @@ Mở tệp **0_MUC_LUC.docx** trước — nó nói dùng tài liệu nào khi n
 | 16 | `16_HUONG_DAN_CAN_BO.docx` | **Mới.** Tập huấn cán bộ và lãnh đạo |
 | 17 | `17_TOM_TAT_KIEM_THU_BAO_MAT.docx` | **Mới.** Tóm tắt đợt kiểm thử bảo mật — chỉ mã lỗi và trạng thái |
 | 18 | `18_PHIEU_TRIEN_KHAI_VIETTEL.docx` | **Mới (21/11/2026).** In ra khi triển khai lên Viettel: câu hỏi trước khi mua, sổ ghi thông số, nơi cất bí mật, bảng kiểm 16 chặng, phiếu đêm chuyển, sổ việc định kỳ. Không chứa lệnh — lệnh chỉ ở `HUONG-DAN-TRIEN-KHAI.md` |
+| 19 | `19_TRIEN_KHAI_CS1_MOT_ENV.docx` | **Mới (22/11/2026).** Phương án **tiết kiệm**: một máy CS1, MySQL ngay trên máy, một tệp `.env`, HeidiSQL qua SSH — dựng sẵn trước, thuê vDBS + Bizfly sau. Người vận hành soạn, Claude soát theo mã nguồn (phụ lục cuối tệp ghi mọi chỗ sửa) |
 
 ## Luật cho bộ tài liệu này
 
@@ -39,3 +40,5 @@ Mở tệp **0_MUC_LUC.docx** trước — nó nói dùng tài liệu nào khi n
   [`../SO-TAY-TRIEN-KHAI.md`](../SO-TAY-TRIEN-KHAI.md), [`../HUONG-DAN-TRIEN-KHAI.md`](../HUONG-DAN-TRIEN-KHAI.md).
   Tệp 18 chỉ là phiếu in để điền tay, trỏ về đúng mục của hai tệp đó — sửa quy trình thì sửa Markdown
   trước, rồi soát lại tệp 18 cho khớp số chặng, số mục.
+  Tệp 19 là ngoại lệ: chứa lệnh đầy đủ cho phương án tiết kiệm (MySQL trên CS1) mà hai tệp Markdown
+  không có. Sửa lệnh trong tệp 19 thì đối chiếu lại mục tương ứng của `HUONG-DAN-TRIEN-KHAI.md` (B, C, F, G).
