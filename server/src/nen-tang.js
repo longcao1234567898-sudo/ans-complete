@@ -297,6 +297,11 @@ export function ganDocThan(app, { duongGoiLon = DUONG_GOI_LON } = {}) {
 
      Nay nói thẳng nguyên nhân và cách làm tiếp. */
   app.use((err, _req, res, next) => {
+    /* JSON hỏng là lỗi của YÊU CẦU: trả 400, không để rơi vào errorHandler chung thành 500 —
+       nhật ký/giám sát báo lỗi máy chủ oan (phát hiện phụ của RETEST BUG-048 lần 3) */
+    if (err && err.type === 'entity.parse.failed') {
+      return res.status(400).json({ error: 'Dữ liệu gửi lên không đúng định dạng.' });
+    }
     if (err && (err.type === 'entity.too.large' || err.status === 413)) {
       return res.status(413).json({
         error: 'Tệp đính kèm quá lớn nên không gửi được. Bà con thử bỏ video hoặc '
