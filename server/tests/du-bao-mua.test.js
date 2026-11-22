@@ -529,6 +529,15 @@ describe('Giao diện dự báo mưa', () => {
     assert.match(ma, /nchmf\.gov\.vn/, 'phải chỉ người dân tới bản tin chính thức');
   });
 
+  /* P129 (người vận hành chọn 22/11/2026): dòng "Dự báo tự động… nchmf.gov.vn · Dữ liệu thời tiết …
+     (CC BY 4.0)" chỉ hiện ở trang cán bộ, trang người dân không hiện. Đánh đổi giấy phép ghi ở ND-103. */
+  test('dòng ghi nguồn + lời nhắc dự báo chỉ hiện ở trang cán bộ, không ở trang người dân', async () => {
+    const ma = await readFile(goc('src/components/DuBaoMua/KhungDuBaoMua.tsx'), 'utf8');
+    const cho = [...ma.matchAll(/<GhiChuNguon\b/g)].map((m) => ma.slice(Math.max(0, m.index - 40), m.index));
+    assert.ok(cho.length >= 1, 'GhiChuNguon phải còn (trang cán bộ dùng)');
+    for (const truoc of cho) assert.match(truoc, /canBo\s*&&\s*\(?\s*$/, 'GhiChuNguon phải nằm sau canBo &&');
+  });
+
   test('trang Điểm đen, trang chủ, trang cán bộ đều dùng dự báo', async () => {
     assert.match(await readFile(goc('src/pages/DiemDenGiaoThongPage.tsx'), 'utf8'), /<KhungDuBaoMua\b/);
     assert.match(await readFile(goc('src/pages/HomePage.tsx'), 'utf8'), /<CanhBaoMuaTrangChu\b/);

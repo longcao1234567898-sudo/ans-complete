@@ -191,7 +191,9 @@ export default function KhungDuBaoMua({ canBo = false, soDuongHayNgap = 0 }: { c
         </ul>
       </details>
 
-      <GhiChuNguon nguon={d.nguonDuLieu} />
+      {/* Chỉ trang cán bộ (người vận hành chọn 22/11/2026, P129). Trang người dân vẫn hiện số liệu
+          dự báo mà không ghi nguồn CC BY 4.0 — đánh đổi giấy phép đã ghi ở ND-103. */}
+      {canBo && <GhiChuNguon nguon={d.nguonDuLieu} />}
     </section>
   );
 }
