@@ -36,7 +36,7 @@ router.get('/summary', async (req, res) => {
   const range = [from, to + ' 23:59:59'];
 
   try {
-    // Tổng quan
+    // Tổng quan (loại bỏ tin rác & tin trong thùng rác để phản ánh đúng số liệu thật)
     const [[overview]] = await pool.query(
       `SELECT COUNT(*) AS total,
               SUM(status='received')   AS received,
@@ -44,7 +44,11 @@ router.get('/summary', async (req, res) => {
               SUM(status='resolved')   AS resolved,
               SUM(status='rejected')   AS rejected,
               SUM(status IN ('received','processing') AND deadline_at < NOW()) AS overdue
-       FROM submissions WHERE created_at BETWEEN ? AND ?`, range
+       FROM submissions
+       WHERE created_at BETWEEN ? AND ?
+         AND deleted_at IS NULL
+         AND (is_spam IS NULL OR is_spam = 0)
+         AND status <> 'spam'`, range
     );
 
     // Theo nhóm
@@ -55,14 +59,22 @@ router.get('/summary', async (req, res) => {
               ROUND(AVG(CASE WHEN s.status='resolved'
                     THEN TIMESTAMPDIFF(HOUR, s.created_at, s.resolved_at) END), 1) AS avg_hours
        FROM categories c LEFT JOIN submissions s
-         ON s.category_id = c.id AND s.created_at BETWEEN ? AND ?
+         ON s.category_id = c.id
+        AND s.created_at BETWEEN ? AND ?
+        AND s.deleted_at IS NULL
+        AND (s.is_spam IS NULL OR s.is_spam = 0)
+        AND s.status <> 'spam'
        GROUP BY c.id, c.name ORDER BY c.display_order`, range
     );
 
     // Theo ngày (biểu đồ đường)
     const [byDay] = await pool.query(
       `SELECT DATE(created_at) AS day, COUNT(*) AS total
-       FROM submissions WHERE created_at BETWEEN ? AND ?
+       FROM submissions
+       WHERE created_at BETWEEN ? AND ?
+         AND deleted_at IS NULL
+         AND (is_spam IS NULL OR is_spam = 0)
+         AND status <> 'spam'
        GROUP BY DATE(created_at) ORDER BY day`, range
     );
 
@@ -71,14 +83,22 @@ router.get('/summary', async (req, res) => {
        khớp với cách "Theo ngày" ở trên đang làm. */
     const [byHour] = await pool.query(
       `SELECT HOUR(created_at) AS hour, COUNT(*) AS total
-       FROM submissions WHERE created_at BETWEEN ? AND ?
+       FROM submissions
+       WHERE created_at BETWEEN ? AND ?
+         AND deleted_at IS NULL
+         AND (is_spam IS NULL OR is_spam = 0)
+         AND status <> 'spam'
        GROUP BY HOUR(created_at) ORDER BY hour`, range
     );
 
     /* Theo thứ trong tuần — 1=Chủ nhật...7=Thứ bảy (chuẩn DAYOFWEEK của MySQL) */
     const [byWeekday] = await pool.query(
       `SELECT DAYOFWEEK(created_at) AS weekday, COUNT(*) AS total
-       FROM submissions WHERE created_at BETWEEN ? AND ?
+       FROM submissions
+       WHERE created_at BETWEEN ? AND ?
+         AND deleted_at IS NULL
+         AND (is_spam IS NULL OR is_spam = 0)
+         AND status <> 'spam'
        GROUP BY DAYOFWEEK(created_at) ORDER BY weekday`, range
     );
 
@@ -86,7 +106,11 @@ router.get('/summary', async (req, res) => {
     const [byWard] = await pool.query(
       `SELECT w.name AS ward, COUNT(s.id) AS total
        FROM wards w LEFT JOIN submissions s
-         ON s.ward_id = w.id AND s.created_at BETWEEN ? AND ?
+         ON s.ward_id = w.id
+        AND s.created_at BETWEEN ? AND ?
+        AND s.deleted_at IS NULL
+        AND (s.is_spam IS NULL OR s.is_spam = 0)
+        AND s.status <> 'spam'
        GROUP BY w.id, w.name ORDER BY total DESC`, range
     );
 
@@ -95,7 +119,11 @@ router.get('/summary', async (req, res) => {
       `SELECT st.full_name AS staff, COUNT(s.id) AS assigned,
               SUM(s.status='resolved') AS resolved
        FROM staff st LEFT JOIN submissions s
-         ON s.assigned_to = st.id AND s.created_at BETWEEN ? AND ?
+         ON s.assigned_to = st.id
+        AND s.created_at BETWEEN ? AND ?
+        AND s.deleted_at IS NULL
+        AND (s.is_spam IS NULL OR s.is_spam = 0)
+        AND s.status <> 'spam'
        WHERE st.is_active = TRUE
        GROUP BY st.id, st.full_name ORDER BY assigned DESC`, range
     );
@@ -103,7 +131,7 @@ router.get('/summary', async (req, res) => {
     res.json({ from, to, overview, byCategory, byDay, byHour, byWeekday, byWard, byStaff });
   } catch (err) {
     console.error('Lỗi báo cáo:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v2.sql chưa?' });
+    res.status(500).json({ error: 'Lỗi máy chủ khi tổng hợp báo cáo.' });
   }
 });
 
@@ -122,7 +150,9 @@ async function banDoDiemNong(req, res) {
        ngay = 0 nghĩa là xem toàn bộ lịch sử (giữ cách xem cũ).
        ------------------------------------------------------------------ */
     const ngay = Math.min(Math.max(parseInt(req.query.ngay, 10) || 30, 0), 3650);
+    const haiKy = ngay * 2;
     const loc = ngay > 0 ? 'AND s.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)' : '';
+    const phamVi = await dieuKienXem(req.staff, 's');
 
     const [rows] = await pool.query(
       `SELECT w.id, w.name, w.lat, w.lng,
@@ -135,33 +165,35 @@ async function banDoDiemNong(req, res) {
               SUM(c.code = 'de_xuat')   AS de_xuat,
               SUM(s.urgency = 'urgent') AS khan_cap,
               MAX(s.created_at)         AS gan_nhat,
-              /* ---------------------------------------------------------
-                 SỐ VỤ Ở KỲ LIỀN TRƯỚC — để tính XU HƯỚNG
-
-                 Vì sao cần: bản đồ chỉ hiện số vụ trong kỳ thì lãnh đạo
-                 biết địa bàn nào NHIỀU, nhưng không biết địa bàn nào đang
-                 XẤU ĐI. Một xã 8 vụ mà kỳ trước 3 vụ đáng lo hơn nhiều so
-                 với một xã 12 vụ mà kỳ trước 20 vụ.
-
-                 Đếm số vụ trong khoảng [2×ngay, ngay) ngày trước — tức kỳ
-                 dài bằng đúng kỳ đang xem, ngay liền trước nó.
-                 --------------------------------------------------------- */
-              (SELECT COUNT(*) FROM submissions s2
-                WHERE s2.ward_id = w.id
-                  AND s2.deleted_at IS NULL
+              /* Kỳ liền trước — áp cùng điều kiện xem (dieuKienXem) & loại rác/thùng rác
+                 để cán bộ thường không đoán được sự xuất hiện của tố giác mật theo địa bàn. */
+              (SELECT COUNT(*) FROM submissions s
+                WHERE s.ward_id = w.id
+                  AND s.deleted_at IS NULL
+                  AND (s.is_spam IS NULL OR s.is_spam = 0)
+                  AND s.status <> 'spam'
+                  AND ${phamVi.sql}
                   AND ? > 0
-                  AND s2.created_at >= DATE_SUB(NOW(), INTERVAL (? * 2) DAY)
-                  AND s2.created_at <  DATE_SUB(NOW(), INTERVAL ? DAY)
+                  AND s.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+                  AND s.created_at <  DATE_SUB(NOW(), INTERVAL ? DAY)
               ) AS ky_truoc
        FROM wards w
        LEFT JOIN submissions s
               ON s.ward_id = w.id
              AND s.deleted_at IS NULL
+             AND (s.is_spam IS NULL OR s.is_spam = 0)
+             AND s.status <> 'spam'
+             AND ${phamVi.sql}
              ${loc}
        LEFT JOIN categories c ON c.id = s.category_id
        GROUP BY w.id, w.name, w.lat, w.lng
        ORDER BY total DESC`,
-      ngay > 0 ? [ngay, ngay, ngay, ngay] : [0, 0, 0]
+      [
+        ...phamVi.params,
+        ...(ngay > 0 ? [ngay, haiKy, ngay] : [0, 0, 0]),
+        ...phamVi.params,
+        ...(ngay > 0 ? [ngay] : []),
+      ]
     );
     res.json(rows.map((r) => ({
       ...r,
@@ -182,11 +214,11 @@ async function banDoDiemNong(req, res) {
        — thao tác nhạy cảm, ghi lại ai xem, khoảng thời gian nào. */
     ghiNhatKy(pool, req, {
       hanhDong: 'view_map',
-      chiTiet: { tuNgay: req.query.from || null, denNgay: req.query.to || null },
+      chiTiet: { soNgay: ngay, tuNgay: req.query.from || null, denNgay: req.query.to || null },
     });
   } catch (err) {
     console.error('Lỗi bản đồ:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v2.sql chưa?' });
+    res.status(500).json({ error: 'Lỗi máy chủ khi tải bản đồ điểm nóng.' });
   }
 }
 
@@ -213,6 +245,8 @@ router.get('/details', async (req, res) => {
        LEFT JOIN wards w      ON w.id = s.ward_id
        LEFT JOIN staff st     ON st.id = s.assigned_to
        WHERE s.created_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)
+         AND s.deleted_at IS NULL
+         AND (s.is_spam IS NULL OR s.is_spam = 0)
          AND s.status NOT IN ('spam')
          AND ${phamVi.sql}
        ORDER BY s.created_at DESC

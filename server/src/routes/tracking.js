@@ -41,7 +41,7 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
       `SELECT s.tracking_code, s.original_content, s.ai_processed_content,
               c.code AS category_code, s.status, s.rejection_reason, s.created_at,
               /* Hạn xử lý — cần để nói thật với bà con khi hồ sơ đã trễ hẹn */
-              s.deadline_at
+              s.deadline_at, s.deleted_at
        FROM submissions s LEFT JOIN categories c ON s.category_id = c.id
        WHERE s.tracking_code = ?`,
       [code]
@@ -50,13 +50,23 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy mã tra cứu. Vui lòng kiểm tra lại 6 ký tự trên phiếu tiếp nhận.' });
     }
     const s = rows[0];
+    /* Tin đã đưa vào thùng rác (trừ tin giả bị từ chối ở sàng lọc giữ lời từ chối chung):
+       không trả công khai khi tra cứu mã. */
+    if (s.deleted_at && s.status !== 'rejected') {
+      return res.status(404).json({ error: 'Không tìm thấy mã tra cứu. Vui lòng kiểm tra lại 6 ký tự trên phiếu tiếp nhận.' });
+    }
 
-    const [history] = await pool.query(
-      `SELECT old_status, new_status, note, changed_at
-       FROM status_history h JOIN submissions sub ON sub.id = h.submission_id
-       WHERE sub.tracking_code = ? ORDER BY h.changed_at ASC`,
-      [code]
-    );
+    const laChanNgam = s.status === 'spam';
+    const trangThaiHienThi = laChanNgam ? 'received' : s.status;
+
+    const [history] = laChanNgam
+      ? [[]]
+      : await pool.query(
+        `SELECT old_status, new_status, note, changed_at
+         FROM status_history h JOIN submissions sub ON sub.id = h.submission_id
+         WHERE sub.tracking_code = ? ORDER BY h.changed_at ASC`,
+        [code]
+      );
 
     // Dựng timeline: các bước đã xảy ra (done) + các bước tương lai (chưa done)
     const doneSteps = history.map((h) => ({
@@ -67,14 +77,14 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
       done: true,
     }));
     // Ý kiến ẨN DANH có thêm bước "Chờ kiểm duyệt" ở đầu luồng
-    const isPending = s.status === 'pending_review';
+    const isPending = trangThaiHienThi === 'pending_review';
     const flow = isPending
       ? ['pending_review', 'received', 'processing', 'resolved']
       : ['received', 'processing', 'resolved'];
 
     const steps = [...doneSteps];
 
-    // Tin ẩn danh chưa duyệt: trigger chưa ghi lịch sử -> tự dựng bước đầu
+    // Tin ẩn danh chưa duyệt hoặc tin chặn ngầm: bảo đảm có bước đầu hợp lệ
     if (isPending && steps.length === 0) {
       steps.push({
         status: 'pending_review',
@@ -83,10 +93,18 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
         note: 'Tin báo ẩn danh đang được cán bộ kiểm duyệt trước khi đưa vào xử lý.',
         done: true,
       });
+    } else if (laChanNgam && steps.length === 0) {
+      steps.push({
+        status: 'received',
+        label: STATUS_LABEL.received,
+        timestamp: s.created_at,
+        note: 'Hệ thống đã tiếp nhận ý kiến.',
+        done: true,
+      });
     }
 
-    if (s.status !== 'rejected' && s.status !== 'spam') {
-      const reachedIdx = flow.indexOf(s.status);
+    if (trangThaiHienThi !== 'rejected') {
+      const reachedIdx = flow.indexOf(trangThaiHienThi);
       for (let i = reachedIdx + 1; i < flow.length; i++) {
         steps.push({ status: flow[i], label: STATUS_LABEL[flow[i]], timestamp: '', done: false });
       }
@@ -102,19 +120,19 @@ router.get('/:code', gioiHanTraCuu, async (req, res) => {
        xong việc rồi, có trễ cũng không còn gì để bà con chờ nữa; dán thêm nhãn
        đỏ vào đó chỉ gây hoang mang chứ không giúp được gì.
        ======================================================================== */
-    const chuaXong = ['pending_review', 'received', 'processing'].includes(s.status);
+    const chuaXong = !laChanNgam && ['pending_review', 'received', 'processing'].includes(trangThaiHienThi);
     const quaHan = Boolean(
       chuaXong && s.deadline_at && new Date(s.deadline_at).getTime() < Date.now()
     );
 
     res.json({
       code: s.tracking_code,
-      status: s.status,
+      status: trangThaiHienThi,
       category: s.category_code,
       summary: s.ai_processed_content || s.original_content,
       createdAt: s.created_at,
       steps,
-      rejectionReason: s.rejection_reason || undefined,
+      rejectionReason: laChanNgam ? undefined : (s.rejection_reason || undefined),
       overdue: quaHan,
       deadlineAt: s.deadline_at || undefined,
     });

@@ -113,17 +113,8 @@ router.get('/', async (req, res) => {
            đặt ON DELETE CASCADE, nên lệnh dọn rác quá hạn bị chặn
        --------------------------------------------------------------------- */
     const m = String(err.message || '');
-    let goiY = 'Lỗi máy chủ.';
-    if (/Unknown column|doesn't exist|Table .* doesn't exist/i.test(m)) {
-      goiY = `Database thiếu bảng hoặc cột. Cần chạy các tệp nâng cấp SQL còn thiếu. (${m})`;
-    } else if (/foreign key|constraint/i.test(m)) {
-      goiY = `Vướng ràng buộc khoá ngoại khi dọn thùng rác — có bảng con trỏ tới `
-           + `submissions mà chưa đặt ON DELETE CASCADE. (${m})`;
-    } else if (m) {
-      goiY = `Lỗi máy chủ: ${m}`;
-    }
     console.error('Lỗi thùng rác:', m);
-    res.status(500).json({ error: goiY });
+    res.status(500).json({ error: 'Lỗi máy chủ khi tải thùng rác.' });
   }
 });
 
@@ -143,12 +134,34 @@ router.post('/:id/restore', async (req, res) => {
     // Tin thường  -> trả về trạng thái đã tiếp nhận
     const newStatus = rows[0].is_anonymous ? 'pending_review' : 'received';
 
-    await pool.query(
-      `UPDATE submissions
-       SET deleted_at = NULL, deleted_by = NULL, status = ?
-       WHERE id = ?`,
-      [newStatus, req.params.id]
-    );
+    /* Khôi phục phải gỡ cờ is_spam = 0 (và giu_cho_lanh_dao = 0 nếu có) để hồ sơ
+       hiện lại trên hàng sàng lọc / bảng xử lý. Lịch sử + nhật ký vẫn ghi giữ
+       dấu vết để xetDonGayKhoa không cho làm mới khoá khi đánh rác lại (R7/D5/N2). */
+    if (await coCotSangLoc()) {
+      await pool.query(
+        `UPDATE submissions
+         SET deleted_at = NULL, deleted_by = NULL, status = ?, is_spam = 0, giu_cho_lanh_dao = 0
+         WHERE id = ?`,
+        [newStatus, req.params.id]
+      );
+    } else {
+      try {
+        await pool.query(
+          `UPDATE submissions
+           SET deleted_at = NULL, deleted_by = NULL, status = ?, is_spam = 0
+           WHERE id = ?`,
+          [newStatus, req.params.id]
+        );
+      } catch (e) {
+        if (!/is_spam/i.test(String(e?.message || ''))) throw e;
+        await pool.query(
+          `UPDATE submissions
+           SET deleted_at = NULL, deleted_by = NULL, status = ?
+           WHERE id = ?`,
+          [newStatus, req.params.id]
+        );
+      }
+    }
 
     /* Ghi nhật ký qua ghiNhatKy: cột details là JSON, ghi chuỗi trần thì MySQL
        từ chối cả câu — lỗi bị nuốt, nhật ký mất dòng (trước đây vẫn thế).

@@ -20,6 +20,7 @@ import { decrypt, maskName } from '../../lib/crypto.js';
 import {
   DANG_CHO_SANG_LOC, coCotSangLoc, themGhiChu, LOI_THIEU_COT, timPhan,
 } from '../../lib/sang-loc.js';
+import { xoaDanhTinhChoKhiDong } from './submissions.js';
 
 const router = Router();
 
@@ -96,6 +97,7 @@ async function sangLocMotTin(req, id, hanhDong, ghiChu) {
         WHERE id = ?`,
       [req.staff.id, req.staff.id, hs.nhom === 'to_giac' ? 1 : 0, id]
     );
+    await xoaDanhTinhChoKhiDong(req, id);
   } else {
     /* Ngoài thẩm quyền: sang phần chỉ lãnh đạo. Đang giao cho cán bộ thì bỏ
        giao — người đó không còn mở được tin (cùng luật với route phân công). */
@@ -261,7 +263,7 @@ router.get('/tin-trung', async (req, res) => {
     res.json({ data });
   } catch (err) {
     console.error('Lỗi danh mục tin trùng:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v11.sql chưa?' });
+    res.status(500).json({ error: 'Lỗi máy chủ khi tải danh mục tin trùng.' });
   }
 });
 
@@ -301,6 +303,7 @@ router.post('/:id/ngoai-tham-quyen', authorize(...LANH_DAO), async (req, res) =>
       const loi = `Đã chuyển cơ quan có thẩm quyền${ghiChu ? `: ${ghiChu}` : ''}.`;
       await pool.query('CALL update_submission_status(?,?,?,?,?)', [id, 'resolved', loi, null, req.staff.id]);
       await pool.query('UPDATE submissions SET resolution_note = ? WHERE id = ?', [loi, id]);
+      await xoaDanhTinhChoKhiDong(req, id);
     }
 
     await ghiNhatKy(pool, req, {

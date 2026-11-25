@@ -38,7 +38,43 @@ router.get('/stats', async (req, res) => {
        và hiện hồ sơ người xem được đọc (BUG-009). Bỏ ở thẻ thì thẻ nói "3 việc
        chưa phân công" mà bấm vào danh sách chỉ ra 1. */
     const phamVi = await dieuKienXem(req.staff);
-    const [[overview]] = await pool.query('SELECT * FROM vw_dashboard_stats');
+    let overview;
+    try {
+      const [[ov]] = await pool.query(
+        `SELECT COUNT(*) AS total_submissions,
+                COALESCE(SUM(s.status = 'received'), 0) AS pending_count,
+                COALESCE(SUM(s.status = 'processing'), 0) AS processing_count,
+                COALESCE(SUM(s.status = 'resolved'), 0) AS resolved_count,
+                COALESCE(SUM(s.status = 'rejected'), 0) AS rejected_count,
+                COALESCE(SUM(s.is_flagged = 1), 0) AS flagged_count,
+                COALESCE(SUM(DATE(s.created_at) = DATE(NOW())), 0) AS today_count
+           FROM submissions s
+          WHERE s.deleted_at IS NULL
+            AND (s.is_spam IS NULL OR s.is_spam = 0)
+            AND s.status <> 'spam'
+            AND ${phamVi.sql}`,
+        phamVi.params
+      );
+      const [[stCount]] = await pool.query('SELECT COUNT(*) AS active_staff_count FROM staff WHERE is_active = TRUE');
+      overview = { ...ov, active_staff_count: Number(stCount?.active_staff_count || 0) };
+    } catch {
+      const [[ov2]] = await pool.query(
+        `SELECT COUNT(*) AS total_submissions,
+                COALESCE(SUM(s.status = 'received'), 0) AS pending_count,
+                COALESCE(SUM(s.status = 'processing'), 0) AS processing_count,
+                COALESCE(SUM(s.status = 'resolved'), 0) AS resolved_count,
+                COALESCE(SUM(s.status = 'rejected'), 0) AS rejected_count,
+                COALESCE(SUM(s.is_flagged = 1), 0) AS flagged_count,
+                COALESCE(SUM(DATE(s.created_at) = DATE(NOW())), 0) AS today_count
+           FROM submissions s
+          WHERE s.deleted_at IS NULL
+            AND s.status <> 'spam'
+            AND ${phamVi.sql}`,
+        phamVi.params
+      );
+      const [[stCount]] = await pool.query('SELECT COUNT(*) AS active_staff_count FROM staff WHERE is_active = TRUE');
+      overview = { ...ov2, active_staff_count: Number(stCount?.active_staff_count || 0) };
+    }
 
     /* ---------------------------------------------------------------------
        BA CON SỐ ĐIỀU HÀNH — thứ trưởng phòng cần biết ngay khi mở máy
@@ -103,11 +139,52 @@ router.get('/stats', async (req, res) => {
         };
       } catch { /* để mặc định 0 */ }
     }
-    const [byCategory] = await pool.query('SELECT * FROM vw_category_stats');
+    let byCategory = [];
+    try {
+      const [rowsCat] = await pool.query(
+        `SELECT c.id, c.code, c.name,
+                COUNT(s.id) AS total_count,
+                COALESCE(SUM(CASE WHEN s.status = 'received' THEN 1 ELSE 0 END), 0) AS received_count,
+                COALESCE(SUM(CASE WHEN s.status = 'processing' THEN 1 ELSE 0 END), 0) AS processing_count,
+                COALESCE(SUM(CASE WHEN s.status = 'resolved' THEN 1 ELSE 0 END), 0) AS resolved_count,
+                COALESCE(SUM(CASE WHEN s.status = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_count
+           FROM categories c
+           LEFT JOIN submissions s
+                  ON s.category_id = c.id
+                 AND s.deleted_at IS NULL
+                 AND (s.is_spam IS NULL OR s.is_spam = 0)
+                 AND s.status <> 'spam'
+                 AND ${phamVi.sql}
+          GROUP BY c.id, c.code, c.name`,
+        phamVi.params
+      );
+      byCategory = rowsCat;
+    } catch {
+      const [rowsCat] = await pool.query(
+        `SELECT c.id, c.code, c.name,
+                COUNT(s.id) AS total_count,
+                COALESCE(SUM(CASE WHEN s.status = 'received' THEN 1 ELSE 0 END), 0) AS received_count,
+                COALESCE(SUM(CASE WHEN s.status = 'processing' THEN 1 ELSE 0 END), 0) AS processing_count,
+                COALESCE(SUM(CASE WHEN s.status = 'resolved' THEN 1 ELSE 0 END), 0) AS resolved_count,
+                COALESCE(SUM(CASE WHEN s.status = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_count
+           FROM categories c
+           LEFT JOIN submissions s
+                  ON s.category_id = c.id
+                 AND s.deleted_at IS NULL
+                 AND s.status <> 'spam'
+                 AND ${phamVi.sql}
+          GROUP BY c.id, c.code, c.name`,
+        phamVi.params
+      );
+      byCategory = rowsCat;
+    }
     const [recent] = await pool.query(
       `SELECT s.tracking_code, s.status, s.sender_name, c.name AS category_name, s.created_at
        FROM submissions s LEFT JOIN categories c ON s.category_id = c.id
-       WHERE ${phamVi.sql}
+       WHERE s.deleted_at IS NULL
+         AND (s.is_spam IS NULL OR s.is_spam = 0)
+         AND s.status <> 'spam'
+         AND ${phamVi.sql}
        ORDER BY s.created_at DESC LIMIT 8`,
       phamVi.params
     );
@@ -127,6 +204,7 @@ router.get('/stats', async (req, res) => {
          LEFT JOIN staff st ON st.id = s.assigned_to
          WHERE s.status IN ('received','processing')
            AND s.deleted_at IS NULL
+           AND (s.is_spam IS NULL OR s.is_spam = 0)
            AND s.deadline_at IS NOT NULL
            AND s.deadline_at < NOW() + INTERVAL 3 DAY
            AND ${phamVi.sql}
@@ -154,12 +232,24 @@ router.get('/stats', async (req, res) => {
       console.warn('Bỏ qua nhóm sự kiện trùng lặp:', e.message); // chưa chạy nang_cap_v11.sql
     }
 
-    // SLA — cảnh báo quá hạn / sắp hết hạn / chưa phân công
+    // SLA — cảnh báo quá hạn / sắp hết hạn / chưa phân công theo đúng phạm vi người xem
     let sla = { overdue_count: 0, near_due_count: 0, unassigned_count: 0, pending_review_count: 0 };
     try {
-      const [[row]] = await pool.query('SELECT * FROM vw_sla_stats');
+      const [[row]] = await pool.query(
+        `SELECT
+           COALESCE(SUM(s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at < NOW()), 0) AS overdue_count,
+           COALESCE(SUM(s.status IN ('received','processing') AND s.deadline_at IS NOT NULL AND s.deadline_at >= NOW() AND s.deadline_at < NOW() + INTERVAL 3 DAY), 0) AS near_due_count,
+           COALESCE(SUM(s.status IN ('received','processing') AND s.assigned_to IS NULL), 0) AS unassigned_count,
+           COALESCE(SUM(s.status = 'pending_review'), 0) AS pending_review_count
+         FROM submissions s
+         WHERE s.deleted_at IS NULL
+           AND (s.is_spam IS NULL OR s.is_spam = 0)
+           AND s.status <> 'spam'
+           AND ${phamVi.sql}`,
+        phamVi.params
+      );
       if (row) sla = row;
-    } catch { /* chưa chạy nang_cap_v2.sql */ }
+    } catch { /* bỏ qua nếu thiếu cột */ }
 
     // Che tên người gửi ở danh sách gần đây
     const recentSafe = recent.map((r) => ({ ...r, sender_name: maskName(decrypt(r.sender_name)) }));
@@ -198,6 +288,9 @@ router.get('/canh-bao-dot-bien', async (req, res) => {
         `SELECT s.id, s.tracking_code, s.status, s.urgency, s.created_at, LEFT(s.original_content, 120) AS xem_truoc
            FROM submissions s
           WHERE s.ward_id = ?
+            AND s.deleted_at IS NULL
+            AND (s.is_spam IS NULL OR s.is_spam = 0)
+            AND s.status <> 'spam'
             AND s.created_at > DATE_SUB(?, INTERVAL ? MINUTE) AND s.created_at <= ?
             AND ${phamVi.sql}
           ORDER BY s.created_at ASC

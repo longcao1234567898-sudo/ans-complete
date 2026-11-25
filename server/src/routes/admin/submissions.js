@@ -575,6 +575,49 @@ router.post('/:id/reveal', authorize(...LANH_DAO), async (req, res) => {
   }
 });
 
+/**
+ * Tự động xoá danh tính đang chờ (Nghị định 13/2023) khi hồ sơ đóng qua các
+ * luồng chuyển trạng thái (cập nhật trạng thái, đánh tin giả, chuyển ngoài thẩm quyền).
+ */
+export async function xoaDanhTinhChoKhiDong(req, submissionId) {
+  try {
+    const [cho] = await pool.query(
+      `SELECT id FROM data_deletion_requests
+       WHERE submission_id = ? AND status = 'pending'`,
+      [submissionId]
+    );
+
+    if (cho.length > 0) {
+      await pool.query(
+        `UPDATE submissions
+         SET sender_name = NULL, sender_phone = NULL, sender_phone_hash = NULL,
+             sender_email = NULL, ip_address = NULL, user_agent = NULL,
+             /* Mã máy là dấu nối: giữ nó thì đơn đã xoá danh tính vẫn nối
+                được với đơn có tên cùng máy (BUG-014, SEC-DEC-008). Cùng danh
+                sách cột với routes/tracking.js — sửa một nơi thì sửa cả hai. */
+             device_id = NULL,
+             identity_erased = TRUE, identity_erased_at = NOW()
+         WHERE id = ?`,
+        [submissionId]
+      );
+      /* Dấu vân lần gửi (P91) có danh tính đã băm — xoá cùng lúc */
+      await xoaMaLanGuiCuaDon(pool, Number(submissionId));
+      await pool.query(
+        `UPDATE data_deletion_requests
+         SET status = 'done', handled_at = NOW(), handled_by = ?
+         WHERE submission_id = ? AND status = 'pending'`,
+        [req.staff.id, submissionId]
+      );
+      console.log(`🔒 Đã tự xoá danh tính ý kiến #${submissionId} theo yêu cầu đã ghi nhận`);
+      await ghiNhatKy(pool, req, {
+        hanhDong: 'erase_identity', loaiDoiTuong: 'submission', doiTuongId: Number(submissionId),
+      });
+    }
+  } catch (e) {
+    console.warn('Bỏ qua xoá danh tính tự động:', e.message);
+  }
+}
+
 /** PATCH /api/admin/submissions/:id/status — cập nhật trạng thái */
 /* Lời trả khi đổi trạng thái tin không thuộc phần xử lý — mỗi phần có nút riêng */
 const LOI_TIN_NTQ = 'Tin ngoài thẩm quyền chỉ xử lý bằng các nút ở khung "Tin ngoài thẩm quyền" (chuyển lại xử lý, đã chuyển cơ quan có thẩm quyền, xoá tin).';
@@ -627,46 +670,9 @@ router.patch('/:id/status', async (req, res) => {
 
     /* TỰ ĐỘNG XOÁ DANH TÍNH khi hồ sơ ĐÓNG, nếu người dân đã yêu cầu trước đó.
        Theo Nghị định 13/2023: quyền xoá bị hoãn khi dữ liệu còn cần cho việc
-       xử lý, nhưng phải thực hiện NGAY khi lý do hoãn không còn.
-       Bọc try/catch riêng — lỗi ở đây không được làm hỏng việc cập nhật trạng thái. */
+       xử lý, nhưng phải thực hiện NGAY khi lý do hoãn không còn. */
     if (status === 'resolved' || status === 'rejected') {
-      try {
-        const [cho] = await pool.query(
-          `SELECT id FROM data_deletion_requests
-           WHERE submission_id = ? AND status = 'pending'`,
-          [req.params.id]
-        );
-
-        if (cho.length > 0) {
-          await pool.query(
-            `UPDATE submissions
-             SET sender_name = NULL, sender_phone = NULL, sender_phone_hash = NULL,
-                 sender_email = NULL, ip_address = NULL, user_agent = NULL,
-                 /* Mã máy là dấu nối: giữ nó thì đơn đã xoá danh tính vẫn nối
-                    được với đơn có tên cùng máy (BUG-014, SEC-DEC-008). Cùng danh
-                    sách cột với routes/tracking.js — sửa một nơi thì sửa cả hai. */
-                 device_id = NULL,
-                 identity_erased = TRUE, identity_erased_at = NOW()
-             WHERE id = ?`,
-            [req.params.id]
-          );
-          /* Dấu vân lần gửi (P91) có danh tính đã băm — xoá cùng lúc */
-          await xoaMaLanGuiCuaDon(pool, Number(req.params.id));
-          await pool.query(
-            `UPDATE data_deletion_requests
-             SET status = 'done', handled_at = NOW(), handled_by = ?
-             WHERE submission_id = ? AND status = 'pending'`,
-            [req.staff.id, req.params.id]
-          );
-          console.log(`🔒 Đã tự xoá danh tính ý kiến #${req.params.id} theo yêu cầu đã ghi nhận`);
-          await ghiNhatKy(pool, req, {
-            hanhDong: 'erase_identity', loaiDoiTuong: 'submission', doiTuongId: Number(req.params.id),
-          });
-        }
-      } catch (e) {
-        console.warn('Bỏ qua xoá danh tính tự động:', e.message,
-                     '-> đã chạy nang_cap_v8.sql chưa?');
-      }
+      await xoaDanhTinhChoKhiDong(req, req.params.id);
     }
 
     res.json({ ok: true, message: 'Đã cập nhật trạng thái.' });
@@ -1009,7 +1015,7 @@ router.post('/:id/mark-spam', async (req, res) => {
     });
   } catch (err) {
     console.error('Đánh dấu tin rác lỗi:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Đã chạy nang_cap_v12.sql chưa?' });
+    res.status(500).json({ error: 'Lỗi máy chủ khi đánh dấu tin rác.' });
   }
 });
 

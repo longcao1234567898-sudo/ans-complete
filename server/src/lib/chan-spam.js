@@ -271,6 +271,10 @@ export const GHI_CHU_KHONG_TINH_TAI_PHAM =
  * @param {{id, is_spam, status, reviewed_by}} don hàng đơn đọc TRƯỚC khi đánh rác
  */
 export async function xetDonGayKhoa(pool, don) {
+  /* Đơn ẩn danh không bao giờ gây khoá hay xét tái phạm (SEC-DEC-008 M-B) */
+  if (laDonAnDanh(don.is_anonymous)) {
+    return { gayKhoa: false, khongTinhTaiPham: false };
+  }
   const daChan = Number(don.is_spam) === 1;
   const daQuaKiemDuyet = don.status === 'pending_review' && don.reviewed_by != null;
   let daTungDanhRac;
@@ -286,9 +290,22 @@ export async function xetDonGayKhoa(pool, don) {
     console.error('[chặn spam] không đọc được lịch sử đơn — không khoá:', err.message);
     return { gayKhoa: false, khongTinhTaiPham: daChan };
   }
+  /* Sau khi khôi phục từ thùng rác, is_spam được đặt lại về 0 để đơn hiện lại ở
+     bảng làm việc. Nếu CSDL thiếu status_history spam (lỗi ENUM cũ) thì dựa thêm
+     vào nhật ký mark_spam / trash_restore để vẫn không gia hạn khoá oan. */
+  let daTungQuaRac = false;
+  try {
+    const [nhatKy] = await pool.query(
+      `SELECT 1 FROM staff_activity_logs
+        WHERE (target_id = ? OR target_id = ?) AND action IN ('mark_spam', 'trash_restore')
+        LIMIT 1`,
+      [Number(don.id), String(don.id)]
+    );
+    daTungQuaRac = nhatKy.length > 0;
+  } catch { /* bảng tối giản trong test cũ không có staff_activity_logs -> bỏ qua */ }
   return {
-    gayKhoa: !daChan && !daQuaKiemDuyet && !daTungDanhRac,
-    khongTinhTaiPham: daChan && !daTungDanhRac,
+    gayKhoa: !daChan && !daQuaKiemDuyet && !daTungDanhRac && !daTungQuaRac,
+    khongTinhTaiPham: (daChan || daTungQuaRac) && !daTungDanhRac,
   };
 }
 
