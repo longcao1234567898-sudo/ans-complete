@@ -14,10 +14,15 @@
  * Route này nằm sau requireAuth -> chỉ cán bộ đăng nhập mới gọi được.
  */
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import { requireAuth } from '../../middleware/auth.js';
 import { pool } from '../../db.js';
 import { generateTrackingCode, sha256, ghiNhatKy } from '../../lib/helpers.js';
 import { encrypt, hashPhone, encryptionEnabled, encryptionProblem } from '../../lib/crypto.js';
+import { bamPin } from '../../lib/bam-pin.js';
+import {
+  sanitizeText, normalizePhone, getPhoneError, scanTextForThreats, containsProfanity,
+} from '../../lib/security.js';
 import { kiemTraNoiDungNham } from '../../lib/noi-dung-nham.js';
 import { danhGiaMucKhan } from '../../lib/phan-loai.js';
 import { nhanDienToGiacMat } from '../../lib/to-giac-mat.js';
@@ -40,11 +45,12 @@ const CAT_CODE_TO_ID = { to_giac: 1, khieu_nai: 2, phan_anh: 3, de_xuat: 4 };
  */
 router.post('/submit', async (req, res) => {
   const b = req.body || {};
-  const content = String(b.content || '').trim();
+  const content = sanitizeText(b.content, 5000);
   const category = String(b.category || '').trim();
-  const fullName = String(b.fullName || '').trim();
-  const phone = String(b.phone || '').trim();
-  const wardId = b.wardId ? Number(b.wardId) : null;
+  const fullName = sanitizeText(b.fullName, 100);
+  const phone = normalizePhone(b.phone);
+  const rawWard = Number(b.wardId);
+  const wardId = Number.isInteger(rawWard) && rawWard > 0 ? rawWard : null;
   /* Cùng luật với tin người dân tự gửi (ADR-003 việc 10): mức khẩn theo nội dung */
   const urgency = danhGiaMucKhan(content).muc;
 
@@ -59,9 +65,16 @@ router.post('/submit', async (req, res) => {
     });
   }
 
-  // Kiểm tra tối thiểu
+  // Kiểm tra tối thiểu & lá chắn đầu vào như luồng công khai
   if (content.length < 20) {
     return res.status(400).json({ error: 'Nội dung ý kiến phải từ 20 ký tự trở lên.' });
+  }
+  const scan = scanTextForThreats(content);
+  if (!scan.safe) {
+    return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${scan.reasons.join(', ')}).` });
+  }
+  if (containsProfanity(content) || containsProfanity(fullName)) {
+    return res.status(400).json({ error: 'Nội dung chứa ngôn từ không phù hợp. Vui lòng diễn đạt lịch sự.' });
   }
   const nham = kiemTraNoiDungNham(content);
   if (nham.nham) {
@@ -75,8 +88,9 @@ router.post('/submit', async (req, res) => {
   if (fullName.length < 2) {
     return res.status(400).json({ error: 'Chưa nhập họ tên công dân.' });
   }
-  if (!/^0\d{9}$/.test(phone)) {
-    return res.status(400).json({ error: 'Số điện thoại phải gồm 10 số, bắt đầu bằng 0.' });
+  const phoneErr = getPhoneError(phone);
+  if (phoneErr) {
+    return res.status(400).json({ error: `Số điện thoại: ${phoneErr.toLowerCase()}.` });
   }
 
   try {
@@ -87,6 +101,10 @@ router.post('/submit', async (req, res) => {
       if (exist.length === 0) break;
       trackingCode = generateTrackingCode();
     }
+
+    // Sinh mã PIN 6 số an toàn để người nộp tại trụ sở dùng được phòng trao đổi / bổ sung
+    const chatPin = String(crypto.randomInt(100000, 1_000_000));
+    const chatPinHash = await bamPin(chatPin);
 
     // Hạn xử lý theo SLA của nhóm
     const catId = CAT_CODE_TO_ID[category];
@@ -104,30 +122,45 @@ router.post('/submit', async (req, res) => {
     const toGiacMat = nhanDienToGiacMat(content).mat;
 
     // Lưu — danh tính MÃ HOÁ như mọi ý kiến khác
-    const [result] = await pool.query(
-      `INSERT INTO submissions
-       (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
-        content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
-        status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency${coCotMat ? ', to_giac_mat' : ''})
-       VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?${coCotMat ? ', ?' : ''})`,
-      [
-        trackingCode, content, content, catId, catId,
-        sha256(content),
-        encrypt(fullName),
-        encrypt(phone),
-        hashPhone(phone),
-        null,
-        'received',                       // vào thẳng quy trình, không qua kiểm duyệt
-        'KIOSK',                          // đánh dấu nguồn: nhập tại trụ sở
-        'Ki-ot tai tru so',
-        deadlineAt,
-        wardId,
-        true,                             // cán bộ đã xác minh trực tiếp
-        false,
-        urgency,
-        ...(coCotMat ? [toGiacMat ? 1 : 0] : []),
-      ]
-    );
+    const giaTriCoBan = [
+      trackingCode, content, content, catId, catId,
+      sha256(content.trim().toLowerCase().replace(/\s+/g, ' ')),
+      encrypt(fullName),
+      encrypt(phone),
+      hashPhone(phone),
+      null,
+      'received',                       // vào thẳng quy trình, không qua kiểm duyệt
+      'KIOSK',                          // đánh dấu nguồn: nhập tại trụ sở
+      'Ki-ot tai tru so',
+      deadlineAt,
+      wardId,
+      true,                             // cán bộ đã xác minh trực tiếp
+      false,
+      urgency,
+    ];
+    let result;
+    let daLuuPin = true;
+    try {
+      [result] = await pool.query(
+        `INSERT INTO submissions
+         (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
+          content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
+          status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency, chat_pin_hash${coCotMat ? ', to_giac_mat' : ''})
+         VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?${coCotMat ? ', ?' : ''})`,
+        [...giaTriCoBan, chatPinHash, ...(coCotMat ? [toGiacMat ? 1 : 0] : [])]
+      );
+    } catch (e) {
+      if (!/chat_pin_hash/i.test(String(e?.message || ''))) throw e;
+      daLuuPin = false;
+      [result] = await pool.query(
+        `INSERT INTO submissions
+         (tracking_code, original_content, ai_processed_content, category_id, ai_suggested_category_id,
+          content_hash, sender_name, sender_phone, sender_phone_hash, sender_email,
+          status, ip_address, user_agent, deadline_at, ward_id, is_verified_otp, is_anonymous, urgency${coCotMat ? ', to_giac_mat' : ''})
+         VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?${coCotMat ? ', ?' : ''})`,
+        [...giaTriCoBan, ...(coCotMat ? [toGiacMat ? 1 : 0] : [])]
+      );
+    }
 
     // GHI NHẬT KÝ: ai là cán bộ nhập hộ (truy trách nhiệm khi cần)
     /* req.staff LUÔN tồn tại (requireAuth ở router cha). Ghi staff_id = NULL
@@ -140,6 +173,7 @@ router.post('/submit', async (req, res) => {
 
     res.status(201).json({
       trackingCode,
+      ...(daLuuPin ? { chatPin } : {}),
       deadlineAt,
       slaDays,
       message: 'Đã tiếp nhận ý kiến. Bà con giữ mã tra cứu để theo dõi tiến độ.',

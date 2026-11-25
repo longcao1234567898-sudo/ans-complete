@@ -28,6 +28,7 @@ const CATEGORIES = [
 
 interface KioskResult {
   trackingCode: string;
+  chatPin?: string;
   slaDays: number;
   deadlineAt: string;
 }
@@ -110,6 +111,7 @@ export default function AdminKioskPage() {
         <div style="text-align:center;font-size:13px;color:#555">Mã tra cứu của bà con</div>
         <div class="code">${thoatHtml(result.trackingCode)}</div>
         <table>
+          <tr><td>Mã PIN trao đổi:</td><td><b>${thoatHtml(result.chatPin || '—')}</b></td></tr>
           <tr><td>Người gửi:</td><td><b>${thoatHtml(fullName)}</b></td></tr>
           <tr><td>Điện thoại:</td><td>${thoatHtml(phone)}</td></tr>
           <tr><td>Nhóm xử lý:</td><td>${thoatHtml(CATEGORIES.find((c) => c.code === category)?.label ?? '')}</td></tr>
@@ -119,16 +121,19 @@ export default function AdminKioskPage() {
         <div class="note">
           <b>Cách tra cứu kết quả:</b><br>
           1. Truy cập: <b>${thoatHtml(window.location.host)}</b> → bấm "Tra cứu kết quả"<br>
-          2. Nhập mã <b>${thoatHtml(result.trackingCode)}</b> để xem tiến độ xử lý<br>
+          2. Nhập mã <b>${thoatHtml(result.trackingCode)}</b> để xem tiến độ xử lý (dùng thêm mã PIN <b>${thoatHtml(result.chatPin || '—')}</b> để nhắn tin / bổ sung thông tin)<br>
           3. Hoặc gọi trực ban đơn vị để được hỗ trợ tra cứu<br><br>
           Danh tính của bà con được bảo mật theo quy định pháp luật.
         </div>
         <div class="hotline">Khẩn cấp gọi 113 · Trực ban: ${thoatHtml(UNIT.hotline)}</div>
       </div>
-      <script>window.print()</script>
       </body></html>
     `);
     win.document.close();
+    win.focus();
+    setTimeout(() => {
+      try { win.print(); } catch { /* bỏ qua nếu trình duyệt chặn in tự động */ }
+    }, 150);
   }
 
   // ═══════ ĐÃ GỬI XONG — hiện mã cỡ lớn ═══════
@@ -149,6 +154,11 @@ export default function AdminKioskPage() {
             <p className="font-mono text-5xl font-extrabold tracking-[0.2em] text-primary-700 dark:text-primary-300">
               {result.trackingCode}
             </p>
+            {result.chatPin && (
+              <p className="mt-3 text-base font-bold text-slate-700 dark:text-slate-200">
+                Mã PIN trao đổi: <span className="font-mono tracking-widest text-primary-700 dark:text-primary-300">{result.chatPin}</span>
+              </p>
+            )}
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
               Hạn xử lý: <b>{new Date(result.deadlineAt).toLocaleDateString('vi-VN')}</b> ({result.slaDays} ngày)
             </p>

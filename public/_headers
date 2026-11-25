@@ -56,8 +56,8 @@
   ## Không rò rỉ địa chỉ trang khi bà con bấm sang web khác
   Referrer-Policy: strict-origin-when-cross-origin
 
-  ## Khoá các quyền nhạy cảm — chỉ mở micro (nhập giọng nói) cho chính trang này
-  Permissions-Policy: camera=(), microphone=(self), geolocation=(self), payment=(), usb=(), interest-cohort=()
+  ## Khoá các quyền nhạy cảm — chỉ mở camera (quét QR), micro (nhập giọng nói) và vị trí cho chính trang này
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), interest-cohort=()
 
   ## Chống XSS: chỉ cho tải tài nguyên từ nguồn tin cậy đã liệt kê.
   ## script-src KHÔNG có 'unsafe-inline' và KHÔNG có 'data:' — chặn chèn mã độc.

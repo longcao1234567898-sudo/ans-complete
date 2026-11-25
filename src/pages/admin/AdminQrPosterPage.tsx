@@ -114,8 +114,16 @@ export default function AdminQrPosterPage() {
     if (!canvas) return;
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(`<img src="${canvas.toDataURL('image/png')}" style="width:100%" onload="window.print()">`);
+    win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Áp phích QR</title></head><body style="margin:0;text-align:center"></body></html>');
     win.document.close();
+    const img = win.document.createElement('img');
+    img.style.width = '100%';
+    img.onload = () => {
+      win.focus();
+      win.print();
+    };
+    img.src = canvas.toDataURL('image/png');
+    win.document.body.appendChild(img);
   }
 
   return (
