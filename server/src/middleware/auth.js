@@ -19,24 +19,34 @@ import { laCanBoHopLe } from './authorize.js';
 import { pool } from '../db.js';
 
 const HAN_DEM_MS = 30_000;
-const demTrangThai = new Map();   // staffId -> { conHoatDong, luc }
+const demTrangThai = new Map();   // staffId -> { conHoatDong, role, luc }
 
-async function conHoatDong(staffId) {
+async function trangThaiTaiKhoan(staffId) {
   const d = demTrangThai.get(staffId);
-  if (d && Date.now() - d.luc < HAN_DEM_MS) return d.conHoatDong;
+  if (d && Date.now() - d.luc < HAN_DEM_MS) return d;
 
   try {
     const [rows] = await pool.query('SELECT is_active FROM staff WHERE id = ?', [staffId]);
-    const ok = rows.length > 0 && Boolean(rows[0].is_active);
-    demTrangThai.set(staffId, { conHoatDong: ok, luc: Date.now() });
-    return ok;
+    const ok = Array.isArray(rows) && rows.length > 0 && Boolean(rows[0].is_active);
+    let role = null;
+    if (ok) {
+      try {
+        const [rRole] = await pool.query('SELECT role FROM staff WHERE id = ?', [staffId]);
+        if (Array.isArray(rRole) && typeof rRole[0]?.role === 'string') {
+          role = rRole[0].role;
+        }
+      } catch { /* bảng staff tối giản trong test cũ chưa có cột role -> giữ role từ JWT */ }
+    }
+    const kq = { conHoatDong: ok, role, luc: Date.now() };
+    demTrangThai.set(staffId, kq);
+    return kq;
   } catch (err) {
     /* ⚠️ CƠ SỞ DỮ LIỆU HỎNG THÌ CHẶN, không cho qua.
        Cho qua khi không kiểm được là mở cửa cho tài khoản đã bị khoá. Cơ sở
        dữ liệu đã hỏng thì trang quản trị cũng không làm được gì, chặn luôn
        không mất gì thêm. */
     console.error('[auth] không kiểm được trạng thái tài khoản:', err.message);
-    return false;
+    return { conHoatDong: false, role: null, luc: 0 };
   }
 }
 
@@ -67,10 +77,18 @@ export async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.' });
   }
 
-  if (!(await conHoatDong(payload.sub))) {
+  const tt = await trangThaiTaiKhoan(payload.sub);
+  if (!tt.conHoatDong) {
     return res.status(401).json({ error: 'Tài khoản đã bị khoá. Liên hệ quản trị viên.' });
   }
 
-  req.staff = { id: payload.sub, username: payload.username, role: payload.role, name: payload.name };
+  /* Đọc lại vai trò hiện hành từ CSDL thay vì tin trọn role cũ trong JWT suốt 8 giờ:
+     khi hạ quyền admin/manager -> handler thì có hiệu lực gần như tức thì (<= 30s). */
+  const roleHienTai = tt.role ?? payload.role;
+  if (!laCanBoHopLe({ id: payload.sub, role: roleHienTai })) {
+    return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.' });
+  }
+
+  req.staff = { id: payload.sub, username: payload.username, role: roleHienTai, name: payload.name };
   next();
 }

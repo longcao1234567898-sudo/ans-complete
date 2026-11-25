@@ -50,11 +50,12 @@ function docDuLieu(body) {
     return { loi: 'Kinh độ không hợp lệ.' };
   }
 
+  const rawWardId = Number(body?.wardId);
   return {
     ten,
     mo_ta: sanitizeText(String(body?.moTa || '')).trim().slice(0, 2000) || null,
     lat, lng,
-    ward_id: Number(body?.wardId) > 0 ? Number(body.wardId) : null,
+    ward_id: Number.isInteger(rawWardId) && rawWardId > 0 ? rawWardId : null,
     so_vu: soVu, so_tu_vong: soTuVong, so_bi_thuong: soBiThuong,
     ky_thong_ke: sanitizeText(String(body?.kyThongKe || '')).trim().slice(0, 100) || null,
     muc_do: MUC_DO_HOP_LE.includes(body?.mucDo) ? body.mucDo : 'trung_binh',

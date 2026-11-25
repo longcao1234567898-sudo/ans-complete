@@ -20,23 +20,15 @@ const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || '').trim();
  *    Muốn dùng Pro -> phải bật thanh toán (billing) ở Google Cloud,
  *    rồi đặt biến GEMINI_MODEL=gemini-2.5-pro trên Render.
  */
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-3.5-flash').trim();
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
 
 // CHATBOX -> Flash (nhiều lượt gọi, cần NHANH, hạn mức free cao hơn nhiều)
-const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash').trim();
+const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash').trim();
 
-/* Khi model chính hết hạn mức (lỗi 429) -> tự động dùng model này thay thế.
- *
- * ⚠️ PHẢI ĐỌC ĐƯỢC TỪ BIẾN MÔI TRƯỜNG. Trước đây dòng này viết cứng
- * 'gemini-2.5-flash'. Hậu quả: Google đã NGỪNG CẤP model đó cho tài khoản
- * đăng ký mới ("no longer available to new users"), nên khi chuyển dự án sang
- * tài khoản Google khác thì model chính đổi được bằng biến môi trường, còn
- * model dự phòng vẫn trỏ vào model đã chết. Bình thường chạy tốt, nhưng đúng
- * lúc đông người hỏi (429) mới hỏng — kiểu lỗi rất khó lần ra.
- *
- * Đặt GEMINI_FALLBACK_MODEL trên Render nếu muốn dùng model khác.
+/* Khi model chính hết hạn mức (lỗi 429) hoặc không khả dụng (404/503) -> tự động
+ * dùng model dự phòng thay thế. Đặt GEMINI_FALLBACK_MODEL nếu muốn dùng model khác.
  */
-const FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite').trim();
+const FALLBACK_MODEL = (process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash-lite').trim();
 
 const isPro = (m) => String(m).includes('pro');
 
@@ -158,6 +150,7 @@ async function callGemini(model, body, opts = {}) {
     return await callOnce(model, body, opts);
   } catch (err) {
     const outOfQuota = err.status === 429;
+    const shouldFallback = outOfQuota || err.status === 404 || err.status === 503;
 
     /* ĐANG Ở MODEL DỰ PHÒNG MÀ VẪN 429 -> trước đây chết hẳn.
        Hạn mức miễn phí tính THEO PHÚT, nên chờ vài giây rồi thử lại
@@ -178,9 +171,9 @@ async function callGemini(model, body, opts = {}) {
       throw e;
     }
 
-    if (!outOfQuota || model === FALLBACK_MODEL) throw err;
+    if (!shouldFallback || model === FALLBACK_MODEL) throw err;
 
-    console.warn(`⚠️  ${model} hết hạn mức (429) — tự chuyển sang ${FALLBACK_MODEL}`);
+    console.warn(`⚠️  ${model} lỗi HTTP ${err.status} — tự chuyển sang ${FALLBACK_MODEL}`);
 
     // Flash TẮT được thinking (Pro thì không) -> phải chỉnh lại cho hợp lệ
     const fallbackBody = {
@@ -220,10 +213,13 @@ export async function geminiChat(message, history = []) {
   // VÌ SAO: hội thoại dài -> token đầu vào phình -> dễ chạm hạn mức và chậm.
   // 6 lượt đủ để bot nhớ mạch chuyện mà không tốn kém.
   const contents = [
-    ...history.slice(-6).map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content ?? '').slice(0, 800) }],
-    })),
+    ...(Array.isArray(history) ? history : [])
+      .filter((m) => m && typeof m === 'object')
+      .slice(-6)
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: String(m.content ?? '').slice(0, 800) }],
+      })),
     { role: 'user', parts: [{ text: message }] },
   ];
   const reply = await callGemini(GEMINI_CHAT_MODEL, {

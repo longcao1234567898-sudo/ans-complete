@@ -182,7 +182,12 @@ export async function ghiNhatKyTruoc(pool, req, {
       ma,
       loaiDoiTuong,
       doiTuongId,
-      chiTiet ? JSON.stringify(chiTiet).slice(0, 2000) : null,
+      chiTiet
+        ? (() => {
+            const s = JSON.stringify(chiTiet);
+            return s.length <= 2000 ? s : JSON.stringify({ _catBot: true, tomTat: s.slice(0, 1800) });
+          })()
+        : null,
       layIpThat(req),
     ]
   );

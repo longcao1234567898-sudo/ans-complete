@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
     res.json({ data: rows });
   } catch (err) {
     console.error('Lỗi tải nhóm sự kiện:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v11.sql chưa?' });
+    res.status(500).json({ error: 'Lỗi máy chủ khi tải nhóm sự kiện.' });
   }
 });
 

@@ -40,23 +40,29 @@ export function sanitizeText(text, maxLength = CONTENT_MAX_LENGTH) {
 }
 
 /* ---------- Bộ lọc ngôn từ (nạp thêm từ DB) ---------- */
-const badPhrases = new Set([
+const DEFAULT_BAD_PHRASES = [
   'đụ', 'đù má', 'đù mẹ', 'địt', 'đjt', 'đéo', 'cặc', 'con cặc', 'lồn', 'cái lồn',
   'buồi', 'dái', 'đĩ', 'con đĩ', 'điếm', 'đm', 'đmm', 'đcm', 'đcmm', 'vãi lồn',
   'óc chó', 'chó đẻ', 'đồ chó', 'thằng chó', 'mẹ mày', 'má mày', 'bố mày',
   'câm mồm', 'khốn nạn', 'mất dạy', 'súc vật', 'đồ súc sinh', 'đồ ngu', 'ngu như bò',
   'fuck', 'fucking', 'shit', 'bitch', 'asshole', 'dick', 'pussy',
-]);
-const badTokens = new Set([
+];
+const DEFAULT_BAD_TOKENS = [
   'dm', 'dmm', 'dcm', 'dcmm', 'cmm', 'ccmnr', 'vcl', 'vkl', 'clgt',
   'loz', 'djt', 'cak', 'kak', 'cc', 'wtf', 'fck', 'fuk',
-]);
+];
+const badPhrases = new Set(DEFAULT_BAD_PHRASES);
+const badTokens = new Set(DEFAULT_BAD_TOKENS);
 
-/** Nạp thêm từ cấm từ bảng banned_words (gọi lúc server khởi động) */
+/** Nạp lại toàn bộ từ cấm từ bảng banned_words (gọi lúc khởi động và khi thêm/xoá từ cấm) */
 export async function loadBannedWords(pool) {
   const [rows] = await pool.query(
     "SELECT word, word_type FROM banned_words WHERE is_active = TRUE"
   );
+  badPhrases.clear();
+  for (const p of DEFAULT_BAD_PHRASES) badPhrases.add(p);
+  badTokens.clear();
+  for (const t of DEFAULT_BAD_TOKENS) badTokens.add(t);
   for (const r of rows) {
     if (r.word_type === 'token') badTokens.add(r.word.toLowerCase());
     else badPhrases.add(r.word.toLowerCase());

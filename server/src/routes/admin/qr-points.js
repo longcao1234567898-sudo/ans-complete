@@ -22,7 +22,7 @@ router.get('/', async (_req, res) => {
     res.json({ data: rows });
   } catch (err) {
     console.error('Lỗi tải danh sách điểm QR:', err.message);
-    res.status(500).json({ error: 'Lỗi máy chủ. Bạn đã chạy file nang_cap_v10.sql chưa?' });
+    res.status(500).json({ error: 'Lỗi máy chủ khi tải danh sách điểm QR.' });
   }
 });
 
@@ -32,7 +32,7 @@ router.post('/', authorize(...LANH_DAO), async (req, res) => {
   const note = sanitizeText(req.body?.note || '', 255);
   const wardId = Number(req.body?.wardId);
   if (!name) return res.status(400).json({ error: 'Vui lòng nhập tên điểm.' });
-  if (!wardId) return res.status(400).json({ error: 'Vui lòng chọn phường/xã.' });
+  if (!Number.isInteger(wardId) || wardId <= 0) return res.status(400).json({ error: 'Vui lòng chọn phường/xã.' });
 
   let code = generateTrackingCode(8);
   try {

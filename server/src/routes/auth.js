@@ -38,6 +38,15 @@ const loginLimiter = rateLimit({
   message: { error: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng chờ 15 phút.' },
 });
 
+const refreshLimiter = rateLimit({
+  keyGenerator: (req) => khoaIp(req),
+  windowMs: 15 * 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Thao tác làm mới phiên quá nhanh. Vui lòng thử lại sau ít phút.' },
+});
+
 /* LỖI ĐÃ SỬA: trước đây dùng `secure: process.env.NODE_ENV === 'production'`.
    Nhưng Render KHÔNG tự đặt biến NODE_ENV, nên nó luôn undefined -> cờ secure
    luôn FALSE ngay cả khi chạy thật. Hậu quả: vé đăng nhập của cán bộ có thể
@@ -269,8 +278,8 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
-/** POST /api/auth/refresh — dùng refresh token trong cookie lấy access token mới */
-router.post('/refresh', async (req, res) => {
+/** POST /api/auth/refresh — dùng refresh token trong cookie lấy access token mới và xoay vòng token */
+router.post('/refresh', refreshLimiter, async (req, res) => {
   const raw = req.cookies?.refreshToken;
   if (!raw) return res.status(401).json({ error: 'Không có phiên đăng nhập.' });
 
@@ -286,9 +295,25 @@ router.post('/refresh', async (req, res) => {
     if (!row || new Date(row.expires_at) < new Date() || !row.is_active) {
       return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.' });
     }
+    /* Thu hồi nguyên tử token cũ -> xoay vòng sang token mới (chống dùng lại refresh token bị lộ) */
+    const [thuHoi] = await pool.query(
+      'UPDATE refresh_tokens SET revoked = TRUE WHERE id = ? AND revoked = FALSE',
+      [row.id]
+    );
+    if (thuHoi.affectedRows !== 1) {
+      return res.status(401).json({ error: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.' });
+    }
+
+    const { raw: rawMoi, hash: hashMoi, expiresAt } = generateRefreshToken();
+    await pool.query(
+      'INSERT INTO refresh_tokens (staff_id, token_hash, expires_at) VALUES (?,?,?)',
+      [row.staff_id, hashMoi, expiresAt]
+    );
+
     const accessToken = signAccessToken({
       id: row.staff_id, full_name: row.full_name, username: row.username, role: row.role,
     });
+    res.cookie('refreshToken', rawMoi, COOKIE_OPTS);
     res.json({
       accessToken,
       staff: { id: row.staff_id, name: row.full_name, username: row.username, role: row.role },
@@ -316,7 +341,8 @@ router.post('/logout', async (req, res) => {
       }
     } catch { /* bỏ qua */ }
   }
-  res.clearCookie('refreshToken', { path: '/api/auth' });
+  const { maxAge: _bo, ...clearOpts } = COOKIE_OPTS;
+  res.clearCookie('refreshToken', clearOpts);
   res.json({ ok: true });
 });
 

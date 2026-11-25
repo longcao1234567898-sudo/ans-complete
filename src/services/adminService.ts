@@ -129,19 +129,27 @@ export async function login(
   return staff;
 }
 
-/** Làm mới access token bằng refresh cookie */
+/** Làm mới access token bằng refresh cookie (gộp các lời gọi đồng thời khi token xoay vòng) */
+let refreshInFlight: Promise<boolean> | null = null;
+
 async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
-    /* Máy chủ từ chối: phiên đã hết, bỏ dấu để trang công khai thôi hỏi. Lỗi
-       mạng (catch dưới) thì giữ dấu — phiên có thể vẫn còn. */
-    if (!res.ok) { xoaDauPhien(); return false; }
-    const { accessToken, staff } = (await res.json()) as { accessToken: string; staff: StaffInfo };
-    saveSession(accessToken, staff);
-    return true;
-  } catch {
-    return false;
-  }
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
+      /* Máy chủ từ chối: phiên đã hết, bỏ dấu để trang công khai thôi hỏi. Lỗi
+         mạng (catch dưới) thì giữ dấu — phiên có thể vẫn còn. */
+      if (!res.ok) { xoaDauPhien(); return false; }
+      const { accessToken, staff } = (await res.json()) as { accessToken: string; staff: StaffInfo };
+      saveSession(accessToken, staff);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
 }
 
 /**

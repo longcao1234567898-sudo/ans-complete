@@ -74,7 +74,7 @@ router.get('/:id/messages', async (req, res) => {
     });
   } catch (err) {
     console.error('Đọc tin nhắn (cán bộ) lỗi:', err.message);
-    res.status(500).json({ error: 'Không tải được tin nhắn. Đã chạy nang_cap_v12.sql chưa?' });
+    res.status(500).json({ error: 'Không tải được tin nhắn.' });
   }
 });
 
@@ -155,7 +155,7 @@ router.get('/blacklist', async (_req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('Đọc danh sách khoá lỗi:', err.message);
-    res.status(500).json({ error: 'Không tải được danh sách. Đã chạy nang_cap_v12.sql chưa?' });
+    res.status(500).json({ error: 'Không tải được danh sách khoá.' });
   }
 });
 
@@ -200,7 +200,7 @@ router.get('/trusted-devices', authorize(...LANH_DAO), async (_req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('Đọc thiết bị tin cậy lỗi:', err.message);
-    res.status(500).json({ error: 'Không tải được danh sách. Đã chạy nang_cap_v12.sql chưa?' });
+    res.status(500).json({ error: 'Không tải được danh sách thiết bị tin cậy.' });
   }
 });
 
@@ -330,7 +330,7 @@ router.get('/khieu-nai', async (req, res) => {
     res.json(ketQua);
   } catch (err) {
     console.error('Đọc khiếu nại lỗi:', err.message);
-    res.status(500).json({ error: 'Không tải được. Đã chạy nang_cap_v17.sql chưa?' });
+    res.status(500).json({ error: 'Không tải được danh sách khiếu nại.' });
   }
 });
 

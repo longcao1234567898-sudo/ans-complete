@@ -29,10 +29,24 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
-import { khoaIp } from '../lib/helpers.js';
+import { khoaIp, sha256 } from '../lib/helpers.js';
 import { sanitizeText } from '../lib/security.js';
+import { giuCho } from '../lib/giu-cho-gui.js';
 
 const router = Router();
+
+/** Hàng đợi theo thiết bị trong tiến trình để tránh race khi không có transaction đa kết nối */
+const hangDoiThietBi = new Map();
+async function chayTuanTuTheoMay(khoa, viec) {
+  const truoc = hangDoiThietBi.get(khoa) || Promise.resolve();
+  const luotNay = truoc.catch(() => {}).then(viec);
+  hangDoiThietBi.set(khoa, luotNay);
+  try {
+    return await luotNay;
+  } finally {
+    if (hangDoiThietBi.get(khoa) === luotNay) hangDoiThietBi.delete(khoa);
+  }
+}
 
 /** Số lần tối đa một thiết bị/địa chỉ được khiếu nại. */
 const SO_LAN_TOI_DA = 2;
@@ -116,60 +130,80 @@ router.post('/', gioiHan, async (req, res) => {
     return res.status(400).json({ error: 'Bà con vui lòng trình bày rõ hơn (ít nhất 10 chữ).' });
   }
 
+  let giu = null;
   try {
-    /* CHỈ KHOÁ LOẠI CÓ TÊN — xem chú thích ở đầu tệp */
-    const [khoa] = await pool.query(
-      `SELECT kind, identifier FROM blacklists
-        WHERE expires_at > NOW()
-          AND kind = 'device'
-          AND loai_don = 'co_ten'
-          AND identifier = ?`,
-      [deviceId || null]
-    );
-
-    if (khoa.length === 0) {
+    if (!deviceId) {
       return res.status(400).json({ error: 'Máy của bà con không bị khoá, không cần khiếu nại.' });
     }
 
-    const dsDinhDanh = khoa.map((k) => k.identifier);
-    const [[dem]] = await pool.query(
-      `SELECT COUNT(*) AS n FROM unlock_appeals
-        WHERE identifier IN (?) OR (device_id IS NOT NULL AND device_id = ?)`,
-      [dsDinhDanh, deviceId || null]
-    );
-    if (Number(dem?.n || 0) >= SO_LAN_TOI_DA) {
-      return res.status(429).json({
-        error: `Bà con đã khiếu nại đủ ${SO_LAN_TOI_DA} lần. Vui lòng liên hệ trực tiếp trụ sở công an.`,
-      });
-    }
+    const kq = await chayTuanTuTheoMay(deviceId, async () => {
+      giu = await giuCho(pool, [`khieu-nai:${sha256(deviceId).slice(0, 48)}`]);
+      if (!giu.ok) {
+        return {
+          status: 409,
+          body: { error: 'Hệ thống đang tiếp nhận khiếu nại của bà con, vui lòng chờ vài giây rồi thử lại.' },
+        };
+      }
 
-    const [[cho]] = await pool.query(
-      `SELECT COUNT(*) AS n FROM unlock_appeals
-        WHERE status = 'cho_xu_ly' AND identifier IN (?)`,
-      [dsDinhDanh]
-    );
-    if (Number(cho?.n || 0) > 0) {
-      return res.status(409).json({ error: 'Khiếu nại trước của bà con đang được xem xét, vui lòng chờ.' });
-    }
-
-    /* Ghi khiếu nại cho TỪNG dòng khoá đang khớp (nay chỉ còn khoá thiết bị —
-       không còn khoá địa chỉ mạng, BUG-016). KHÔNG ghi IP người khiếu nại (BUG-049):
-       đếm lượt theo mã máy, không mã nào đọc IP này — ghi vào chỉ để lại IP thô vĩnh viễn. */
-    for (const k of khoa) {
-      await pool.query(
-        `INSERT INTO unlock_appeals (identifier, kind, content, device_id)
-         VALUES (?,?,?,?)`,
-        [k.identifier, k.kind, noiDung, deviceId || null]
+      /* CHỈ KHOÁ LOẠI CÓ TÊN — xem chú thích ở đầu tệp */
+      const [khoa] = await pool.query(
+        `SELECT kind, identifier FROM blacklists
+          WHERE expires_at > NOW()
+            AND kind = 'device'
+            AND loai_don = 'co_ten'
+            AND identifier = ?`,
+        [deviceId]
       );
-    }
 
-    res.status(201).json({
-      ok: true,
-      message: 'Đã gửi khiếu nại. Cán bộ sẽ xem xét và phản hồi.',
+      if (khoa.length === 0) {
+        return { status: 400, body: { error: 'Máy của bà con không bị khoá, không cần khiếu nại.' } };
+      }
+
+      const dsDinhDanh = khoa.map((k) => k.identifier);
+      const [[dem]] = await pool.query(
+        `SELECT COUNT(*) AS n FROM unlock_appeals
+          WHERE identifier IN (?) OR (device_id IS NOT NULL AND device_id = ?)`,
+        [dsDinhDanh, deviceId]
+      );
+      if (Number(dem?.n || 0) >= SO_LAN_TOI_DA) {
+        return {
+          status: 429,
+          body: { error: `Bà con đã khiếu nại đủ ${SO_LAN_TOI_DA} lần. Vui lòng liên hệ trực tiếp trụ sở công an.` },
+        };
+      }
+
+      const [[cho]] = await pool.query(
+        `SELECT COUNT(*) AS n FROM unlock_appeals
+          WHERE status = 'cho_xu_ly' AND identifier IN (?)`,
+        [dsDinhDanh]
+      );
+      if (Number(cho?.n || 0) > 0) {
+        return { status: 409, body: { error: 'Khiếu nại trước của bà con đang được xem xét, vui lòng chờ.' } };
+      }
+
+      /* Ghi khiếu nại cho TỪNG dòng khoá đang khớp (nay chỉ còn khoá thiết bị —
+         không còn khoá địa chỉ mạng, BUG-016). KHÔNG ghi IP người khiếu nại (BUG-049):
+         đếm lượt theo mã máy, không mã nào đọc IP này — ghi vào chỉ để lại IP thô vĩnh viễn. */
+      for (const k of khoa) {
+        await pool.query(
+          `INSERT INTO unlock_appeals (identifier, kind, content, device_id)
+           VALUES (?,?,?,?)`,
+          [k.identifier, k.kind, noiDung, deviceId]
+        );
+      }
+
+      return {
+        status: 201,
+        body: { ok: true, message: 'Đã gửi khiếu nại. Cán bộ sẽ xem xét và phản hồi.' },
+      };
     });
+
+    res.status(kq.status).json(kq.body);
   } catch (err) {
-    console.error('[khiếu nại] lỗi:', err.message);
-    res.status(500).json({ error: 'Chưa gửi được lúc này. Đã chạy nang_cap_v17.sql chưa?' });
+    console.error('[khiếu nại] lỗi (kiểm bảng unlock_appeals / nang_cap_v17.sql):', err.message);
+    res.status(500).json({ error: 'Chưa gửi được khiếu nại lúc này. Bà con vui lòng thử lại sau hoặc liên hệ trực tiếp trụ sở công an.' });
+  } finally {
+    if (giu) await giu.nha().catch(() => {});
   }
 });
 

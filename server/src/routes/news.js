@@ -87,7 +87,7 @@ router.post('/:id/xem', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.json({ ok: true });
   try {
-    await pool.query('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [id]);
+    await pool.query('UPDATE news SET view_count = view_count + 1 WHERE id = ? AND is_published = TRUE', [id]);
   } catch {
     /* Cột chưa có -> bỏ qua, không ảnh hưởng gì tới người đọc. */
   }
