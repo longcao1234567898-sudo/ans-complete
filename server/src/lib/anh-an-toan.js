@@ -160,6 +160,9 @@ export function kiemTraLinkCloudinary(anh, cloudName) {
   if (u.protocol !== 'https:') {
     return { trangThai: 'blocked', lyDo: 'Đường dẫn ảnh phải dùng HTTPS.' };
   }
+  if (u.username || u.password) {
+    return { trangThai: 'blocked', lyDo: 'Đường dẫn ảnh không hợp lệ.' };
+  }
   if (u.hostname !== 'res.cloudinary.com') {
     return {
       trangThai: 'blocked',
@@ -168,8 +171,16 @@ export function kiemTraLinkCloudinary(anh, cloudName) {
   }
 
   /* Đường dẫn Cloudinary có dạng /<cloud_name>/image/upload/...
-     Thiếu bước này thì kẻ xấu vẫn dùng được Cloudinary của họ. */
-  if (cloudName && !u.pathname.startsWith(`/${cloudName}/`)) {
+     Fail-closed: khi chưa cấu hình kho ảnh thì từ chối mọi link ngoài, và khi đã
+     cấu hình thì ghim chặt /image/upload/ để không lọt /image/fetch/ hay /raw/. */
+  const kho = String(cloudName || '').trim();
+  if (!kho || !/^[A-Za-z0-9_-]+$/.test(kho)) {
+    return {
+      trangThai: 'blocked',
+      lyDo: 'Hệ thống chưa cấu hình kho ảnh riêng nên không nhận ảnh dạng đường dẫn.',
+    };
+  }
+  if (!u.pathname.startsWith(`/${kho}/image/upload/`) || u.pathname.includes('..')) {
     return {
       trangThai: 'blocked',
       lyDo: 'Ảnh không thuộc kho ảnh của đơn vị.',

@@ -31,6 +31,7 @@
 
 import { inflateSync } from 'node:zlib';
 import { docCfb } from './trich-chu/doc.js';
+import { lietKeMucZip } from './trich-chu/zip.js';
 
 /** Định dạng cho phép. Mỗi mục có chữ ký nhị phân để kiểm tệp thật. */
 const LOAI_CHO_PHEP = [
@@ -305,33 +306,34 @@ export function kiemTaiLieu(dataUrl, tenTep = '') {
     };
   }
 
-  /* LỚP 2 — chặn Word có macro.
+  /* LỚP 2 — chặn Word có macro và tệp nén giả mạo .docx.
 
-     .docm là Word có macro, chặn theo tên. Nhưng kẻ gian đổi tên thành .docx
-     được, nên soi thêm trong nội dung: tệp Office chứa vbaProject.bin là có
-     macro, bất kể tên gì. */
+     Giải mã base64 một lần duy nhất, phân tích mục lục ZIP không phân biệt hoa
+     thường để chặn mọi biến thể VBAProject.bin / thư mục macro và bảo đảm đúng
+     cấu trúc OOXML có word/document.xml. */
+  const LY_DO_MACRO = 'Tệp Word này có chứa macro nên không được nhận. Bà con lưu lại dạng PDF rồi gửi.';
   if (loai.ten === 'Word (docx)') {
-    /* LỚP 2b — TỆP NÉN THƯỜNG ĐỔI TÊN VẪN LỌT NẾU CHỈ KIỂM CHỮ KÝ.
-
-       docx thực chất là tệp nén ZIP, nên mọi tệp .zip đổi tên thành .docx đều
-       khớp chữ ký. Kẻ gian có thể nén mã độc rồi đổi tên — cán bộ tải về giải
-       nén là dính.
-
-       Nên kiểm thêm cấu trúc: tệp Word THẬT bắt buộc chứa word/document.xml.
-       Tệp nén thường không có phần đó. */
     const toanBo = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
-    if (!toanBo.includes(Buffer.from('word/document.xml'))) {
+    let muc = [];
+    try {
+      muc = lietKeMucZip(toanBo).map((tenMuc) => tenMuc.replace(/\\/g, '/').toLowerCase());
+    } catch {
+      return {
+        hopLe: false,
+        lyDo: 'Tệp này không phải tài liệu Word thật hoặc cấu trúc tệp nén bị hỏng. '
+            + 'Bà con gửi lại bằng tệp Word hoặc PDF.',
+      };
+    }
+    if (!muc.includes('word/document.xml')) {
       return {
         hopLe: false,
         lyDo: 'Tệp này không phải tài liệu Word thật (có thể là tệp nén đổi tên). '
             + 'Bà con gửi lại bằng tệp Word hoặc PDF.',
       };
     }
-  }
-  const LY_DO_MACRO = 'Tệp Word này có chứa macro nên không được nhận. Bà con lưu lại dạng PDF rồi gửi.';
-  if (loai.ten === 'Word (docx)') {
-    const toanBo = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
-    if (toanBo.includes(Buffer.from('vbaProject.bin'))) return { hopLe: false, lyDo: LY_DO_MACRO };
+    const coMacro = muc.some((m) => /(^|\/)(vbaproject\.bin|vba\/|macros\/|activex\/)/.test(m))
+      || toanBo.toString('latin1').toLowerCase().includes('vbaproject.bin');
+    if (coMacro) return { hopLe: false, lyDo: LY_DO_MACRO };
   }
   /* Word 97–2003 (.doc) không có vbaProject.bin — macro nằm trong kho "Macros" của tệp
      CFB. Đọc thư mục của tệp; đọc không được thì chặn (luật 1) — BUG-034 (f). */

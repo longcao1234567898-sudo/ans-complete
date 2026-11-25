@@ -9,7 +9,9 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { gioiHanChung } from './lib/gioi-han-chung.js';
 import { pool } from './db.js';
-import { diaChiNghe, chanTheoIpPhanCanBo, ganDocThan, canhBaoChanIpKhongAnToan } from './nen-tang.js';
+import { diaChiNghe, chanTheoIpPhanCanBo, chanTheoIp, ganDocThan, canhBaoChanIpKhongAnToan } from './nen-tang.js';
+import { requireAuth } from './middleware/auth.js';
+import { authorize } from './middleware/authorize.js';
 import { taoKiemKho } from './lib/kiem-kho.js';
 import { layIpThat } from './lib/helpers.js';
 import { batTuDonDauNoi } from './lib/vong-doi-dau-noi.js';
@@ -122,17 +124,18 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
-/* ===== CHẨN ĐOÁN CƠ SỞ DỮ LIỆU =====
-   Mở https://<backend>/api/health/schema trên trình duyệt để biết CHÍNH XÁC
-   backend đang kết nối database nào và thiếu bảng/cột gì.
-   Sinh ra vì đã mất nhiều lượt đoán mò: SQL chạy một database, backend đọc
-   database khác — nhìn từ ngoài không thể biết. */
-app.get('/api/health/schema', async (_req, res) => {
-  const { pool } = await import('./db.js');
-  try {
-    const [[db]] = await pool.query('SELECT DATABASE() AS ten');
+// Public API
+/* ND-086: bản gộp cũng áp giới hạn IP cho PHẦN CÁN BỘ như may-chu-can-bo.js — người vận
+   hành đang chạy chung một máy chủ (chi phí). Chỉ /api/auth (đăng nhập cán bộ) và
+   /api/admin; phần công dân phải mở cho mọi người. ADMIN_ALLOWED_IPS trống = không chặn. */
+app.use(chanTheoIpPhanCanBo(layIpThat));
+/* Đọc thân yêu cầu SAU giới hạn lượt chung và chặn IP phần cán bộ, TRƯỚC mọi route (BUG-048) */
+ganDocThan(app);
 
-    // Những thứ hệ thống BẮT BUỘC phải có
+/* ===== CHẨN ĐOÁN CƠ SỞ DỮ LIỆU (CHỈ QUẢN TRỊ VIÊN + DẢI IP CƠ QUAN) =====
+   Không công khai thông tin tên database hay danh sách bảng/cột ra Internet. */
+app.get('/api/health/schema', chanTheoIp(layIpThat), requireAuth, authorize('admin'), async (_req, res) => {
+  try {
     const canCo = [
       ['submissions', 'identity_erased'],
       ['submissions', 'identity_erased_at'],
@@ -156,38 +159,16 @@ app.get('/api/health/schema', async (_req, res) => {
 
     const thieu = ketQua.filter((x) => !x.co);
 
-    // Liệt kê các database khác trên cùng máy chủ, giúp phát hiện chạy nhầm chỗ
-    let cacDatabase = [];
-    try {
-      const [rows] = await pool.query(
-        `SELECT SCHEMA_NAME AS ten FROM information_schema.SCHEMATA
-         WHERE SCHEMA_NAME NOT IN ('mysql','information_schema','performance_schema','sys')`
-      );
-      cacDatabase = rows.map((r) => r.ten);
-    } catch { /* không đủ quyền -> bỏ qua */ }
-
     res.json({
-      backend_dang_ket_noi_database: db.ten,
-      cac_database_tren_may_chu: cacDatabase,
       day_du: thieu.length === 0,
       thieu: thieu.map((x) => `${x.bang}.${x.cot}`),
       chi_tiet: ketQua,
-      huong_dan: thieu.length === 0
-        ? 'Cơ sở dữ liệu đầy đủ. Nếu vẫn lỗi thì nguyên nhân khác.'
-        : `Hãy mở HeidiSQL, CHỌN database "${db.ten}" rồi chạy nang_cap_v8.sql`,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Không kiểm tra được', chi_tiet: err.message });
+    console.error('Lỗi kiểm tra lược đồ:', err.message);
+    res.status(500).json({ error: 'Không kiểm tra được cơ sở dữ liệu.' });
   }
 });
-
-// Public API
-/* ND-086: bản gộp cũng áp giới hạn IP cho PHẦN CÁN BỘ như may-chu-can-bo.js — người vận
-   hành đang chạy chung một máy chủ (chi phí). Chỉ /api/auth (đăng nhập cán bộ) và
-   /api/admin; phần công dân phải mở cho mọi người. ADMIN_ALLOWED_IPS trống = không chặn. */
-app.use(chanTheoIpPhanCanBo(layIpThat));
-/* Đọc thân yêu cầu SAU giới hạn lượt chung và chặn IP phần cán bộ, TRƯỚC mọi route (BUG-048) */
-ganDocThan(app);
 app.use('/api/auth', authRouter);
 /* Cổng vào (ADR-003 việc 23) — cấp vé xác minh cho gửi tin và đăng nhập */
 app.use('/api/cong-vao', congVaoRouter);

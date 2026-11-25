@@ -50,6 +50,7 @@ const router = Router();
 const VE_CHAT_TTL = '2h';
 
 const MAX_DAI_TIN = 1000;
+const MAX_TIN_MOI_HO_SO = 200;
 
 /* ---------------------------------------------------------------------------
    TRẠNG THÁI NÀO THÌ ĐƯỢC CHAT
@@ -99,7 +100,7 @@ function kiemTraVeNguoiDan(req) {
     || String(req.body?.chatToken || '').trim();
   if (!ve) throw new Error('Bà con chưa vào phòng chat.');
 
-  const payload = jwt.verify(ve, process.env.JWT_SECRET);
+  const payload = jwt.verify(ve, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   if (payload.purpose !== 'chat_reporter') throw new Error('Vé không hợp lệ.');
   return Number(payload.sub);
 }
@@ -171,7 +172,7 @@ router.post('/open', gioiHanMoPhong, async (req, res) => {
     const ve = jwt.sign(
       { sub: don.id, purpose: 'chat_reporter' },
       process.env.JWT_SECRET,
-      { expiresIn: VE_CHAT_TTL }
+      { algorithm: 'HS256', expiresIn: VE_CHAT_TTL }
     );
 
     /* Đánh dấu người dân đã đọc hết tin của cán bộ */
@@ -206,15 +207,22 @@ router.get('/messages', async (req, res) => {
 
   try {
     const [[don]] = await pool.query(
-      'SELECT status FROM submissions WHERE id = ? LIMIT 1',
+      'SELECT status, deleted_at FROM submissions WHERE id = ? LIMIT 1',
       [submissionId]
     );
+    if (!don || don.deleted_at) {
+      return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    }
     const [tin] = await pool.query(
       `SELECT id, sender_type, message, created_at
-         FROM report_messages
-        WHERE submission_id = ?
-        ORDER BY created_at ASC
-        LIMIT 200`,
+         FROM (
+           SELECT id, sender_type, message, created_at
+             FROM report_messages
+            WHERE submission_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 200
+         ) AS gan_nhat
+        ORDER BY created_at ASC, id ASC`,
       [submissionId]
     );
 
@@ -226,8 +234,8 @@ router.get('/messages', async (req, res) => {
 
     res.json({
       messages: tin,
-      status: don?.status || null,
-      daDong: chatDaDong(don?.status),
+      status: don.status || null,
+      daDong: chatDaDong(don.status),
     });
   } catch (err) {
     console.error('Đọc tin nhắn lỗi:', err.message);
@@ -246,27 +254,41 @@ router.post('/messages', gioiHanGuiTin, async (req, res) => {
     return res.status(401).json({ error: 'Phiên trao đổi đã hết hạn. Bà con vào lại bằng mã PIN.' });
   }
 
-  const noiDung = sanitizeText(req.body?.message || '', MAX_DAI_TIN);
+  const tho = String(req.body?.message || '');
+  const noiDung = sanitizeText(tho, MAX_DAI_TIN);
   if (!noiDung || noiDung.trim().length < 2) {
     return res.status(400).json({ error: 'Bà con chưa nhập nội dung.' });
+  }
+  const quet = scanTextForThreats(tho);
+  if (!quet.safe) {
+    return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${quet.reasons.join(', ')}).` });
   }
   if (containsProfanity(noiDung)) {
     return res.status(400).json({ error: 'Nội dung có từ ngữ không phù hợp. Bà con vui lòng viết lại.' });
   }
 
   try {
-    /* CHẶN TẠI GỐC: kiểm tra trạng thái TRƯỚC khi ghi vào database.
+    /* CHẶN TẠI GỐC: kiểm tra trạng thái + chưa bị xoá TRƯỚC khi ghi vào database.
        Đây là lớp thật sự bảo vệ — giao diện khoá ô nhập chỉ là để bà con
        thấy rõ, người dùng công cụ gọi API vẫn đi thẳng vào đây. */
     const [[don]] = await pool.query(
-      'SELECT status FROM submissions WHERE id = ? LIMIT 1',
+      'SELECT status, deleted_at FROM submissions WHERE id = ? LIMIT 1',
       [submissionId]
     );
-    if (!don) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
+    if (!don || don.deleted_at) return res.status(404).json({ error: 'Không tìm thấy ý kiến.' });
     if (chatDaDong(don.status)) {
       return res.status(403).json({
         error: 'Hồ sơ đã đóng, không gửi thêm tin nhắn được. '
              + 'Nếu còn việc cần trình báo, bà con vui lòng gửi ý kiến mới.',
+      });
+    }
+    const [[demTin]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM report_messages WHERE submission_id = ? AND sender_type = 'reporter'`,
+      [submissionId]
+    );
+    if (Number(demTin?.n || 0) >= MAX_TIN_MOI_HO_SO) {
+      return res.status(429).json({
+        error: `Phòng trao đổi của hồ sơ này đã đạt giới hạn ${MAX_TIN_MOI_HO_SO} tin nhắn. Bà con vui lòng liên hệ trực ban nếu cần thêm.`,
       });
     }
 

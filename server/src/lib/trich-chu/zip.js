@@ -28,6 +28,35 @@ function timCuoiThuMuc(buf) {
 }
 
 /**
+ * Liệt kê tên các mục trong tệp nén ZIP mà không giải nén dữ liệu.
+ * Ném lỗi nếu không phải tệp ZIP hợp lệ hoặc mục lục hỏng.
+ */
+export function lietKeMucZip(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 22) throw loi('không phải tệp nén ZIP');
+  const cuoi = timCuoiThuMuc(buf);
+  if (cuoi < 0) throw loi('không phải tệp nén ZIP');
+  const soMuc = buf.readUInt16LE(cuoi + 10);
+  const coThuMuc = buf.readUInt32LE(cuoi + 12);
+  const viTriThuMuc = buf.readUInt32LE(cuoi + 16);
+  if (viTriThuMuc === 0xffffffff || soMuc === 0xffff) throw loi('định dạng ZIP64 chưa hỗ trợ');
+  if (soMuc > TOI_DA_MUC) throw loi('quá nhiều mục bên trong');
+  if (viTriThuMuc + coThuMuc > cuoi) throw loi('mục lục ZIP hỏng');
+
+  const ds = [];
+  let p = viTriThuMuc;
+  for (let n = 0; n < soMuc; n += 1) {
+    if (p + 46 > cuoi || buf.readUInt32LE(p) !== 0x02014b50) throw loi('mục lục ZIP hỏng');
+    const dTen = buf.readUInt16LE(p + 28);
+    const dThem = buf.readUInt16LE(p + 30);
+    const dGhiChu = buf.readUInt16LE(p + 32);
+    if (p + 46 + dTen > cuoi) throw loi('mục lục ZIP hỏng');
+    ds.push(buf.toString('utf8', p + 46, p + 46 + dTen));
+    p += 46 + dTen + dThem + dGhiChu;
+  }
+  return ds;
+}
+
+/**
  * Lấy các tệp có tên trong `can` ra khỏi ZIP. Trả Map tên -> Buffer (chỉ tệp có thật).
  */
 export function docZip(buf, can, { toiDa = TOI_DA_GIAI_NEN } = {}) {

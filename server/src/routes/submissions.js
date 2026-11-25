@@ -189,10 +189,12 @@ router.post('/', async (req, res) => {
     const phone = normalizePhone(body.phone);
     const email = sanitizeText(body.email || '', 100);
     const category = body.category;
-    const normalizedContent = sanitizeText(body.normalizedContent || content, 2500);
+    const rawNormalized = sanitizeText(body.normalizedContent || '', 2500);
+    const normalizedContent = rawNormalized.trim().length >= 10 ? rawNormalized : content;
     const anhGui = Array.isArray(body.images) ? body.images : [];
     const images = anhGui.slice(0, SO_ANH_TOI_DA);
-    const wardId = Number(body.wardId) > 0 ? Number(body.wardId) : null;
+    const rawWardId = Number(body.wardId);
+    const wardId = Number.isInteger(rawWardId) && rawWardId > 0 ? rawWardId : null;
     const isAnonymous = body.isAnonymous === true;
     /* MỨC KHẨN DO HỆ THỐNG TỰ ĐÁNH GIÁ (ADR-003 việc 10). Trường urgency gửi
        lên bị bỏ qua: chọn tay thì kẻ phá tự gắn "khẩn cấp" cho tin rác để chen
@@ -326,10 +328,16 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 2) Lá chắn văn bản
+    // 2) Lá chắn văn bản — quét cả content và normalizedContent do trình duyệt gửi
     const scan = scanTextForThreats(content);
     if (!scan.safe) return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${scan.reasons.join(', ')}).` });
-    if (containsProfanity(content) || containsProfanity(fullName)) {
+    if (normalizedContent !== content) {
+      const scanNorm = scanTextForThreats(normalizedContent);
+      if (!scanNorm.safe) {
+        return res.status(400).json({ error: `Nội dung chứa yếu tố không an toàn (${scanNorm.reasons.join(', ')}).` });
+      }
+    }
+    if (containsProfanity(content) || containsProfanity(normalizedContent) || containsProfanity(fullName)) {
       return res.status(400).json({ error: 'Nội dung chứa ngôn từ không phù hợp. Vui lòng diễn đạt lịch sự.' });
     }
 
@@ -354,8 +362,8 @@ router.post('/', async (req, res) => {
     const phoneErr = isAnonymous ? null : getPhoneError(phone);
     if (phoneErr) return res.status(400).json({ error: `Số điện thoại: ${phoneErr.toLowerCase()}.` });
 
-    // 4) Chống spam — dò theo IP và BĂM SĐT (số thật đã mã hoá nên không so trực tiếp được)
-    const contentHash = sha256(normalizedContent);
+    // 4) Chống spam — dò theo IP và BĂM SĐT (băm dựa trên content chuẩn hoá ở máy chủ)
+    const contentHash = sha256(content.trim().toLowerCase().replace(/\s+/g, ' '));
     const phoneHash = isAnonymous ? null : hashPhone(phone);
 
     /* GIỮ CHỖ TRƯỚC KHI ĐẾM (luật 6, ADR-003 việc 1). Mọi phép đếm bên dưới
@@ -723,7 +731,7 @@ router.post('/', async (req, res) => {
            hiện ra ngoài cho tới khi được duyệt. Chuyển không được thì KHÔNG lưu ảnh
            (như trước), nhưng báo — mỗi ảnh đúng một lần (trọng tài P58) */
         let luuDuoc = true;
-        if (canDuyet) {
+        if (canDuyet && !chanNgam) {
           try {
             await pool.query(
               `UPDATE submissions SET status = 'pending_review' WHERE id = ?`,
